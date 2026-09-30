@@ -1,0 +1,508 @@
+<script>
+/**
+ * ============================================================================
+ *  APLICAÇÃO (estado, controles e chamadas ao servidor)
+ * ============================================================================
+ */
+const App = (() => {
+  const estado = {
+    dados: null,
+    ciclo: '',
+    planta: '',
+    filtro: '',
+    edicao: false,
+    ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
+    grupos: [],
+  };
+  const $ = (id) => document.getElementById(id);
+  const svg = $('slide');
+
+  /* ------------------------------ utilidades ------------------------------ */
+
+  const memoria = {
+    ler(k) { try { return window.localStorage.getItem('planoVarejo.' + k); } catch (e) { return null; } },
+    gravar(k, v) { try { window.localStorage.setItem('planoVarejo.' + k, v); } catch (e) { /* sem armazenamento */ } },
+  };
+
+  /** google.script.run como Promise. */
+  function chamar(funcao) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise((ok, falha) => {
+      if (!window.google || !google.script || !google.script.run) {
+        falha(new Error('Esta página precisa ser aberta pelo Apps Script (App da Web ou menu da planilha).'));
+        return;
+      }
+      const run = google.script.run.withSuccessHandler(ok).withFailureHandler(falha);
+      run[funcao].apply(run, args);
+    });
+  }
+
+  function carregando(ativo, mensagem) {
+    $('carregando').hidden = !ativo;
+    if (mensagem) $('carregandoTexto').textContent = mensagem;
+  }
+
+  let timerToast = null;
+  function toast(msg, erro) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.toggle('erro', !!erro);
+    t.hidden = false;
+    clearTimeout(timerToast);
+    timerToast = setTimeout(() => { t.hidden = true; }, erro ? 7000 : 3500);
+  }
+
+  function erro(e) {
+    console.error(e);
+    toast((e && e.message) || String(e), true);
+  }
+
+  /* -------------------------- resolução dos dados -------------------------- */
+
+  const TODAS = () => estado.dados.config.plantaTodas;
+
+  function movimentoDe(ciclo, planta, id) {
+    const c = estado.dados.movimentos[ciclo] || {};
+    return (c[planta] && c[planta][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+  }
+
+  /** Painéis de uma planta: por seção, a planta específica substitui "TODAS". */
+  function paineisDe(ciclo, planta) {
+    const c = estado.dados.paineis[ciclo] || {};
+    const todas = c[TODAS()] || [];
+    const especificos = c[planta] || [];
+    const out = {};
+    Object.keys(estado.dados.secoes).forEach((s) => {
+      const daPlanta = especificos.filter((p) => p.secao === s);
+      out[s] = daPlanta.length ? daPlanta : todas.filter((p) => p.secao === s);
+    });
+    return out;
+  }
+
+  /** Linhas da aba Painéis para a planilha base. */
+  function linhasPaineis(ciclo, plantas) {
+    const todasAsPlantas = estado.dados.plantas.length === plantas.length;
+    const c = estado.dados.paineis[ciclo] || {};
+    if (todasAsPlantas) {
+      return Object.keys(c).reduce((acc, planta) => acc.concat(c[planta].map((p) => Object.assign({ planta }, p))), []);
+    }
+    return plantas.reduce((acc, planta) => {
+      const r = paineisDe(ciclo, planta);
+      Object.keys(r).forEach((s) => r[s].forEach((p) => acc.push(Object.assign({}, p, { planta }))));
+      return acc;
+    }, []);
+  }
+
+  const plantaAtual = () => estado.dados && estado.dados.plantas.find((p) => p.id === estado.planta);
+
+  /* ------------------------------- carga ---------------------------------- */
+
+  async function carregar(preferencias) {
+    carregando(true, 'Carregando dados da planilha…');
+    try {
+      const dados = await chamar('getDados');
+      if (dados.precisaConfigurar) {
+        mostrarConfiguracao(dados.mensagem);
+        return;
+      }
+      aplicarDados(dados, preferencias || {});
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  function aplicarDados(dados, pref) {
+    estado.dados = dados;
+    $('telaConfig').hidden = true;
+    svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden
+
+    const cicloPref = pref.ciclo || estado.ciclo || memoria.ler('ciclo');
+    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 ? cicloPref : dados.ciclos[dados.ciclos.length - 1] || '';
+    const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
+    estado.planta = dados.plantas.some((p) => p.id === plantaPref) ? plantaPref : (dados.plantas[0] || {}).id || '';
+    estado.ajustes = {};
+
+    const link = $('lnkPlanilha');
+    link.hidden = !dados.planilhaUrl;
+    if (dados.planilhaUrl) link.href = dados.planilhaUrl;
+
+    montarCiclos();
+    montarAbas();
+    montarLegenda();
+    montarAvisos(dados.avisos || []);
+    desenhar();
+  }
+
+  function mostrarConfiguracao(mensagem) {
+    svg.toggleAttribute('hidden', true);
+    $('telaConfig').hidden = false;
+    $('msgConfig').textContent = mensagem || 'Crie as abas Movimentos, Painéis e Layout para começar.';
+  }
+
+  async function configurar() {
+    carregando(true, 'Criando abas na planilha…');
+    try {
+      const r = await chamar('configurarPlanilha');
+      toast(r.mensagem);
+      await carregar();
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* ------------------------------ controles ------------------------------- */
+
+  function montarCiclos() {
+    const sel = $('selCiclo');
+    sel.textContent = '';
+    if (!estado.dados.ciclos.length) {
+      sel.appendChild(new Option('(nenhum ciclo na planilha)', ''));
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    estado.dados.ciclos.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.ciclo)));
+  }
+
+  function montarAbas() {
+    const box = $('abasPlanta');
+    box.textContent = '';
+    estado.dados.plantas.forEach((p) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'aba';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(p.id === estado.planta));
+      b.textContent = p.nome;
+      b.addEventListener('click', () => trocarPlanta(p.id));
+      box.appendChild(b);
+    });
+  }
+
+  function montarLegenda() {
+    const box = $('legenda');
+    box.textContent = '';
+    const rotulo = document.createElement('span');
+    rotulo.className = 'rotulo';
+    rotulo.textContent = 'Marcas';
+    box.appendChild(rotulo);
+    const marcas = estado.dados.marcas;
+    Object.keys(marcas).forEach((cod) => {
+      const neutro = cod === 'NEUTRO';
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip' + (estado.filtro && estado.filtro !== cod ? ' inativo' : '');
+      chip.setAttribute('aria-pressed', String(estado.filtro === cod));
+      chip.title = neutro ? 'Móveis sem marca / sem movimento' : 'Mostrar só ' + marcas[cod].nome;
+      const cor = document.createElement('span');
+      cor.className = 'cor';
+      cor.style.background = neutro ? marcas[cod].movel : marcas[cod].etiqueta;
+      chip.appendChild(cor);
+      chip.appendChild(document.createTextNode(neutro ? 'Sem marca' : marcas[cod].nome));
+      if (neutro) {
+        chip.disabled = true;
+        chip.style.cursor = 'default';
+      } else {
+        chip.addEventListener('click', () => {
+          estado.filtro = estado.filtro === cod ? '' : cod;
+          montarLegenda();
+          desenhar();
+        });
+      }
+      box.appendChild(chip);
+    });
+    if (estado.filtro) {
+      const dica = document.createElement('span');
+      dica.className = 'dica';
+      dica.textContent = 'Clique de novo para ver todas as marcas.';
+      box.appendChild(dica);
+    }
+  }
+
+  function montarAvisos(avisos) {
+    const box = $('avisos');
+    box.hidden = !avisos.length;
+    if (!avisos.length) return;
+    box.querySelector('summary').textContent = avisos.length + (avisos.length === 1 ? ' aviso' : ' avisos') + ' na planilha';
+    const ul = box.querySelector('ul');
+    ul.textContent = '';
+    avisos.forEach((a) => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      ul.appendChild(li);
+    });
+  }
+
+  function trocarPlanta(id) {
+    if (id === estado.planta) return;
+    if (Object.keys(estado.ajustes).length && !window.confirm('Há ajustes de etiquetas não salvos nesta planta. Descartar?')) return;
+    estado.ajustes = {};
+    estado.planta = id;
+    memoria.gravar('planta', id);
+    montarAbas();
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  /* ------------------------------- desenho -------------------------------- */
+
+  function desenhar() {
+    const planta = plantaAtual();
+    if (!planta) return;
+    const r = Render.desenhar(svg, {
+      dados: estado.dados,
+      planta,
+      ciclo: estado.ciclo,
+      filtro: estado.filtro,
+      ajustes: estado.ajustes,
+      edicao: estado.edicao,
+      obterMovimento: (m) => movimentoDe(estado.ciclo, planta.id, m.id),
+      obterPaineis: () => paineisDe(estado.ciclo, planta.id),
+    });
+    estado.grupos = r.grupos;
+    if (estado.edicao) ativarArraste();
+  }
+
+  /* --------------------------- ajuste de etiquetas ------------------------- */
+
+  function pontoSvg(ev) {
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX;
+    pt.y = ev.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  function ativarArraste() {
+    estado.grupos.forEach((gr) => {
+      gr.elemento.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        const alvo = gr.elemento;
+        alvo.setPointerCapture(ev.pointerId);
+        const inicio = pontoSvg(ev);
+        let dx = 0;
+        let dy = 0;
+        const mover = (e) => {
+          const p = pontoSvg(e);
+          dx = p.x - inicio.x;
+          dy = p.y - inicio.y;
+          alvo.setAttribute('transform', 'translate(' + dx + ',' + dy + ')');
+        };
+        const soltar = () => {
+          alvo.removeEventListener('pointermove', mover);
+          alvo.removeEventListener('pointerup', soltar);
+          alvo.removeEventListener('pointercancel', soltar);
+          if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+            alvo.removeAttribute('transform');
+            return;
+          }
+          estado.ajustes[gr.id] = { x: Math.round(gr.x + dx - gr.baseX), y: Math.round(gr.y + dy - gr.baseY) };
+          atualizarBarraEdicao();
+          desenhar();
+        };
+        alvo.addEventListener('pointermove', mover);
+        alvo.addEventListener('pointerup', soltar);
+        alvo.addEventListener('pointercancel', soltar);
+      });
+    });
+  }
+
+  function atualizarBarraEdicao() {
+    $('barraEdicao').hidden = !estado.edicao;
+    $('btnEditar').setAttribute('aria-pressed', String(estado.edicao));
+    const n = Object.keys(estado.ajustes).length;
+    $('qtdAjustes').textContent = n ? '(' + n + (n === 1 ? ' alteração não salva)' : ' alterações não salvas)') : '';
+    $('btnSalvarAjustes').disabled = !n;
+    $('btnDescartar').disabled = !n;
+  }
+
+  function alternarEdicao() {
+    if (estado.edicao && Object.keys(estado.ajustes).length && !window.confirm('Sair sem salvar os ajustes?')) return;
+    estado.edicao = !estado.edicao;
+    estado.ajustes = {};
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  function autoOrganizar() {
+    const planta = plantaAtual();
+    planta.moveis.forEach((m) => { estado.ajustes[m.id] = { x: 0, y: 0 }; });
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  async function salvarAjustes() {
+    const planta = plantaAtual();
+    carregando(true, 'Salvando posições…');
+    try {
+      const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);
+      planta.moveis.forEach((m) => {
+        const a = estado.ajustes[m.id];
+        if (a) { m.ajusteX = a.x; m.ajusteY = a.y; }
+      });
+      estado.ajustes = {};
+      atualizarBarraEdicao();
+      desenhar();
+      toast('Posições salvas (' + r.atualizados + ' móveis).');
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* --------------------------- planilha base ------------------------------ */
+
+  function abrirDialogoModelo() {
+    const dlg = $('dlgModelo');
+    const temCiclo = !!estado.ciclo;
+    const copiar = dlg.querySelector('input[value="copiar"]');
+    copiar.disabled = !temCiclo;
+    copiar.checked = temCiclo;
+    dlg.querySelector('input[value="branco"]').checked = !temCiclo;
+    $('mdCopiarTexto').textContent = temCiclo ? 'Copiar o ciclo selecionado (' + estado.ciclo + ')' : 'Copiar ciclo (nenhum disponível)';
+    $('mdCiclo').value = '';
+    const sel = $('mdPlantas');
+    sel.textContent = '';
+    sel.appendChild(new Option('Todas as plantas', '*'));
+    estado.dados.plantas.forEach((p) => sel.appendChild(new Option('Somente ' + p.nome, p.id)));
+    dlg.returnValue = '';
+    dlg.showModal();
+    $('mdCiclo').focus();
+  }
+
+  async function baixarModelo() {
+    const dlg = $('dlgModelo');
+    if (dlg.returnValue !== 'baixar') return;
+    const copiar = dlg.querySelector('input[value="copiar"]').checked;
+    const plantaSel = $('mdPlantas').value;
+    const op = {
+      ciclo: $('mdCiclo').value.trim(),
+      origem: copiar ? estado.ciclo : '',
+      plantas: plantaSel === '*' ? estado.dados.plantas.map((p) => p.id) : [plantaSel],
+    };
+    carregando(true, 'Gerando planilha…');
+    try {
+      const nome = await Planilha.baixarModelo(estado.dados, op, {
+        movimento: movimentoDe,
+        linhasPaineis,
+      });
+      toast('Download iniciado: ' + nome);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  async function importar(arquivo) {
+    if (!arquivo) return;
+    carregando(true, 'Lendo a planilha…');
+    try {
+      const payload = await Planilha.ler(arquivo, estado.dados);
+      carregando(true, 'Gravando na planilha…');
+      const r = await chamar('importarPlanilha', payload);
+      await carregar({ ciclo: r.ciclos[r.ciclos.length - 1] });
+      mostrarResultado(r);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+      $('arquivo').value = '';
+    }
+  }
+
+  function mostrarResultado(r) {
+    $('resTitulo').textContent = 'Importação concluída';
+    const partes = [];
+    if (r.movimentos) partes.push(r.movimentos + ' linha(s) de movimentos');
+    if (r.paineis) partes.push(r.paineis + ' linha(s) de painéis');
+    $('resTexto').textContent = (partes.join(' e ') || 'Nenhuma linha') + ' gravada(s)' +
+      (r.ciclos.length ? ' — ciclo(s): ' + r.ciclos.join(', ') + '.' : '.') +
+      (r.avisos.length ? ' Confira os avisos:' : '');
+    const ul = $('resAvisos');
+    ul.textContent = '';
+    r.avisos.forEach((a) => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      ul.appendChild(li);
+    });
+    $('dlgResultado').showModal();
+  }
+
+  /* -------------------------------- PNG ----------------------------------- */
+
+  async function baixarPng() {
+    const planta = plantaAtual();
+    if (!planta) return;
+    carregando(true, 'Gerando imagem…');
+    try {
+      const clone = svg.cloneNode(true);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('width', Render.TELA.w);
+      clone.setAttribute('height', Render.TELA.h);
+      clone.querySelectorAll('title').forEach((t) => t.remove());
+      const xml = new XMLSerializer().serializeToString(clone);
+      const img = new Image();
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+      await img.decode();
+      const escala = 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = Render.TELA.w * escala;
+      canvas.height = Render.TELA.h * escala;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(escala, escala);
+      ctx.drawImage(img, 0, 0, Render.TELA.w, Render.TELA.h);
+      const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/png'));
+      const nome = (planta.nome + (estado.ciclo ? ' - ' + estado.ciclo : '')).replace(/[\\/:*?"<>|]+/g, '-') + '.png';
+      Planilha.baixarBlob(blob, nome);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* -------------------------------- início -------------------------------- */
+
+  function ligarEventos() {
+    $('selCiclo').addEventListener('change', (e) => {
+      estado.ciclo = e.target.value;
+      memoria.gravar('ciclo', estado.ciclo);
+      desenhar();
+    });
+    $('btnModelo').addEventListener('click', () => estado.dados && abrirDialogoModelo());
+    $('dlgModelo').addEventListener('close', baixarModelo);
+    $('btnImportar').addEventListener('click', () => estado.dados && $('arquivo').click());
+    $('arquivo').addEventListener('change', (e) => importar(e.target.files[0]));
+    $('btnPng').addEventListener('click', baixarPng);
+    $('btnEditar').addEventListener('click', () => estado.dados && alternarEdicao());
+    $('btnAutoOrganizar').addEventListener('click', autoOrganizar);
+    $('btnDescartar').addEventListener('click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
+    $('btnSalvarAjustes').addEventListener('click', salvarAjustes);
+    $('btnConfigurar').addEventListener('click', configurar);
+    $('btnAtualizar').addEventListener('click', () => {
+      if (Object.keys(estado.ajustes).length && !window.confirm('Descartar ajustes de etiquetas não salvos?')) return;
+      carregar().then(() => toast('Dados atualizados.'));
+    });
+
+    // Setas ← → trocam de planta (útil ao apresentar).
+    document.addEventListener('keydown', (e) => {
+      if (!estado.dados || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const ids = estado.dados.plantas.map((p) => p.id);
+      const i = ids.indexOf(estado.planta) + (e.key === 'ArrowRight' ? 1 : -1);
+      if (i >= 0 && i < ids.length) trocarPlanta(ids[i]);
+    });
+  }
+
+  ligarEventos();
+  carregar();
+
+  return { estado, carregar };
+})();
+</script>

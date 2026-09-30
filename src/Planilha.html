@@ -1,0 +1,328 @@
+<script>
+/**
+ * ============================================================================
+ *  PLANILHA BASE (.xlsx): gerar para download e ler o arquivo preenchido
+ * ============================================================================
+ *  Usa a biblioteca ExcelJS (carregada sob demanda do cdnjs), tudo no
+ *  navegador — o servidor só recebe os valores das células já lidos.
+ */
+const Planilha = (() => {
+  const EXCELJS = {
+    src: 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',
+    integrity: 'sha512-dlPw+ytv/6JyepmelABrgeYgHI0O+frEwgfnPdXDTOIZz+eDgfW07QXG02/O8COfivBdGNINy+Vex+lYmJ5rxw==',
+  };
+  const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const LINHAS_EXTRAS = 300; // linhas vazias com validação, para o usuário acrescentar
+  const COR_CABECALHO = 'FF202124';
+  const FAIXAS_PLANTA = ['FFFFFFFF', 'FFF3F4F6'];
+
+  let promessaExcel = null;
+
+  function carregarExcelJS() {
+    if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+    if (!promessaExcel) {
+      promessaExcel = new Promise((ok, falha) => {
+        const s = document.createElement('script');
+        s.src = EXCELJS.src;
+        s.integrity = EXCELJS.integrity;
+        s.crossOrigin = 'anonymous';
+        s.referrerPolicy = 'no-referrer';
+        s.onload = () => ok(window.ExcelJS);
+        s.onerror = () => {
+          promessaExcel = null;
+          falha(new Error('Não foi possível carregar a biblioteca de planilhas (ExcelJS). Verifique a conexão.'));
+        };
+        document.head.appendChild(s);
+      });
+    }
+    return promessaExcel;
+  }
+
+  /** Dispara o download de um Blob. */
+  function baixarBlob(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  const chave = (v) => String(v == null ? '' : v).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const argb = (hex) => 'FF' + String(hex).replace('#', '').toUpperCase();
+  const letra = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+  const nomeArquivo = (s) => String(s).replace(/[\\/:*?"<>|]+/g, '-').trim();
+
+  function estilizarCabecalho(row) {
+    row.height = 30;
+    row.eachCell((c) => {
+      c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COR_CABECALHO } };
+      c.alignment = { vertical: 'middle', wrapText: true };
+    });
+  }
+
+  function larguraColuna(k) {
+    if (k === 'descricao' || k === 'observacao') return 36;
+    if (k === 'texto') return 70;
+    if (/^etiqueta/.test(k)) return 26;
+    if (/marca/i.test(k)) return 15;
+    return 13;
+  }
+
+  /** Lista suspensa + cores por marca numa coluna. */
+  function validarColuna(ws, col, ultima, lista, titulo, ajuda) {
+    for (let r = 2; r <= ultima; r++) {
+      ws.getCell(r, col).dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['"' + lista.join(',') + '"'],
+        showErrorMessage: true,
+        errorStyle: 'warning',
+        errorTitle: titulo,
+        error: ajuda,
+        showInputMessage: true,
+        promptTitle: titulo,
+        prompt: ajuda.slice(0, 250),
+      };
+    }
+  }
+
+  function colorirMarcas(ws, col, ultima, marcas) {
+    const ref = letra(col) + '2:' + letra(col) + ultima;
+    ws.addConditionalFormatting({
+      ref,
+      rules: Object.keys(marcas).map((cod, i) => ({
+        type: 'containsText',
+        operator: 'containsText',
+        text: cod,
+        priority: i + 1,
+        style: {
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: argb(cod === 'NEUTRO' ? '#E8E8E8' : marcas[cod].etiqueta) } },
+          font: { bold: true, color: { argb: cod === 'NEUTRO' ? 'FF333333' : 'FFFFFFFF' } },
+        },
+      })),
+    });
+  }
+
+  function textoAjudaMarca(marcas) {
+    return 'Use ' + Object.keys(marcas).join(', ') + '. Combinações com "+" (ex.: BOT+QDB) geram degradê; também aceita cor #RRGGBB.';
+  }
+
+  /* ------------------------------ abas ------------------------------------ */
+
+  function abaInstrucoes(wb, dados, op) {
+    const ws = wb.addWorksheet('Instruções', { views: [{ showGridLines: false }] });
+    ws.columns = [{ width: 4 }, { width: 22 }, { width: 34 }, { width: 70 }];
+    const abas = dados.config.abas;
+    let r = 1;
+    const titulo = (t, tam) => {
+      const c = ws.getCell(r, 2);
+      c.value = t;
+      c.font = { bold: true, size: tam || 12 };
+      r++;
+    };
+    const paragrafo = (t) => {
+      ws.mergeCells(r, 2, r, 4);
+      const c = ws.getCell(r, 2);
+      c.value = t;
+      c.alignment = { wrapText: true, vertical: 'top' };
+      ws.getRow(r).height = Math.max(16, Math.ceil(t.length / 110) * 15);
+      r++;
+    };
+
+    titulo('Planilha base — Plano de Varejo', 16);
+    paragrafo('Gerada em ' + new Date().toLocaleString('pt-BR') + (op.origem ? ' a partir do ciclo "' + op.origem + '".' : ' (em branco).'));
+    r++;
+    titulo('Como preencher');
+    [
+      '1. Na aba "' + abas.MOVIMENTOS + '", cada linha é um móvel de uma planta. NÃO altere "Planta" nem "ID Móvel": eles ligam a linha ao desenho.',
+      '2. Preencha "Ciclo" em todas as linhas com o nome do ciclo (ex.: C15/2026). É esse nome que aparece no seletor de ciclos.',
+      '3. "Marca do Móvel" define a cor do móvel na planta. Deixe vazio (ou NEUTRO) para o móvel aparecer branco.',
+      '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto do móvel; "Marca Etiqueta N" define a cor de cada uma (vazio = cor do móvel).',
+      '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
+      '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
+      '7. Planta = TODAS faz a linha valer para todas as plantas; uma linha da planta específica tem prioridade.',
+      '8. Salve o arquivo e use o botão "Importar planilha" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',
+    ].forEach(paragrafo);
+    r++;
+
+    titulo('Marcas (cores)');
+    Object.keys(dados.marcas).forEach((cod) => {
+      const m = dados.marcas[cod];
+      ws.getCell(r, 2).value = cod;
+      ws.getCell(r, 2).font = { bold: true };
+      ws.getCell(r, 3).value = m.nome;
+      const cor = ws.getCell(r, 4);
+      cor.value = 'Etiqueta ' + m.etiqueta + '  ·  Móvel ' + m.movel;
+      cor.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(cod === 'NEUTRO' ? '#E8E8E8' : m.etiqueta) } };
+      cor.font = { color: { argb: cod === 'NEUTRO' ? 'FF333333' : 'FFFFFFFF' }, bold: true };
+      r++;
+    });
+    r++;
+    titulo('Símbolos');
+    const desenho = { MOVIMENTO: '▶', FIXO: '◆', EXPOSICAO: 'Ⓔ', NOVO: 'NEW' };
+    Object.keys(dados.simbolos).forEach((s) => {
+      ws.getCell(r, 2).value = s;
+      ws.getCell(r, 2).font = { bold: true };
+      ws.getCell(r, 3).value = desenho[s] || '';
+      ws.getCell(r, 4).value = dados.simbolos[s].descricao;
+      r++;
+    });
+    r++;
+    titulo('Seções da aba ' + abas.PAINEIS);
+    Object.keys(dados.secoes).forEach((s) => {
+      ws.getCell(r, 2).value = s;
+      ws.getCell(r, 2).font = { bold: true };
+      ws.mergeCells(r, 3, r, 4);
+      ws.getCell(r, 3).value = dados.secoes[s].descricao;
+      r++;
+    });
+  }
+
+  function abaMovimentos(wb, dados, op, resolver) {
+    const cols = dados.colunas.movimentos;
+    const ws = wb.addWorksheet(dados.config.abas.MOVIMENTOS, { views: [{ state: 'frozen', xSplit: 4, ySplit: 1 }] });
+    ws.columns = cols.map((c) => ({ header: c.titulo, key: c.chave, width: larguraColuna(c.chave), style: { numFmt: '@' } }));
+    estilizarCabecalho(ws.getRow(1));
+
+    let faixa = 0;
+    dados.plantas.filter((p) => op.plantas.indexOf(p.id) >= 0).forEach((p) => {
+      const fundo = { type: 'pattern', pattern: 'solid', fgColor: { argb: FAIXAS_PLANTA[faixa++ % FAIXAS_PLANTA.length] } };
+      p.moveis.forEach((m) => {
+        const linha = { ciclo: op.ciclo, planta: p.id, movel: m.id, descricao: m.descricao };
+        const info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;
+        if (info) {
+          linha.marca = info.marca;
+          info.etiquetas.forEach((e, i) => {
+            linha['etiqueta' + (i + 1)] = e.texto;
+            linha['marcaEtiqueta' + (i + 1)] = e.marca;
+          });
+          linha.simbolo = info.simbolo;
+          linha.observacao = info.observacao;
+        }
+        const row = ws.addRow(linha);
+        for (let c = 1; c <= 4; c++) row.getCell(c).fill = fundo;
+        row.getCell(4).font = { italic: true, color: { argb: 'FF666666' } };
+      });
+    });
+
+    const ultima = ws.rowCount + LINHAS_EXTRAS;
+    const ajudaMarca = textoAjudaMarca(dados.marcas);
+    cols.forEach((c, i) => {
+      if (/^marca/i.test(c.chave)) {
+        validarColuna(ws, i + 1, ultima, Object.keys(dados.marcas), c.titulo, ajudaMarca);
+        colorirMarcas(ws, i + 1, ultima, dados.marcas);
+      } else if (c.chave === 'simbolo') {
+        validarColuna(ws, i + 1, ultima, Object.keys(dados.simbolos), 'Símbolo',
+          Object.keys(dados.simbolos).map((s) => s + ' = ' + dados.simbolos[s].descricao).join('; '));
+      }
+    });
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
+  }
+
+  function abaPaineis(wb, dados, op, resolver) {
+    const cols = dados.colunas.paineis;
+    const ws = wb.addWorksheet(dados.config.abas.PAINEIS, { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.columns = cols.map((c) => ({ header: c.titulo, key: c.chave, width: larguraColuna(c.chave), style: { numFmt: '@' } }));
+    estilizarCabecalho(ws.getRow(1));
+
+    if (op.origem) {
+      resolver.linhasPaineis(op.origem, op.plantas).forEach((p) => {
+        const row = ws.addRow({ ciclo: op.ciclo, planta: p.planta, secao: p.secao, texto: p.texto, marca: p.marca, movel: p.movel });
+        row.getCell(4).alignment = { wrapText: true, vertical: 'top' };
+      });
+    }
+    const ultima = ws.rowCount + LINHAS_EXTRAS;
+    cols.forEach((c, i) => {
+      if (c.chave === 'secao') {
+        validarColuna(ws, i + 1, ultima, Object.keys(dados.secoes), 'Seção',
+          Object.keys(dados.secoes).map((s) => s + ' = ' + dados.secoes[s].descricao).join('; '));
+      } else if (c.chave === 'marca') {
+        validarColuna(ws, i + 1, ultima, Object.keys(dados.marcas), 'Marca', textoAjudaMarca(dados.marcas));
+        colorirMarcas(ws, i + 1, ultima, dados.marcas);
+      }
+    });
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
+  }
+
+  /**
+   * Gera e baixa a planilha base.
+   * @param {Object} dados    retorno de getDados()
+   * @param {{ciclo: string, origem: string, plantas: string[]}} op
+   * @param {{movimento: Function, linhasPaineis: Function}} resolver
+   */
+  async function baixarModelo(dados, op, resolver) {
+    const ExcelJS = await carregarExcelJS();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Plano de Varejo';
+    wb.created = new Date();
+    abaMovimentos(wb, dados, op, resolver);
+    abaPaineis(wb, dados, op, resolver);
+    abaInstrucoes(wb, dados, op);
+    const buffer = await wb.xlsx.writeBuffer();
+    const nome = 'Planilha base - ' + nomeArquivo(op.ciclo || 'novo ciclo') + '.xlsx';
+    baixarBlob(new Blob([buffer], { type: MIME_XLSX }), nome);
+    return nome;
+  }
+
+  /* ------------------------------ leitura --------------------------------- */
+
+  function valorCelula(v) {
+    if (v === null || v === undefined) return '';
+    if (v instanceof Date) {
+      const p = (n) => String(n).padStart(2, '0');
+      return p(v.getUTCDate()) + '/' + p(v.getUTCMonth() + 1) + '/' + v.getUTCFullYear();
+    }
+    if (typeof v === 'object') {
+      if (Array.isArray(v.richText)) return v.richText.map((r) => r.text).join('');
+      if ('result' in v) return valorCelula(v.result);
+      if ('text' in v) return valorCelula(v.text);
+      if ('error' in v) return '';
+      return '';
+    }
+    return v;
+  }
+
+  function matrizDaAba(ws) {
+    const linhas = [];
+    const nCols = ws.columnCount;
+    for (let r = 1; r <= ws.rowCount; r++) {
+      const row = ws.getRow(r);
+      const valores = [];
+      for (let c = 1; c <= nCols; c++) valores.push(valorCelula(row.getCell(c).value));
+      linhas.push(valores);
+    }
+    while (linhas.length && linhas[linhas.length - 1].every((v) => v === '' || v === null)) linhas.pop();
+    return linhas;
+  }
+
+  /**
+   * Lê o .xlsx preenchido e devolve { movimentos: [[...]], paineis: [[...]] }
+   * (matrizes com cabeçalho) para enviar ao servidor.
+   */
+  async function ler(arquivo, dados) {
+    if (!/\.xlsx$/i.test(arquivo.name)) {
+      throw new Error('Envie um arquivo .xlsx (no Google Sheets: Arquivo › Fazer download › Microsoft Excel).');
+    }
+    const ExcelJS = await carregarExcelJS();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(await arquivo.arrayBuffer());
+    const achar = (nome) => wb.worksheets.find((ws) => chave(ws.name) === chave(nome));
+    const out = {};
+    const mov = achar(dados.config.abas.MOVIMENTOS);
+    const pai = achar(dados.config.abas.PAINEIS);
+    if (mov) out.movimentos = matrizDaAba(mov);
+    if (pai) out.paineis = matrizDaAba(pai);
+    if (!out.movimentos && !out.paineis) {
+      throw new Error('O arquivo não tem as abas "' + dados.config.abas.MOVIMENTOS + '" ou "' + dados.config.abas.PAINEIS +
+        '". Use a planilha gerada pelo botão "Baixar planilha base".');
+    }
+    return out;
+  }
+
+  return { baixarModelo, ler, baixarBlob };
+})();
+</script>

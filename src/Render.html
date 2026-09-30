@@ -1,0 +1,829 @@
+<script>
+/**
+ * ============================================================================
+ *  RENDERIZADOR DA PLANTA (SVG isométrico, 1920×1080 — formato de slide)
+ * ============================================================================
+ *  Render.desenhar(svg, contexto) redesenha o slide inteiro:
+ *   - planta isométrica (piso, paredes e móveis coloridos pela marca);
+ *   - etiquetas de cada móvel (com desvio automático de sobreposição);
+ *   - caixas de destaque (CALLOUT), painel lateral (TV / A / C), notas,
+ *     legenda de símbolos e faixa de itens extras.
+ *  Todo o estilo vai em atributos SVG (não em CSS) para o PNG exportado
+ *  ficar idêntico ao que aparece na tela.
+ */
+const Render = (() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const FONTE = 'Arial, Helvetica, sans-serif';
+  const COS30 = Math.cos(Math.PI / 6);
+
+  const TELA = { w: 1920, h: 1080, fundo: '#F3EFEA' };
+  const REGIAO_PLANTA = { x: 500, y: 70, w: 1400, h: 950 };
+  const LIMITES = { x0: 470, y0: 8, x1: 1912, y1: 1072 };
+  const ETQ = { fonte: 12, lh: 14, padX: 7, padY: 4, gap: 3, maxTexto: 190, simbolo: 20 };
+  const CALLOUT = { fonte: 12.5, lh: 16, pad: 9, maxW: 360 };
+  const COR = {
+    contorno: '#1C1C1C',
+    contornoNeutro: '#B5B5B5',
+    prateleiraNeutra: '#D0D0D0',
+    neutro: '#F7F7F7',
+    piso: '#EAEAEA',
+    pisoBorda: '#D7D7D7',
+    textoNota: '#1F3B73',
+    tituloNota: '#0B2A5B',
+    etiquetaPadrao: '#4A4A4A',
+  };
+  const ESPESSURA_PAREDE = 0.35;
+  const ESPESSURA_PISO = 0.35;
+
+  let marcas = {};
+  let defs = null;
+  let gradientes = {};
+
+  /* ------------------------------ utilidades ------------------------------ */
+
+  function el(tag, attrs, pai) {
+    const e = document.createElementNS(NS, tag);
+    if (attrs) {
+      Object.keys(attrs).forEach((k) => {
+        if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]);
+      });
+    }
+    if (pai) pai.appendChild(e);
+    return e;
+  }
+
+  function texto(pai, x, y, conteudo, attrs) {
+    const t = el('text', Object.assign({ x, y, 'font-family': FONTE }, attrs), pai);
+    t.textContent = conteudo;
+    return t;
+  }
+
+  /** Dica ao passar o mouse (<title> precisa ser o primeiro filho). */
+  function dica(alvo, conteudo) {
+    const t = document.createElementNS(NS, 'title');
+    t.textContent = conteudo;
+    alvo.insertBefore(t, alvo.firstChild);
+  }
+
+  const pontos = (lista) => lista.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+
+  function poligono(pai, lista, attrs) {
+    return el('polygon', Object.assign({ points: pontos(lista) }, attrs), pai);
+  }
+
+  function linha(pai, a, b, attrs) {
+    return el('line', Object.assign({ x1: a[0].toFixed(1), y1: a[1].toFixed(1), x2: b[0].toFixed(1), y2: b[1].toFixed(1) }, attrs), pai);
+  }
+
+  const medidor = document.createElement('canvas').getContext('2d');
+  function largura(txt, tam, peso, estilo) {
+    medidor.font = (estilo || 'normal') + ' ' + (peso || 700) + ' ' + tam + 'px ' + FONTE;
+    return medidor.measureText(txt).width;
+  }
+
+  /** Quebra o texto em linhas que caibam em maxW (respeita quebras de linha). */
+  function quebrar(txt, maxW, tam, peso) {
+    const linhas = [];
+    String(txt).split('\n').forEach((par) => {
+      if (!par.trim()) { linhas.push(''); return; }
+      let atual = '';
+      par.trim().split(/\s+/).forEach((palavra) => {
+        const tentativa = atual ? atual + ' ' + palavra : palavra;
+        if (!atual || largura(tentativa, tam, peso) <= maxW) atual = tentativa;
+        else { linhas.push(atual); atual = palavra; }
+      });
+      linhas.push(atual);
+    });
+    while (linhas.length > 1 && linhas[linhas.length - 1] === '') linhas.pop();
+    return linhas;
+  }
+
+  /* -------------------------------- cores --------------------------------- */
+
+  function rgb(hex) {
+    let h = hex.replace('#', '');
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    return [0, 2, 4].map((i) => parseInt(h.substr(i, 2), 16));
+  }
+  function paraHex(v) {
+    return '#' + v.map((c) => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0')).join('');
+  }
+  function misturar(cor, alvo, t) {
+    const a = rgb(cor);
+    const b = rgb(alvo);
+    return paraHex(a.map((v, i) => v + (b[i] - v) * t));
+  }
+
+  /** "BOT+QDB" → ['#..', '#..'] ; tipo = 'movel' | 'etiqueta'. */
+  function coresDe(valor, tipo) {
+    if (!valor) return null;
+    const cores = String(valor).split('+').map((p) => p.trim()).map((p) => {
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(p)) return p;
+      return marcas[p] ? marcas[p][tipo] : null;
+    }).filter(Boolean);
+    return cores.length ? cores : null;
+  }
+
+  function ehNeutro(valor) {
+    return !valor || valor === 'NEUTRO';
+  }
+
+  /** Cor sólida ou degradê (para combinações de marcas). sombra < 0 clareia, > 0 escurece. */
+  function tinta(cores, sombra) {
+    const aplicar = (c) => (sombra < 0 ? misturar(c, '#FFFFFF', -sombra) : sombra > 0 ? misturar(c, '#000000', sombra) : c);
+    if (cores.length === 1) return aplicar(cores[0]);
+    const chave = cores.join('-') + '|' + sombra;
+    if (!gradientes[chave]) {
+      const id = 'grad' + Object.keys(gradientes).length;
+      const g = el('linearGradient', { id, x1: 0, y1: 0, x2: 1, y2: 0 }, defs);
+      cores.forEach((c, i) => el('stop', { offset: i / (cores.length - 1), 'stop-color': aplicar(c) }, g));
+      gradientes[chave] = 'url(#' + id + ')';
+    }
+    return gradientes[chave];
+  }
+
+  /* ------------------------------ projeção -------------------------------- */
+
+  function criarProjecao(loja) {
+    const W = loja.largura;
+    const D = loja.profundidade;
+    const H = loja.alturaParede;
+    const t = ESPESSURA_PAREDE;
+    const cantos = [
+      [-t, -t, H], [W, -t, H], [-t, D, H],
+      [W, -t, -ESPESSURA_PISO], [W, D, -ESPESSURA_PISO], [-t, D, -ESPESSURA_PISO],
+    ];
+    const bruto = (p) => [(p[0] - p[1]) * COS30, (p[0] + p[1]) * 0.5 - p[2]];
+    const bx = cantos.map((p) => bruto(p)[0]);
+    const by = cantos.map((p) => bruto(p)[1]);
+    const minX = Math.min.apply(null, bx);
+    const minY = Math.min.apply(null, by);
+    const larg = Math.max.apply(null, bx) - minX;
+    const alt = Math.max.apply(null, by) - minY;
+    const s = Math.min(REGIAO_PLANTA.w / larg, REGIAO_PLANTA.h / alt);
+    const ox = REGIAO_PLANTA.x + (REGIAO_PLANTA.w - larg * s) / 2 - minX * s;
+    const oy = REGIAO_PLANTA.y + (REGIAO_PLANTA.h - alt * s) / 2 - minY * s;
+    return {
+      escala: s,
+      P: (x, y, z) => [ox + (x - y) * COS30 * s, oy + ((x + y) * 0.5 - (z || 0)) * s],
+    };
+  }
+
+  /* --------------------------- caixas (móveis) ---------------------------- */
+
+  /**
+   * Desenha uma caixa isométrica.
+   * est: { cores, vidro, prateleiras, modulo, gradeTopo, moldura }
+   */
+  function caixa(pai, P, b, est) {
+    const x0 = b.x, x1 = b.x + b.w, y0 = b.y, y1 = b.y + b.d, z0 = b.z, z1 = b.z + b.h;
+    const neutro = !est.cores;
+    const base = est.cores || [est.corNeutra || COR.neutro];
+    const contorno = neutro ? COR.contornoNeutro : COR.contorno;
+    const opacidade = !neutro && est.vidro ? 0.84 : 1;
+    const comum = { stroke: contorno, 'stroke-width': neutro ? 1 : 1.3, 'stroke-linejoin': 'round', 'fill-opacity': opacidade };
+
+    const esq = [P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)]; // face y = y1
+    const dir = [P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)]; // face x = x1
+    const topo = [P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)];
+    poligono(pai, esq, Object.assign({ fill: tinta(base, neutro ? 0.03 : 0) }, comum));
+    poligono(pai, dir, Object.assign({ fill: tinta(base, neutro ? 0.1 : 0.16) }, comum));
+    poligono(pai, topo, Object.assign({ fill: tinta(base, neutro ? 0 : -0.3) }, comum));
+
+    const detalhe = neutro
+      ? { stroke: COR.prateleiraNeutra, 'stroke-width': 1 }
+      : est.vidro
+        ? { stroke: contorno, 'stroke-width': 1.1, 'stroke-dasharray': '5 4', opacity: 0.85 }
+        : { stroke: misturar(base[0], '#000000', 0.35), 'stroke-width': 1 };
+
+    // Arestas escondidas (efeito vidro).
+    if (!neutro && est.vidro) {
+      const oculto = { stroke: contorno, 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: 0.45 };
+      linha(pai, P(x0, y0, z0), P(x0, y0, z1), oculto);
+      linha(pai, P(x0, y0, z0), P(x1, y0, z0), oculto);
+      linha(pai, P(x0, y0, z0), P(x0, y1, z0), oculto);
+    }
+
+    // Prateleiras.
+    const n = est.prateleiras || 0;
+    for (let k = 1; k < n; k++) {
+      const z = z0 + (b.h * k) / n;
+      if (b.w > 0.3) linha(pai, P(x0, y1, z), P(x1, y1, z), detalhe);
+      if (b.d > 0.3) linha(pai, P(x1, y0, z), P(x1, y1, z), detalhe);
+    }
+    // Divisórias verticais (módulos).
+    if (est.modulo) {
+      const nx = Math.round(b.w / est.modulo);
+      for (let k = 1; k < nx; k++) {
+        const x = x0 + (b.w * k) / nx;
+        linha(pai, P(x, y1, z0), P(x, y1, z1), detalhe);
+      }
+      const ny = Math.round(b.d / est.modulo);
+      for (let k = 1; k < ny; k++) {
+        const y = y0 + (b.d * k) / ny;
+        linha(pai, P(x1, y, z0), P(x1, y, z1), detalhe);
+      }
+    }
+    if (est.gradeTopo) {
+      const xm = (x0 + x1) / 2;
+      const ym = (y0 + y1) / 2;
+      linha(pai, P(xm, y0, z1), P(xm, y1, z1), detalhe);
+      linha(pai, P(x0, ym, z1), P(x1, ym, z1), detalhe);
+    }
+    if (est.moldura) {
+      const m = 0.12;
+      const face = b.d >= b.w
+        ? [P(x1, y0 + b.d * m, z0 + b.h * m), P(x1, y1 - b.d * m, z0 + b.h * m), P(x1, y1 - b.d * m, z1 - b.h * m), P(x1, y0 + b.d * m, z1 - b.h * m)]
+        : [P(x0 + b.w * m, y1, z0 + b.h * m), P(x1 - b.w * m, y1, z0 + b.h * m), P(x1 - b.w * m, y1, z1 - b.h * m), P(x0 + b.w * m, y1, z1 - b.h * m)];
+      poligono(pai, face, Object.assign({ fill: 'none' }, detalhe, { 'stroke-dasharray': '6 4' }));
+    }
+  }
+
+  const espessuraL = (m) => Math.min(0.6, m.w / 2, m.d / 2);
+
+  /** Quebra um móvel em caixas "ordenáveis" (a vitrine em L vira duas). */
+  function primitivas(m) {
+    if (m.tipo === 'VITRINE_L') {
+      const t = espessuraL(m);
+      return [
+        { x: m.x + m.w - t, y: m.y, z: m.z, w: t, d: m.d - t, h: m.h, movel: m },
+        { x: m.x, y: m.y + m.d - t, z: m.z, w: m.w, d: t, h: m.h, movel: m },
+      ];
+    }
+    return [{ x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h, movel: m }];
+  }
+
+  function desenharPrimitiva(pai, P, b, cores) {
+    const m = b.movel;
+    switch (m.tipo) {
+      case 'GONDOLA_PAREDE':
+        caixa(pai, P, b, { cores, prateleiras: 5, modulo: 2.2 });
+        break;
+      case 'CUBO':
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2 });
+        break;
+      case 'MESA':
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 1, modulo: 1.3, gradeTopo: true });
+        break;
+      case 'TOTEM':
+        caixa(pai, P, Object.assign({}, b, { h: 0.25 }), { corNeutra: '#9A9A9A' });
+        caixa(pai, P, Object.assign({}, b, { z: b.z + 0.25, h: b.h - 0.25 }), { cores, prateleiras: 5 });
+        break;
+      case 'PAINEL':
+        caixa(pai, P, b, { cores, moldura: true });
+        break;
+      case 'VITRINE_L':
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2, modulo: 1.8 });
+        break;
+      case 'CAIXA': {
+        caixa(pai, P, b, { cores, prateleiras: 0 });
+        const mon = { x: b.x + b.w * 0.35, y: b.y + b.d * 0.15, z: b.z + b.h, w: 0.55, d: 0.12, h: 0.55 };
+        caixa(pai, P, mon, { cores: ['#5A5A5A'] });
+        break;
+      }
+      case 'PIRAMIDE': {
+        const niveis = [[1, 0.38], [0.88, 0.36], [0.6, 0.26]];
+        let z = b.z;
+        niveis.forEach((n) => {
+          const w = b.w * n[0];
+          const d = b.d * n[0];
+          const h = b.h * n[1];
+          caixa(pai, P, { x: b.x + (b.w - w) / 2, y: b.y + (b.d - d) / 2, z, w, d, h }, { cores, vidro: true, prateleiras: 2 });
+          z += h;
+        });
+        break;
+      }
+      default: // GONDOLA
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3, modulo: 2.4 });
+    }
+  }
+
+  /** Ordenação de pintura (o que está atrás é desenhado primeiro). */
+  function ordenar(prims, P) {
+    const n = prims.length;
+    const tela = prims.map((b) => {
+      const xs = [];
+      const ys = [];
+      [b.x, b.x + b.w].forEach((x) => [b.y, b.y + b.d].forEach((y) => [b.z, b.z + b.h].forEach((z) => {
+        const p = P(x, y, z);
+        xs.push(p[0]);
+        ys.push(p[1]);
+      })));
+      return { x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs), y0: Math.min.apply(null, ys), y1: Math.max.apply(null, ys) };
+    });
+    const prof = prims.map((b) => b.x + b.w / 2 + b.y + b.d / 2 + b.z * 0.5);
+    const e = 1e-6;
+    const separa = (a, b) => {
+      if (a.x + a.w <= b.x + e) return -1;
+      if (b.x + b.w <= a.x + e) return 1;
+      if (a.y + a.d <= b.y + e) return -1;
+      if (b.y + b.d <= a.y + e) return 1;
+      if (a.z + a.h <= b.z + e) return -1;
+      if (b.z + b.h <= a.z + e) return 1;
+      return 0;
+    };
+    const depois = prims.map(() => []);
+    const grau = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const A = tela[i];
+        const B = tela[j];
+        if (A.x1 <= B.x0 || B.x1 <= A.x0 || A.y1 <= B.y0 || B.y1 <= A.y0) continue;
+        let r = separa(prims[i], prims[j]);
+        if (r === 0) r = prof[i] <= prof[j] ? -1 : 1;
+        if (r < 0) { depois[i].push(j); grau[j]++; } else { depois[j].push(i); grau[i]++; }
+      }
+    }
+    const saida = [];
+    const prontos = [];
+    for (let i = 0; i < n; i++) if (!grau[i]) prontos.push(i);
+    const usados = new Array(n).fill(false);
+    while (saida.length < n) {
+      if (!prontos.length) { // ciclo (não deveria acontecer): pega o mais ao fundo
+        let melhor = -1;
+        for (let i = 0; i < n; i++) if (!usados[i] && (melhor < 0 || prof[i] < prof[melhor])) melhor = i;
+        prontos.push(melhor);
+        grau[melhor] = 0;
+      }
+      prontos.sort((a, b) => prof[b] - prof[a]);
+      const i = prontos.pop();
+      if (usados[i]) continue;
+      usados[i] = true;
+      saida.push(prims[i]);
+      depois[i].forEach((j) => { if (--grau[j] === 0 && !usados[j]) prontos.push(j); });
+    }
+    return saida;
+  }
+
+  /* ----------------------------- piso e paredes ---------------------------- */
+
+  function desenharLoja(pai, P, loja) {
+    const W = loja.largura, D = loja.profundidade, H = loja.alturaParede;
+    const t = ESPESSURA_PAREDE, b = ESPESSURA_PISO;
+    const g = el('g', { class: 'loja' }, pai);
+    // Laje do piso (bordas frontais).
+    poligono(g, [P(-t, D, 0), P(W, D, 0), P(W, D, -b), P(-t, D, -b)], { fill: '#D9D9D9', stroke: '#C4C4C4' });
+    poligono(g, [P(W, -t, 0), P(W, D, 0), P(W, D, -b), P(W, -t, -b)], { fill: '#C9C9C9', stroke: '#C4C4C4' });
+    poligono(g, [P(-t, -t, 0), P(W, -t, 0), P(W, D, 0), P(-t, D, 0)], { fill: COR.piso, stroke: COR.pisoBorda });
+    // Paredes do fundo (esquerda e direita).
+    const parede = { cores: null, corNeutra: '#F1F1F1' };
+    caixa(g, P, { x: -t, y: -t, z: 0, w: t, d: D + t, h: H }, parede);
+    caixa(g, P, { x: 0, y: -t, z: 0, w: W, d: t, h: H }, parede);
+  }
+
+  /* ------------------------------ etiquetas ------------------------------- */
+
+  function medirGrupo(etiquetas, simbolo, corPadrao) {
+    const itens = etiquetas.map((e) => {
+      const linhas = quebrar(e.texto, ETQ.maxTexto, ETQ.fonte, 700);
+      const w = Math.max.apply(null, linhas.map((l) => largura(l, ETQ.fonte, 700))) + ETQ.padX * 2;
+      return {
+        linhas,
+        w,
+        h: linhas.length * ETQ.lh + ETQ.padY * 2,
+        cores: coresDe(e.marca, 'etiqueta') || corPadrao,
+      };
+    });
+    const wEtq = Math.max.apply(null, itens.map((i) => i.w));
+    const h = itens.reduce((s, i) => s + i.h, 0) + ETQ.gap * (itens.length - 1);
+    return { itens, wEtq, w: wEtq + (simbolo ? ETQ.simbolo + 4 : 0), h, simbolo };
+  }
+
+  function desenharSimbolo(pai, simbolo, cx, cy, escala) {
+    const k = escala || 1;
+    const g = el('g', { transform: 'translate(' + cx + ',' + cy + ') scale(' + k + ')' }, pai);
+    if (simbolo === 'MOVIMENTO') {
+      poligono(g, [[-6, -7.5], [8, 0], [-6, 7.5]], { fill: '#111' });
+    } else if (simbolo === 'FIXO') {
+      poligono(g, [[0, -8.5], [8.5, 0], [0, 8.5], [-8.5, 0]], { fill: '#111' });
+    } else if (simbolo === 'EXPOSICAO') {
+      el('circle', { r: 8.5, fill: '#111', stroke: '#fff', 'stroke-width': 1.2 }, g);
+      texto(g, 0, 4, 'E', { 'font-size': 11, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' });
+    } else if (simbolo === 'NOVO') {
+      const pts = [];
+      for (let i = 0; i < 24; i++) {
+        const r = i % 2 ? 8 : 11;
+        const a = (Math.PI * 2 * i) / 24;
+        pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+      }
+      poligono(g, pts, { fill: '#FFD21F', stroke: '#B88A00', 'stroke-width': 0.8 });
+      texto(g, 0, 2.4, 'NEW', { 'font-size': 6.5, 'font-weight': 700, fill: '#6B4200', 'text-anchor': 'middle' });
+    }
+    return g;
+  }
+
+  function desenharGrupo(pai, gr, attrs) {
+    const g = el('g', Object.assign({ 'data-movel': gr.id }, attrs), pai);
+    let y = gr.y;
+    gr.itens.forEach((it, i) => {
+      el('rect', { x: gr.x, y, width: gr.wEtq, height: it.h, fill: tinta(it.cores, 0), rx: 1.5 }, g);
+      it.linhas.forEach((l, k) => {
+        texto(g, gr.x + gr.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.2, l, {
+          'font-size': ETQ.fonte, 'font-weight': 700, fill: '#FFFFFF', 'text-anchor': 'middle',
+        });
+      });
+      if (i === 0 && gr.simbolo) desenharSimbolo(g, gr.simbolo, gr.x + gr.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2);
+      y += it.h + ETQ.gap;
+    });
+    return g;
+  }
+
+  const sobrepoe = (a, b, m) => a.x < b.x + b.w + m && b.x < a.x + a.w + m && a.y < b.y + b.h + m && b.y < a.y + a.h + m;
+
+  /** Candidatos de deslocamento, do mais próximo ao mais distante. */
+  const DESLOCAMENTOS = (() => {
+    const lista = [];
+    for (let dx = -220; dx <= 220; dx += 10) {
+      for (let dy = -160; dy <= 160; dy += 6) lista.push([dx, dy, dx * dx + dy * dy * 1.3]);
+    }
+    return lista.sort((a, b) => a[2] - b[2]);
+  })();
+
+  /** Posiciona os grupos evitando sobreposição (grupos com ajuste manual ficam onde estão). */
+  function posicionar(grupos, obstaculos) {
+    const ocupados = obstaculos.slice();
+    const dentro = (r) => r.x >= LIMITES.x0 && r.y >= LIMITES.y0 && r.x + r.w <= LIMITES.x1 && r.y + r.h <= LIMITES.y1;
+    grupos.filter((g) => g.manual).forEach((g) => ocupados.push(g));
+    grupos.filter((g) => !g.manual).sort((a, b) => a.ancora[1] - b.ancora[1]).forEach((g) => {
+      const base = { x: g.x, y: g.y, w: g.w, h: g.h };
+      for (let i = 0; i < DESLOCAMENTOS.length; i++) {
+        const c = { x: base.x + DESLOCAMENTOS[i][0], y: base.y + DESLOCAMENTOS[i][1], w: g.w, h: g.h };
+        if (!dentro(c)) continue;
+        if (ocupados.every((o) => !sobrepoe(c, o, 3))) {
+          g.x = c.x;
+          g.y = c.y;
+          break;
+        }
+      }
+      ocupados.push(g);
+    });
+  }
+
+  /** Linha-guia do grupo até o ponto do móvel (quando o grupo ficou longe). */
+  function desenharGuia(pai, rect, ancora, forcar) {
+    const px = Math.max(rect.x, Math.min(ancora[0], rect.x + rect.w));
+    const py = Math.max(rect.y, Math.min(ancora[1], rect.y + rect.h));
+    const dist = Math.hypot(px - ancora[0], py - ancora[1]);
+    if (!forcar && dist < 14) return;
+    linha(pai, [px, py], ancora, { stroke: '#3A3A3A', 'stroke-width': 1.3 });
+    el('circle', { cx: ancora[0], cy: ancora[1], r: 4, fill: '#FFFFFF', stroke: '#3A3A3A', 'stroke-width': 1.3 }, pai);
+  }
+
+  /* ----------------------------- painel lateral ---------------------------- */
+
+  function iconeTv(pai, cx, cy) {
+    const g = el('g', { fill: 'none', stroke: '#222', 'stroke-width': 2.4, 'stroke-linejoin': 'round' }, pai);
+    el('rect', { x: cx - 21, y: cy - 15, width: 42, height: 27, rx: 2 }, g);
+    linha(g, [cx - 7, cy + 17], [cx + 7, cy + 17], {});
+    linha(g, [cx, cy + 12], [cx, cy + 17], {});
+  }
+
+  function iconeRadio(pai, cx, cy) {
+    const g = el('g', { fill: 'none', stroke: '#222', 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, pai);
+    el('rect', { x: cx - 17, y: cy - 10, width: 34, height: 26, rx: 3 }, g);
+    linha(g, [cx - 13, cy - 10], [cx + 10, cy - 22], {});
+    el('circle', { cx: cx - 6, cy: cy + 7, r: 5 }, g);
+    linha(g, [cx + 4, cy + 3], [cx + 12, cy + 3], {});
+    linha(g, [cx + 4, cy + 9], [cx + 12, cy + 9], {});
+    linha(g, [cx - 13, cy - 4], [cx + 13, cy - 4], {});
+  }
+
+  function iconeLetra(pai, cx, cy, letra) {
+    el('circle', { cx, cy, r: 20, fill: 'none', stroke: '#222', 'stroke-width': 2.4 }, pai);
+    texto(pai, cx, cy + 12, letra, { 'font-size': 33, 'font-weight': 400, fill: '#222', 'text-anchor': 'middle' });
+  }
+
+  function listaLateral(pai, itens, x, y, w, alturaMin) {
+    const medidos = itens.map((it) => {
+      const linhas = quebrar(it.texto, w - 8, 11, 700);
+      return { it, linhas, h: Math.max(23, linhas.length * 13 + 10) };
+    });
+    let total = medidos.reduce((s, m) => s + m.h, 0) + 6 * (medidos.length - 1);
+    const extra = alturaMin && total < alturaMin ? (alturaMin - total) / medidos.length : 0;
+    let cy = y;
+    medidos.forEach((m) => {
+      const h = m.h + extra;
+      const cores = coresDe(m.it.marca, 'etiqueta') || [COR.etiquetaPadrao];
+      el('rect', { x, y: cy, width: w, height: h, fill: tinta(cores, 0) }, pai);
+      const y0 = cy + h / 2 - (m.linhas.length * 13) / 2 + 10;
+      m.linhas.forEach((l, k) => texto(pai, x + 4, y0 + k * 13, l, { 'font-size': 11, 'font-weight': 700, fill: '#fff' }));
+      cy += h + 6;
+    });
+    return Math.max(total + extra * medidos.length, alturaMin || 0);
+  }
+
+  function desenharLateral(pai, planta, ciclo, secoes) {
+    const g = el('g', { class: 'lateral' }, pai);
+    el('rect', { x: 22, y: 12, width: 260, height: 64, fill: '#0A0A0A', stroke: '#666', 'stroke-width': 1 }, g);
+    texto(g, 152, 58, planta.nome, { 'font-size': 38, 'font-weight': 700, fill: '#FFFFFF', 'text-anchor': 'middle' });
+    if (ciclo) {
+      texto(g, 24, 100, 'CICLO: ' + ciclo, { 'font-size': 15, 'font-weight': 700, fill: '#6B6B6B' });
+    }
+
+    let y = 117;
+    if (secoes.TV.length) {
+      iconeTv(g, 62, 135);
+      iconeRadio(g, 62, 222);
+      y += listaLateral(g, secoes.TV, 91, y, 168, 122) + 26;
+    }
+    ['A', 'C'].forEach((letra) => {
+      if (!secoes[letra].length) return;
+      const h = listaLateral(g, secoes[letra], 91, y, 168, 0);
+      iconeLetra(g, 62, y + h / 2, letra);
+      y += h + 26;
+    });
+  }
+
+  /** Notas (canto inferior esquerdo): o trecho antes de ":" fica em negrito. */
+  function medirNotas(notas) {
+    const tam = 17, lh = 23, maxW = 490;
+    const paragrafos = notas.map((n) => {
+      const i = n.texto.indexOf(':');
+      const partes = i > 0 && i < 60
+        ? [{ t: n.texto.slice(0, i + 1), b: true }, { t: n.texto.slice(i + 1), b: false }]
+        : [{ t: n.texto, b: false }];
+      const palavras = [];
+      partes.forEach((p) => p.t.split(/\s+/).filter(Boolean).forEach((w) => palavras.push({ t: w, b: p.b })));
+      const linhas = [];
+      let atual = [];
+      let w = 0;
+      palavras.forEach((p) => {
+        const lp = largura(p.t, tam, p.b ? 700 : 400);
+        const esp = atual.length ? largura(' ', tam, 400) : 0;
+        if (atual.length && w + esp + lp > maxW) { linhas.push(atual); atual = []; w = 0; }
+        atual.push(p);
+        w += (atual.length > 1 ? esp : 0) + lp;
+      });
+      if (atual.length) linhas.push(atual);
+      return linhas;
+    });
+    const nLinhas = paragrafos.reduce((s, p) => s + p.length, 0);
+    return { paragrafos, tam, lh, h: nLinhas * lh + (paragrafos.length - 1) * 14 + 44, w: 535 };
+  }
+
+  function desenharNotas(pai, medida, x, y) {
+    const g = el('g', { class: 'notas' }, pai);
+    el('rect', { x, y, width: medida.w, height: medida.h, fill: '#F7F4F0', stroke: '#E2DDD6', filter: 'url(#sombra)' }, g);
+    let cy = y + 22 + medida.lh - 6;
+    medida.paragrafos.forEach((linhas) => {
+      linhas.forEach((ln) => {
+        const t = el('text', { x: x + 22, y: cy, 'font-family': FONTE, 'font-size': medida.tam, fill: COR.textoNota }, g);
+        ln.forEach((p, i) => {
+          const s = el('tspan', { 'font-weight': p.b ? 700 : 400, fill: p.b ? COR.tituloNota : COR.textoNota }, t);
+          s.textContent = (i ? ' ' : '') + p.t;
+        });
+        cy += medida.lh;
+      });
+      cy += 14;
+    });
+  }
+
+  function desenharLegendaSimbolos(pai, usados, simbolos) {
+    const ordem = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((s) => usados.has(s));
+    let y = 1052 - (ordem.length - 1) * 44;
+    const topo = y - 22;
+    ordem.forEach((s) => {
+      desenharSimbolo(pai, s, 33, y, 1.45);
+      texto(pai, 58, y + 7, (simbolos[s] && simbolos[s].descricao) || s, { 'font-size': 19, fill: '#1A1A1A', 'font-weight': 400 });
+      y += 44;
+    });
+    return ordem.length ? topo : 1072;
+  }
+
+  /* ---------------------------- itens extras ------------------------------ */
+
+  function iconeExtra(pai, id, cx, cy) {
+    const g = el('g', { fill: 'none', stroke: '#6A6A6A', 'stroke-width': 1.6, 'stroke-linejoin': 'round' }, pai);
+    const k = id.toUpperCase();
+    if (k.indexOf('CEST') >= 0) {
+      el('path', { d: `M${cx - 24},${cy - 4} L${cx + 24},${cy - 4} L${cx + 18},${cy + 20} L${cx - 18},${cy + 20} Z` }, g);
+      el('path', { d: `M${cx - 16},${cy - 4} Q${cx},${cy - 32} ${cx + 16},${cy - 4}` }, g);
+      for (let i = -12; i <= 12; i += 8) linha(g, [cx + i, cy - 4], [cx + i * 0.75, cy + 20], {});
+      linha(g, [cx - 21, cy + 6], [cx + 21, cy + 6], {});
+    } else if (k.indexOf('CAVALETE') >= 0) {
+      el('rect', { x: cx - 16, y: cy - 26, width: 32, height: 40, fill: '#FFFFFF' }, g);
+      linha(g, [cx - 13, cy + 14], [cx - 18, cy + 28], {});
+      linha(g, [cx + 13, cy + 14], [cx + 18, cy + 28], {});
+    } else {
+      el('path', { d: `M${cx - 20},${cy - 12} L${cx},${cy - 22} L${cx + 20},${cy - 12} L${cx + 20},${cy + 18} L${cx},${cy + 28} L${cx - 20},${cy + 18} Z` }, g);
+      linha(g, [cx, cy - 2], [cx, cy + 28], {});
+      linha(g, [cx - 20, cy - 12], [cx, cy - 2], {});
+      linha(g, [cx + 20, cy - 12], [cx, cy - 2], {});
+    }
+  }
+
+  function desenharExtras(pai, extras, obterDados) {
+    if (!extras.length) return null;
+    const slot = 206;
+    const w = slot * extras.length;
+    const h = 84;
+    const x = 1904 - w;
+    const y = 1064 - h;
+    const g = el('g', { class: 'extras' }, pai);
+    el('rect', { x, y, width: w, height: h, rx: 10, fill: '#FFFFFF', stroke: '#DDD', filter: 'url(#sombra)' }, g);
+    extras.forEach((m, i) => {
+      const x0 = x + i * slot;
+      const gs = el('g', { 'data-movel': m.id }, g);
+      dica(gs, m.id + (m.descricao ? ' — ' + m.descricao : ''));
+      if (i) linha(gs, [x0, y + 14], [x0, y + h - 14], { stroke: '#BBBBBB', 'stroke-width': 1.5 });
+      iconeExtra(gs, m.id + ' ' + m.descricao, x0 + 38, y + h / 2);
+      texto(gs, x0 + 136, y + 20, m.descricao || m.id, { 'font-size': 11, 'font-style': 'italic', fill: '#666', 'text-anchor': 'middle' });
+      const info = obterDados(m);
+      const etiquetas = info && info.etiquetas.length ? info.etiquetas : [];
+      let cy = y + 28;
+      etiquetas.slice(0, 3).forEach((e) => {
+        const cores = coresDe(e.marca, 'etiqueta') || coresDe(info.marca, 'etiqueta') || [COR.etiquetaPadrao];
+        const linhas = quebrar(e.texto, 116, 10, 700).slice(0, 2);
+        const hh = linhas.length * 11 + 5;
+        el('rect', { x: x0 + 76, y: cy, width: 120, height: hh, fill: tinta(cores, 0) }, gs);
+        linhas.forEach((l, k) => texto(gs, x0 + 136, cy + 10 + k * 11, l, { 'font-size': 10, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' }));
+        cy += hh + 3;
+      });
+      if (!etiquetas.length) texto(gs, x0 + 136, y + 50, '—', { 'font-size': 14, fill: '#AAA', 'text-anchor': 'middle' });
+    });
+    return { x, y, w, h };
+  }
+
+  /* ------------------------------- callouts ------------------------------- */
+
+  function posicionarCallouts(callouts) {
+    const placed = [];
+    callouts.sort((a, b) => a.ancoraX - b.ancoraX).forEach((c) => {
+      c.x = Math.max(LIMITES.x0 + 6, Math.min(c.ancoraX - c.w / 2, LIMITES.x1 - c.w));
+      c.y = 14;
+      placed.forEach((p) => {
+        if (sobrepoe(c, p, 14)) c.x = p.x + p.w + 18;
+      });
+      placed.push(c);
+    });
+    // Se estourou a direita, empurra tudo para a esquerda; se ainda não couber, quebra linha.
+    const excesso = placed.length ? placed[placed.length - 1].x + placed[placed.length - 1].w - LIMITES.x1 : 0;
+    if (excesso > 0) {
+      for (let i = placed.length - 1; i >= 0; i--) {
+        const limite = i === placed.length - 1 ? LIMITES.x1 : placed[i + 1].x - 18;
+        placed[i].x = Math.min(placed[i].x, limite - placed[i].w);
+      }
+    }
+    placed.forEach((c, i) => {
+      if (c.x < LIMITES.x0) {
+        c.x = LIMITES.x0 + 6;
+        const acima = placed.slice(0, i).filter((p) => sobrepoe(c, p, 10));
+        if (acima.length) c.y = Math.max.apply(null, acima.map((p) => p.y + p.h)) + 14;
+      }
+    });
+  }
+
+  function desenharCallout(pai, c) {
+    const g = el('g', { class: 'callout' }, pai);
+    el('rect', { x: c.x, y: c.y, width: c.w, height: c.h, fill: tinta(c.cores, 0), stroke: misturar(c.cores[0], '#000000', 0.25), 'stroke-width': 1 }, g);
+    c.linhas.forEach((l, k) => texto(g, c.x + CALLOUT.pad, c.y + CALLOUT.pad + CALLOUT.lh * (k + 1) - 4, l, {
+      'font-size': CALLOUT.fonte, 'font-weight': 700, fill: '#FFFFFF',
+    }));
+  }
+
+  /* ------------------------------ desenho ---------------------------------- */
+
+  /**
+   * @param {SVGSVGElement} svg
+   * @param {{dados, planta, ciclo, filtro, ajustes, obterMovimento, obterPaineis, edicao}} ctx
+   * @return {{grupos: Array}} grupos de etiquetas (para arrastar no modo edição)
+   */
+  function desenhar(svg, ctx) {
+    marcas = ctx.dados.marcas;
+    gradientes = {};
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute('viewBox', '0 0 ' + TELA.w + ' ' + TELA.h);
+    defs = el('defs', null, svg);
+    const filtro = el('filter', { id: 'sombra', x: '-10%', y: '-10%', width: '120%', height: '130%' }, defs);
+    el('feDropShadow', { dx: 0, dy: 3, stdDeviation: 4, 'flood-color': '#000', 'flood-opacity': 0.18 }, filtro);
+    el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
+
+    const planta = ctx.planta;
+    const { P } = criarProjecao(planta.loja);
+    const camadaPlanta = el('g', { class: 'camada-planta' }, svg);
+    const camadaGuias = el('g', { class: 'camada-guias' }, svg);
+    const camadaEtiquetas = el('g', { class: 'camada-etiquetas' }, svg);
+    const camadaSobre = el('g', { class: 'camada-sobreposta' }, svg);
+
+    desenharLoja(camadaPlanta, P, planta.loja);
+
+    const moveis = planta.moveis.filter((m) => m.tipo !== 'EXTRA');
+    const extras = planta.moveis.filter((m) => m.tipo === 'EXTRA');
+    const simbolosUsados = new Set();
+
+    // Situação de cada móvel no ciclo.
+    const info = {};
+    moveis.concat(extras).forEach((m) => {
+      info[m.id] = ctx.obterMovimento(m);
+      if (info[m.id] && info[m.id].simbolo) simbolosUsados.add(info[m.id].simbolo);
+    });
+    const marcasDoMovel = (m) => {
+      const i = info[m.id];
+      if (!i) return new Set();
+      const s = new Set(String(i.marca || '').split('+'));
+      i.etiquetas.forEach((e) => String(e.marca || '').split('+').forEach((x) => s.add(x)));
+      return s;
+    };
+    const apagado = (m) => ctx.filtro && !marcasDoMovel(m).has(ctx.filtro);
+
+    // Móveis, na ordem de pintura.
+    const prims = [];
+    moveis.forEach((m) => primitivas(m).forEach((p) => prims.push(p)));
+    ordenar(prims, P).forEach((b) => {
+      const m = b.movel;
+      const i = info[m.id];
+      const cores = i && !ehNeutro(i.marca) ? coresDe(i.marca, 'movel') : null;
+      const g = el('g', { class: 'movel', 'data-movel': m.id, opacity: apagado(m) ? 0.18 : 1 }, camadaPlanta);
+      desenharPrimitiva(g, P, b, cores);
+      const linhasDica = [m.id + (m.descricao ? ' — ' + m.descricao : '')];
+      if (i) {
+        linhasDica.push('Marca: ' + (i.marca ? i.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—'));
+        i.etiquetas.forEach((e) => linhasDica.push('• ' + e.texto));
+        if (i.observacao) linhasDica.push('Obs.: ' + i.observacao);
+      } else {
+        linhasDica.push('Sem movimento neste ciclo');
+      }
+      dica(g, linhasDica.join('\n'));
+    });
+
+    // Painéis (lateral, notas, callouts, extras).
+    const pain = ctx.obterPaineis();
+    desenharLateral(el('g', null, camadaSobre), planta, ctx.ciclo, pain);
+    const topoLegenda = desenharLegendaSimbolos(camadaSobre, simbolosUsados, ctx.dados.simbolos);
+    const obstaculos = [{ x: 0, y: 0, w: 470, h: 1080 }];
+    if (pain.NOTA.length) {
+      const med = medirNotas(pain.NOTA);
+      const y = Math.min(topoLegenda, 1072) - 28 - med.h;
+      desenharNotas(camadaSobre, med, 15, y);
+      obstaculos.push({ x: 15, y, w: med.w, h: med.h });
+    }
+    const rExtras = desenharExtras(camadaSobre, extras, (m) => info[m.id]);
+    if (rExtras) obstaculos.push(rExtras);
+
+    const ancoraDe = (m) => {
+      if (m.tipo === 'VITRINE_L') {
+        const t = espessuraL(m);
+        return P(m.x + m.w / 2, m.y + m.d - t / 2, m.z + m.h);
+      }
+      return P(m.x + m.w / 2, m.y + m.d / 2, m.z + m.h);
+    };
+    const porId = {};
+    moveis.forEach((m) => { porId[m.id] = m; });
+
+    const callouts = pain.CALLOUT.map((c) => {
+      const cores = coresDe(c.marca, 'etiqueta') || [COR.etiquetaPadrao];
+      const linhas = quebrar(c.texto, CALLOUT.maxW - CALLOUT.pad * 2, CALLOUT.fonte, 700);
+      const w = Math.max.apply(null, linhas.map((l) => largura(l, CALLOUT.fonte, 700))) + CALLOUT.pad * 2 + 2;
+      const alvo = c.movel && porId[c.movel] ? ancoraDe(porId[c.movel]) : null;
+      return { cores, linhas, w, h: linhas.length * CALLOUT.lh + CALLOUT.pad * 2, alvo, ancoraX: alvo ? alvo[0] : 1200 };
+    });
+    posicionarCallouts(callouts);
+    callouts.forEach((c) => {
+      if (c.alvo) {
+        const x = Math.max(c.x + 12, Math.min(c.alvo[0], c.x + c.w - 12));
+        desenharGuia(camadaGuias, { x, y: c.y + c.h, w: 0, h: 0 }, c.alvo, true);
+      }
+      desenharCallout(camadaEtiquetas, c);
+      obstaculos.push(c);
+    });
+
+    // Etiquetas dos móveis.
+    const grupos = [];
+    moveis.forEach((m) => {
+      const i = info[m.id];
+      if (!i || !i.etiquetas.length) return;
+      const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta')) || [COR.etiquetaPadrao];
+      const med = medirGrupo(i.etiquetas, i.simbolo, corPadrao);
+      const ancora = ancoraDe(m);
+      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
+      const baseX = ancora[0] - med.w / 2;
+      const baseY = ancora[1] - med.h / 2;
+      grupos.push(Object.assign(med, {
+        id: m.id,
+        movel: m,
+        ancora,
+        baseX,
+        baseY,
+        x: baseX + ajuste.x,
+        y: baseY + ajuste.y,
+        manual: !!(ajuste.x || ajuste.y),
+      }));
+    });
+    posicionar(grupos, obstaculos);
+    grupos.forEach((gr) => {
+      const esmaecer = apagado(gr.movel) ? 0.15 : 1;
+      const guia = el('g', { opacity: esmaecer }, camadaGuias);
+      desenharGuia(guia, gr, gr.ancora, false);
+      gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
+        class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : ''),
+        opacity: esmaecer,
+      });
+      dica(gr.elemento, gr.id + (gr.movel.descricao ? ' — ' + gr.movel.descricao : ''));
+    });
+
+    return { grupos };
+  }
+
+  return { desenhar, TELA };
+})();
+</script>
