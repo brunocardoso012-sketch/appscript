@@ -1780,10 +1780,66 @@ const App = (() => {
     return i < 0 ? [planta] : ids.slice(0, i + 1).reverse();
   }
 
+  /** Blocos da gôndola na ordem das colunas Etiqueta 1…4 da linha da gôndola inteira. */
+  const BLOCOS_GONDOLA = ['LADO-A', 'MEIO-A', 'MEIO-B', 'LADO-B'];
+  const temConteudo = (i) => !!(i && (i.marca || i.etiquetas.length || i.simbolo));
+
+  /**
+   * Situação de um móvel (ou espaço) numa planta, seguindo a cascata. Com TRANSFERENCIAS
+   * (Config.gs), a partir da planta da regra o espaço "para" mostra o que o espaço "de"
+   * tinha na planta anterior, e o "de" fica livre (branco). O que vem de uma regra leva
+   * _regra.base: o valor que a planilha base deve usar (sem a transferência).
+   */
   function movimentoDe(ciclo, planta, id) {
     const c = estado.dados.movimentos[ciclo] || {};
-    const achada = cascata(planta).find((p) => c[p] && c[p][id]);
-    return (achada && c[achada][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+    const ids = estado.dados.plantas.map((p) => p.id);
+    const pos = (p) => ids.indexOf(p);
+    const regras = (estado.dados.config.transferencias || [])
+      .filter((r) => pos(r.planta) >= 0 && pos(r.planta) <= pos(planta));
+    // "GONDOLA 3/MEIO-A-2" em relação a "GONDOLA 3/MEIO-A" → "-2"; outro ID → null.
+    const sufixo = (x, base) => (x === base ? '' : x.indexOf(base + '-') === 0 ? x.slice(base.length) : null);
+    const lista = cascata(planta);
+    for (let k = 0; k < lista.length; k++) {
+      const p = lista[k];
+      const antes = regras.filter((r) => pos(p) < pos(r.planta)); // regras que separam p da planta pedida
+      // Linha vazia de um espaço da transferência (como vem na planilha base) não conta como linha própria.
+      const afetado = regras.some((r) => sufixo(id, r.para) !== null || sufixo(id, r.de) !== null);
+      if (c[p] && c[p][id] && (!afetado || temConteudo(c[p][id]))) return semBlocosTransferidos(c[p][id], id, antes);
+      for (let j = 0; j < antes.length; j++) {
+        const r = antes[j];
+        const sPara = sufixo(id, r.para);
+        if (sPara !== null) return transferido(ciclo, p, r.de, sPara);
+        // Espaço liberado: branco até receber outro movimento (as metades usam o meio inteiro).
+        if (sufixo(id, r.de) === '') return { marca: 'NEUTRO', etiquetas: [], simbolo: '', observacao: '', _regra: { base: null } };
+        if (sufixo(id, r.de) !== null) return null;
+      }
+    }
+    return (c[TODAS()] && c[TODAS()][id]) || null;
+  }
+
+  /** Linha da gôndola inteira vinda de antes da transferência: sem as etiquetas dos blocos que saíram. */
+  function semBlocosTransferidos(info, id, regras) {
+    const posicoes = regras
+      .filter((r) => r.de.indexOf(id + '/') === 0)
+      .map((r) => BLOCOS_GONDOLA.indexOf(r.de.slice(id.length + 1)) + 1)
+      .filter((n) => n > 0);
+    if (!posicoes.length) return info;
+    const etiquetas = info.etiquetas.filter((e, k) => posicoes.indexOf(e.posicao || k + 1) < 0);
+    if (etiquetas.length === info.etiquetas.length) return info;
+    return Object.assign({}, info, { etiquetas, _regra: { base: info } });
+  }
+
+  /** O que o espaço "de" tinha na planta p: a linha do espaço ou, sem ela, a etiqueta e a cor da gôndola inteira. */
+  function transferido(ciclo, p, de, sufixoMetade) {
+    const proprio = movimentoDe(ciclo, p, de + sufixoMetade);
+    if (temConteudo(proprio)) return Object.assign({}, proprio, { _regra: { base: null } });
+    if (sufixoMetade) return null; // metade sem linha própria: usa o meio inteiro
+    const barra = de.indexOf('/');
+    const n = BLOCOS_GONDOLA.indexOf(de.slice(barra + 1)) + 1;
+    const geral = barra > 0 && n > 0 ? movimentoDe(ciclo, p, de.slice(0, barra)) : null;
+    if (!temConteudo(geral)) return null;
+    const etiquetas = geral.etiquetas.filter((e, k) => (e.posicao || k + 1) === n).map((e) => Object.assign({}, e, { posicao: 1 }));
+    return { marca: geral.marca, etiquetas, simbolo: '', observacao: '', _regra: { base: null } };
   }
 
   /** Painéis de uma planta: por seção, vale a planta mais próxima na cascata que tiver a seção; senão "TODAS". */

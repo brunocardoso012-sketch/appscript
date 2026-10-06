@@ -134,6 +134,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
+      transferencias: transferencias_(),
     },
   };
 }
@@ -208,6 +209,13 @@ function montarPlantas_(linhas, aviso) {
 
   ordem.sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
   return ordem.map(function (id) { return mapa[id]; });
+}
+
+/** TRANSFERENCIAS (Config.gs) com plantas e IDs normalizados ("ER G" → "03"). */
+function transferencias_() {
+  return (typeof TRANSFERENCIAS === 'undefined' ? [] : TRANSFERENCIAS).map(function (r) {
+    return { planta: normPlanta_(r.aPartirDe), de: normIdEspaco_(r.de), para: normIdEspaco_(r.para) };
+  }).filter(function (r) { return r.planta && r.de && r.para; });
 }
 
 /**

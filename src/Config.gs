@@ -31,6 +31,21 @@ const CONFIG = {
 const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
 
 /**
+ * Espaços que mudam de móvel ao passar de uma planta para a seguinte na cascata.
+ * A partir da planta "aPartirDe" (e nas seguintes), o espaço "para" mostra o que o
+ * espaço "de" tinha na planta anterior, e o espaço "de" fica livre (branco, sem
+ * etiqueta) para receber outro movimento. Uma linha própria na planilha (a partir
+ * dessa planta) tem prioridade sobre a transferência.
+ * Vale para espaços de gôndola (LADO-A, MEIO-A, MEIO-B, LADO-B) e metades de meio.
+ */
+const TRANSFERENCIAS = [
+  // ER M → ER G / ER GG: o lado B da Gôndola 2 da ER M vira o lado A da Gôndola 3,
+  // e o meio B da Gôndola 2 vira o meio A da Gôndola 3.
+  { aPartirDe: 'ER G', de: 'GONDOLA 2/LADO-B', para: 'GONDOLA 3/LADO-A' },
+  { aPartirDe: 'ER G', de: 'GONDOLA 2/MEIO-B', para: 'GONDOLA 3/MEIO-A' },
+];
+
+/**
  * Quantas etiquetas a linha do móvel inteiro mostra (as outras colunas "Etiqueta N"
  * são ignoradas). Tipos que não aparecem aqui mostram até CONFIG.MAX_ETIQUETAS
  * (pirâmide e mesas: até 4, empilhadas).

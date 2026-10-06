@@ -29,7 +29,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 6;
+const VERSAO_EXEMPLO = 7;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -220,7 +220,8 @@ const EXEMPLO_MOVIMENTOS = {
     'TOTEM OUI 1': ['OUI', [['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
   '03': {
-    'GONDOLA 3': ['MULTI', [['MULTI PROMO', 'MULTI'], ['CURTO PRAZO', 'MULTI'], ['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
+    // Lado A e meio A da Gôndola 3 vêm do lado B e do meio B da Gôndola 2 da ER M (TRANSFERENCIAS, Config.gs).
+    'GONDOLA 3': ['MULTI', [['', ''], ['', ''], ['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 8': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'MESA DESTAQUE 3 FRENTES 1': ['MULTI'],

@@ -188,6 +188,21 @@ const CONFIG = {
 const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
 
 /**
+ * Espaços que mudam de móvel ao passar de uma planta para a seguinte na cascata.
+ * A partir da planta "aPartirDe" (e nas seguintes), o espaço "para" mostra o que o
+ * espaço "de" tinha na planta anterior, e o espaço "de" fica livre (branco, sem
+ * etiqueta) para receber outro movimento. Uma linha própria na planilha (a partir
+ * dessa planta) tem prioridade sobre a transferência.
+ * Vale para espaços de gôndola (LADO-A, MEIO-A, MEIO-B, LADO-B) e metades de meio.
+ */
+const TRANSFERENCIAS = [
+  // ER M → ER G / ER GG: o lado B da Gôndola 2 da ER M vira o lado A da Gôndola 3,
+  // e o meio B da Gôndola 2 vira o meio A da Gôndola 3.
+  { aPartirDe: 'ER G', de: 'GONDOLA 2/LADO-B', para: 'GONDOLA 3/LADO-A' },
+  { aPartirDe: 'ER G', de: 'GONDOLA 2/MEIO-B', para: 'GONDOLA 3/MEIO-A' },
+];
+
+/**
  * Quantas etiquetas a linha do móvel inteiro mostra (as outras colunas "Etiqueta N"
  * são ignoradas). Tipos que não aparecem aqui mostram até CONFIG.MAX_ETIQUETAS
  * (pirâmide e mesas: até 4, empilhadas).
@@ -449,7 +464,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 6;
+const VERSAO_EXEMPLO = 7;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -640,7 +655,8 @@ const EXEMPLO_MOVIMENTOS = {
     'TOTEM OUI 1': ['OUI', [['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
   '03': {
-    'GONDOLA 3': ['MULTI', [['MULTI PROMO', 'MULTI'], ['CURTO PRAZO', 'MULTI'], ['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
+    // Lado A e meio A da Gôndola 3 vêm do lado B e do meio B da Gôndola 2 da ER M (TRANSFERENCIAS, Config.gs).
+    'GONDOLA 3': ['MULTI', [['', ''], ['', ''], ['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 8': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'MESA DESTAQUE 3 FRENTES 1': ['MULTI'],
@@ -885,6 +901,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
+      transferencias: transferencias_(),
     },
   };
 }
@@ -959,6 +976,13 @@ function montarPlantas_(linhas, aviso) {
 
   ordem.sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
   return ordem.map(function (id) { return mapa[id]; });
+}
+
+/** TRANSFERENCIAS (Config.gs) com plantas e IDs normalizados ("ER G" → "03"). */
+function transferencias_() {
+  return (typeof TRANSFERENCIAS === 'undefined' ? [] : TRANSFERENCIAS).map(function (r) {
+    return { planta: normPlanta_(r.aPartirDe), de: normIdEspaco_(r.de), para: normIdEspaco_(r.para) };
+  }).filter(function (r) { return r.planta && r.de && r.para; });
 }
 
 /**

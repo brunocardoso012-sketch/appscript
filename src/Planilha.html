@@ -171,7 +171,13 @@ const Planilha = (() => {
       '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3) e móvel make (TESTEIRA-1 a 4) têm uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada testeira, 1. Bloco sem linha própria usa a cor do móvel inteiro. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só, no centro. O balcão recepção tem uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.',
       '6.4 Totem: na linha do totem, Etiqueta 1, 2 e 3 vão para o painel de cima, o do meio e o de baixo (cada uma ao lado do seu painel), e a "Marca Etiqueta N" pinta o painel N. Painel sem etiqueta usa a "Marca do Móvel". Se preferir, uma linha TOTEM 1/PAINEL-1 (a 3) define cor e etiqueta de um painel e tem prioridade.',
       '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
-    ].concat(op.visualizador ? [
+    ].concat((dados.config.transferencias || []).length ? [
+      '7.1 Espaços que mudam de móvel na cascata: ' + dados.config.transferencias.map((r) => {
+        const i = dados.plantas.findIndex((x) => x.id === r.planta);
+        const anterior = i > 0 ? plantaNaPlanilha(dados, dados.plantas[i - 1].id) : '';
+        return 'a partir da ' + plantaNaPlanilha(dados, r.planta) + ', ' + r.para + ' mostra o que ' + r.de + ' tinha na ' + anterior;
+      }).join('; ') + '. Nessas plantas o espaço de origem fica livre (branco): preencha a linha dele com o novo movimento. Uma linha própria do espaço de destino tem prioridade sobre a transferência.',
+    ] : []).concat(op.visualizador ? [
       // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.
       '8. Todos os ciclos ficam nesta mesma planilha. Para criar um ciclo novo, copie as linhas de um ciclo existente (nas abas "' + abas.MOVIMENTOS + '" e "' + abas.PAINEIS + '"), cole no fim e troque o "Ciclo". Cada nome diferente de ciclo aparece no seletor do visualizador.',
       '9. O visualizador lê esta planilha diretamente: depois de editar, clique em "Atualizar" no app. Não renomeie as abas nem os títulos das colunas. Os avisos do app (marca desconhecida, ID inexistente…) indicam a linha da planilha a corrigir.',
@@ -231,6 +237,18 @@ const Planilha = (() => {
     const ondeExiste = {};
     plantas.forEach((p) => p.moveis.forEach((m) => { (ondeExiste[m.id] = ondeExiste[m.id] || []).push(p.id); }));
     const nomeDe = (id) => plantaNaPlanilha(dados, id);
+    // TRANSFERENCIAS (Config.gs): na planta em que a regra começa, avisa de onde vem o espaço
+    // "para" e que o espaço "de" ficou livre (essa linha entra mesmo vazia, para ser preenchida).
+    const transferencias = emCascata ? dados.config.transferencias || [] : [];
+    const notaTransferencia = (planta, id) => transferencias
+      .filter((r) => r.planta === planta)
+      .map((r) => {
+        const i = dados.plantas.findIndex((x) => x.id === r.planta);
+        const anterior = i > 0 ? nomeDe(dados.plantas[i - 1].id) : '';
+        if (id === r.para) return ' · VEM DE ' + r.de + ' da ' + anterior + ' (preencha só para trocar)';
+        if (id === r.de) return ' · ESPAÇO LIVRE: o que estava aqui na ' + anterior + ' foi para ' + r.para + '; preencha com o novo movimento';
+        return '';
+      }).join('');
     const jaListado = {}; // ID → conteúdo (JSON) que as plantas seguintes herdam
     let faixa = 0;
     plantas.forEach((p) => {
@@ -252,12 +270,19 @@ const Planilha = (() => {
         descricao: m.descricao + (POR_POSICAO[m.tipo] || '') + valePara(m),
         limite: porTipo[m.tipo] || max,
         porPosicao: !!POR_POSICAO[m.tipo],
-      }].concat(espacosNaPlanilha(m).map((e) => ({ id: m.id + '/' + e.id, descricao: (m.descricao || m.id) + ' – ' + e.nome, limite: porBloco[m.tipo] || 1 })));
+      }].concat(espacosNaPlanilha(m).map((e) => {
+        const id = m.id + '/' + e.id;
+        const nota = notaTransferencia(p.id, id);
+        return { id, descricao: (m.descricao || m.id) + ' – ' + e.nome + nota, limite: porBloco[m.tipo] || 1, forcar: !!nota };
+      }));
       // Móvel de atendimento não leva cor nem etiqueta: fica fora da planilha.
       p.moveis.filter((m) => !SEM_LINHA_NA_PLANILHA[m.tipo]).reduce((acc, m) => acc.concat(linhasDoMovel(m)), []).forEach((m) => {
-        const info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;
+        let info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;
+        // Transferência entre plantas: em cascata ela é automática, então a linha não repete o conteúdo
+        // (assim, mudar a planta anterior continua mudando as seguintes).
+        if (info && info._regra) info = emCascata ? info._regra.base : Object.assign({}, info, { _regra: undefined });
         const conteudo = JSON.stringify(info);
-        if (emCascata && m.id in jaListado && jaListado[m.id] === conteudo) return; // já vem da planta anterior
+        if (emCascata && !m.forcar && m.id in jaListado && jaListado[m.id] === conteudo) return; // já vem da planta anterior
         jaListado[m.id] = conteudo;
         const linha = { ciclo: op.ciclo, planta: nomeDe(p.id), movel: m.id, descricao: m.descricao };
         if (info) {
