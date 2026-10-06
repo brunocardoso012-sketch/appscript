@@ -1,4 +1,443 @@
-<script>
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <title>Plano de Varejo · Plantas</title>
+    <style>
+  :root {
+    --fundo: #f3f4f6;
+    --superficie: #ffffff;
+    --borda: #dfe2e6;
+    --borda-forte: #c9cdd3;
+    --texto: #16181b;
+    --texto-2: #5b6068;
+    --primario: #16181b;
+    --primario-texto: #ffffff;
+    --destaque: #fff7d6;
+    --raio: 8px;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .06), 0 4px 16px rgba(0, 0, 0, .06);
+    --fonte: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--fundo);
+    color: var(--texto);
+    font: 14px/1.4 var(--fonte);
+    display: flex;
+    flex-direction: column;
+  }
+  [hidden] { display: none !important; }
+
+  /* ---------- topo ---------- */
+  .topo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+    padding: 10px 16px;
+    background: var(--superficie);
+    border-bottom: 1px solid var(--borda);
+  }
+  .identidade { display: flex; align-items: center; gap: 10px; min-width: 190px; }
+  .identidade h1 { margin: 0; font-size: 15px; letter-spacing: .2px; }
+  .identidade p { margin: 0; font-size: 12px; color: var(--texto-2); }
+  .logo { width: 26px; height: 26px; color: var(--texto); }
+
+  .seletores { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; flex: 1 1 auto; }
+  .acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .campo { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--texto-2); }
+  .campo > span, .campo > legend { font-weight: 600; text-transform: uppercase; letter-spacing: .4px; font-size: 11px; }
+  .campo.bloco { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin: 0 0 14px; border: 0; padding: 0; }
+
+  select, input[type="text"] {
+    font: inherit;
+    color: var(--texto);
+    background: var(--superficie);
+    border: 1px solid var(--borda-forte);
+    border-radius: var(--raio);
+    padding: 7px 10px;
+    min-width: 170px;
+  }
+  select:focus-visible, input:focus-visible, .btn:focus-visible, .aba:focus-visible, .chip:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 1px;
+  }
+
+  .abas { display: inline-flex; background: #eceef1; border-radius: 10px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+  .aba {
+    border: 0;
+    background: transparent;
+    font: 600 12px var(--fonte);
+    letter-spacing: .4px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    color: var(--texto-2);
+    cursor: pointer;
+  }
+  .aba:hover { color: var(--texto); }
+  .aba[aria-selected="true"] { background: var(--primario); color: var(--primario-texto); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 600 13px var(--fonte);
+    padding: 7px 12px;
+    border-radius: var(--raio);
+    border: 1px solid var(--borda-forte);
+    background: var(--superficie);
+    color: var(--texto);
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #f5f6f8; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .btn.primario { background: var(--primario); border-color: var(--primario); color: var(--primario-texto); }
+  .btn.primario:hover { background: #2b2f35; }
+  .btn.fantasma { border-color: transparent; background: transparent; color: var(--texto-2); }
+  .btn.fantasma:hover { color: var(--texto); background: #f0f1f3; }
+  .btn.pequeno { padding: 5px 10px; font-size: 12px; }
+  .btn[aria-pressed="true"] { background: var(--destaque); border-color: #e2c64a; }
+
+  /* ---------- legenda e avisos ---------- */
+  .faixa {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 8px 16px 0;
+  }
+  .legenda { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .legenda .rotulo { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); margin-right: 4px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--borda);
+    background: var(--superficie);
+    border-radius: 999px;
+    padding: 3px 10px 3px 4px;
+    font: 600 12px var(--fonte);
+    color: var(--texto);
+    cursor: pointer;
+  }
+  .chip .cor { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .15); }
+  .chip[aria-pressed="true"] { border-color: var(--texto); box-shadow: inset 0 0 0 1px var(--texto); }
+  .chip.inativo { opacity: .6; }
+  .chip.inativo .cor { filter: grayscale(1); }
+  .legenda .dica { font-size: 12px; color: var(--texto-2); }
+
+  .avisos { font-size: 12px; color: #7a4b00; background: #fff8e6; border: 1px solid #f1d58a; border-radius: var(--raio); padding: 4px 10px; max-width: 640px; }
+  .avisos summary { cursor: pointer; font-weight: 600; }
+  .avisos ul { margin: 6px 0 4px; padding-left: 18px; max-height: 180px; overflow: auto; }
+
+  .aviso-local { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--texto-2); background: #eef2ff; border: 1px solid #c7d2fe; border-radius: var(--raio); padding: 2px 4px 2px 10px; }
+  .bloco-opcao { margin: 0 0 14px; }
+
+  .barra-edicao {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 16px 0;
+    padding: 8px 12px;
+    background: var(--destaque);
+    border: 1px solid #e2c64a;
+    border-radius: var(--raio);
+    font-size: 13px;
+  }
+  .grupo-botoes { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ---------- palco (slide) ---------- */
+  .palco {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 10px 16px 16px;
+  }
+  #slide {
+    width: min(100%, calc((100vh - 150px) * 16 / 9));
+    min-width: 320px;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    background: #f3efea;
+    border-radius: 6px;
+    box-shadow: var(--sombra);
+    user-select: none;
+  }
+  #slide .movel:hover polygon { stroke-width: 2.2; }
+  #slide .arrastavel { cursor: grab; }
+  #slide .arrastavel:hover rect { stroke: #111; stroke-width: 1.5; }
+  #slide .arrastavel:active { cursor: grabbing; }
+
+  #slide .movel.selecionado polygon { stroke: #ff6a00; stroke-width: 2.6; }
+  #slide.construindo .movel { cursor: move; }
+  #slide.construindo .camada-etiquetas,
+  #slide.construindo .camada-guias { opacity: .35; pointer-events: none; }
+  #slide.construindo .camada-sobreposta { pointer-events: none; }
+
+  /* ---------- construir loja ---------- */
+  body.construindo .palco { gap: 14px; align-items: flex-start; position: relative; }
+  body.construindo #slide { width: min(calc(100% - 350px), calc((100vh - 150px) * 16 / 9)); }
+  #slide.construindo .movel:hover polygon { stroke: #ff9a52; }
+  .construtor {
+    flex: 0 0 336px;
+    max-height: calc(100vh - 140px);
+    overflow: auto;
+    background: var(--superficie);
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    box-shadow: var(--sombra);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+  }
+  .construtor > * { padding-left: 14px; padding-right: 14px; }
+  .cns-topo { display: flex; justify-content: space-between; align-items: flex-start; padding-top: 12px; }
+  .cns-topo h2 { margin: 0; font-size: 15px; }
+  #cnsPlanta { font-size: 12px; color: var(--texto-2); font-weight: 600; }
+  .cns-dica, .cns-ajuda { margin: 6px 0 10px; font-size: 12px; color: var(--texto-2); }
+  kbd { font: 600 11px var(--fonte); background: #f0f1f3; border: 1px solid var(--borda-forte); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+  .construtor section { border-top: 1px solid var(--borda); padding-top: 10px; padding-bottom: 10px; }
+  .construtor h3 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); }
+
+  .cns-salvos { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 10px; padding: 8px 10px; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; font-size: 12px; color: var(--texto-2); }
+  .cns-paleta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .cns-paleta button {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    border: 1px solid var(--borda); background: #fafbfc; border-radius: 8px;
+    padding: 7px 4px 6px; font: 600 11px var(--fonte); color: var(--texto); cursor: pointer;
+  }
+  .cns-paleta button:hover { border-color: var(--texto); background: #fff; }
+  .cns-paleta svg { width: 28px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+
+  #cnsEspacos { word-break: break-word; font-weight: 600; color: var(--texto); }
+  .cns-vazio { margin: 4px 0; color: var(--texto-2); font-style: italic; }
+  .cns-campo { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 600; color: var(--texto-2); margin-bottom: 8px; }
+  .cns-grupo { margin-bottom: 4px; }
+  .cns-grupo > span { font-size: 11px; font-weight: 600; color: var(--texto-2); }
+  .construtor .campos { display: grid; gap: 8px; margin: 4px 0 8px; }
+  .construtor .campos.dois { grid-template-columns: 1fr 1fr; }
+  .construtor .campos.tres { grid-template-columns: repeat(3, 1fr); }
+  .construtor .campos label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--texto-2); }
+  .construtor input[type="number"], .construtor input[type="text"], .construtor select { min-width: 0; width: 100%; padding: 5px 7px; font-size: 13px; }
+  .cns-mais summary, .cns-secao summary { cursor: pointer; font-weight: 600; font-size: 12px; color: var(--texto-2); padding: 2px 0; }
+  .cns-mais { margin-top: 2px; }
+  .cns-secao { border-top: 1px solid var(--borda); padding-top: 9px; padding-bottom: 9px; }
+  .cns-secao[open] summary { margin-bottom: 8px; color: var(--texto); }
+  .construtor #cnsLista { height: auto; }
+  .construtor .linha-botoes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .construtor .campo-linha { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--texto-2); margin: 6px 0; }
+  .construtor .campo-linha select { width: auto; }
+  .construtor .campo-linha input[type="range"] { flex: 1; }
+
+  .cns-rodape {
+    position: sticky; bottom: 0; margin-top: auto;
+    background: var(--superficie); border-top: 1px solid var(--borda);
+    padding-top: 10px; padding-bottom: 6px;
+  }
+  #cnsStatus { display: block; font-size: 12px; font-weight: 600; color: #15803d; margin-bottom: 6px; }
+  #cnsStatus.sujo { color: #b45309; }
+
+  .cns-flutuante {
+    position: absolute; z-index: 5; display: flex; gap: 2px;
+    background: #16181b; border-radius: 8px; padding: 3px; box-shadow: var(--sombra);
+    transform: translate(-50%, -100%);
+  }
+  .cns-flutuante button { border: 0; background: transparent; color: #fff; font: 600 12px var(--fonte); padding: 5px 9px; border-radius: 6px; cursor: pointer; }
+  .cns-flutuante button:hover { background: rgba(255, 255, 255, .15); }
+  .cns-flutuante button[data-acao="excluir"]:hover { background: #b42318; }
+
+  @media (max-width: 1100px) {
+    body.construindo .palco { flex-wrap: wrap; }
+    body.construindo #slide { width: 100%; }
+    .construtor { flex: 1 1 100%; max-height: none; }
+  }
+
+  .vazio {
+    max-width: 520px;
+    margin: 40px auto;
+    background: var(--superficie);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: var(--sombra);
+    text-align: center;
+  }
+  .vazio h2 { margin: 0 0 8px; font-size: 18px; }
+  .vazio p { color: var(--texto-2); }
+
+  /* ---------- diálogos ---------- */
+  .dialogo {
+    border: 0;
+    border-radius: 12px;
+    padding: 22px 22px 16px;
+    width: min(460px, calc(100vw - 32px));
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+    color: var(--texto);
+  }
+  .dialogo::backdrop { background: rgba(15, 17, 20, .45); }
+  .dialogo h2 { margin: 0 0 4px; font-size: 17px; }
+  .dialogo .sub { margin: 0 0 16px; color: var(--texto-2); font-size: 13px; }
+  .dialogo input[type="text"], .dialogo select { width: 100%; }
+  .opcao { display: flex; align-items: center; gap: 8px; color: var(--texto); font-size: 13px; padding: 3px 0; cursor: pointer; }
+  .rodape-dialogo { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  .lista-avisos { max-height: 240px; overflow: auto; font-size: 12px; color: #7a4b00; padding-left: 18px; }
+  .lista-avisos:empty { display: none; }
+
+  /* ---------- carregando / toast ---------- */
+  .carregando {
+    position: fixed;
+    inset: 0;
+    background: rgba(243, 244, 246, .72);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-weight: 600;
+    z-index: 20;
+  }
+  .spinner {
+    width: 34px;
+    height: 34px;
+    border: 3px solid #cfd3d8;
+    border-top-color: var(--texto);
+    border-radius: 50%;
+    animation: girar .8s linear infinite;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    background: #16181b;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    box-shadow: var(--sombra);
+    z-index: 30;
+    max-width: calc(100vw - 32px);
+  }
+  .toast.erro { background: #b42318; }
+
+  @media (max-width: 720px) {
+    .topo { padding: 10px 12px; }
+    .faixa, .palco { padding-left: 12px; padding-right: 12px; }
+    .acoes .btn { flex: 1 1 auto; justify-content: center; }
+    #slide { width: 100%; }
+  }
+</style>
+
+  </head>
+  <body>
+    <header class="topo">
+      <div class="identidade">
+        <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2 22 7.5v9L12 22 2 16.5v-9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M2 7.5 12 13l10-5.5M12 13v9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+        <div>
+          <h1>Plano de Varejo</h1>
+          <p>Visualizador de plantas por ciclo</p>
+        </div>
+      </div>
+
+      <div class="seletores">
+        <label class="campo">
+          <span>Ciclo</span>
+          <select id="selCiclo" aria-label="Ciclo"></select>
+        </label>
+        <div class="abas" id="abasPlanta" role="tablist" aria-label="Plantas"></div>
+      </div>
+
+      <div class="acoes">
+        <button id="btnPng" class="btn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
+          Baixar PNG
+        </button>
+        <button id="btnEditar" class="btn" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
+          Ajustar etiquetas
+        </button>
+        <button id="btnAtualizar" class="btn fantasma" type="button" title="Ler a planilha de novo">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
+          Atualizar
+        </button>
+        <a id="lnkPlanilha" class="btn fantasma" target="_blank" rel="noopener" hidden>
+          Abrir planilha
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+        </a>
+      </div>
+    </header>
+
+    <div class="faixa">
+      <div class="legenda" id="legenda" aria-label="Marcas"></div>
+      <div class="aviso-local" id="avisoLocal" hidden>
+        <span>Modo local: os dados ficam salvos só neste navegador.</span>
+        <button id="btnRestaurar" class="btn pequeno fantasma" type="button">Restaurar exemplo</button>
+      </div>
+            <details class="avisos" id="avisos" hidden>
+        <summary></summary>
+        <ul></ul>
+      </details>
+    </div>
+
+    <div class="barra-edicao" id="barraEdicao" hidden>
+      <span><strong>Modo ajuste:</strong> arraste as etiquetas para reposicionar. <span id="qtdAjustes"></span></span>
+      <span class="grupo-botoes">
+        <button id="btnAutoOrganizar" class="btn pequeno" type="button">Organizar automaticamente</button>
+        <button id="btnDescartar" class="btn pequeno" type="button">Descartar</button>
+        <button id="btnSalvarAjustes" class="btn pequeno primario" type="button">Salvar posições</button>
+      </span>
+    </div>
+
+    <main class="palco" id="palco">
+      <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
+      <section class="vazio" id="telaConfig" hidden>
+        <h2>Planilha ainda não configurada</h2>
+        <p id="msgConfig"></p>
+      </section>
+    </main>
+
+
+    <dialog id="dlgPng" class="dialogo">
+      <form method="dialog">
+        <h2>Baixar PNG</h2>
+        <p class="sub">Imagem em alta resolução da planta selecionada.</p>
+        <fieldset class="campo bloco">
+          <legend>Conteúdo</legend>
+          <label class="opcao"><input type="radio" name="pngModo" value="slide" checked> <span>Slide completo (com painéis, notas e fundo)</span></label>
+          <label class="opcao"><input type="radio" name="pngModo" value="planta"> <span>Só a planta com as etiquetas (sem painéis e sem fundo)</span></label>
+        </fieldset>
+        <p class="sub" id="pngFiltroTexto" hidden></p>
+        <div class="rodape-dialogo">
+          <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
+          <button class="btn primario" value="baixar" type="submit">Baixar PNG</button>
+        </div>
+      </form>
+    </dialog>
+
+
+    <div class="carregando" id="carregando" hidden>
+      <div class="spinner" aria-hidden="true"></div>
+      <span id="carregandoTexto">Carregando…</span>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script>
 /**
  * ============================================================================
  *  RENDERIZADOR DA PLANTA (SVG isométrico, 1920×1080 — formato de slide)
@@ -1246,3 +1685,639 @@ const Render = (() => {
   return { desenhar, espacos, TELA };
 })();
 </script>
+
+    <script>
+/**
+ * ============================================================================
+ *  APLICAÇÃO (estado, controles e chamadas ao servidor)
+ * ============================================================================
+ */
+const App = (() => {
+  const estado = {
+    dados: null,
+    ciclo: '',
+    planta: '',
+    filtro: '',
+    edicao: false,
+    ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
+    grupos: [],
+  };
+  const $ = (id) => document.getElementById(id);
+  const svg = $('slide');
+
+  /**
+   * Modo "Construir loja". A versão só de visualização (pasta visualizador/) não inclui
+   * o Construtor.html: no lugar dele entra este substituto, que nunca está ativo.
+   */
+  const Editor = typeof Construtor !== 'undefined' ? Construtor : {
+    iniciar() {}, sincronizar() {}, aposDesenhar() {}, fechar() {}, abrir() {}, tecla() {},
+    contexto: () => null, ativo: () => false, podeSair: () => true,
+  };
+
+  /* ------------------------------ utilidades ------------------------------ */
+
+  const memoria = {
+    ler(k) { try { return window.localStorage.getItem('planoVarejo.' + k); } catch (e) { return null; } },
+    gravar(k, v) { try { window.localStorage.setItem('planoVarejo.' + k, v); } catch (e) { /* sem armazenamento */ } },
+  };
+
+  /** Dispara o download de um Blob. */
+  function baixarArquivo(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  /** google.script.run como Promise. */
+  function chamar(funcao) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise((ok, falha) => {
+      if (!window.google || !google.script || !google.script.run) {
+        falha(new Error('Esta página precisa ser aberta pelo Apps Script (App da Web ou menu da planilha).'));
+        return;
+      }
+      const run = google.script.run.withSuccessHandler(ok).withFailureHandler(falha);
+      run[funcao].apply(run, args);
+    });
+  }
+
+  function carregando(ativo, mensagem) {
+    $('carregando').hidden = !ativo;
+    if (mensagem) $('carregandoTexto').textContent = mensagem;
+  }
+
+  let timerToast = null;
+  function toast(msg, erro) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.toggle('erro', !!erro);
+    t.hidden = false;
+    clearTimeout(timerToast);
+    timerToast = setTimeout(() => { t.hidden = true; }, erro ? 7000 : 3500);
+  }
+
+  function erro(e) {
+    console.error(e);
+    toast((e && e.message) || String(e), true);
+  }
+
+  /* -------------------------- resolução dos dados -------------------------- */
+
+  const TODAS = () => estado.dados.config.plantaTodas;
+
+  /**
+   * Cascata: a planta e, depois, as anteriores (da mais próxima para a menor) — o que é
+   * definido na ER P vale para ER M, ER G e ER GG, a não ser que a planta tenha linha própria.
+   */
+  function cascata(planta) {
+    const ids = estado.dados.plantas.map((p) => p.id);
+    const i = ids.indexOf(planta);
+    return i < 0 ? [planta] : ids.slice(0, i + 1).reverse();
+  }
+
+  function movimentoDe(ciclo, planta, id) {
+    const c = estado.dados.movimentos[ciclo] || {};
+    const achada = cascata(planta).find((p) => c[p] && c[p][id]);
+    return (achada && c[achada][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+  }
+
+  /** Painéis de uma planta: por seção, vale a planta mais próxima na cascata que tiver a seção; senão "TODAS". */
+  function paineisDe(ciclo, planta) {
+    const c = estado.dados.paineis[ciclo] || {};
+    const todas = c[TODAS()] || [];
+    const out = {};
+    Object.keys(estado.dados.secoes).forEach((s) => {
+      const daSecao = (p) => (c[p] || []).filter((x) => x.secao === s);
+      const achada = cascata(planta).find((p) => daSecao(p).length);
+      out[s] = achada ? daSecao(achada) : todas.filter((p) => p.secao === s);
+    });
+    return out;
+  }
+
+  /** Linhas da aba Painéis para a planilha base. */
+  function linhasPaineis(ciclo, plantas) {
+    const todasAsPlantas = estado.dados.plantas.length === plantas.length;
+    const c = estado.dados.paineis[ciclo] || {};
+    if (todasAsPlantas) {
+      return Object.keys(c).reduce((acc, planta) => acc.concat(c[planta].map((p) => Object.assign({ planta }, p))), []);
+    }
+    return plantas.reduce((acc, planta) => {
+      const r = paineisDe(ciclo, planta);
+      Object.keys(r).forEach((s) => r[s].forEach((p) => acc.push(Object.assign({}, p, { planta }))));
+      return acc;
+    }, []);
+  }
+
+  const plantaAtual = () => estado.dados && estado.dados.plantas.find((p) => p.id === estado.planta);
+
+  /* ------------------------------- carga ---------------------------------- */
+
+  async function carregar(preferencias) {
+    carregando(true, 'Carregando dados da planilha…');
+    try {
+      const dados = await chamar('getDados');
+      if (dados.precisaConfigurar) {
+        mostrarConfiguracao(dados.mensagem);
+        return;
+      }
+      aplicarDados(dados, preferencias || {});
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  function aplicarDados(dados, pref) {
+    estado.dados = dados;
+    $('telaConfig').hidden = true;
+    svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden
+
+    // O app abre sem ciclo (planta limpa, sem cores nem etiquetas) até o usuário escolher um.
+    const cicloPref = 'ciclo' in pref ? pref.ciclo : estado.ciclo;
+    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 ? cicloPref : '';
+    const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
+    estado.planta = dados.plantas.some((p) => p.id === plantaPref) ? plantaPref : (dados.plantas[0] || {}).id || '';
+    estado.ajustes = {};
+
+    $('avisoLocal').hidden = !dados.modoLocal;
+    const link = $('lnkPlanilha');
+    link.hidden = !dados.planilhaUrl;
+    if (dados.planilhaUrl) link.href = dados.planilhaUrl;
+
+    montarCiclos();
+    montarAbas();
+    montarLegenda();
+    montarAvisos(dados.avisos || []);
+    Editor.sincronizar(plantaAtual());
+    desenhar();
+  }
+
+  function mostrarConfiguracao(mensagem) {
+    svg.toggleAttribute('hidden', true);
+    $('telaConfig').hidden = false;
+    $('msgConfig').textContent = mensagem || 'Crie as abas Movimentos, Painéis e Layout para começar.';
+  }
+
+  async function configurar() {
+    carregando(true, 'Criando abas na planilha…');
+    try {
+      const r = await chamar('configurarPlanilha');
+      toast(r.mensagem);
+      await carregar();
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* ------------------------------ controles ------------------------------- */
+
+  function montarCiclos() {
+    const sel = $('selCiclo');
+    sel.textContent = '';
+    if (!estado.dados.ciclos.length) {
+      sel.appendChild(new Option('(nenhum ciclo na planilha)', ''));
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    sel.appendChild(new Option('Sem ciclo (planta limpa)', '', false, !estado.ciclo));
+    estado.dados.ciclos.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.ciclo)));
+  }
+
+  function montarAbas() {
+    const box = $('abasPlanta');
+    box.textContent = '';
+    estado.dados.plantas.forEach((p) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'aba';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(p.id === estado.planta));
+      b.textContent = p.nome;
+      b.addEventListener('click', () => trocarPlanta(p.id));
+      box.appendChild(b);
+    });
+  }
+
+  function montarLegenda() {
+    const box = $('legenda');
+    box.textContent = '';
+    const rotulo = document.createElement('span');
+    rotulo.className = 'rotulo';
+    rotulo.textContent = 'Marcas';
+    box.appendChild(rotulo);
+    const marcas = estado.dados.marcas;
+    Object.keys(marcas).filter((cod) => cod !== 'NEUTRO').forEach((cod) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip' + (estado.filtro && estado.filtro !== cod ? ' inativo' : '');
+      chip.setAttribute('aria-pressed', String(estado.filtro === cod));
+      chip.title = 'Mostrar só ' + marcas[cod].nome;
+      const cor = document.createElement('span');
+      cor.className = 'cor';
+      cor.style.background = marcas[cod].etiqueta;
+      chip.appendChild(cor);
+      chip.appendChild(document.createTextNode(marcas[cod].nome));
+      chip.addEventListener('click', () => {
+        estado.filtro = estado.filtro === cod ? '' : cod;
+        montarLegenda();
+        desenhar();
+      });
+      box.appendChild(chip);
+    });
+    if (estado.filtro) {
+      const dica = document.createElement('span');
+      dica.className = 'dica';
+      dica.textContent = 'Clique de novo para ver todas as marcas.';
+      box.appendChild(dica);
+    }
+  }
+
+  function montarAvisos(avisos) {
+    const box = $('avisos');
+    box.hidden = !avisos.length;
+    if (!avisos.length) return;
+    box.querySelector('summary').textContent = avisos.length + (avisos.length === 1 ? ' aviso' : ' avisos') + ' na planilha';
+    const ul = box.querySelector('ul');
+    ul.textContent = '';
+    avisos.forEach((a) => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      ul.appendChild(li);
+    });
+  }
+
+  function trocarPlanta(id) {
+    if (id === estado.planta) return;
+    if (Object.keys(estado.ajustes).length && !window.confirm('Há ajustes de etiquetas não salvos nesta planta. Descartar?')) return;
+    if (!Editor.podeSair()) return;
+    estado.ajustes = {};
+    estado.planta = id;
+    memoria.gravar('planta', id);
+    Editor.sincronizar(plantaAtual());
+    montarAbas();
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  /* ------------------------------- desenho -------------------------------- */
+
+  /** Contexto do desenho da tela (também usado para gerar o PNG só da planta). */
+  function contextoDesenho() {
+    const construcao = Editor.contexto();
+    const planta = construcao ? construcao.planta : plantaAtual();
+    if (!planta) return null;
+    const semConteudo = !!construcao && !construcao.mostrarCiclo;
+    return {
+      dados: estado.dados,
+      planta,
+      ciclo: estado.ciclo,
+      filtro: estado.filtro,
+      ajustes: estado.ajustes,
+      edicao: estado.edicao,
+      // No modo construção os móveis ficam sem cor e sem etiqueta (a menos que se peça para mostrar o ciclo).
+      obterMovimento: (m) => (semConteudo ? null : movimentoDe(estado.ciclo, planta.id, m.id)),
+      obterPaineis: () => {
+        const p = paineisDe(estado.ciclo, planta.id);
+        if (semConteudo) p.CALLOUT = [];
+        return p;
+      },
+      selecionado: construcao ? construcao.selecionado : '',
+      grade: construcao ? construcao.grade : false,
+      referencia: construcao ? construcao.referencia : null,
+    };
+  }
+
+  function desenhar() {
+    const ctx = contextoDesenho();
+    if (!ctx) return;
+    svg.classList.toggle('construindo', !!Editor.contexto());
+    const r = Render.desenhar(svg, ctx);
+    Editor.aposDesenhar(r);
+    estado.grupos = r.grupos;
+    if (estado.edicao) ativarArraste();
+  }
+
+  /* --------------------------- ajuste de etiquetas ------------------------- */
+
+  function pontoSvg(ev) {
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX;
+    pt.y = ev.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  function ativarArraste() {
+    estado.grupos.forEach((gr) => {
+      // O ajuste é do móvel: arrastar uma etiqueta da gôndola move as etiquetas de todos os blocos dela.
+      // No toque, o arraste não rola a página.
+      gr.elemento.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });
+      gr.elemento.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        const alvo = gr.elemento;
+        alvo.setPointerCapture(ev.pointerId);
+        const inicio = pontoSvg(ev);
+        let dx = 0;
+        let dy = 0;
+        const mover = (e) => {
+          const p = pontoSvg(e);
+          dx = p.x - inicio.x;
+          dy = p.y - inicio.y;
+          alvo.setAttribute('transform', 'translate(' + dx + ',' + dy + ')');
+        };
+        const soltar = () => {
+          alvo.removeEventListener('pointermove', mover);
+          alvo.removeEventListener('pointerup', soltar);
+          alvo.removeEventListener('pointercancel', soltar);
+          if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+            alvo.removeAttribute('transform');
+            return;
+          }
+          estado.ajustes[gr.movel.id] = { x: Math.round(gr.x + dx - gr.baseX), y: Math.round(gr.y + dy - gr.baseY) };
+          atualizarBarraEdicao();
+          desenhar();
+        };
+        alvo.addEventListener('pointermove', mover);
+        alvo.addEventListener('pointerup', soltar);
+        alvo.addEventListener('pointercancel', soltar);
+      });
+    });
+  }
+
+  function atualizarBarraEdicao() {
+    $('barraEdicao').hidden = !estado.edicao;
+    $('btnEditar').setAttribute('aria-pressed', String(estado.edicao));
+    const n = Object.keys(estado.ajustes).length;
+    $('qtdAjustes').textContent = n ? '(' + n + (n === 1 ? ' alteração não salva)' : ' alterações não salvas)') : '';
+    $('btnSalvarAjustes').disabled = !n;
+    $('btnDescartar').disabled = !n;
+  }
+
+  function alternarEdicao() {
+    if (!estado.edicao && Editor.ativo()) Editor.fechar();
+    if (!estado.edicao && Editor.ativo()) return;
+    if (estado.edicao && Object.keys(estado.ajustes).length && !window.confirm('Sair sem salvar os ajustes?')) return;
+    estado.edicao = !estado.edicao;
+    estado.ajustes = {};
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  function autoOrganizar() {
+    const planta = plantaAtual();
+    planta.moveis.forEach((m) => { estado.ajustes[m.id] = { x: 0, y: 0 }; });
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  async function salvarAjustes() {
+    const planta = plantaAtual();
+    carregando(true, 'Salvando posições…');
+    try {
+      const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);
+      planta.moveis.forEach((m) => {
+        const a = estado.ajustes[m.id];
+        if (a) { m.ajusteX = a.x; m.ajusteY = a.y; }
+      });
+      estado.ajustes = {};
+      atualizarBarraEdicao();
+      desenhar();
+      toast('Posições salvas (' + r.atualizados + ' móveis).');
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* --------------------------- planilha base ------------------------------ */
+
+  function abrirDialogoModelo() {
+    const dlg = $('dlgModelo');
+    const temCiclo = !!estado.ciclo;
+    const copiar = dlg.querySelector('input[value="copiar"]');
+    copiar.disabled = !temCiclo;
+    copiar.checked = temCiclo;
+    dlg.querySelector('input[value="branco"]').checked = !temCiclo;
+    $('mdCopiarTexto').textContent = temCiclo ? 'Copiar o ciclo selecionado (' + estado.ciclo + ')' : 'Copiar ciclo (nenhum disponível)';
+    $('mdCiclo').value = '';
+    const sel = $('mdPlantas');
+    sel.textContent = '';
+    sel.appendChild(new Option('Todas as plantas', '*'));
+    estado.dados.plantas.forEach((p) => sel.appendChild(new Option('Somente ' + p.nome, p.id)));
+    dlg.returnValue = '';
+    dlg.showModal();
+    $('mdCiclo').focus();
+  }
+
+  async function baixarModelo() {
+    const dlg = $('dlgModelo');
+    if (dlg.returnValue !== 'baixar') return;
+    const copiar = dlg.querySelector('input[value="copiar"]').checked;
+    const plantaSel = $('mdPlantas').value;
+    const op = {
+      ciclo: $('mdCiclo').value.trim(),
+      origem: copiar ? estado.ciclo : '',
+      plantas: plantaSel === '*' ? estado.dados.plantas.map((p) => p.id) : [plantaSel],
+      incluirLayout: $('mdLayout').checked,
+    };
+    carregando(true, 'Gerando planilha…');
+    try {
+      const nome = await Planilha.baixarModelo(estado.dados, op, {
+        movimento: movimentoDe,
+        linhasPaineis,
+      });
+      toast('Download iniciado: ' + nome);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  async function importar(arquivo) {
+    if (!arquivo) return;
+    carregando(true, 'Lendo a planilha…');
+    try {
+      const payload = await Planilha.ler(arquivo, estado.dados);
+      carregando(true, 'Gravando na planilha…');
+      const r = await chamar('importarPlanilha', payload);
+      await carregar({ ciclo: r.ciclos.length ? r.ciclos[r.ciclos.length - 1] : '' });
+      mostrarResultado(r);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+      $('arquivo').value = '';
+    }
+  }
+
+  function mostrarResultado(r) {
+    $('resTitulo').textContent = 'Importação concluída';
+    const partes = [];
+    if (r.movimentos) partes.push(r.movimentos + ' linha(s) de movimentos');
+    if (r.paineis) partes.push(r.paineis + ' linha(s) de painéis');
+    if (r.layout) partes.push(r.layout + ' linha(s) de layout');
+    $('resTexto').textContent = (partes.join(' e ') || 'Nenhuma linha') + ' gravada(s)' +
+      (r.ciclos.length ? ' — ciclo(s): ' + r.ciclos.join(', ') + '.' : '.') +
+      (r.avisos.length ? ' Confira os avisos:' : '');
+    const ul = $('resAvisos');
+    ul.textContent = '';
+    r.avisos.forEach((a) => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      ul.appendChild(li);
+    });
+    $('dlgResultado').showModal();
+  }
+
+  /* -------------------------------- PNG ----------------------------------- */
+
+  function abrirDialogoPng() {
+    if (!plantaAtual()) return;
+    const dlg = $('dlgPng');
+    const marca = estado.filtro && estado.dados.marcas[estado.filtro];
+    $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.' : '';
+    $('pngFiltroTexto').hidden = !marca;
+    dlg.returnValue = '';
+    dlg.showModal();
+  }
+
+  /**
+   * SVG a exportar. "slide": o slide da tela inteiro. "planta": só a loja, os móveis e as
+   * etiquetas (sem painéis), sem fundo e recortada no conteúdo — com as mesmas cores da tela
+   * (inclusive o filtro de marca).
+   */
+  function svgParaPng(modo) {
+    if (modo !== 'planta') {
+      return { clone: svg.cloneNode(true), caixa: { x: 0, y: 0, w: Render.TELA.w, h: Render.TELA.h } };
+    }
+    const ns = 'http://www.w3.org/2000/svg';
+    const temp = document.createElementNS(ns, 'svg');
+    // Fora da tela, mas renderizado (getBBox não funciona com display: none).
+    temp.setAttribute('style', 'position:absolute;left:-10000px;top:0;width:' + Render.TELA.w + 'px;height:' + Render.TELA.h + 'px;visibility:hidden');
+    document.body.appendChild(temp);
+    try {
+      Render.desenhar(temp, Object.assign(contextoDesenho(), { somentePlanta: true, edicao: false, selecionado: '', grade: false, referencia: null }));
+      const bb = temp.getBBox();
+      const m = 12;
+      const x = Math.max(0, Math.floor(bb.x - m));
+      const y = Math.max(0, Math.floor(bb.y - m));
+      const caixa = {
+        x, y,
+        w: Math.min(Render.TELA.w, Math.ceil(bb.x + bb.width + m)) - x,
+        h: Math.min(Render.TELA.h, Math.ceil(bb.y + bb.height + m)) - y,
+      };
+      const clone = temp.cloneNode(true);
+      clone.removeAttribute('style');
+      clone.setAttribute('viewBox', [caixa.x, caixa.y, caixa.w, caixa.h].join(' '));
+      return { clone, caixa };
+    } finally {
+      temp.remove();
+    }
+  }
+
+  async function baixarPng() {
+    const dlg = $('dlgPng');
+    if (dlg.returnValue !== 'baixar') return;
+    const planta = plantaAtual();
+    if (!planta) return;
+    const modo = dlg.querySelector('input[name="pngModo"]:checked').value;
+    carregando(true, 'Gerando imagem…');
+    try {
+      const { clone, caixa } = svgParaPng(modo);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('width', caixa.w);
+      clone.setAttribute('height', caixa.h);
+      clone.querySelectorAll('title').forEach((t) => t.remove());
+      const xml = new XMLSerializer().serializeToString(clone);
+      const img = new Image();
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+      await img.decode();
+      const escala = 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(caixa.w * escala);
+      canvas.height = Math.round(caixa.h * escala);
+      const ctx = canvas.getContext('2d');
+      ctx.scale(escala, escala);
+      ctx.drawImage(img, 0, 0, caixa.w, caixa.h);
+      const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/png'));
+      const marca = estado.filtro && estado.dados.marcas[estado.filtro];
+      const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', marca ? marca.nome : ''].filter(Boolean);
+      const nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + '.png';
+      baixarArquivo(blob, nome);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* -------------------------------- início -------------------------------- */
+
+  function ligarEventos() {
+    // Botões que só existem em uma das versões (ex.: a de visualização não tem Construir loja
+    // nem Baixar / Importar planilha) são ignorados quando não estão na página.
+    const ao = (id, evento, fn) => { if ($(id)) $(id).addEventListener(evento, fn); };
+    ao('selCiclo', 'change', (e) => {
+      estado.ciclo = e.target.value;
+      desenhar();
+    });
+    ao('btnModelo', 'click', () => estado.dados && abrirDialogoModelo());
+    ao('dlgModelo', 'close', baixarModelo);
+    ao('btnImportar', 'click', () => estado.dados && $('arquivo').click());
+    ao('arquivo', 'change', (e) => importar(e.target.files[0]));
+    ao('btnPng', 'click', () => estado.dados && abrirDialogoPng());
+    ao('dlgPng', 'close', baixarPng);
+    ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
+    ao('btnAutoOrganizar', 'click', autoOrganizar);
+    ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
+    ao('btnSalvarAjustes', 'click', salvarAjustes);
+    ao('btnConfigurar', 'click', configurar);
+    ao('btnConstruir', 'click', () => {
+      if (!estado.dados) return;
+      if (Editor.ativo()) { Editor.fechar(); return; }
+      if (estado.edicao) alternarEdicao();
+      if (estado.edicao) return; // usuário cancelou a saída do modo ajuste
+      Editor.abrir();
+    });
+    ao('btnRestaurar', 'click', () => {
+      if (window.confirm('Apagar os dados salvos neste navegador e voltar ao ciclo de exemplo?')) configurar();
+    });
+    ao('btnAtualizar', 'click', () => {
+      if (Object.keys(estado.ajustes).length && !window.confirm('Descartar ajustes de etiquetas não salvos?')) return;
+      carregar().then(() => toast('Dados atualizados.'));
+    });
+
+    // Setas ← → trocam de planta (útil ao apresentar).
+    document.addEventListener('keydown', (e) => {
+      if (!estado.dados) return;
+      if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
+      if (Editor.ativo()) { Editor.tecla(e); return; }
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const ids = estado.dados.plantas.map((p) => p.id);
+      const i = ids.indexOf(estado.planta) + (e.key === 'ArrowRight' ? 1 : -1);
+      if (i >= 0 && i < ids.length) trocarPlanta(ids[i]);
+    });
+  }
+
+  ligarEventos();
+  Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
+  carregar();
+
+  // resolver: usado também para gerar a planilha base da versão de visualização (dev/).
+  return { estado, carregar, resolver: { movimento: movimentoDe, linhasPaineis } };
+})();
+</script>
+
+  </body>
+</html>

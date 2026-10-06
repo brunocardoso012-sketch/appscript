@@ -42,13 +42,13 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 
 | Móvel | Como é desenhado | Na planilha |
 |---|---|---|
-| **Gôndola** (`GONDOLA 1`…) | 4 espaços: **Lado A**, **Meio A**, **Meio B** e **Lado B**, com 4 níveis de prateleira. "A" é sempre o que está virado para quem olha a planta (o lado A é a ponta da frente; o meio A, a face da frente). Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GONDOLA 1`) e uma por espaço: `GONDOLA 1/LADO-A`, `GONDOLA 1/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GONDOLA 1/MEIO-B`, `GONDOLA 1/LADO-B`. O espaço preenchido tem cor e etiqueta próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. **Uma etiqueta por bloco:** na linha da gôndola inteira, Etiqueta 1 = Lado A, 2 = Meio A, 3 = Meio B e 4 = Lado B; a Etiqueta 1 da linha de um espaço substitui a daquele bloco. **Dividir um meio pela planilha:** preencha também a linha da metade 2 (`GONDOLA 1/MEIO-A-2`); a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido, com um vão entre as metades. (Os nomes antigos `PONTA-2` e `PONTA-1` continuam aceitos como Lado A e Lado B.) |
-| **Pirâmide** (`PIRAMIDE 1`…) | 4 blocos iguais, um em cima do outro (divisões tracejadas) (padrão 1,02 × 1,02 × 1,94). | Uma linha, **1 etiqueta**. |
+| **Gôndola** (`GONDOLA 1`…) | 4 espaços: **Lado A**, **Meio A**, **Meio B** e **Lado B**, com 4 níveis de prateleira. "A" é sempre o que está virado para quem olha a planta (o lado A é a ponta da frente; o meio A, a face da frente). Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GONDOLA 1`) e uma por espaço: `GONDOLA 1/LADO-A`, `GONDOLA 1/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GONDOLA 1/MEIO-B`, `GONDOLA 1/LADO-B`. O espaço preenchido tem cor e etiqueta próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. **Etiquetas por bloco:** na linha da gôndola inteira, Etiqueta 1 = Lado A, 2 = Meio A, 3 = Meio B e 4 = Lado B; a linha de um espaço mostra **até 4 etiquetas** (Etiqueta 1 a 4) empilhadas em cima daquele bloco e substitui a que viria da gôndola inteira. **Dividir um meio pela planilha:** preencha também a linha da metade 2 (`GONDOLA 1/MEIO-A-2`); a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido, com um vão entre as metades. (Os nomes antigos `PONTA-2` e `PONTA-1` continuam aceitos como Lado A e Lado B.) |
+| **Pirâmide** (`PIRAMIDE 1`…) | 4 blocos iguais, um em cima do outro (divisões tracejadas) (padrão 1,02 × 1,02 × 1,94). | Uma linha, **até 4 etiquetas** (empilhadas). |
 | **Móvel de fila** (`MOVEL DE FILA 1`…) | Bloco único retangular com 3 níveis (padrão 1,5 × 0,4 × 1,46). | Uma linha. |
 | **Móvel de parede** (`MOVEL DE PAREDE 1`…) | Estante encostada na parede, com prateleiras (padrão 4 × 1,1 × 3,2). | Uma linha. |
-| **Totem** (`TOTEM 1`…) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
+| **Totem** (`TOTEM 1`…) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e **3 painéis** de cor. | Uma linha. **Etiqueta 1, 2 e 3** vão para o painel de cima, o do meio e o de baixo (cada uma ao lado do totem, com linha-guia até o seu painel), e a **Marca Etiqueta N pinta o painel N**; painel sem etiqueta usa a Marca do Móvel. Opcional: uma linha `TOTEM 1/PAINEL-1` (a 3) define cor e etiqueta de um painel e tem prioridade (útil para mudar um painel só a partir de uma planta). |
 | **PDV móvel** (`PDV MOVEL 1`…) | Cubo de vidro sobre rodapé escuro (padrão 1,3 × 1,3 × 1,44). | Uma linha. |
-| **Mesa destaque** (`MESA DESTAQUE 1`…) | Estrutura com pernas e **2 frentes**, cada uma com nicho baixo em cima, lâmina de vidro ao fundo e cartaz na frente (do chão até o topo do nicho). | Uma linha para a mesa inteira (1 etiqueta, no centro) e uma por frente (`MESA DESTAQUE 1/FRENTE-1` e `FRENTE-2`), cada uma com **cor e etiqueta próprias**; frente sem linha usa a cor da mesa. Frentes com o mesmo texto e cor ficam com uma etiqueta só, centralizada. |
+| **Mesa destaque** (`MESA DESTAQUE 1`…) | Estrutura com pernas e **2 frentes**, cada uma com nicho baixo em cima, lâmina de vidro ao fundo e cartaz na frente (do chão até o topo do nicho). | Uma linha para a mesa inteira (até 4 etiquetas, no centro) e uma por frente (`MESA DESTAQUE 1/FRENTE-1` e `FRENTE-2`), cada uma com **cor e até 4 etiquetas próprias**; frente sem linha usa a cor da mesa. Frentes com as mesmas etiquetas e cor ficam com uma pilha só, centralizada. |
 | **Mesa destaque 3 frentes** (`MESA DESTAQUE 3 FRENTES 1`…) | Igual à mesa destaque, com **3 frentes** (padrão 3,9 × 1,4 × 2,6). | Uma linha para a mesa inteira e uma por frente (`FRENTE-1` a `FRENTE-3`), com cor e etiqueta próprias, como na mesa destaque. |
 | **Balcão recepção** (`BALCAO RECEPCAO 1`…) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); 3 blocos (os dois braços e o canto), 2 níveis; padrão 2,4 × 2,4 × 1,28. *Girar* muda o canto do L. | Uma linha, **uma cor só**. Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3 (iguais vizinhas viram uma só). |
 | **Móvel de atendimento** (`MOVEL DE ATENDIMENTO 1`…) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | **Fica fora da planilha** (não leva cor nem etiqueta). |
@@ -69,6 +69,16 @@ Seções recolhidas no painel:
 - **Exibição e encaixe:** grade numerada no piso, mostrar ou não as cores do ciclo, e o passo do arraste.
 
 **Baixar código da loja** gera `layout-plantas-AAAA-MM-DD.json` com o layout de todas as plantas, no mesmo formato de [`src/Layouts.gs`](src/Layouts.gs). Mande esse arquivo para virar o layout padrão do projeto. **Carregar código…** aplica um arquivo desses de volta.
+
+## Versão só de visualização (Apps Script)
+
+A pasta [`visualizador/`](visualizador/) tem uma versão do app **só para visualizar** a estratégia, que é montada direto numa planilha do Google Sheets. Todos os ciclos ficam numa única planilha (abas *Movimentos* e *Painéis*), conectada ao script. Não tem *Construir loja*, *Baixar planilha base* nem *Importar planilha*. O layout das lojas fica no código.
+
+- [`visualizador/Planilha base - Visualizador.xlsx`](visualizador/) é a planilha que alimenta o app.
+- [`visualizador/apps-script/`](visualizador/apps-script/) tem o projeto pronto para colar no Apps Script: `Codigo.gs`, `Index.html` e o manifesto.
+- O passo a passo de instalação está em [`visualizador/LEIAME.md`](visualizador/LEIAME.md).
+
+Os arquivos de `visualizador/apps-script/` são gerados a partir de `src/` com `npm run build:visualizador`. A planilha base é gerada com `node dev/gerar-planilha-visualizador.js`.
 
 ## Versão web para testes (netli.fyi / Netlify)
 
@@ -163,7 +173,7 @@ Se você já tinha um ciclo próprio com os IDs antigos (`GON-01`, `PIR-02`…),
 | **ID Móvel** | Liga a linha ao desenho. **Não altere**, deve existir na aba Layout. |
 | Móvel (referência) | Só para orientação (ex.: *Ilha central – Botik*). |
 | **Marca do Móvel** | Cor do móvel: `BOT`, `QDB`, `EUD`, `OUI`, `MULTI`, `NEUTRO`. Aceita combinação (`BOT+QDB` gera degradê) ou cor livre (`#FF8800`). |
-| Etiqueta 1…4 | Texto de cada caixinha. Quebra de linha na célula (Alt+Enter) vira quebra na etiqueta. Pirâmide e mesa destaque mostram só a primeira; na gôndola, cada etiqueta vai para um bloco (ver *Os móveis*). Na planilha base, as colunas que não aparecem na planta ficam cinza. |
+| Etiqueta 1…4 | Texto de cada caixinha. Quebra de linha na célula (Alt+Enter) vira quebra na etiqueta. Pirâmide e mesas mostram até 4, empilhadas; na linha da gôndola inteira, cada etiqueta vai para um bloco, e a linha de um bloco (gôndola ou frente de mesa) mostra até 4 em cima dele; no totem, Etiqueta 1–3 = painel de cima, do meio e de baixo; testeira do make, 1 (ver *Os móveis*). No ID Móvel, o espaço depois da "/" aceita variações (`TOTEM 1/PAINEL 1`, `GONDOLA 1/LADO A`). Na planilha base, as colunas que não aparecem na planta ficam cinza. |
 | Marca Etiqueta 1…4 | Cor de cada etiqueta. Se vazio, usa a cor do móvel. |
 | Símbolo | `MOVIMENTO` (▶), `FIXO` (◆), `EXPOSICAO` (Ⓔ), `NOVO` (selo NEW). |
 | Observação | Aparece ao passar o mouse sobre o móvel. |
@@ -221,6 +231,7 @@ As quatro plantas (**ER P, ER M, ER G e ER GG**) vêm com os layouts montados no
 src/
   appsscript.json   manifesto (fuso, V8, App da Web)
   Config.gs         marcas/cores, símbolos, seções, tipos, colunas das abas
+  Dados.gs          leitura das abas e normalizações (sem I/O; usado também pelo visualizador)
   Code.gs           doGet, menu, getDados, importarPlanilha, salvarLayout, salvarAjustesEtiquetas…
   Layouts.gs        layout padrão das 4 plantas + ciclo de exemplo
   Index.html        página (inclui os arquivos abaixo)
@@ -233,10 +244,17 @@ index.html          versão web gerada (netli.fyi / Netlify)
 netlify.toml        publicação estática a partir da raiz
 web/
   backend-local.js  troca o google.script.run por localStorage (versão web)
+visualizador/
+  fonte/Visualizador.gs   backend da versão só de visualização (lê a planilha, sem gravar nela)
+  apps-script/            projeto gerado para o Apps Script (Codigo.gs, Index.html, manifesto)
+  Planilha base - Visualizador.xlsx
 dev/
   gas.js            carrega os .gs no Node + planilha em memória (SpreadsheetApp simulado)
   testes.test.js    testes do backend
+  visualizador.test.js  testes da versão só de visualização
   build-web.js      gera index.html (raiz) a partir de src/ + web/
+  build-visualizador.js         gera visualizador/apps-script/ a partir de src/
+  gerar-planilha-visualizador.js  gera a planilha base do visualizador (Playwright)
 ```
 
 Para desenvolver (Node 18+):
@@ -244,6 +262,7 @@ Para desenvolver (Node 18+):
 ```bash
 npm test            # testes do backend (sem Apps Script)
 npm run build:web   # gera index.html na raiz (versão web)
+npm run build:visualizador   # gera visualizador/apps-script/ (versão só de visualização)
 ```
 
 ## Observações

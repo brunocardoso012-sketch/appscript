@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
+    <!-- Trechos entre "so-app-completo" ficam fora da versão só de visualização (dev/build-visualizador.js). -->
         <meta charset="utf-8">
     <title>Plano de Varejo · Plantas</title>
     <style>
@@ -376,16 +377,24 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
 
 /**
  * Quantas etiquetas a linha do móvel inteiro mostra (as outras colunas "Etiqueta N"
- * são ignoradas). Tipos que não aparecem aqui mostram até CONFIG.MAX_ETIQUETAS.
- * Gôndola: uma etiqueta por bloco. Na linha da gôndola inteira, Etiqueta 1 =
- * Lado A, 2 = Meio A, 3 = Meio B e 4 = Lado B; a linha de um espaço
- * (GONDOLA 1/MEIO-A…) usa só a Etiqueta 1 e substitui a do bloco.
+ * são ignoradas). Tipos que não aparecem aqui mostram até CONFIG.MAX_ETIQUETAS
+ * (pirâmide e mesas: até 4, empilhadas).
+ * Gôndola: na linha da gôndola inteira, Etiqueta 1 = Lado A, 2 = Meio A, 3 = Meio B
+ * e 4 = Lado B (uma por bloco); a linha de um espaço (GONDOLA 1/MEIO-A…) substitui
+ * as etiquetas daquele bloco (veja ETIQUETAS_POR_BLOCO).
  * Balcão recepção: uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.
- * Nos outros móveis com blocos (mesas, make), a linha de cada bloco mostra
- * a Etiqueta 1 em cima dele; blocos vizinhos com o mesmo texto e cor viram uma
- * etiqueta só, centralizada.
+ * Totem: Etiqueta 1, 2 e 3 vão para o painel 1 (o de cima), 2 e 3, e a "Marca Etiqueta N"
+ * pinta o painel N; a linha de um painel (TOTEM 1/PAINEL-2…) tem prioridade.
  */
-const ETIQUETAS_POR_TIPO = { PIRAMIDE: 1, MESA: 1, GONDOLA: 4, VITRINE_L: 3 };
+const ETIQUETAS_POR_TIPO = { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 };
+
+/**
+ * Quantas etiquetas a linha de um bloco mostra em cima dele (GONDOLA 1/LADO-A,
+ * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
+ * (totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
+ * mesmas etiquetas (texto e cor) viram uma pilha só, centralizada.
+ */
+const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
 
 /**
  * Marcas e cores.
@@ -467,14 +476,14 @@ const SECOES_PAINEL = {
  */
 const TIPOS_MOVEL = {
   LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
-  PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados (1 etiqueta)',
-  GONDOLA: 'Gôndola: lado A, meio A, meio B e lado B (o A virado para quem olha; cada meio pode ser dividido em dois), 4 níveis, 1 etiqueta por bloco',
+  PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados (até 4 etiquetas)',
+  GONDOLA: 'Gôndola: lado A, meio A, meio B e lado B (o A virado para quem olha; cada meio pode ser dividido em dois), 4 níveis, até 4 etiquetas por bloco',
   FILA: 'Móvel de fila: bloco único retangular com 3 níveis',
   GONDOLA_PAREDE: 'Móvel de parede: estante encostada na parede, com prateleiras',
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
-  MESA: 'Mesa destaque: 2 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e etiqueta próprias',
-  MESA_3: 'Mesa destaque 3 frentes: 3 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e etiqueta próprias',
-  TOTEM: 'Totem: estrutura metálica com 3 painéis',
+  MESA: 'Mesa destaque: 2 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
+  MESA_3: 'Mesa destaque 3 frentes: 3 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
+  TOTEM: 'Totem: estrutura metálica com 3 painéis, cada um com cor e etiqueta próprias (Etiqueta 1–3 = painel 1, o de cima, 2 e 3)',
   PAINEL: 'Parede O.U.i: painel alto com moldura',
   EXPOSITOR_OUI: 'Totem O.U.i: expositor estreito com moldura, na altura da gôndola',
   ILHA_OUI: 'Ilha premium O.U.i: base com prateleiras e painel alto atrás, com faixas claras nas laterais',
@@ -494,6 +503,7 @@ const TIPOS_CONSTRUCAO = [
  *  - gôndola: Lado A, Meio A, Meio B e Lado B (o "A" é sempre o lado virado para
  *    quem olha a planta; cada meio pode ser dividido em dois);
  *  - mesa destaque: Frente 1 e 2 (3 frentes: Frente 1, 2 e 3);
+ *  - totem: Painel 1 a 3 (o 1 é o de cima);
  *  - móvel make: Testeira 1 a 4.
  * Na planilha, cada espaço é endereçado como "<ID do móvel>/<espaço>", ex.:
  * GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A-2, MESA DESTAQUE 1/FRENTE-2.
@@ -512,6 +522,7 @@ function espacosDoMovel_(m) {
   if (m.tipo === 'MAKE') return numerados('TESTEIRA', 'Testeira', 4);
   if (m.tipo === 'MESA') return numerados('FRENTE', 'Frente', 2);
   if (m.tipo === 'MESA_3') return numerados('FRENTE', 'Frente', 3);
+  if (m.tipo === 'TOTEM') return numerados('PAINEL', 'Painel', 3);
   if (m.tipo !== 'GONDOLA') return [];
   const div = String(m.dividido || '').toUpperCase();
   const lista = [{ id: 'LADO-A', nome: 'Lado A' }];
@@ -594,6 +605,406 @@ function colunasLayout_() {
   ];
 }
 
+/* ===== src/Dados.gs ===== */
+/**
+ * ============================================================================
+ *  LEITURA DAS ABAS E NORMALIZAÇÃO (funções puras, sem I/O)
+ * ============================================================================
+ *  Usado pelo app completo (Code.gs), pela versão estática (web/) e pela versão
+ *  só de visualização (visualizador/). Não acessa a planilha: recebe as matrizes
+ *  [cabeçalho, ...linhas] e devolve o objeto que a página desenha.
+ */
+
+/**
+ * Converte as matrizes das abas no objeto usado pela página.
+ * Função pura (não acessa a planilha) — facilita testes.
+ */
+function montarDados_(valoresLayout, valoresMov, valoresPain) {
+  const avisos = [];
+  const aviso = function (msg) { if (avisos.length < 60) avisos.push(msg); };
+
+  // ---------- Layout ----------
+  let linhasLayout;
+  if (valoresLayout && valoresLayout.length) {
+    const lido = objetosDeValores_(valoresLayout, colunasLayout_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.LAYOUT + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    }
+    linhasLayout = lido.linhas;
+  } else {
+    aviso('Aba "' + CONFIG.ABAS.LAYOUT + '" não encontrada ou vazia — usando o layout padrão.');
+    linhasLayout = objetosDeValores_(valoresLayoutPadrao_(), colunasLayout_()).linhas;
+  }
+  const plantas = montarPlantas_(linhasLayout, aviso);
+  const idsPorPlanta = {};
+  plantas.forEach(function (p) {
+    idsPorPlanta[p.id] = {};
+    p.moveis.forEach(function (m) {
+      idsPorPlanta[p.id][m.id] = true;
+      espacosAceitos_(m).forEach(function (e) { idsPorPlanta[p.id][m.id + '/' + e] = true; });
+    });
+  });
+  const existeMovel = function (planta, id) {
+    if (planta === CONFIG.PLANTA_TODAS) {
+      return plantas.some(function (p) { return idsPorPlanta[p.id][id]; });
+    }
+    return !!(idsPorPlanta[planta] && idsPorPlanta[planta][id]);
+  };
+
+  const ciclos = [];
+  const registrarCiclo = function (c) { if (ciclos.indexOf(c) < 0) ciclos.push(c); };
+
+  // ---------- Movimentos ----------
+  const movimentos = {};
+  if (valoresMov && valoresMov.length) {
+    const lido = objetosDeValores_(valoresMov, colunasMovimentos_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.MOVIMENTOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    }
+    lido.linhas.forEach(function (l) {
+      const ciclo = texto_(l.ciclo);
+      const planta = normPlanta_(l.planta);
+      // Nomes antigos dos lados da gôndola: Ponta 2 era o lado da frente (A), Ponta 1 o de trás (B).
+      const id = normIdEspaco_(l.movel);
+      const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
+      if (!ciclo || !planta || !id) {
+        aviso(onde + ': Ciclo, Planta e ID Móvel são obrigatórios — linha ignorada.');
+        return;
+      }
+      if (!idsPorPlanta[planta] && planta !== CONFIG.PLANTA_TODAS) {
+        aviso(onde + ': planta "' + planta + '" não existe no Layout.');
+      } else if (!existeMovel(planta, id)) {
+        aviso(onde + ': móvel "' + id + '" não existe no Layout da planta ' + planta + '.');
+      }
+      const etiquetas = [];
+      for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
+        const t = texto_(l['etiqueta' + i]);
+        // posicao = número da coluna (na gôndola, cada uma vai para um bloco).
+        if (t) etiquetas.push({ texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i });
+      }
+      registrarCiclo(ciclo);
+      movimentos[ciclo] = movimentos[ciclo] || {};
+      movimentos[ciclo][planta] = movimentos[ciclo][planta] || {};
+      movimentos[ciclo][planta][id] = {
+        marca: normMarca_(l.marca, aviso, onde),
+        etiquetas: etiquetas,
+        simbolo: normSimbolo_(l.simbolo, aviso, onde),
+        observacao: texto_(l.observacao),
+      };
+    });
+  }
+
+  // ---------- Painéis ----------
+  const paineis = {};
+  if (valoresPain && valoresPain.length) {
+    const lido = objetosDeValores_(valoresPain, colunasPaineis_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.PAINEIS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    }
+    lido.linhas.forEach(function (l) {
+      const ciclo = texto_(l.ciclo);
+      const planta = normPlanta_(l.planta);
+      const texto = texto_(l.texto);
+      const onde = CONFIG.ABAS.PAINEIS + ', linha ' + l._linha;
+      const secao = normSecao_(l.secao);
+      if (!ciclo || !planta || !texto) {
+        aviso(onde + ': Ciclo, Planta e Texto são obrigatórios — linha ignorada.');
+        return;
+      }
+      if (!secao) {
+        aviso(onde + ': seção "' + texto_(l.secao) + '" inválida (use ' + Object.keys(SECOES_PAINEL).join(', ') + ').');
+        return;
+      }
+      const movel = normId_(l.movel);
+      if (movel && !existeMovel(planta, movel)) {
+        aviso(onde + ': móvel "' + movel + '" não existe no Layout da planta ' + planta + '.');
+      }
+      registrarCiclo(ciclo);
+      paineis[ciclo] = paineis[ciclo] || {};
+      paineis[ciclo][planta] = paineis[ciclo][planta] || [];
+      paineis[ciclo][planta].push({ secao: secao, texto: texto, marca: normMarca_(l.marca, aviso, onde), movel: movel });
+    });
+  }
+
+  return {
+    versao: 1,
+    plantas: plantas,
+    ciclos: ciclos,
+    movimentos: movimentos,
+    paineis: paineis,
+    avisos: avisos,
+    marcas: MARCAS,
+    simbolos: SIMBOLOS,
+    secoes: SECOES_PAINEL,
+    tipos: TIPOS_MOVEL,
+    tiposConstrucao: TIPOS_CONSTRUCAO,
+    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), layout: colunasLayout_() },
+    config: {
+      maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
+      etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
+    },
+  };
+}
+
+function montarPlantas_(linhas, aviso) {
+  const mapa = {};
+  const ordem = [];
+  const tipos = {};
+  Object.keys(TIPOS_MOVEL).forEach(function (t) { tipos[chave_(t)] = t; });
+
+  linhas.forEach(function (l) {
+    const planta = normPlanta_(l.planta);
+    const id = normId_(l.movel);
+    if (!planta && !id) return;
+    const onde = CONFIG.ABAS.LAYOUT + ', linha ' + l._linha;
+    if (!planta || !id || planta === CONFIG.PLANTA_TODAS) {
+      aviso(onde + ': Planta e ID Móvel são obrigatórios (e a planta não pode ser "TODAS").');
+      return;
+    }
+    let tipo = tipos[chave_(l.tipo)];
+    if (!tipo) {
+      aviso(onde + ': tipo "' + texto_(l.tipo) + '" desconhecido — desenhado como GONDOLA.');
+      tipo = 'GONDOLA';
+    }
+    if (!mapa[planta]) {
+      mapa[planta] = { id: planta, nome: nomePlanta_(planta), loja: null, moveis: [] };
+      ordem.push(planta);
+    }
+    const p = mapa[planta];
+    if (tipo === 'LOJA') {
+      p.loja = {
+        largura: Math.max(1, numero_(l.largura, 20)),
+        profundidade: Math.max(1, numero_(l.profundidade, 20)),
+        alturaParede: Math.max(0, numero_(l.altura, 4.5)),
+      };
+      return;
+    }
+    if (p.moveis.some(function (m) { return m.id === id; })) {
+      aviso(onde + ': ID "' + id + '" repetido na planta ' + planta + ' — ignorado.');
+      return;
+    }
+    p.moveis.push({
+      id: id,
+      descricao: texto_(l.descricao),
+      tipo: tipo,
+      x: numero_(l.x, 0),
+      y: numero_(l.y, 0),
+      z: numero_(l.z, 0),
+      w: Math.max(0.1, numero_(l.largura, 1)),
+      d: Math.max(0.1, numero_(l.profundidade, 1)),
+      h: Math.max(0.1, numero_(l.altura, 1)),
+      ajusteX: numero_(l.ajusteX, 0),
+      ajusteY: numero_(l.ajusteY, 0),
+      dividido: normDivisao_(l.dividido),
+      giro: normGiro_(l.giro),
+    });
+  });
+
+  ordem.forEach(function (id) {
+    const p = mapa[id];
+    if (p.loja) return;
+    let maxX = 1;
+    let maxY = 1;
+    p.moveis.forEach(function (m) {
+      if (m.tipo === 'EXTRA') return;
+      maxX = Math.max(maxX, m.x + m.w);
+      maxY = Math.max(maxY, m.y + m.d);
+    });
+    p.loja = { largura: Math.ceil(maxX + 1), profundidade: Math.ceil(maxY + 1), alturaParede: 4.5 };
+    aviso('Planta ' + id + ': sem linha do tipo LOJA no Layout — tamanho calculado automaticamente.');
+  });
+
+  ordem.sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
+  return ordem.map(function (id) { return mapa[id]; });
+}
+
+/**
+ * Transforma uma matriz [cabeçalho, ...linhas] em objetos {chave: valor},
+ * localizando as colunas pelo título (ignorando acentos/maiúsculas/ordem).
+ */
+function objetosDeValores_(valores, colunas) {
+  if (!valores || !valores.length) {
+    return { linhas: [], faltando: colunas.filter(function (c) { return c.obrigatoria; }).map(function (c) { return c.titulo; }) };
+  }
+  const cab = valores[0].map(chave_);
+  const idx = {};
+  colunas.forEach(function (c) {
+    const i = acharColuna_(cab, c);
+    if (i >= 0) idx[c.chave] = i;
+  });
+  const faltando = colunas
+    .filter(function (c) { return c.obrigatoria && !(c.chave in idx); })
+    .map(function (c) { return c.titulo; });
+  const linhas = [];
+  for (let r = 1; r < valores.length; r++) {
+    const row = valores[r] || [];
+    if (row.every(function (v) { return texto_(v) === ''; })) continue;
+    const o = { _linha: r + 1 };
+    colunas.forEach(function (c) { o[c.chave] = c.chave in idx ? row[idx[c.chave]] : ''; });
+    linhas.push(o);
+  }
+  return { linhas: linhas, faltando: faltando };
+}
+
+function acharColuna_(cabecalhoNormalizado, coluna) {
+  if (!coluna) return -1;
+  const nomes = [coluna.titulo].concat(coluna.apelidos || []).map(chave_);
+  for (let n = 0; n < nomes.length; n++) {
+    const i = cabecalhoNormalizado.indexOf(nomes[n]);
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+
+/* ---------------------------- Normalização -------------------------------- */
+
+/** "Móvel (referência)" → "MOVELREFERENCIA" */
+function chave_(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+function texto_(v) {
+  if (v === null || v === undefined) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    if (isNaN(v.getTime())) return '';
+    const p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    return p2(v.getDate()) + '/' + p2(v.getMonth() + 1) + '/' + v.getFullYear();
+  }
+  return String(v).replace(/\r\n?/g, '\n').trim();
+}
+
+/** Aceita número, "1.5" ou "1,5". */
+function numero_(v, padrao) {
+  if (typeof v === 'number' && isFinite(v)) return v;
+  const s = texto_(v).replace(/\s/g, '');
+  if (!s) return padrao;
+  const n = Number(s.indexOf(',') >= 0 ? s.replace(/\./g, '').replace(',', '.') : s);
+  return isFinite(n) ? n : padrao;
+}
+
+/** "1", "01", "Planta 1", "ER P" → "01"; "todas" / "*" → "TODAS". */
+function normPlanta_(v) {
+  const s = texto_(v).toUpperCase().replace(/^PLANTA\s*/, '').trim();
+  if (!s) return '';
+  const k = chave_(s);
+  if (s === '*' || k === 'TODAS' || k === 'TODOS' || k === 'GERAL') return CONFIG.PLANTA_TODAS;
+  const porNome = Object.keys(NOMES_PLANTAS).filter(function (id) { return chave_(NOMES_PLANTAS[id]) === k; })[0];
+  if (porNome) return porNome;
+  if (/^\d+([.,]0+)?$/.test(s)) {
+    const n = parseInt(s, 10);
+    return (n < 10 ? '0' : '') + n;
+  }
+  return s;
+}
+
+/** "01" → "ER P" (ou "PLANTA 05" para planta sem nome em NOMES_PLANTAS). */
+function nomePlanta_(id) {
+  return NOMES_PLANTAS[id] || 'PLANTA ' + id;
+}
+
+/** Giro do móvel (hoje só o balcão recepção usa): 0, 90, 180 ou 270. */
+function normGiro_(v) {
+  const n = Math.round(numero_(v, 0) / 90) * 90;
+  return ((n % 360) + 360) % 360;
+}
+
+/** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */
+function normDivisao_(v) {
+  const k = chave_(v);
+  if (!k || k === 'NAO' || k === 'N') return '';
+  if (k === 'SIM' || k === 'S' || k === 'AMBOS' || k === 'TODOS') return 'AB';
+  return (k.indexOf('A') >= 0 ? 'A' : '') + (k.indexOf('B') >= 0 ? 'B' : '');
+}
+
+/** ID do móvel: maiúsculas, sem acento e com espaços simples ("Gôndola 1" → "GONDOLA 1"). */
+function normId_(v) {
+  return texto_(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * ID da aba Movimentos, que pode ter um espaço depois da "/": aceita variações de digitação
+ * ("Totem 1 / painel 1", "TOTEM 1/PAINEL1", "GONDOLA 1/LADO A", "MEIO_A_2") → "TOTEM 1/PAINEL-1",
+ * "GONDOLA 1/LADO-A", ".../MEIO-A-2". Nomes antigos dos lados da gôndola: Ponta 2 era o lado da
+ * frente (A), Ponta 1 o de trás (B).
+ */
+function normIdEspaco_(v) {
+  const id = normId_(v);
+  const i = id.indexOf('/');
+  if (i < 0) return id;
+  const espaco = id.slice(i + 1).trim()
+    .replace(/[\s_.\-]+/g, '-')
+    .replace(/([A-Z])(\d)/g, '$1-$2')
+    .replace(/^-|-$/g, '');
+  return (id.slice(0, i).trim() + '/' + espaco).replace(/\/PONTA-2$/, '/LADO-A').replace(/\/PONTA-1$/, '/LADO-B');
+}
+
+let indiceMarcasCache_ = null;
+function indiceMarcas_() {
+  if (indiceMarcasCache_) return indiceMarcasCache_;
+  const idx = {};
+  Object.keys(MARCAS).forEach(function (cod) {
+    [cod, MARCAS[cod].nome].concat(MARCAS[cod].apelidos || []).forEach(function (a) {
+      const k = chave_(a);
+      if (k) idx[k] = cod;
+    });
+  });
+  indiceMarcasCache_ = idx;
+  return idx;
+}
+
+/**
+ * "Boticário" → "BOT"; "bot + qdb" → "BOT+QDB"; "#ff8800" → "#FF8800"; "" → "".
+ */
+function normMarca_(v, aviso, onde) {
+  const s = texto_(v);
+  if (!s) return '';
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+  const idx = indiceMarcas_();
+  const codigos = [];
+  s.split('+').map(function (p) { return p.trim(); }).filter(String).forEach(function (p) {
+    if (hex.test(p)) {
+      codigos.push(p.toUpperCase());
+      return;
+    }
+    const cod = idx[chave_(p)];
+    if (cod) codigos.push(cod);
+    else if (aviso) aviso(onde + ': marca "' + p + '" não reconhecida (use ' + Object.keys(MARCAS).join(', ') + ' ou #RRGGBB).');
+  });
+  return codigos.join('+');
+}
+
+function normSimbolo_(v, aviso, onde) {
+  const s = texto_(v);
+  if (!s) return '';
+  const bruto = s.toUpperCase();
+  const k = chave_(s);
+  const codigos = Object.keys(SIMBOLOS);
+  for (let i = 0; i < codigos.length; i++) {
+    const nomes = [codigos[i]].concat(SIMBOLOS[codigos[i]].apelidos || []);
+    for (let j = 0; j < nomes.length; j++) {
+      const n = nomes[j].toUpperCase();
+      if (n === bruto || (k && chave_(n) === k)) return codigos[i];
+    }
+  }
+  if (aviso) aviso(onde + ': símbolo "' + s + '" não reconhecido (use ' + codigos.join(', ') + ').');
+  return '';
+}
+
+function normSecao_(v) {
+  const k = chave_(v);
+  if (!k) return '';
+  const codigos = Object.keys(SECOES_PAINEL);
+  for (let i = 0; i < codigos.length; i++) {
+    const nomes = [codigos[i]].concat(SECOES_PAINEL[codigos[i]].apelidos || []);
+    if (nomes.some(function (n) { return chave_(n) === k; })) return codigos[i];
+  }
+  return '';
+}
+
 /* ===== src/Code.gs ===== */
 /**
  * ============================================================================
@@ -605,6 +1016,8 @@ function colunasLayout_() {
  *   - Layout:     posição/tamanho de cada móvel em cada planta (muda raramente).
  *
  *  Funções sem "_" no final podem ser chamadas pela página (google.script.run).
+ *  A leitura das abas e as normalizações (sem I/O) ficam em Dados.gs, que também
+ *  é usado pela versão só de visualização (pasta visualizador/).
  */
 
 /* =============================== ENTRADA ================================== */
@@ -935,210 +1348,6 @@ function atualizarModelosPlantas_(abas, versoes) {
   return { abas: abas, versoes: novas, plantas: mudaram };
 }
 
-
-/**
- * Converte as matrizes das abas no objeto usado pela página.
- * Função pura (não acessa a planilha) — facilita testes.
- */
-function montarDados_(valoresLayout, valoresMov, valoresPain) {
-  const avisos = [];
-  const aviso = function (msg) { if (avisos.length < 60) avisos.push(msg); };
-
-  // ---------- Layout ----------
-  let linhasLayout;
-  if (valoresLayout && valoresLayout.length) {
-    const lido = objetosDeValores_(valoresLayout, colunasLayout_());
-    if (lido.faltando.length) {
-      aviso('Aba "' + CONFIG.ABAS.LAYOUT + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
-    }
-    linhasLayout = lido.linhas;
-  } else {
-    aviso('Aba "' + CONFIG.ABAS.LAYOUT + '" não encontrada ou vazia — usando o layout padrão.');
-    linhasLayout = objetosDeValores_(valoresLayoutPadrao_(), colunasLayout_()).linhas;
-  }
-  const plantas = montarPlantas_(linhasLayout, aviso);
-  const idsPorPlanta = {};
-  plantas.forEach(function (p) {
-    idsPorPlanta[p.id] = {};
-    p.moveis.forEach(function (m) {
-      idsPorPlanta[p.id][m.id] = true;
-      espacosAceitos_(m).forEach(function (e) { idsPorPlanta[p.id][m.id + '/' + e] = true; });
-    });
-  });
-  const existeMovel = function (planta, id) {
-    if (planta === CONFIG.PLANTA_TODAS) {
-      return plantas.some(function (p) { return idsPorPlanta[p.id][id]; });
-    }
-    return !!(idsPorPlanta[planta] && idsPorPlanta[planta][id]);
-  };
-
-  const ciclos = [];
-  const registrarCiclo = function (c) { if (ciclos.indexOf(c) < 0) ciclos.push(c); };
-
-  // ---------- Movimentos ----------
-  const movimentos = {};
-  if (valoresMov && valoresMov.length) {
-    const lido = objetosDeValores_(valoresMov, colunasMovimentos_());
-    if (lido.faltando.length) {
-      aviso('Aba "' + CONFIG.ABAS.MOVIMENTOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
-    }
-    lido.linhas.forEach(function (l) {
-      const ciclo = texto_(l.ciclo);
-      const planta = normPlanta_(l.planta);
-      // Nomes antigos dos lados da gôndola: Ponta 2 era o lado da frente (A), Ponta 1 o de trás (B).
-      const id = normId_(l.movel).replace(/\/PONTA-2$/, '/LADO-A').replace(/\/PONTA-1$/, '/LADO-B');
-      const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
-      if (!ciclo || !planta || !id) {
-        aviso(onde + ': Ciclo, Planta e ID Móvel são obrigatórios — linha ignorada.');
-        return;
-      }
-      if (!idsPorPlanta[planta] && planta !== CONFIG.PLANTA_TODAS) {
-        aviso(onde + ': planta "' + planta + '" não existe no Layout.');
-      } else if (!existeMovel(planta, id)) {
-        aviso(onde + ': móvel "' + id + '" não existe no Layout da planta ' + planta + '.');
-      }
-      const etiquetas = [];
-      for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
-        const t = texto_(l['etiqueta' + i]);
-        // posicao = número da coluna (na gôndola, cada uma vai para um bloco).
-        if (t) etiquetas.push({ texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i });
-      }
-      registrarCiclo(ciclo);
-      movimentos[ciclo] = movimentos[ciclo] || {};
-      movimentos[ciclo][planta] = movimentos[ciclo][planta] || {};
-      movimentos[ciclo][planta][id] = {
-        marca: normMarca_(l.marca, aviso, onde),
-        etiquetas: etiquetas,
-        simbolo: normSimbolo_(l.simbolo, aviso, onde),
-        observacao: texto_(l.observacao),
-      };
-    });
-  }
-
-  // ---------- Painéis ----------
-  const paineis = {};
-  if (valoresPain && valoresPain.length) {
-    const lido = objetosDeValores_(valoresPain, colunasPaineis_());
-    if (lido.faltando.length) {
-      aviso('Aba "' + CONFIG.ABAS.PAINEIS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
-    }
-    lido.linhas.forEach(function (l) {
-      const ciclo = texto_(l.ciclo);
-      const planta = normPlanta_(l.planta);
-      const texto = texto_(l.texto);
-      const onde = CONFIG.ABAS.PAINEIS + ', linha ' + l._linha;
-      const secao = normSecao_(l.secao);
-      if (!ciclo || !planta || !texto) {
-        aviso(onde + ': Ciclo, Planta e Texto são obrigatórios — linha ignorada.');
-        return;
-      }
-      if (!secao) {
-        aviso(onde + ': seção "' + texto_(l.secao) + '" inválida (use ' + Object.keys(SECOES_PAINEL).join(', ') + ').');
-        return;
-      }
-      const movel = normId_(l.movel);
-      if (movel && !existeMovel(planta, movel)) {
-        aviso(onde + ': móvel "' + movel + '" não existe no Layout da planta ' + planta + '.');
-      }
-      registrarCiclo(ciclo);
-      paineis[ciclo] = paineis[ciclo] || {};
-      paineis[ciclo][planta] = paineis[ciclo][planta] || [];
-      paineis[ciclo][planta].push({ secao: secao, texto: texto, marca: normMarca_(l.marca, aviso, onde), movel: movel });
-    });
-  }
-
-  return {
-    versao: 1,
-    plantas: plantas,
-    ciclos: ciclos,
-    movimentos: movimentos,
-    paineis: paineis,
-    avisos: avisos,
-    marcas: MARCAS,
-    simbolos: SIMBOLOS,
-    secoes: SECOES_PAINEL,
-    tipos: TIPOS_MOVEL,
-    tiposConstrucao: TIPOS_CONSTRUCAO,
-    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), layout: colunasLayout_() },
-    config: {
-      maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
-      etiquetasPorTipo: ETIQUETAS_POR_TIPO, nomesPlantas: NOMES_PLANTAS,
-    },
-  };
-}
-
-function montarPlantas_(linhas, aviso) {
-  const mapa = {};
-  const ordem = [];
-  const tipos = {};
-  Object.keys(TIPOS_MOVEL).forEach(function (t) { tipos[chave_(t)] = t; });
-
-  linhas.forEach(function (l) {
-    const planta = normPlanta_(l.planta);
-    const id = normId_(l.movel);
-    if (!planta && !id) return;
-    const onde = CONFIG.ABAS.LAYOUT + ', linha ' + l._linha;
-    if (!planta || !id || planta === CONFIG.PLANTA_TODAS) {
-      aviso(onde + ': Planta e ID Móvel são obrigatórios (e a planta não pode ser "TODAS").');
-      return;
-    }
-    let tipo = tipos[chave_(l.tipo)];
-    if (!tipo) {
-      aviso(onde + ': tipo "' + texto_(l.tipo) + '" desconhecido — desenhado como GONDOLA.');
-      tipo = 'GONDOLA';
-    }
-    if (!mapa[planta]) {
-      mapa[planta] = { id: planta, nome: nomePlanta_(planta), loja: null, moveis: [] };
-      ordem.push(planta);
-    }
-    const p = mapa[planta];
-    if (tipo === 'LOJA') {
-      p.loja = {
-        largura: Math.max(1, numero_(l.largura, 20)),
-        profundidade: Math.max(1, numero_(l.profundidade, 20)),
-        alturaParede: Math.max(0, numero_(l.altura, 4.5)),
-      };
-      return;
-    }
-    if (p.moveis.some(function (m) { return m.id === id; })) {
-      aviso(onde + ': ID "' + id + '" repetido na planta ' + planta + ' — ignorado.');
-      return;
-    }
-    p.moveis.push({
-      id: id,
-      descricao: texto_(l.descricao),
-      tipo: tipo,
-      x: numero_(l.x, 0),
-      y: numero_(l.y, 0),
-      z: numero_(l.z, 0),
-      w: Math.max(0.1, numero_(l.largura, 1)),
-      d: Math.max(0.1, numero_(l.profundidade, 1)),
-      h: Math.max(0.1, numero_(l.altura, 1)),
-      ajusteX: numero_(l.ajusteX, 0),
-      ajusteY: numero_(l.ajusteY, 0),
-      dividido: normDivisao_(l.dividido),
-      giro: normGiro_(l.giro),
-    });
-  });
-
-  ordem.forEach(function (id) {
-    const p = mapa[id];
-    if (p.loja) return;
-    let maxX = 1;
-    let maxY = 1;
-    p.moveis.forEach(function (m) {
-      if (m.tipo === 'EXTRA') return;
-      maxX = Math.max(maxX, m.x + m.w);
-      maxY = Math.max(maxY, m.y + m.d);
-    });
-    p.loja = { largura: Math.ceil(maxX + 1), profundidade: Math.ceil(maxY + 1), alturaParede: 4.5 };
-    aviso('Planta ' + id + ': sem linha do tipo LOJA no Layout — tamanho calculado automaticamente.');
-  });
-
-  ordem.sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
-  return ordem.map(function (id) { return mapa[id]; });
-}
-
 /**
  * Valida o layout de uma planta vindo do modo "Construir loja" e devolve as
  * linhas (objetos com as chaves de colunasLayout_), começando pela linha LOJA.
@@ -1226,176 +1435,6 @@ function mesclarLinhas_(existentes, novos, colunas) {
     return row;
   });
   return [cab].concat(mantidas, adicionadas);
-}
-
-/**
- * Transforma uma matriz [cabeçalho, ...linhas] em objetos {chave: valor},
- * localizando as colunas pelo título (ignorando acentos/maiúsculas/ordem).
- */
-function objetosDeValores_(valores, colunas) {
-  if (!valores || !valores.length) {
-    return { linhas: [], faltando: colunas.filter(function (c) { return c.obrigatoria; }).map(function (c) { return c.titulo; }) };
-  }
-  const cab = valores[0].map(chave_);
-  const idx = {};
-  colunas.forEach(function (c) {
-    const i = acharColuna_(cab, c);
-    if (i >= 0) idx[c.chave] = i;
-  });
-  const faltando = colunas
-    .filter(function (c) { return c.obrigatoria && !(c.chave in idx); })
-    .map(function (c) { return c.titulo; });
-  const linhas = [];
-  for (let r = 1; r < valores.length; r++) {
-    const row = valores[r] || [];
-    if (row.every(function (v) { return texto_(v) === ''; })) continue;
-    const o = { _linha: r + 1 };
-    colunas.forEach(function (c) { o[c.chave] = c.chave in idx ? row[idx[c.chave]] : ''; });
-    linhas.push(o);
-  }
-  return { linhas: linhas, faltando: faltando };
-}
-
-function acharColuna_(cabecalhoNormalizado, coluna) {
-  if (!coluna) return -1;
-  const nomes = [coluna.titulo].concat(coluna.apelidos || []).map(chave_);
-  for (let n = 0; n < nomes.length; n++) {
-    const i = cabecalhoNormalizado.indexOf(nomes[n]);
-    if (i >= 0) return i;
-  }
-  return -1;
-}
-
-/* ---------------------------- Normalização -------------------------------- */
-
-/** "Móvel (referência)" → "MOVELREFERENCIA" */
-function chave_(v) {
-  return String(v === null || v === undefined ? '' : v)
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '');
-}
-
-function texto_(v) {
-  if (v === null || v === undefined) return '';
-  if (Object.prototype.toString.call(v) === '[object Date]') {
-    if (isNaN(v.getTime())) return '';
-    const p2 = function (n) { return (n < 10 ? '0' : '') + n; };
-    return p2(v.getDate()) + '/' + p2(v.getMonth() + 1) + '/' + v.getFullYear();
-  }
-  return String(v).replace(/\r\n?/g, '\n').trim();
-}
-
-/** Aceita número, "1.5" ou "1,5". */
-function numero_(v, padrao) {
-  if (typeof v === 'number' && isFinite(v)) return v;
-  const s = texto_(v).replace(/\s/g, '');
-  if (!s) return padrao;
-  const n = Number(s.indexOf(',') >= 0 ? s.replace(/\./g, '').replace(',', '.') : s);
-  return isFinite(n) ? n : padrao;
-}
-
-/** "1", "01", "Planta 1", "ER P" → "01"; "todas" / "*" → "TODAS". */
-function normPlanta_(v) {
-  const s = texto_(v).toUpperCase().replace(/^PLANTA\s*/, '').trim();
-  if (!s) return '';
-  const k = chave_(s);
-  if (s === '*' || k === 'TODAS' || k === 'TODOS' || k === 'GERAL') return CONFIG.PLANTA_TODAS;
-  const porNome = Object.keys(NOMES_PLANTAS).filter(function (id) { return chave_(NOMES_PLANTAS[id]) === k; })[0];
-  if (porNome) return porNome;
-  if (/^\d+([.,]0+)?$/.test(s)) {
-    const n = parseInt(s, 10);
-    return (n < 10 ? '0' : '') + n;
-  }
-  return s;
-}
-
-/** "01" → "ER P" (ou "PLANTA 05" para planta sem nome em NOMES_PLANTAS). */
-function nomePlanta_(id) {
-  return NOMES_PLANTAS[id] || 'PLANTA ' + id;
-}
-
-/** Giro do móvel (hoje só o balcão recepção usa): 0, 90, 180 ou 270. */
-function normGiro_(v) {
-  const n = Math.round(numero_(v, 0) / 90) * 90;
-  return ((n % 360) + 360) % 360;
-}
-
-/** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */
-function normDivisao_(v) {
-  const k = chave_(v);
-  if (!k || k === 'NAO' || k === 'N') return '';
-  if (k === 'SIM' || k === 'S' || k === 'AMBOS' || k === 'TODOS') return 'AB';
-  return (k.indexOf('A') >= 0 ? 'A' : '') + (k.indexOf('B') >= 0 ? 'B' : '');
-}
-
-/** ID do móvel: maiúsculas, sem acento e com espaços simples ("Gôndola 1" → "GONDOLA 1"). */
-function normId_(v) {
-  return texto_(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ');
-}
-
-let indiceMarcasCache_ = null;
-function indiceMarcas_() {
-  if (indiceMarcasCache_) return indiceMarcasCache_;
-  const idx = {};
-  Object.keys(MARCAS).forEach(function (cod) {
-    [cod, MARCAS[cod].nome].concat(MARCAS[cod].apelidos || []).forEach(function (a) {
-      const k = chave_(a);
-      if (k) idx[k] = cod;
-    });
-  });
-  indiceMarcasCache_ = idx;
-  return idx;
-}
-
-/**
- * "Boticário" → "BOT"; "bot + qdb" → "BOT+QDB"; "#ff8800" → "#FF8800"; "" → "".
- */
-function normMarca_(v, aviso, onde) {
-  const s = texto_(v);
-  if (!s) return '';
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
-  const idx = indiceMarcas_();
-  const codigos = [];
-  s.split('+').map(function (p) { return p.trim(); }).filter(String).forEach(function (p) {
-    if (hex.test(p)) {
-      codigos.push(p.toUpperCase());
-      return;
-    }
-    const cod = idx[chave_(p)];
-    if (cod) codigos.push(cod);
-    else if (aviso) aviso(onde + ': marca "' + p + '" não reconhecida (use ' + Object.keys(MARCAS).join(', ') + ' ou #RRGGBB).');
-  });
-  return codigos.join('+');
-}
-
-function normSimbolo_(v, aviso, onde) {
-  const s = texto_(v);
-  if (!s) return '';
-  const bruto = s.toUpperCase();
-  const k = chave_(s);
-  const codigos = Object.keys(SIMBOLOS);
-  for (let i = 0; i < codigos.length; i++) {
-    const nomes = [codigos[i]].concat(SIMBOLOS[codigos[i]].apelidos || []);
-    for (let j = 0; j < nomes.length; j++) {
-      const n = nomes[j].toUpperCase();
-      if (n === bruto || (k && chave_(n) === k)) return codigos[i];
-    }
-  }
-  if (aviso) aviso(onde + ': símbolo "' + s + '" não reconhecido (use ' + codigos.join(', ') + ').');
-  return '';
-}
-
-function normSecao_(v) {
-  const k = chave_(v);
-  if (!k) return '';
-  const codigos = Object.keys(SECOES_PAINEL);
-  for (let i = 0; i < codigos.length; i++) {
-    const nomes = [codigos[i]].concat(SECOES_PAINEL[codigos[i]].apelidos || []);
-    if (nomes.some(function (n) { return chave_(n) === k; })) return codigos[i];
-  }
-  return '';
 }
 
 /** Garante matriz de valores simples (string/number/boolean) vinda do navegador. */
@@ -1614,7 +1653,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 4;
+const VERSAO_EXEMPLO = 6;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -1777,7 +1816,7 @@ const EXEMPLO_MOVIMENTOS = {
     'MOVEL DE PAREDE 3': ['NEUTRO', [['CUIDADOS (CBEM)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 4': ['NEUTRO', [['PERF FEM', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'GONDOLA 1': ['BOT', [['', ''], ['BOTIK', 'BOT'], ['UOMINI HERO', 'BOT'], ['BOTI PROMO', 'BOT']], 'FIXO'],
-    'GONDOLA 1/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 1/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']]],
     'PIRAMIDE 1': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'PIRAMIDE 2': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT']]],
     'MESA DESTAQUE 1': ['MULTI'],
@@ -1787,7 +1826,7 @@ const EXEMPLO_MOVIMENTOS = {
     'BALCAO RECEPCAO 1': ['BOT', [['LÇTO EGEO', 'BOT+QDB'], ['JUICY MOOD', 'QDB'], ['SIÀGE ULTIMATE', 'EUD']]],
     'MOVEL DE FILA 1': ['EUD', [['OUTLET EUD', 'EUD']]],
     'MOVEL DE FILA 2': ['BOT', [['BOTIPROMO', 'BOT']]],
-    'TOTEM 1': ['BOT', [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT']]],
+    'TOTEM 1': ['BOT', [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT'], ['LIQUIDA QDB', 'QDB']]],
     'MOVEL MAKE 1': ['NEUTRO', [['TESTEIRA MAKE MULTIPROMO', 'MULTI']]],
     'MOVEL MAKE 1/TESTEIRA-1': ['#1F1F1F'],
     'MOVEL MAKE 1/TESTEIRA-2': ['BOT', [['BOTIPROMO MAKE B.', 'BOT']]],
@@ -2071,6 +2110,7 @@ function valoresPaineisExemplo_() {
       </div>
 
       <div class="acoes">
+        <!-- so-app-completo -->
         <button id="btnModelo" class="btn primario" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
           Baixar planilha base
@@ -2079,6 +2119,7 @@ function valoresPaineisExemplo_() {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-5 5m5-5 5 5M4 19h16"/></svg>
           Importar planilha
         </button>
+        <!-- /so-app-completo -->
         <button id="btnPng" class="btn" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
           Baixar PNG
@@ -2087,10 +2128,12 @@ function valoresPaineisExemplo_() {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
           Ajustar etiquetas
         </button>
+        <!-- so-app-completo -->
         <button id="btnConstruir" class="btn" type="button" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
           Construir loja
         </button>
+        <!-- /so-app-completo -->
         <button id="btnAtualizar" class="btn fantasma" type="button" title="Ler a planilha de novo">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
           Atualizar
@@ -2099,7 +2142,9 @@ function valoresPaineisExemplo_() {
           Abrir planilha
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
         </a>
+        <!-- so-app-completo -->
         <input type="file" id="arquivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        <!-- /so-app-completo -->
       </div>
     </header>
 
@@ -2126,6 +2171,7 @@ function valoresPaineisExemplo_() {
 
     <main class="palco" id="palco">
       <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
+      <!-- so-app-completo -->
       <aside class="construtor" id="painelConstrutor" hidden aria-label="Construir loja">
         <header class="cns-topo">
           <div>
@@ -2247,13 +2293,17 @@ function valoresPaineisExemplo_() {
         <button type="button" data-acao="duplicar" title="Duplicar (Ctrl+D)">Duplicar</button>
         <button type="button" data-acao="excluir" title="Excluir (Delete)">Excluir</button>
       </div>
+      <!-- /so-app-completo -->
       <section class="vazio" id="telaConfig" hidden>
         <h2>Planilha ainda não configurada</h2>
         <p id="msgConfig"></p>
+        <!-- so-app-completo -->
         <button id="btnConfigurar" class="btn primario" type="button">Configurar agora</button>
+        <!-- /so-app-completo -->
       </section>
     </main>
 
+    <!-- so-app-completo -->
     <dialog id="dlgModelo" class="dialogo">
       <form method="dialog" id="formModelo">
         <h2>Baixar planilha base</h2>
@@ -2278,6 +2328,7 @@ function valoresPaineisExemplo_() {
         </div>
       </form>
     </dialog>
+    <!-- /so-app-completo -->
 
     <dialog id="dlgPng" class="dialogo">
       <form method="dialog">
@@ -2296,6 +2347,7 @@ function valoresPaineisExemplo_() {
       </form>
     </dialog>
 
+    <!-- so-app-completo -->
     <dialog id="dlgResultado" class="dialogo">
       <form method="dialog">
         <h2 id="resTitulo"></h2>
@@ -2306,6 +2358,7 @@ function valoresPaineisExemplo_() {
         </div>
       </form>
     </dialog>
+    <!-- /so-app-completo -->
 
     <div class="carregando" id="carregando" hidden>
       <div class="spinner" aria-hidden="true"></div>
@@ -2584,13 +2637,14 @@ const Render = (() => {
       : Object.assign(base, { x: b.x + v0, w: v1 - v0, y: b.y + u0, d: u1 - u0 });
   }
 
-  /** Espaços do móvel: gôndola e testeiras do móvel make (mesma regra de espacosDoMovel_ em Config.gs). */
+  /** Espaços do móvel: gôndola, mesas, painéis do totem e testeiras do make (mesma regra de espacosDoMovel_ em Config.gs). */
   function espacos(m) {
     const numerados = (prefixo, nome, n) => Array.from({ length: n }, (_, i) => ({ id: prefixo + '-' + (i + 1), nome: nome + ' ' + (i + 1) }));
     if (!m) return [];
     if (m.tipo === 'MAKE') return numerados('TESTEIRA', 'Testeira', 4);
     if (m.tipo === 'MESA') return numerados('FRENTE', 'Frente', 2);
     if (m.tipo === 'MESA_3') return numerados('FRENTE', 'Frente', 3);
+    if (m.tipo === 'TOTEM') return numerados('PAINEL', 'Painel', 3);
     if (m.tipo !== 'GONDOLA') return [];
     const div = String(m.dividido || '').toUpperCase();
     const lista = [{ id: 'LADO-A', nome: 'Lado A' }];
@@ -2638,14 +2692,14 @@ const Render = (() => {
   const BLOCOS_GONDOLA = ['LADO-A', 'MEIO-A', 'MEIO-B', 'LADO-B'];
 
   /**
-   * Etiquetas da gôndola: uma por bloco. A linha do espaço (GONDOLA 1/MEIO-A…) usa a
-   * própria Etiqueta 1; sem ela, o bloco mostra a etiqueta da linha da gôndola inteira
+   * Etiquetas da gôndola, por bloco. A linha do espaço (GONDOLA 1/MEIO-A…) mostra as
+   * próprias etiquetas (até "limite", empilhadas); sem elas, o bloco mostra a etiqueta da linha da gôndola inteira
    * na posição dele (Etiqueta 1 = Lado A, 2 = Meio A, 3 = Meio B, 4 = Lado B). As
    * metades de um meio dividido que usam a mesma etiqueta da gôndola mostram uma só,
    * no centro do meio. O símbolo da gôndola inteira vai só na primeira etiqueta dela.
    * @return {Array<{id, info, etiquetas, simbolo, topo: number[]}>} topo = ponto 3D (x, y, z) da âncora
    */
-  function etiquetasGondola(m, geral, infoEspaco) {
+  function etiquetasGondola(m, geral, infoEspaco, limite) {
     const lista = [];
     const porBloco = {};
     let simboloGeral = geral ? geral.simbolo : '';
@@ -2654,7 +2708,7 @@ const Render = (() => {
       const topo = [b.x + b.w / 2, b.y + b.d / 2, b.z + b.h];
       const proprio = infoEspaco[id];
       if (proprio && proprio.etiquetas.length) {
-        lista.push({ id, info: proprio, etiquetas: proprio.etiquetas.slice(0, 1), simbolo: proprio.simbolo, pontos: [topo] });
+        lista.push({ id, info: proprio, etiquetas: proprio.etiquetas.slice(0, limite || 1), simbolo: proprio.simbolo, pontos: [topo] });
         return;
       }
       const bloco = b.espaco.id.replace(/^(MEIO-[AB])-\d$/, '$1');
@@ -2673,12 +2727,12 @@ const Render = (() => {
   }
 
   /**
-   * Blocos vizinhos com a mesma etiqueta (texto e cor) viram uma só, no centro deles.
-   * lista: itens { id, info, etiquetas: [e], simbolo, pontos } ou null (bloco sem etiqueta,
+   * Blocos vizinhos com as mesmas etiquetas (texto e cor) viram uma pilha só, no centro deles.
+   * lista: itens { id, info, etiquetas, simbolo, pontos } ou null (bloco sem etiqueta,
    * que separa os vizinhos). Devolve os itens com topo = ponto 3D médio.
    */
   function juntarIguais(lista) {
-    const chave = (it) => it.etiquetas[0].texto + '|' + (it.etiquetas[0].marca || it.info.marca || '');
+    const chave = (it) => it.etiquetas.map((e) => e.texto + '|' + (e.marca || it.info.marca || '')).join('||');
     const saida = [];
     let anterior = null;
     lista.forEach((it) => {
@@ -2695,8 +2749,21 @@ const Render = (() => {
     }));
   }
 
-  /** Ponto 3D (topo, no centro) de cada bloco de mesa e móvel make, na ordem de espacos(). */
+  /**
+   * Painéis do totem, de baixo para cima (k = 0, 1, 2): faixa de altura [z0, z1].
+   * Na planilha o Painel 1 é o de cima, então o painel k é o espaço 3 - k.
+   */
+  const painelTotem = (h, k) => [h * (0.33 + 0.21 * k), h * (0.48 + 0.21 * k)];
+
+  /** Ponto 3D (âncora da etiqueta) de cada bloco de mesa, totem e móvel make, na ordem de espacos(). */
   function topoDosBlocos(m) {
+    if (m.tipo === 'TOTEM') {
+      // Âncora no meio da face da frente de cada painel (o totem é fino: as etiquetas saem ao lado).
+      return espacos(m).map((e, i) => {
+        const [z0, z1] = painelTotem(m.h, 2 - i);
+        return { espaco: e, topo: [m.x + m.w / 2, m.y + m.d / 2, m.z + (z0 + z1) / 2] };
+      });
+    }
     if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
       const [L, C] = eixos(m);
       const n = espacos(m).length;
@@ -2808,8 +2875,9 @@ const Render = (() => {
         caixa(pai, P, loc(0, t, 0, C, base, b.h), { cores: [COR.metal] });
         caixa(pai, P, loc(t, L - t, C * 0.35, C * 0.65, base, b.h * 0.3), { cores: [COR.tela] });
         for (let k = 0; k < 3; k++) {
-          const z0 = b.h * (0.33 + 0.21 * k);
-          caixa(pai, P, loc(t, L - t, 0, C, z0, z0 + b.h * 0.15), { cores, vidro: true });
+          // Cada painel pode ter a cor da própria linha (TOTEM 1/PAINEL-1 = o de cima).
+          const [z0, z1] = painelTotem(b.h, k);
+          caixa(pai, P, loc(t, L - t, 0, C, z0, z1), { cores: b.coresBlocos ? b.coresBlocos[2 - k] : cores, vidro: true });
         }
         caixa(pai, P, loc(t, L - t, 0, C, b.h - t, b.h), { cores: [COR.metal] });
         caixa(pai, P, loc(L - t, L, 0, C, base, b.h), { cores: [COR.metal] });
@@ -3074,7 +3142,9 @@ const Render = (() => {
       longe.some((d) => tentar(d[0], d[1]));
     };
     grupos.filter((g) => g.manual).forEach((g) => { acomodar(g); ocupados.push(g); });
-    grupos.filter((g) => !g.manual).sort((a, b) => a.ancora[1] - b.ancora[1]).forEach((g) => { acomodar(g); ocupados.push(g); });
+    // As etiquetas ao lado do móvel (painéis do totem) vão antes, para ficarem juntas do móvel delas.
+    grupos.filter((g) => !g.manual).sort((a, b) => (b.aoLado ? 1 : 0) - (a.aoLado ? 1 : 0) || a.ancora[1] - b.ancora[1])
+      .forEach((g) => { acomodar(g); ocupados.push(g); });
   }
 
   /** Linha-guia do grupo até o ponto do móvel (quando o grupo ficou longe). */
@@ -3362,6 +3432,9 @@ const Render = (() => {
     /** Espaço sem linha própria herda a linha da gôndola inteira. */
     const infoDe = (b) => (b.espaco && infoEspaco[b.movel.id + '/' + b.espaco.id]) || info[b.movel.id];
 
+    /** Etiqueta da coluna N da linha (posicao = número da coluna "Etiqueta N"). */
+    const etiquetaNaPosicao = (x, n) => (x ? x.etiquetas.filter((e, k) => (e.posicao || k + 1) === n)[0] : null);
+
     // Móveis, na ordem de pintura.
     const prims = [];
     moveis.forEach((m) => primitivas(m).forEach((p) => prims.push(p)));
@@ -3372,6 +3445,16 @@ const Render = (() => {
       const cores = corInfo(i);
       // Mesas: um só desenho, mas cada frente com a cor da própria linha (ou a da mesa inteira).
       if (m.tipo === 'MESA' || m.tipo === 'MESA_3') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id] || i));
+      // Totem: painel com linha própria (TOTEM 1/PAINEL-N) usa a cor dela; senão, a "Marca Etiqueta N"
+      // da linha do totem inteiro (a etiqueta N vai para o painel N); senão, a cor do totem.
+      if (m.tipo === 'TOTEM') {
+        b.coresBlocos = espacos(m).map((e, k) => {
+          const proprio = infoEspaco[m.id + '/' + e.id];
+          if (proprio) return corInfo(proprio);
+          const et = etiquetaNaPosicao(i, k + 1);
+          return (et && !ehNeutro(et.marca) && coresDe(et.marca, 'movel', true)) || corInfo(i);
+        });
+      }
       const g = el('g', {
         class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
         'data-movel': m.id,
@@ -3433,26 +3516,48 @@ const Render = (() => {
     // Etiquetas: uma pilha por móvel (limitada por tipo) e, na gôndola, uma por bloco.
     // As etiquetas de uma gôndola compartilham o ajuste manual do móvel (movem juntas).
     const limitePorTipo = ctx.dados.config.etiquetasPorTipo || {};
+    const limitePorBloco = ctx.dados.config.etiquetasPorBloco || {};
     const grupos = [];
-    const novoGrupo = (id, m, i, etiquetas, simbolo, ancora, ajuste) => {
+    // aoLado: a etiqueta começa à direita do móvel (com linha-guia até a âncora) em vez de ficar em
+    // cima dela — usado nos painéis do totem, para a etiqueta não cobrir a cor do painel.
+    const direitaDe = (m) => Math.max.apply(null, [m.x, m.x + m.w].map((x) => P(x, m.y, m.z)[0]));
+    const novoGrupo = (id, m, i, etiquetas, simbolo, ancora, ajuste, aoLado) => {
       if (!etiquetas.length) return;
       const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta', true)) || corEtiquetaPadrao(true);
       const med = medirGrupo(etiquetas, simbolo, corPadrao);
-      const baseX = ancora[0] - med.w / 2;
+      const baseX = aoLado ? direitaDe(m) + 16 : ancora[0] - med.w / 2;
       const baseY = ancora[1] - med.h / 2;
       grupos.push(Object.assign(med, {
-        id, movel: m, info: i, ancora, baseX, baseY,
+        id, movel: m, info: i, ancora, baseX, baseY, aoLado: !!aoLado,
         x: baseX + ajuste.x, y: baseY + ajuste.y, manual: !!(ajuste.x || ajuste.y),
       }));
     };
     moveis.forEach((m) => {
       const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
-      const grupo = (e) => novoGrupo(e.id, m, e.info, e.etiquetas, e.simbolo, P(e.topo[0], e.topo[1], e.topo[2]), ajuste);
+      const grupo = (e) => novoGrupo(e.id, m, e.info, e.etiquetas, e.simbolo, P(e.topo[0], e.topo[1], e.topo[2]), ajuste, e.aoLado);
       if (m.tipo === 'GONDOLA') {
-        juntarIguais(etiquetasGondola(m, info[m.id], infoEspaco)).forEach(grupo);
+        juntarIguais(etiquetasGondola(m, info[m.id], infoEspaco, limitePorBloco.GONDOLA)).forEach(grupo);
         return;
       }
       const i = info[m.id];
+      if (m.tipo === 'TOTEM') {
+        // Totem: uma etiqueta por painel, ao lado do totem com linha-guia. Vale a linha do painel
+        // (TOTEM 1/PAINEL-N); sem ela, a Etiqueta N da linha do totem inteiro (1 = painel de cima).
+        let simbolo = i ? i.simbolo : '';
+        juntarIguais(topoDosBlocos(m).map((bl, k) => {
+          const id = m.id + '/' + bl.espaco.id;
+          const ie = infoEspaco[id];
+          if (ie && ie.etiquetas.length) {
+            return { id, info: ie, etiquetas: ie.etiquetas.slice(0, limitePorBloco.TOTEM || 1), simbolo: ie.simbolo, pontos: [bl.topo], aoLado: true };
+          }
+          const e = etiquetaNaPosicao(i, k + 1);
+          if (!e) return null;
+          const s = simbolo;
+          simbolo = '';
+          return { id, info: i, etiquetas: [e], simbolo: s, pontos: [bl.topo], aoLado: true };
+        })).forEach(grupo);
+        return;
+      }
       if (m.tipo === 'VITRINE_L') {
         // Balcão: Etiqueta 1, 2 e 3 da linha do balcão vão para o bloco 1, o canto e o bloco 3.
         if (i) {
@@ -3464,12 +3569,15 @@ const Render = (() => {
         return;
       }
       if (i) novoGrupo(m.id, m, i, i.etiquetas.slice(0, limitePorTipo[m.tipo] || i.etiquetas.length), i.simbolo, ancoraDe(m), ajuste);
-      // Blocos (balcão, mesas, testeiras do make): a linha própria do bloco mostra a Etiqueta 1 em cima
-      // dele; blocos vizinhos com o mesmo texto e cor ficam com uma etiqueta só, no centro deles.
+      // Blocos (mesas, painéis do totem, testeiras do make): a linha própria do bloco mostra as etiquetas
+      // dela em cima do bloco (até ETIQUETAS_POR_BLOCO; senão só a 1); blocos vizinhos com as mesmas
+      // etiquetas ficam com uma pilha só, no centro deles.
       juntarIguais(topoDosBlocos(m).map((bl) => {
         const id = m.id + '/' + bl.espaco.id;
         const ie = infoEspaco[id];
-        return ie && ie.etiquetas.length ? { id, info: ie, etiquetas: ie.etiquetas.slice(0, 1), simbolo: ie.simbolo, pontos: [bl.topo] } : null;
+        return ie && ie.etiquetas.length
+          ? { id, info: ie, etiquetas: ie.etiquetas.slice(0, limitePorBloco[m.tipo] || 1), simbolo: ie.simbolo, pontos: [bl.topo], aoLado: m.tipo === 'TOTEM' }
+          : null;
       })).forEach(grupo);
     });
     posicionar(grupos, obstaculos);
@@ -3507,6 +3615,7 @@ const Render = (() => {
 })();
 </script>
 
+    <!-- so-app-completo -->
     <script>
 /**
  * ============================================================================
@@ -3571,6 +3680,9 @@ const Planilha = (() => {
    * passa a valer para a 1ª metade). Meio já dividido no Layout: as duas metades.
    */
   function espacosNaPlanilha(m) {
+    // Totem: a linha do totem inteiro já tem uma etiqueta e uma cor por painel (Etiqueta / Marca
+    // Etiqueta 1–3); as linhas TOTEM 1/PAINEL-N continuam aceitas, mas não entram na planilha base.
+    if (m.tipo === 'TOTEM') return [];
     if (m.tipo !== 'GONDOLA') return Render.espacos(m);
     const div = String(m.dividido || '').toUpperCase();
     const meio = (l) => (div.indexOf(l) >= 0
@@ -3669,16 +3781,22 @@ const Planilha = (() => {
       '1. Na aba "' + abas.MOVIMENTOS + '", cada linha é um móvel de uma planta. NÃO altere "Planta" nem "ID Móvel": eles ligam a linha ao desenho.',
       '2. Preencha "Ciclo" em todas as linhas com o nome do ciclo (ex.: C15/2026). É esse nome que aparece no seletor de ciclos.',
       '3. "Marca do Móvel" define a cor do móvel na planta. Deixe vazio (ou NEUTRO) para o móvel aparecer branco.',
-      '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto do móvel; "Marca Etiqueta N" define a cor de cada uma (vazio = cor do móvel). Pirâmide e mesa destaque mostram só 1 etiqueta (as colunas que não aparecem na planta ficam cinza).',
+      '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto do móvel; "Marca Etiqueta N" define a cor de cada uma (vazio = cor do móvel). Pirâmide e mesa destaque mostram até 4 etiquetas, empilhadas (as colunas que não aparecem na planta ficam cinza).',
       '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
       '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
-      '6.2 A gôndola mostra uma etiqueta por bloco. Na linha da gôndola inteira: Etiqueta 1 = Lado A, Etiqueta 2 = Meio A, Etiqueta 3 = Meio B, Etiqueta 4 = Lado B ("A" é sempre o lado virado para quem olha a planta). A Etiqueta 1 da linha de um espaço substitui a etiqueta daquele bloco.',
-      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3) e móvel make (TESTEIRA-1 a 4) têm uma linha por bloco, com cor e etiqueta próprias. Blocos vizinhos com o mesmo texto e cor ficam com uma etiqueta só, no centro. O balcão recepção tem uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.',
+      '6.2 Etiquetas da gôndola. Na linha da gôndola inteira: Etiqueta 1 = Lado A, Etiqueta 2 = Meio A, Etiqueta 3 = Meio B, Etiqueta 4 = Lado B ("A" é sempre o lado virado para quem olha a planta). A linha de um espaço mostra até 4 etiquetas empilhadas em cima daquele bloco (Etiqueta 1 a 4) e substitui a etiqueta que viria da gôndola inteira.',
+      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3) e móvel make (TESTEIRA-1 a 4) têm uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada testeira, 1. Bloco sem linha própria usa a cor do móvel inteiro. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só, no centro. O balcão recepção tem uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.',
+      '6.4 Totem: na linha do totem, Etiqueta 1, 2 e 3 vão para o painel de cima, o do meio e o de baixo (cada uma ao lado do seu painel), e a "Marca Etiqueta N" pinta o painel N. Painel sem etiqueta usa a "Marca do Móvel". Se preferir, uma linha TOTEM 1/PAINEL-1 (a 3) define cor e etiqueta de um painel e tem prioridade.',
       '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
+    ].concat(op.visualizador ? [
+      // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.
+      '8. Todos os ciclos ficam nesta mesma planilha. Para criar um ciclo novo, copie as linhas de um ciclo existente (nas abas "' + abas.MOVIMENTOS + '" e "' + abas.PAINEIS + '"), cole no fim e troque o "Ciclo". Cada nome diferente de ciclo aparece no seletor do visualizador.',
+      '9. O visualizador lê esta planilha diretamente: depois de editar, clique em "Atualizar" no app. Não renomeie as abas nem os títulos das colunas. Os avisos do app (marca desconhecida, ID inexistente…) indicam a linha da planilha a corrigir.',
+    ] : [
       '8. Salve o arquivo e use o botão "Importar planilha" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',
       '9. Aba "' + abas.LAYOUT + '" (opcional): posição e tamanho dos móveis (X, Y, Largura, Profundidade, Altura). Ao importar, as plantas presentes nela são substituídas por inteiro.',
-    ].forEach(paragrafo);
+    ]).forEach(paragrafo);
     r++;
 
     titulo('Marcas (cores)');
@@ -3722,6 +3840,7 @@ const Planilha = (() => {
 
     const max = dados.config.maxEtiquetas;
     const porTipo = dados.config.etiquetasPorTipo || {};
+    const porBloco = dados.config.etiquetasPorBloco || {};
     const plantas = dados.plantas.filter((p) => op.plantas.indexOf(p.id) >= 0);
     // Cascata (ER P → ER M → ER G → ER GG): com mais de uma planta, cada móvel entra uma vez só, na
     // primeira planta que o tem, e vale para as seguintes. Uma planta seguinte só ganha linha própria
@@ -3744,13 +3863,14 @@ const Planilha = (() => {
       const POR_POSICAO = {
         GONDOLA: ' (gôndola inteira; Etiqueta 1–4 = Lado A, Meio A, Meio B, Lado B)',
         VITRINE_L: ' (Etiqueta 1–3 = bloco 1, canto, bloco 3)',
+        TOTEM: ' (Etiqueta 1–3 = painel de cima, do meio e de baixo; Marca Etiqueta N = cor do painel N)',
       };
       const linhasDoMovel = (m) => [{
         id: m.id,
         descricao: m.descricao + (POR_POSICAO[m.tipo] || '') + valePara(m),
         limite: porTipo[m.tipo] || max,
         porPosicao: !!POR_POSICAO[m.tipo],
-      }].concat(espacosNaPlanilha(m).map((e) => ({ id: m.id + '/' + e.id, descricao: (m.descricao || m.id) + ' – ' + e.nome, limite: 1 })));
+      }].concat(espacosNaPlanilha(m).map((e) => ({ id: m.id + '/' + e.id, descricao: (m.descricao || m.id) + ' – ' + e.nome, limite: porBloco[m.tipo] || 1 })));
       // Móvel de atendimento não leva cor nem etiqueta: fica fora da planilha.
       p.moveis.filter((m) => !SEM_LINHA_NA_PLANILHA[m.tipo]).reduce((acc, m) => acc.concat(linhasDoMovel(m)), []).forEach((m) => {
         const info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;
@@ -3860,7 +3980,8 @@ const Planilha = (() => {
   /**
    * Gera e baixa a planilha base.
    * @param {Object} dados    retorno de getDados()
-   * @param {{ciclo: string, origem: string, plantas: string[], incluirLayout: boolean}} op
+   * @param {{ciclo: string, origem: string, plantas: string[], incluirLayout: boolean, visualizador?: boolean}} op
+   *   visualizador: instruções para a versão só de visualização (lê a planilha direto, sem importar).
    * @param {{movimento: Function, linhasPaineis: Function}} resolver
    */
   async function baixarModelo(dados, op, resolver) {
@@ -4738,6 +4859,7 @@ const Construtor = (() => {
 })();
 </script>
 
+    <!-- /so-app-completo -->
     <script>
 /**
  * ============================================================================
@@ -4757,12 +4879,33 @@ const App = (() => {
   const $ = (id) => document.getElementById(id);
   const svg = $('slide');
 
+  /**
+   * Modo "Construir loja". A versão só de visualização (pasta visualizador/) não inclui
+   * o Construtor.html: no lugar dele entra este substituto, que nunca está ativo.
+   */
+  const Editor = typeof Construtor !== 'undefined' ? Construtor : {
+    iniciar() {}, sincronizar() {}, aposDesenhar() {}, fechar() {}, abrir() {}, tecla() {},
+    contexto: () => null, ativo: () => false, podeSair: () => true,
+  };
+
   /* ------------------------------ utilidades ------------------------------ */
 
   const memoria = {
     ler(k) { try { return window.localStorage.getItem('planoVarejo.' + k); } catch (e) { return null; } },
     gravar(k, v) { try { window.localStorage.setItem('planoVarejo.' + k, v); } catch (e) { /* sem armazenamento */ } },
   };
+
+  /** Dispara o download de um Blob. */
+  function baixarArquivo(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
 
   /** google.script.run como Promise. */
   function chamar(funcao) {
@@ -4885,7 +5028,7 @@ const App = (() => {
     montarAbas();
     montarLegenda();
     montarAvisos(dados.avisos || []);
-    Construtor.sincronizar(plantaAtual());
+    Editor.sincronizar(plantaAtual());
     desenhar();
   }
 
@@ -4989,11 +5132,11 @@ const App = (() => {
   function trocarPlanta(id) {
     if (id === estado.planta) return;
     if (Object.keys(estado.ajustes).length && !window.confirm('Há ajustes de etiquetas não salvos nesta planta. Descartar?')) return;
-    if (!Construtor.podeSair()) return;
+    if (!Editor.podeSair()) return;
     estado.ajustes = {};
     estado.planta = id;
     memoria.gravar('planta', id);
-    Construtor.sincronizar(plantaAtual());
+    Editor.sincronizar(plantaAtual());
     montarAbas();
     atualizarBarraEdicao();
     desenhar();
@@ -5003,7 +5146,7 @@ const App = (() => {
 
   /** Contexto do desenho da tela (também usado para gerar o PNG só da planta). */
   function contextoDesenho() {
-    const construcao = Construtor.contexto();
+    const construcao = Editor.contexto();
     const planta = construcao ? construcao.planta : plantaAtual();
     if (!planta) return null;
     const semConteudo = !!construcao && !construcao.mostrarCiclo;
@@ -5030,9 +5173,9 @@ const App = (() => {
   function desenhar() {
     const ctx = contextoDesenho();
     if (!ctx) return;
-    svg.classList.toggle('construindo', !!Construtor.contexto());
+    svg.classList.toggle('construindo', !!Editor.contexto());
     const r = Render.desenhar(svg, ctx);
-    Construtor.aposDesenhar(r);
+    Editor.aposDesenhar(r);
     estado.grupos = r.grupos;
     if (estado.edicao) ativarArraste();
   }
@@ -5093,8 +5236,8 @@ const App = (() => {
   }
 
   function alternarEdicao() {
-    if (!estado.edicao && Construtor.ativo()) Construtor.fechar();
-    if (!estado.edicao && Construtor.ativo()) return;
+    if (!estado.edicao && Editor.ativo()) Editor.fechar();
+    if (!estado.edicao && Editor.ativo()) return;
     if (estado.edicao && Object.keys(estado.ajustes).length && !window.confirm('Sair sem salvar os ajustes?')) return;
     estado.edicao = !estado.edicao;
     estado.ajustes = {};
@@ -5284,7 +5427,7 @@ const App = (() => {
       const marca = estado.filtro && estado.dados.marcas[estado.filtro];
       const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', marca ? marca.nome : ''].filter(Boolean);
       const nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + '.png';
-      Planilha.baixarBlob(blob, nome);
+      baixarArquivo(blob, nome);
     } catch (e) {
       erro(e);
     } finally {
@@ -5295,32 +5438,35 @@ const App = (() => {
   /* -------------------------------- início -------------------------------- */
 
   function ligarEventos() {
-    $('selCiclo').addEventListener('change', (e) => {
+    // Botões que só existem em uma das versões (ex.: a de visualização não tem Construir loja
+    // nem Baixar / Importar planilha) são ignorados quando não estão na página.
+    const ao = (id, evento, fn) => { if ($(id)) $(id).addEventListener(evento, fn); };
+    ao('selCiclo', 'change', (e) => {
       estado.ciclo = e.target.value;
       desenhar();
     });
-    $('btnModelo').addEventListener('click', () => estado.dados && abrirDialogoModelo());
-    $('dlgModelo').addEventListener('close', baixarModelo);
-    $('btnImportar').addEventListener('click', () => estado.dados && $('arquivo').click());
-    $('arquivo').addEventListener('change', (e) => importar(e.target.files[0]));
-    $('btnPng').addEventListener('click', () => estado.dados && abrirDialogoPng());
-    $('dlgPng').addEventListener('close', baixarPng);
-    $('btnEditar').addEventListener('click', () => estado.dados && alternarEdicao());
-    $('btnAutoOrganizar').addEventListener('click', autoOrganizar);
-    $('btnDescartar').addEventListener('click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
-    $('btnSalvarAjustes').addEventListener('click', salvarAjustes);
-    $('btnConfigurar').addEventListener('click', configurar);
-    $('btnConstruir').addEventListener('click', () => {
+    ao('btnModelo', 'click', () => estado.dados && abrirDialogoModelo());
+    ao('dlgModelo', 'close', baixarModelo);
+    ao('btnImportar', 'click', () => estado.dados && $('arquivo').click());
+    ao('arquivo', 'change', (e) => importar(e.target.files[0]));
+    ao('btnPng', 'click', () => estado.dados && abrirDialogoPng());
+    ao('dlgPng', 'close', baixarPng);
+    ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
+    ao('btnAutoOrganizar', 'click', autoOrganizar);
+    ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
+    ao('btnSalvarAjustes', 'click', salvarAjustes);
+    ao('btnConfigurar', 'click', configurar);
+    ao('btnConstruir', 'click', () => {
       if (!estado.dados) return;
-      if (Construtor.ativo()) { Construtor.fechar(); return; }
+      if (Editor.ativo()) { Editor.fechar(); return; }
       if (estado.edicao) alternarEdicao();
       if (estado.edicao) return; // usuário cancelou a saída do modo ajuste
-      Construtor.abrir();
+      Editor.abrir();
     });
-    $('btnRestaurar').addEventListener('click', () => {
+    ao('btnRestaurar', 'click', () => {
       if (window.confirm('Apagar os dados salvos neste navegador e voltar ao ciclo de exemplo?')) configurar();
     });
-    $('btnAtualizar').addEventListener('click', () => {
+    ao('btnAtualizar', 'click', () => {
       if (Object.keys(estado.ajustes).length && !window.confirm('Descartar ajustes de etiquetas não salvos?')) return;
       carregar().then(() => toast('Dados atualizados.'));
     });
@@ -5329,7 +5475,7 @@ const App = (() => {
     document.addEventListener('keydown', (e) => {
       if (!estado.dados) return;
       if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
-      if (Construtor.ativo()) { Construtor.tecla(e); return; }
+      if (Editor.ativo()) { Editor.tecla(e); return; }
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       const ids = estado.dados.plantas.map((p) => p.id);
@@ -5339,10 +5485,11 @@ const App = (() => {
   }
 
   ligarEventos();
-  Construtor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
+  Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
   carregar();
 
-  return { estado, carregar };
+  // resolver: usado também para gerar a planilha base da versão de visualização (dev/).
+  return { estado, carregar, resolver: { movimento: movimentoDe, linhasPaineis } };
 })();
 </script>
 
