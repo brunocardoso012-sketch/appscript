@@ -3,8 +3,11 @@
  * ============================================================================
  *  CONSTRUIR LOJA (editor visual do layout das plantas)
  * ============================================================================
- *  - Paleta "Adicionar móvel" (Gôndola, Pirâmide, Móvel de fila, Totem, Cubo,
- *    Expositor VM, Vitrine em L): um clique
+ *  - Ao abrir, a planta começa VAZIA (só os itens "Extra" ficam); o botão
+ *    "Carregar móveis salvos" traz de volta o layout gravado. Fechar sem salvar
+ *    não apaga nada.
+ *  - Paleta "Adicionar móvel" (Gôndola, Pirâmide, Móvel de fila, Totem,
+ *    PDV móvel, Mesa destaque, Balcão recepção): um clique
  *    cria o móvel no centro da loja.
  *  - Clicar num móvel seleciona; arrastar move (Alt = movimento fino);
  *    clicar no piso vazio desmarca.
@@ -37,15 +40,15 @@ const Construtor = (() => {
       icone: 'M7 3v17M17 3v17M7 3h10M5 21h14M7 7h10v3H7zM7 12h10v3H7zM9 17h6',
     },
     CUBO: {
-      nome: 'Cubo', prefixo: 'CUBO', tam: [1.3, 1.3, 1.6],
+      nome: 'PDV móvel', prefixo: 'PDV', tam: [1.3, 1.3, 1.6],
       icone: 'M5 8l7-4 7 4v9l-7 4-7-4zM5 8l7 4 7-4M12 12v9M4 19l8 4 8-4',
     },
     MESA: {
-      nome: 'Expositor VM', prefixo: 'VM', tam: [2.6, 2.4, 2.6],
-      icone: 'M4 3h7v8H4zM13 3h7v8h-7zM3 11h18v4H3zM3 15h18M3 18h18M5 18v4M19 18v4M12 11v7',
+      nome: 'Mesa destaque', prefixo: 'MESA', tam: [2.6, 1.4, 2.6],
+      icone: 'M4 3h7v9H4zM13 3h7v9h-7zM3 12h18v3H3zM5 15v6M19 15v6',
     },
     VITRINE_L: {
-      nome: 'Vitrine em L', prefixo: 'VIT', tam: [3.6, 3, 2.4],
+      nome: 'Balcão recepção', prefixo: 'BALCAO', tam: [3, 3, 2.4],
       icone: 'M14 3h6v18H4v-6h10z',
     },
   };
@@ -114,8 +117,18 @@ const Construtor = (() => {
     return !c.ativo || !sujo() || window.confirm('Há alterações não salvas no layout desta planta. Descartar?');
   }
 
-  function carregarPlanta(planta) {
+  /** Itens fora da planta (Cestinhas etc.) não são apagados ao começar vazio. */
+  const ehExtra = (m) => m.tipo === 'EXTRA';
+
+  /**
+   * Carrega a planta no editor. vazia = true começa sem móveis (o layout salvo
+   * só é substituído se o usuário clicar em "Salvar planta").
+   */
+  function carregarPlanta(planta, vazia) {
     c.planta = clonar(planta);
+    c.salvos = planta.moveis.filter((m) => !ehExtra(m)).length;
+    c.vazia = !!vazia;
+    if (c.vazia) c.planta.moveis = c.planta.moveis.filter(ehExtra);
     c.nova = false;
     c.historico = [];
     if (!c.planta.moveis.some((m) => m.id === c.selecionado)) c.selecionado = '';
@@ -125,7 +138,22 @@ const Construtor = (() => {
 
   /** Chamado pelo App depois de recarregar os dados ou trocar de planta. */
   function sincronizar(planta) {
-    if (c.ativo && planta && (!sujo() || c.planta.id !== planta.id)) carregarPlanta(planta);
+    if (!c.ativo || !planta) return;
+    if (c.planta.id !== planta.id) carregarPlanta(planta, true); // trocou de planta: começa vazia
+    else if (!sujo()) carregarPlanta(planta, c.vazia);
+  }
+
+  /** Traz de volta os móveis salvos desta planta (pode desfazer). */
+  function carregarSalvos() {
+    const salva = app.estado.dados.plantas.find((p) => p.id === c.planta.id);
+    if (!salva) return;
+    registrar();
+    c.planta.loja = clonar(salva.loja);
+    c.planta.moveis = clonar(salva.moveis);
+    c.vazia = false;
+    c.selecionado = '';
+    preencherTudo();
+    app.desenhar();
   }
 
   /* ------------------------------ abrir/fechar ---------------------------- */
@@ -135,7 +163,7 @@ const Construtor = (() => {
     if (!planta) return;
     c.ativo = true;
     c.selecionado = '';
-    carregarPlanta(planta);
+    carregarPlanta(planta, true);
     document.body.classList.add('construindo');
     $('painelConstrutor').hidden = false;
     $('btnConstruir').setAttribute('aria-pressed', 'true');
@@ -168,6 +196,9 @@ const Construtor = (() => {
     $('cnsRefZoom').value = Math.round(((ref && ref.zoom) || 1) * 100);
     $('cnsRefX').value = (ref && ref.dx) || 0;
     $('cnsRefY').value = (ref && ref.dy) || 0;
+    const temSalvos = c.vazia && c.salvos > 0;
+    $('cnsSalvos').hidden = !temSalvos;
+    if (temSalvos) $('cnsQtdSalvos').textContent = c.salvos;
     preencherLista();
     preencherFormulario();
     atualizarStatus();
@@ -258,6 +289,13 @@ const Construtor = (() => {
       x: arred(Math.round((L.largura - t.tam[0]) / 2)), y: arred(Math.round((L.profundidade - t.tam[1]) / 2)), z: 0,
       w: t.tam[0], d: t.tam[1], h: t.tam[2], ajusteX: 0, ajusteY: 0,
     };
+    // Se o centro já estiver ocupado, desloca na diagonal até achar um lugar livre.
+    const ocupa = (a, o) => a.x < o.x + o.w && o.x < a.x + a.w && a.y < o.y + o.d && o.y < a.y + a.d;
+    const piso = c.planta.moveis.filter((o) => !ehExtra(o));
+    for (let i = 0; i < 12 && piso.some((o) => ocupa(m, o)); i++) {
+      m.x = arred(Math.min(L.largura - m.w, m.x + 1));
+      m.y = arred(Math.min(L.profundidade - m.d, m.y + 1));
+    }
     c.planta.moveis.push(m);
     preencherLista();
     selecionar(m.id);
@@ -346,6 +384,7 @@ const Construtor = (() => {
       const r = await app.chamar('salvarLayout', p.id, layout);
       c.historico = [];
       c.nova = false;
+      c.vazia = false;
       await app.carregar({ planta: p.id });
       app.toast('Layout salvo: ' + p.nome + ' (' + r.moveis + ' móveis).');
     } catch (e) {
@@ -357,7 +396,7 @@ const Construtor = (() => {
 
   function descartar() {
     if (!sujo() || !window.confirm('Descartar todas as alterações desde o último salvamento?')) return;
-    carregarPlanta(app.plantaAtual());
+    carregarPlanta(app.plantaAtual(), c.vazia);
     app.desenhar();
   }
 
@@ -601,6 +640,11 @@ const Construtor = (() => {
         const v = numero(valor);
         if (!m || !isFinite(v)) return false;
         m[k] = ['w', 'd', 'h'].indexOf(k) >= 0 ? Math.max(0.1, v) : v;
+        if (m.tipo === 'VITRINE_L' && (k === 'w' || k === 'd')) {
+          m.w = m[k]; // balcão recepção: os dois lados sempre do mesmo tamanho
+          m.d = m[k];
+          $('cnsForm').querySelector('[data-campo="' + (k === 'w' ? 'd' : 'w') + '"]').value = m[k];
+        }
       });
     });
     $('cnsDescricao').addEventListener('change', (e) => {
@@ -615,6 +659,8 @@ const Construtor = (() => {
       if (!m) return;
       registrar();
       m.tipo = e.target.value;
+      if (m.tipo === 'VITRINE_L') m.d = m.w = Math.max(m.w, m.d);
+      preencherFormulario();
       preencherLista();
       redesenhar();
     });
@@ -642,6 +688,7 @@ const Construtor = (() => {
       else if (acao === 'excluir') excluir();
     });
     $('cnsNovaPlanta').addEventListener('click', novaPlanta);
+    $('cnsCarregarSalvos').addEventListener('click', carregarSalvos);
 
     $('cnsImagem').addEventListener('click', () => $('cnsArquivoImagem').click());
     $('cnsArquivoImagem').addEventListener('change', (e) => carregarImagem(e.target.files[0]));

@@ -326,11 +326,11 @@ const Render = (() => {
         break;
       }
       case 'MESA': {
-        // Expositor VM: estrutura com pernas, 4 nichos (2×2) em cima e painel de vidro de duas lâminas ao fundo.
+        // Mesa destaque: estrutura com pernas, 2 nichos lado a lado em cima e painel de vidro de duas lâminas ao fundo.
         const [L, C] = eixos(b);
         const hBase = b.h * 0.32;
         const hNicho = b.h * 0.27;
-        const painel = Math.min(0.15, C * 0.1);
+        const painel = Math.min(0.15, C * 0.12);
         const fresta = Math.min(0.08, L * 0.04);
         const perna = Math.min(0.08, L * 0.05);
         const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
@@ -341,10 +341,9 @@ const Render = (() => {
         });
         caixa(pai, P, loc(0, L, painel, C, hBase - 0.06, hBase), { cores: [COR.metal] });
         const v0 = painel + 0.05;
-        const meioV = (v0 + C) / 2;
-        [[0, v0], [L / 2, v0], [0, meioV], [L / 2, meioV]].forEach(([u, v]) => {
-          const g = 0.03;
-          caixa(pai, P, loc(u + g, u + L / 2 - g, v + g, v + (C - v0) / 2 - g, hBase, hBase + hNicho), { cores, vidro: true });
+        const g = 0.03;
+        [0, L / 2].forEach((u) => {
+          caixa(pai, P, loc(u + g, u + L / 2 - g, v0 + g, C - g, hBase, hBase + hNicho), { cores, vidro: true });
         });
         break;
       }

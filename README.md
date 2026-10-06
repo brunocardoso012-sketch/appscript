@@ -25,11 +25,11 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 
 ## Construir loja (editor do layout)
 
-Clique em **Construir loja** para abrir o editor ao lado da planta.
+Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **abre vazia**, só com piso e paredes. Para continuar um layout já salvo, clique em **Carregar móveis salvos**. Fechar sem salvar não apaga nada; ao clicar em **Salvar planta**, o layout passa a ser o que está na tela.
 
 | Para… | Faça |
 |---|---|
-| Adicionar um móvel | Clique no móvel na paleta (Gôndola, Pirâmide, Móvel de fila, Totem, Cubo, Expositor VM, Vitrine em L). Ele aparece no centro da loja, já selecionado, com ID automático. |
+| Adicionar um móvel | Clique no móvel na paleta (Gôndola, Pirâmide, Móvel de fila, Totem, PDV móvel, Mesa destaque, Balcão recepção). Ele aparece no centro da loja, já selecionado, com ID automático. |
 | Selecionar | Clique no móvel: ele fica com contorno laranja. Clique no piso vazio ou aperte <kbd>Esc</kbd> para desmarcar. |
 | Mover | Arraste o móvel (segure <kbd>Alt</kbd> para mover fino) ou use as setas (→ +X, ↓ +Y; <kbd>Shift</kbd> = 5×). |
 | Girar / duplicar / excluir | Use a barra preta que aparece sobre o móvel, ou <kbd>R</kbd>, <kbd>Ctrl</kbd>+<kbd>D</kbd> e <kbd>Delete</kbd>. |
@@ -45,9 +45,9 @@ Clique em **Construir loja** para abrir o editor ao lado da planta.
 | **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 2,16). | Uma linha. |
 | **Móvel de fila** (`FILA-…`) | Bloco único retangular com 4 níveis. | Uma linha. |
 | **Totem** (`TOTEM-…`) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
-| **Cubo** (`CUBO-…`) | Cubo de vidro sobre rodapé escuro. | Uma linha. |
-| **Expositor VM** (`VM-…`) | Estrutura com pernas, 4 nichos (2×2) em cima e painel de vidro de duas lâminas ao fundo. | Uma linha. |
-| **Vitrine em L** (`VIT-…`) | Vitrine de vidro em formato de L, com prateleiras. | Uma linha. |
+| **PDV móvel** (`PDV-…`) | Cubo de vidro sobre rodapé escuro. | Uma linha. |
+| **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos lado a lado em cima e painel de vidro de duas lâminas ao fundo. | Uma linha. |
+| **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro). | Uma linha. |
 
 O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. Os tipos antigos do layout de exemplo (parede, caixa, painel) continuam aparecendo, mas não são oferecidos na paleta.
 
@@ -180,7 +180,7 @@ Cada linha é um móvel de uma planta. **Para criar uma planta nova, basta acres
 | Coluna | O que é |
 |---|---|
 | Planta, ID Móvel, Móvel (descrição) | Identificação. |
-| **Tipo** | `LOJA` (piso + paredes: Largura × Profundidade × altura da parede), `GONDOLA`, `PIRAMIDE`, `FILA`, `TOTEM`, `CUBO`, `MESA` (expositor VM), `VITRINE_L`, `EXTRA` (item da faixa inferior direita, sem posição). Os tipos antigos `GONDOLA_PAREDE`, `PAINEL` e `CAIXA` continuam aceitos. |
+| **Tipo** | `LOJA` (piso + paredes: Largura × Profundidade × altura da parede), `GONDOLA`, `PIRAMIDE`, `FILA`, `TOTEM`, `CUBO` (PDV móvel), `MESA` (mesa destaque), `VITRINE_L` (balcão recepção), `EXTRA` (item da faixa inferior direita, sem posição). Os tipos antigos `GONDOLA_PAREDE`, `PAINEL` e `CAIXA` continuam aceitos. |
 | Meios divididos | Só para gôndola: vazio, `A`, `B` ou `AB`. |
 | X, Y, Elevação (Z) | Posição do canto do móvel mais próximo do fundo da loja (1 unidade ≈ 0,5 m). |
 | Largura (eixo X), Profundidade (eixo Y), Altura | Tamanho. |
