@@ -295,6 +295,8 @@ const App = (() => {
   function ativarArraste() {
     estado.grupos.forEach((gr) => {
       // O ajuste é do móvel: arrastar uma etiqueta da gôndola move as etiquetas de todos os blocos dela.
+      // No toque, o arraste não rola a página.
+      gr.elemento.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });
       gr.elemento.addEventListener('pointerdown', (ev) => {
         ev.preventDefault();
         const alvo = gr.elemento;

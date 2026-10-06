@@ -29,9 +29,9 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 
 | Para… | Faça |
 |---|---|
-| Adicionar um móvel | Clique no móvel na paleta (Gôndola, Pirâmide, Móvel de fila, Móvel de parede, Totem, PDV móvel, Mesa destaque, Mesa destaque 3 frentes, Balcão recepção). Ele aparece no centro da loja, já selecionado, com ID automático. |
+| Adicionar um móvel | Clique no móvel na paleta (Gôndola, Pirâmide, Móvel de fila, Móvel de parede, Totem, PDV móvel, Mesa destaque, Mesa destaque 3 frentes, Balcão recepção, Móvel de atendimento, Painel O.U.i, Expositor O.U.i). Ele aparece no centro da loja, já selecionado, com ID automático. |
 | Selecionar | Clique no móvel: ele fica com contorno laranja. Clique no piso vazio ou aperte <kbd>Esc</kbd> para desmarcar. |
-| Mover | Arraste o móvel (segure <kbd>Alt</kbd> para mover fino) ou use as setas (→ +X, ↓ +Y; <kbd>Shift</kbd> = 5×). |
+| Mover | Arraste o móvel (segure <kbd>Alt</kbd> para mover fino) ou use as setas (→ +X, ↓ +Y; <kbd>Shift</kbd> = 5×). No celular/tablet, arrastar um móvel não rola a página; para rolar, deslize no piso vazio ou fora da planta. |
 | Girar / duplicar / excluir | Use a barra preta que aparece sobre o móvel, ou <kbd>R</kbd>, <kbd>Ctrl</kbd>+<kbd>D</kbd> e <kbd>Delete</kbd>. |
 | Mudar nome, tipo, tamanho | Edite no painel, em **Móvel selecionado**. ID e elevação ficam em *Mais opções*. |
 | Voltar atrás | **Desfazer** ou <kbd>Ctrl</kbd>+<kbd>Z</kbd>. Desfaz uma ação por vez, inclusive exclusões. |
@@ -50,8 +50,11 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 | **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 blocos verticais na frente, embaixo do tampo. | Uma linha, **1 etiqueta**. |
 | **Mesa destaque 3 frentes** (`MESA3-…`) | Estrutura com pernas, 3 nichos em cima e painel de 3 lâminas ao fundo, sem blocos embaixo (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
 | **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); padrão 2,4 × 2,4 × 1,92. | Uma linha. |
+| **Móvel de atendimento** (`CX-…`) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | Uma linha. |
+| **Painel O.U.i** (`OUI-…`) | Painel alto e fino com moldura, para a parede (padrão 3,6 × 0,6 × 5). | Uma linha. |
+| **Expositor O.U.i** (`OUI-…`) | Expositor alto e estreito com moldura (padrão 0,8 × 1,6 × 3,8). | Uma linha. |
 
-O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. Os tipos antigos do layout de exemplo (caixa, painel) continuam aparecendo, mas não são oferecidos na paleta. A gôndola tem por padrão a mesma altura da pirâmide (1,94).
+O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. A gôndola tem por padrão a mesma altura da pirâmide (1,94).
 
 Durante a construção, os móveis aparecem **sem cor e sem etiquetas**, para o foco ficar no layout. Para conferir com o ciclo, marque *Mostrar cores e etiquetas do ciclo* em **Exibição e encaixe**.
 
@@ -184,7 +187,7 @@ Cada linha é um móvel de uma planta. **Para criar uma planta nova, basta acres
 | Coluna | O que é |
 |---|---|
 | Planta, ID Móvel, Móvel (descrição) | Identificação. |
-| **Tipo** | `LOJA` (piso + paredes: Largura × Profundidade × altura da parede), `GONDOLA`, `PIRAMIDE`, `FILA`, `TOTEM`, `CUBO` (PDV móvel), `MESA` (mesa destaque), `MESA_3` (mesa destaque 3 frentes), `GONDOLA_PAREDE` (móvel de parede), `VITRINE_L` (balcão recepção), `EXTRA` (item da faixa inferior direita, sem posição). Os tipos antigos `PAINEL` e `CAIXA` continuam aceitos. |
+| **Tipo** | `LOJA` (piso + paredes: Largura × Profundidade × altura da parede), `GONDOLA`, `PIRAMIDE`, `FILA`, `TOTEM`, `CUBO` (PDV móvel), `MESA` (mesa destaque), `MESA_3` (mesa destaque 3 frentes), `GONDOLA_PAREDE` (móvel de parede), `VITRINE_L` (balcão recepção), `CAIXA` (móvel de atendimento), `PAINEL` (painel O.U.i), `EXPOSITOR_OUI` (expositor O.U.i), `EXTRA` (item da faixa inferior direita, sem posição). |
 | Meios divididos | Só para gôndola: vazio, `A`, `B` ou `AB`. |
 | X, Y, Elevação (Z) | Posição do canto do móvel mais próximo do fundo da loja (1 unidade ≈ 0,5 m). |
 | Largura (eixo X), Profundidade (eixo Y), Altura | Tamanho. |

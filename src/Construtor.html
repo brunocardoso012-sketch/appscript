@@ -59,6 +59,18 @@ const Construtor = (() => {
       nome: 'Balcão recepção', prefixo: 'BALCAO', tam: [2.4, 2.4, 1.92],
       icone: 'M14 3h6v18H4v-6h10z',
     },
+    CAIXA: {
+      nome: 'Móvel de atendimento', prefixo: 'CX', tam: [1.8, 1.2, 1.7],
+      icone: 'M3 12h18v9H3zM9 4h6v5H9zM12 9v3',
+    },
+    PAINEL: {
+      nome: 'Painel O.U.i', prefixo: 'OUI', tam: [3.6, 0.6, 5],
+      icone: 'M3 3h18v18H3zM6 6h12v12H6z',
+    },
+    EXPOSITOR_OUI: {
+      nome: 'Expositor O.U.i', prefixo: 'OUI', tam: [0.8, 1.6, 3.8],
+      icone: 'M8 2h8v18H8zM10 5h4v12h-4zM6 21h12',
+    },
   };
 
   const c = {
@@ -531,6 +543,10 @@ const Construtor = (() => {
   }
 
   function ligarArraste(svg) {
+    // No toque, arrastar um móvel não pode rolar nem dar zoom na página (o piso vazio continua rolando).
+    svg.addEventListener('touchstart', (ev) => {
+      if (c.ativo && ev.target.closest && ev.target.closest('g.movel')) ev.preventDefault();
+    }, { passive: false });
     svg.addEventListener('pointerdown', (ev) => {
       if (!c.ativo || ev.button !== 0) return;
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); // libera os atalhos

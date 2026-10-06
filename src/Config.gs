@@ -129,14 +129,17 @@ const TIPOS_MOVEL = {
   MESA: 'Mesa destaque: 2 nichos baixos sobre estrutura, painel de vidro ao fundo e 2 painéis na frente, embaixo (1 etiqueta)',
   MESA_3: 'Mesa destaque 3 frentes: 3 nichos sobre estrutura, com painel de vidro ao fundo',
   TOTEM: 'Totem: estrutura metálica com 3 painéis',
-  PAINEL: '(antigo) Painel alto e fino',
+  PAINEL: 'Painel O.U.i: painel alto e fino, com moldura',
+  EXPOSITOR_OUI: 'Expositor O.U.i: expositor alto e estreito, com moldura',
   VITRINE_L: 'Balcão recepção: em "L", com os dois lados do mesmo tamanho',
-  CAIXA: '(antigo) Caixa / balcão de atendimento',
+  CAIXA: 'Móvel de atendimento (caixa): balcão com tela preta em cima',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
 };
 
 /** Tipos oferecidos no modo "Construir loja". */
-const TIPOS_CONSTRUCAO = ['GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L'];
+const TIPOS_CONSTRUCAO = [
+  'GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L', 'CAIXA', 'PAINEL', 'EXPOSITOR_OUI',
+];
 
 /**
  * Espaços de uma gôndola. Na planilha, cada espaço é endereçado como

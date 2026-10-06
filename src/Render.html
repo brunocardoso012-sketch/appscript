@@ -423,15 +423,18 @@ const Render = (() => {
         break;
       }
       case 'PAINEL':
+      case 'EXPOSITOR_OUI':
         caixa(pai, P, b, { cores, moldura: true });
         break;
       case 'VITRINE_L':
         caixa(pai, P, b, { cores, vidro: true, prateleiras: 3 });
         break;
       case 'CAIXA': {
+        // Móvel de atendimento: balcão com a tela preta em cima, no lado do fundo (acompanha o giro).
         caixa(pai, P, b, { cores, prateleiras: 0 });
-        const mon = { x: b.x + b.w * 0.35, y: b.y + b.d * 0.15, z: b.z + b.h, w: 0.55, d: 0.12, h: 0.55 };
-        caixa(pai, P, mon, { cores: ['#5A5A5A'] });
+        const [L, C] = eixos(b);
+        const tela = caixaLocal(b, L * 0.35, Math.min(L, L * 0.35 + 0.55), C * 0.15, C * 0.15 + 0.12, b.h, b.h + 0.55);
+        caixa(pai, P, tela, { cores: ['#5A5A5A'] });
         break;
       }
       case 'PIRAMIDE': {
