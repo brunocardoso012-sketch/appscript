@@ -490,6 +490,7 @@ function montarPlantas_(linhas, aviso) {
       ajusteX: numero_(l.ajusteX, 0),
       ajusteY: numero_(l.ajusteY, 0),
       dividido: normDivisao_(l.dividido),
+      giro: normGiro_(l.giro),
     });
   });
 
@@ -539,6 +540,7 @@ function objetosLayoutDaPlanta_(planta, layout) {
       largura: Math.max(0.1, n(m.w, 1)), profundidade: Math.max(0.1, n(m.d, 1)), altura: Math.max(0.1, n(m.h, 1)),
       ajusteX: Math.round(numero_(m.ajusteX, 0)), ajusteY: Math.round(numero_(m.ajusteY, 0)),
       dividido: m.tipo === 'GONDOLA' ? normDivisao_(m.dividido) : '',
+      giro: normGiro_(m.giro),
     });
   });
   return linhas;
@@ -685,6 +687,12 @@ function normPlanta_(v) {
 /** "01" → "ER P" (ou "PLANTA 05" para planta sem nome em NOMES_PLANTAS). */
 function nomePlanta_(id) {
   return NOMES_PLANTAS[id] || 'PLANTA ' + id;
+}
+
+/** Giro do móvel (hoje só o balcão recepção usa): 0, 90, 180 ou 270. */
+function normGiro_(v) {
+  const n = Math.round(numero_(v, 0) / 90) * 90;
+  return ((n % 360) + 360) % 360;
 }
 
 /** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */

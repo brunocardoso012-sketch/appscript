@@ -29,10 +29,10 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 
 | Para… | Faça |
 |---|---|
-| Adicionar um móvel | Clique no móvel na paleta (Gôndola, Pirâmide, Móvel de fila, Móvel de parede, Totem, PDV móvel, Mesa destaque, Mesa destaque 3 frentes, Balcão recepção, Móvel de atendimento, Painel O.U.i, Expositor O.U.i, Móvel make). Ele aparece no centro da loja, já selecionado, com ID automático. |
+| Adicionar um móvel | Clique no móvel na paleta (Gôndola, Pirâmide, Móvel de fila, Móvel de parede, Totem, PDV móvel, Mesa destaque, Mesa destaque 3 frentes, Balcão recepção, Móvel de atendimento, Parede O.U.i, Totem O.U.i, Ilha premium O.U.i, Móvel make). Ele aparece no centro da loja, já selecionado, com ID automático. |
 | Selecionar | Clique no móvel: ele fica com contorno laranja. Clique no piso vazio ou aperte <kbd>Esc</kbd> para desmarcar. |
 | Mover | Arraste o móvel (segure <kbd>Alt</kbd> para mover fino) ou use as setas (→ +X, ↓ +Y; <kbd>Shift</kbd> = 5×). No celular/tablet, arrastar um móvel não rola a página; para rolar, deslize no piso vazio ou fora da planta. |
-| Girar / duplicar / excluir | Use a barra preta que aparece sobre o móvel, ou <kbd>R</kbd>, <kbd>Ctrl</kbd>+<kbd>D</kbd> e <kbd>Delete</kbd>. |
+| Girar / duplicar / excluir | Use a barra preta que aparece sobre o móvel, ou <kbd>R</kbd>, <kbd>Ctrl</kbd>+<kbd>D</kbd> e <kbd>Delete</kbd>. Girar troca largura e fundo; no balcão recepção, muda o canto do L (4 posições). |
 | Mudar nome, tipo, tamanho | Edite no painel, em **Móvel selecionado**. ID e elevação ficam em *Mais opções*. |
 | Voltar atrás | **Desfazer** ou <kbd>Ctrl</kbd>+<kbd>Z</kbd>. Desfaz uma ação por vez, inclusive exclusões. |
 | Guardar | **Salvar planta** (aba Layout no Apps Script; navegador na versão web). O rodapé mostra se há alterações não salvas. |
@@ -43,17 +43,18 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 |---|---|---|
 | **Gôndola** (`GON-…`) | 4 espaços: **Ponta 1**, **Meio A**, **Meio B** e **Ponta 2**, com 4 níveis de prateleira. Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GON-01`) e uma por espaço: `GON-01/PONTA-1`, `GON-01/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GON-01/MEIO-B`, `GON-01/PONTA-2`. O espaço preenchido tem cor e etiqueta próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. **Uma etiqueta por bloco:** na linha da gôndola inteira, Etiqueta 1 = Ponta 1, 2 = Meio A, 3 = Meio B e 4 = Ponta 2; a Etiqueta 1 da linha de um espaço substitui a daquele bloco. |
 | **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 1,94). | Uma linha, **1 etiqueta**. |
-| **Móvel de fila** (`FILA-…`) | Bloco único retangular com 4 níveis (padrão 1,5 × 0,4 × 0,99). | Uma linha. |
+| **Móvel de fila** (`FILA-…`) | Bloco único retangular com 4 níveis (padrão 1,5 × 0,4 × 1,94, a altura da gôndola). | Uma linha. |
 | **Móvel de parede** (`PAR-…`) | Estante encostada na parede, com prateleiras (padrão 4 × 1,1 × 3,2). | Uma linha. |
 | **Totem** (`TOTEM-…`) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
 | **PDV móvel** (`PDV-…`) | Cubo de vidro sobre rodapé escuro. | Uma linha. |
-| **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 blocos verticais na frente, embaixo do tampo. | Uma linha, **1 etiqueta**. |
-| **Mesa destaque 3 frentes** (`MESA3-…`) | Estrutura com pernas, 3 nichos em cima e painel de 3 lâminas ao fundo, sem blocos embaixo (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
-| **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); padrão 2,4 × 2,4 × 1,92. | Uma linha. |
+| **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 cartazes na frente, embaixo do tampo, com a mesma largura e espessura das lâminas do fundo. | Uma linha, **1 etiqueta**. |
+| **Mesa destaque 3 frentes** (`MESA3-…`) | Estrutura com pernas, 3 nichos em cima, painel de 3 lâminas ao fundo e 3 cartazes na frente, embaixo do tampo (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
+| **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); padrão 2,4 × 2,4 × 1,92. *Girar* muda o canto do L. | Uma linha. |
 | **Móvel de atendimento** (`CX-…`) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | Uma linha. |
-| **Painel O.U.i** (`OUI-…`) | Painel alto e fino com moldura, para a parede (padrão 3,6 × 0,6 × 5). | Uma linha. |
-| **Expositor O.U.i** (`OUI-…`) | Expositor alto e estreito com moldura (padrão 0,8 × 1,6 × 3,8). | Uma linha. |
-| **Móvel make** (`MAKE-…`) | Estante de parede com 5 prateleiras em degrau (a de baixo avança mais), fileira de produtos na frente de cada uma, rodapé escuro e testeira no alto; o fundo fica do lado da parede (padrão 6 × 1,4 × 3,2). | Uma linha. |
+| **Parede O.U.i** (`OUI-…`) | Painel alto com moldura, para a parede (padrão 3,6 × 0,9 × 5). | Uma linha. |
+| **Totem O.U.i** (`OUI-…`) | Expositor estreito com moldura, na altura da gôndola (padrão 0,8 × 1,6 × 1,94). | Uma linha. |
+| **Ilha premium O.U.i** (`ILHAOUI-…`) | Base com prateleiras e, atrás, painel alto com duas faixas verticais mais claras nas laterais (padrão 3 × 1,6 × 3). | Uma linha. |
+| **Móvel make** (`MAKE-…`) | Estante de parede com painel de fundo, montantes nas pontas, base com rodapé escuro, 5 prateleiras com a fileira de produtos na borda e **4 testeiras** no alto; o fundo fica do lado da parede (padrão 6 × 1,4 × 3,2). | Uma linha para o móvel e uma por testeira (`MAKE-01/TESTEIRA-1` … `TESTEIRA-4`), como nos espaços da gôndola: a testeira com linha própria usa a cor (e a Etiqueta 1) dela; sem linha, usa a do móvel. |
 
 O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. A gôndola tem por padrão a mesma altura da pirâmide (1,94).
 
@@ -188,8 +189,9 @@ Cada linha é um móvel de uma planta. **Para criar uma planta nova, basta acres
 | Coluna | O que é |
 |---|---|
 | Planta, ID Móvel, Móvel (descrição) | Identificação. |
-| **Tipo** | `LOJA` (piso + paredes: Largura × Profundidade × altura da parede), `GONDOLA`, `PIRAMIDE`, `FILA`, `TOTEM`, `CUBO` (PDV móvel), `MESA` (mesa destaque), `MESA_3` (mesa destaque 3 frentes), `GONDOLA_PAREDE` (móvel de parede), `VITRINE_L` (balcão recepção), `CAIXA` (móvel de atendimento), `PAINEL` (painel O.U.i), `EXPOSITOR_OUI` (expositor O.U.i), `MAKE` (móvel make), `EXTRA` (item da faixa inferior direita, sem posição). |
+| **Tipo** | `LOJA` (piso + paredes: Largura × Profundidade × altura da parede), `GONDOLA`, `PIRAMIDE`, `FILA`, `TOTEM`, `CUBO` (PDV móvel), `MESA` (mesa destaque), `MESA_3` (mesa destaque 3 frentes), `GONDOLA_PAREDE` (móvel de parede), `VITRINE_L` (balcão recepção), `CAIXA` (móvel de atendimento), `PAINEL` (parede O.U.i), `EXPOSITOR_OUI` (totem O.U.i), `ILHA_OUI` (ilha premium O.U.i), `MAKE` (móvel make), `EXTRA` (item da faixa inferior direita, sem posição). |
 | Meios divididos | Só para gôndola: vazio, `A`, `B` ou `AB`. |
+| Giro (graus) | Só para o balcão recepção: `0`, `90`, `180` ou `270` (canto do L). Preenchido pelo *Girar* do Construir loja. |
 | X, Y, Elevação (Z) | Posição do canto do móvel mais próximo do fundo da loja (1 unidade ≈ 0,5 m). |
 | Largura (eixo X), Profundidade (eixo Y), Altura | Tamanho. |
 | Ajuste Etiqueta X / Y (px) | Preenchidos pelo botão *Salvar posições*. Zere para voltar ao posicionamento automático. |

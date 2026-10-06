@@ -466,15 +466,16 @@ const TIPOS_MOVEL = {
   LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
   PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados (1 etiqueta)',
   GONDOLA: 'Gôndola: 2 pontas + 2 meios (cada meio pode ser dividido em dois), 4 níveis de prateleira, 1 etiqueta por bloco',
-  FILA: 'Móvel de fila: bloco único retangular com 4 níveis',
+  FILA: 'Móvel de fila: bloco único retangular com 4 níveis, na altura da gôndola',
   GONDOLA_PAREDE: 'Móvel de parede: estante encostada na parede, com prateleiras',
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
   MESA: 'Mesa destaque: 2 nichos baixos sobre estrutura, painel de vidro ao fundo e 2 painéis na frente, embaixo (1 etiqueta)',
   MESA_3: 'Mesa destaque 3 frentes: 3 nichos sobre estrutura, com painel de vidro ao fundo',
   TOTEM: 'Totem: estrutura metálica com 3 painéis',
-  PAINEL: 'Painel O.U.i: painel alto e fino, com moldura',
-  EXPOSITOR_OUI: 'Expositor O.U.i: expositor alto e estreito, com moldura',
-  MAKE: 'Móvel make: estante de parede com prateleiras em degrau e testeira no alto',
+  PAINEL: 'Parede O.U.i: painel alto com moldura',
+  EXPOSITOR_OUI: 'Totem O.U.i: expositor estreito com moldura, na altura da gôndola',
+  ILHA_OUI: 'Ilha premium O.U.i: base com prateleiras e painel alto atrás, com faixas claras nas laterais',
+  MAKE: 'Móvel make: estante de parede com prateleiras e 4 testeiras no alto (cada uma pode ter cor própria)',
   VITRINE_L: 'Balcão recepção: em "L", com os dois lados do mesmo tamanho',
   CAIXA: 'Móvel de atendimento (caixa): balcão com tela preta em cima',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
@@ -482,18 +483,22 @@ const TIPOS_MOVEL = {
 
 /** Tipos oferecidos no modo "Construir loja". */
 const TIPOS_CONSTRUCAO = [
-  'GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L', 'CAIXA', 'PAINEL', 'EXPOSITOR_OUI', 'MAKE',
+  'GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L', 'CAIXA', 'PAINEL', 'EXPOSITOR_OUI', 'ILHA_OUI', 'MAKE',
 ];
 
 /**
- * Espaços de uma gôndola. Na planilha, cada espaço é endereçado como
- * "<ID da gôndola>/<espaço>", ex.: GON-01/MEIO-A ou GON-01/MEIO-A-2.
- * Uma linha só com o ID da gôndola vale para todos os espaços sem linha própria.
+ * Espaços de um móvel: os da gôndola (pontas e meios) e as 4 testeiras do
+ * móvel make. Na planilha, cada espaço é endereçado como "<ID do móvel>/<espaço>",
+ * ex.: GON-01/MEIO-A, GON-01/MEIO-A-2 ou MAKE-01/TESTEIRA-2.
+ * Uma linha só com o ID do móvel vale para todos os espaços sem linha própria.
  * (A página tem uma cópia desta regra em Render.espacos.)
  * @param {{tipo: string, dividido: string}} m  dividido = '', 'A', 'B' ou 'AB'
  * @return {Array<{id: string, nome: string}>}
  */
 function espacosDoMovel_(m) {
+  if (m && m.tipo === 'MAKE') {
+    return [1, 2, 3, 4].map(function (n) { return { id: 'TESTEIRA-' + n, nome: 'Testeira ' + n }; });
+  }
   if (!m || m.tipo !== 'GONDOLA') return [];
   const div = String(m.dividido || '').toUpperCase();
   const lista = [{ id: 'PONTA-1', nome: 'Ponta 1' }];
@@ -557,6 +562,7 @@ function colunasLayout_() {
     { chave: 'ajusteX', titulo: 'Ajuste Etiqueta X (px)', apelidos: ['Ajuste X'] },
     { chave: 'ajusteY', titulo: 'Ajuste Etiqueta Y (px)', apelidos: ['Ajuste Y'] },
     { chave: 'dividido', titulo: 'Meios divididos', texto: true, apelidos: ['Divisão', 'Dividido'] },
+    { chave: 'giro', titulo: 'Giro (graus)', apelidos: ['Giro', 'Rotação', 'Rotacao'] },
   ];
 }
 
@@ -1053,6 +1059,7 @@ function montarPlantas_(linhas, aviso) {
       ajusteX: numero_(l.ajusteX, 0),
       ajusteY: numero_(l.ajusteY, 0),
       dividido: normDivisao_(l.dividido),
+      giro: normGiro_(l.giro),
     });
   });
 
@@ -1102,6 +1109,7 @@ function objetosLayoutDaPlanta_(planta, layout) {
       largura: Math.max(0.1, n(m.w, 1)), profundidade: Math.max(0.1, n(m.d, 1)), altura: Math.max(0.1, n(m.h, 1)),
       ajusteX: Math.round(numero_(m.ajusteX, 0)), ajusteY: Math.round(numero_(m.ajusteY, 0)),
       dividido: m.tipo === 'GONDOLA' ? normDivisao_(m.dividido) : '',
+      giro: normGiro_(m.giro),
     });
   });
   return linhas;
@@ -1248,6 +1256,12 @@ function normPlanta_(v) {
 /** "01" → "ER P" (ou "PLANTA 05" para planta sem nome em NOMES_PLANTAS). */
 function nomePlanta_(id) {
   return NOMES_PLANTAS[id] || 'PLANTA ' + id;
+}
+
+/** Giro do móvel (hoje só o balcão recepção usa): 0, 90, 180 ou 270. */
+function normGiro_(v) {
+  const n = Math.round(numero_(v, 0) / 90) * 90;
+  return ((n % 360) + 360) % 360;
 }
 
 /** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */
@@ -1523,7 +1537,7 @@ function removerAbaPadraoVazia_(ss) {
  *   - Z é a elevação (0 = chão). Largura = eixo X, Profundidade = eixo Y.
  *
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
- *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB')]
+ *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270)]
  *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato.
  */
 
@@ -1533,7 +1547,7 @@ function removerAbaPadraoVazia_(ss) {
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 5, '02': 4, '03': 2, '04': 2 };
+const VERSAO_MODELO_PLANTAS = { '01': 6, '02': 5, '03': 2, '04': 2 };
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06_2.json).
@@ -1551,8 +1565,8 @@ const LAYOUT_PADRAO = {
       ['MESA-01', 'Mesa destaque', 'MESA', 9, 3.5, 2.6, 1.4, 2.6],
       ['PDV-01', 'PDV móvel', 'CUBO', 6, 7, 1.3, 1.3, 1.6],
       ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 9.8, 7.3, 2.4, 2.4, 1.92],
-      ['FILA-01', 'Móvel de fila 1', 'FILA', 2, 7.5, 0.4, 1.5, 0.99],
-      ['FILA-02', 'Móvel de fila 2', 'FILA', 3.5, 7.5, 0.4, 1.5, 0.99],
+      ['FILA-01', 'Móvel de fila 1', 'FILA', 2, 7.5, 0.4, 1.5, 1.94],
+      ['FILA-02', 'Móvel de fila 2', 'FILA', 3.5, 7.5, 0.4, 1.5, 1.94],
       ['TOTEM-01', 'Totem', 'TOTEM', 6.5, 8.5, 0.35, 1.5, 3.4],
       ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
@@ -1572,8 +1586,8 @@ const LAYOUT_PADRAO = {
       ['PIR-03', 'Pirâmide 3', 'PIRAMIDE', 10, 6, 1.02, 1.02, 1.94],
       ['PIR-04', 'Pirâmide 4', 'PIRAMIDE', 13, 6, 1.02, 1.02, 1.94],
       ['MESA-01', 'Mesa destaque', 'MESA', 10, 8.5, 2.6, 1.4, 2.6],
-      ['FILA-02', 'Móvel de fila 2', 'FILA', 2.25, 8.2, 1.5, 0.4, 0.99],
-      ['FILA-01', 'Móvel de fila 1', 'FILA', 2.25, 10.7, 1.5, 0.4, 0.99],
+      ['FILA-02', 'Móvel de fila 2', 'FILA', 2.25, 8.2, 1.5, 0.4, 1.94],
+      ['FILA-01', 'Móvel de fila 1', 'FILA', 2.25, 10.7, 1.5, 0.4, 1.94],
       ['PDV-01', 'PDV móvel', 'CUBO', 8, 10.5, 1.3, 1.3, 1.6],
       ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 12.8, 10.8, 2.4, 2.4, 1.92],
       ['TOTEM-01', 'Totem', 'TOTEM', 8.5, 12.5, 0.35, 1.5, 3.4],
@@ -1849,7 +1863,7 @@ function valoresLayoutPadrao_() {
     p.moveis.forEach(function (m) {
       linhas.push(linha({
         planta: planta, movel: m[0], descricao: m[1], tipo: m[2], x: m[3], y: m[4], z: m[8] || 0,
-        largura: m[5], profundidade: m[6], altura: m[7], ajusteX: m[9] || 0, ajusteY: m[10] || 0, dividido: m[11] || '',
+        largura: m[5], profundidade: m[6], altura: m[7], ajusteX: m[9] || 0, ajusteY: m[10] || 0, dividido: m[11] || '', giro: m[12] || 0,
       }));
     });
   });
@@ -2533,8 +2547,9 @@ const Render = (() => {
       : Object.assign(base, { x: b.x + v0, w: v1 - v0, y: b.y + u0, d: u1 - u0 });
   }
 
-  /** Espaços da gôndola (mesma regra de espacosDoMovel_ em Config.gs). */
+  /** Espaços do móvel: gôndola e testeiras do móvel make (mesma regra de espacosDoMovel_ em Config.gs). */
   function espacos(m) {
+    if (m && m.tipo === 'MAKE') return [1, 2, 3, 4].map((n) => ({ id: 'TESTEIRA-' + n, nome: 'Testeira ' + n }));
     if (!m || m.tipo !== 'GONDOLA') return [];
     const div = String(m.dividido || '').toUpperCase();
     const lista = [{ id: 'PONTA-1', nome: 'Ponta 1' }];
@@ -2616,15 +2631,40 @@ const Render = (() => {
     }));
   }
 
-  /** Quebra um móvel em caixas "ordenáveis" (gôndola → espaços; vitrine em L → dois braços). */
+  /**
+   * Balcão em L: canto onde os braços se encontram, conforme o giro
+   * (0 = canto da frente, mais perto de quem olha; cada 90° passa para o canto seguinte).
+   */
+  function cantoL(m) {
+    const g = m.giro || 0;
+    return { direita: g === 0 || g === 270, frente: g === 0 || g === 90 };
+  }
+
+  /** Móvel make: altura onde começa a testeira e fundo da testeira. */
+  const testeiraMake = (m) => ({ z: m.h * 0.8, fundo: Math.min(eixos(m)[1], 0.4) });
+
+  /** Quebra um móvel em caixas "ordenáveis" (gôndola → espaços; vitrine em L → dois braços; make → corpo + testeiras). */
   function primitivas(m) {
     if (m.tipo === 'GONDOLA') return caixasGondola(m);
     if (m.tipo === 'VITRINE_L') {
       const t = espessuraL(m);
+      const c = cantoL(m);
+      const xBraco = c.direita ? m.x + m.w - t : m.x;
+      const yBraco = c.frente ? m.y + m.d - t : m.y;
       return [
-        { x: m.x + m.w - t, y: m.y, z: m.z, w: t, d: m.d - t, h: m.h, movel: m },
-        { x: m.x, y: m.y + m.d - t, z: m.z, w: m.w, d: t, h: m.h, movel: m },
+        { x: xBraco, y: c.frente ? m.y : m.y + t, z: m.z, w: t, d: m.d - t, h: m.h, movel: m },
+        { x: m.x, y: yBraco, z: m.z, w: m.w, d: t, h: m.h, movel: m },
       ];
+    }
+    if (m.tipo === 'MAKE') {
+      const [L] = eixos(m);
+      const T = testeiraMake(m);
+      const fresta = 0.04;
+      const corpo = Object.assign(caixaLocal(m, 0, L, 0, eixos(m)[1], 0, T.z), { movel: m });
+      return [corpo].concat(espacos(m).map((e, k) => Object.assign(
+        caixaLocal(m, (k * L) / 4 + (k ? fresta / 2 : 0), ((k + 1) * L) / 4 - (k < 3 ? fresta / 2 : 0), 0, T.fundo, T.z, m.h),
+        { movel: m, espaco: e },
+      )));
     }
     return [{ x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h, movel: m }];
   }
@@ -2645,35 +2685,30 @@ const Render = (() => {
       }
       case 'MESA':
       case 'MESA_3': {
-        // Mesa destaque: estrutura com pernas, 2 (ou 3) nichos lado a lado em cima
-        // e painel de vidro ao fundo com uma lâmina por nicho. A mesa de 2 nichos tem
-        // nichos baixos e, embaixo do tampo, um bloco vertical na frente de cada nicho.
+        // Mesa destaque: estrutura com pernas, 2 (ou 3) nichos lado a lado em cima, painel de
+        // vidro ao fundo com uma lâmina por nicho e, embaixo do tampo, um cartaz na frente de
+        // cada nicho, com a mesma largura e espessura da lâmina do fundo. A de 2 nichos tem nichos baixos.
         const n = m.tipo === 'MESA_3' ? 3 : 2;
-        const blocosFrente = m.tipo === 'MESA';
         const [L, C] = eixos(b);
         const hBase = b.h * 0.32;
-        const hNicho = b.h * (blocosFrente ? 0.15 : 0.27);
+        const hNicho = b.h * (m.tipo === 'MESA' ? 0.15 : 0.27);
         const painel = Math.min(0.15, C * 0.12);
         const fresta = Math.min(0.08, L * 0.04);
         const perna = Math.min(0.08, L * 0.05);
         const passo = L / n;
         const g = 0.03;
         const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
+        const lamina = (k) => [k * passo + (k ? fresta / 2 : 0), (k + 1) * passo - (k < n - 1 ? fresta / 2 : 0)];
         for (let k = 0; k < n; k++) {
-          const u0 = k * passo + (k ? fresta / 2 : 0);
-          const u1 = (k + 1) * passo - (k < n - 1 ? fresta / 2 : 0);
+          const [u0, u1] = lamina(k);
           caixa(pai, P, loc(u0, u1, 0, painel, hBase, b.h), { cores, vidro: true });
         }
-        // Pernas do fundo, blocos da frente e pernas da frente, nessa ordem (pintura de trás para a frente).
+        // Pernas do fundo, cartazes da frente e pernas da frente, nessa ordem (pintura de trás para a frente).
         const desenharPerna = ([u, v]) => caixa(pai, P, loc(u, u + perna, v, v + perna, 0, hBase - 0.06), { cores: [COR.metal] });
         [[0, painel], [L - perna, painel]].forEach(desenharPerna);
-        if (blocosFrente) {
-          const larg = Math.min(passo * 0.42, (hBase - 0.06) * 0.7); // mais alto que largo
-          const fundo = C * 0.4;
-          for (let k = 0; k < n; k++) {
-            const meio = (k + 0.5) * passo;
-            caixa(pai, P, loc(meio - larg / 2, meio + larg / 2, C - fundo, C - g, 0, hBase - 0.06), { cores, vidro: true });
-          }
+        for (let k = 0; k < n; k++) {
+          const [u0, u1] = lamina(k);
+          caixa(pai, P, loc(u0, u1, C - perna - painel, C - perna, 0, hBase - 0.06), { cores, vidro: true });
         }
         [[0, C - perna], [L - perna, C - perna]].forEach(desenharPerna);
         caixa(pai, P, loc(0, L, painel, C, hBase - 0.06, hBase), { cores: [COR.metal] });
@@ -2701,26 +2736,47 @@ const Render = (() => {
         break;
       }
       case 'MAKE': {
-        // Móvel make (encostado na parede, v = 0): rodapé escuro, fundo, prateleiras em degrau
-        // (a de baixo avança mais), cada uma com a fileira de produtos na frente, e testeira no alto.
+        if (b.espaco) { // testeira (cada uma com a cor da própria linha na planilha)
+          caixa(pai, P, b, { cores });
+          break;
+        }
+        // Corpo do móvel make (encostado na parede, v = 0): painel de fundo, montantes nas pontas,
+        // base com rodapé escuro e prateleiras finas inclinadas para a frente, cada uma com a
+        // fileira de produtos na borda. As de cima recuam só um pouco (não é escada).
         const [L, C] = eixos(b);
         const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
         const fundo = Math.min(0.15, C * 0.12);
         const rodape = Math.min(0.12, b.h * 0.05);
-        const zTesteira = b.h * 0.8;
+        const hBase = b.h * 0.14;
+        const montante = Math.min(0.06, L * 0.02);
         const n = 5;
-        const dv = (C - fundo) / n;
-        const dz = (b.h * 0.7 - rodape) / n;
-        caixa(pai, P, loc(0, L, 0, fundo, 0, zTesteira), { cores, modulo: 1.5 });
-        caixa(pai, P, loc(0, L, 0, Math.min(C, fundo + 0.25), zTesteira, b.h), { cores, modulo: 1.5 });
-        caixa(pai, P, loc(0, L, fundo, C, 0, rodape), { cores: [COR.rodape] });
-        for (let k = 0; k < n; k++) { // de trás (a mais alta) para a frente
-          const v0 = fundo + k * dv;
-          const z1 = rodape + (n - k) * dz;
-          caixa(pai, P, loc(0, L, v0, v0 + dv, rodape, z1), { cores, modulo: 1.5 });
-          const faixa = Math.min(0.1, dv * 0.4);
-          caixa(pai, P, loc(0.04, L - 0.04, v0 + dv - faixa - 0.03, v0 + dv - 0.03, z1, z1 + 0.07), { cores: ['#3A3A3A'] });
+        caixa(pai, P, loc(0, L, 0, fundo, 0, b.h), { cores, modulo: 1.5 });
+        caixa(pai, P, loc(0, montante, fundo, C * 0.92, hBase, b.h), { cores: [COR.metal] });
+        caixa(pai, P, loc(montante, L - montante, fundo, C, 0, rodape), { cores: [COR.rodape] });
+        caixa(pai, P, loc(montante, L - montante, fundo, C, rodape, hBase), { cores });
+        const passo = (b.h - hBase - 0.1) / n;
+        for (let k = 0; k < n; k++) { // de baixo para cima
+          const z = hBase + passo * (k + 0.75);
+          const prof = C * (0.9 - 0.05 * k);
+          caixa(pai, P, loc(montante, L - montante, fundo, prof, z, z + 0.05), { cores });
+          caixa(pai, P, loc(montante + 0.03, L - montante - 0.03, prof - 0.14, prof - 0.02, z + 0.05, z + 0.17), { cores: ['#3A3A3A'] });
         }
+        caixa(pai, P, loc(L - montante, L, fundo, C * 0.92, hBase, b.h), { cores: [COR.metal] });
+        break;
+      }
+      case 'ILHA_OUI': {
+        // Ilha premium O.U.i: base com prateleiras e, atrás, um painel alto com a marca e
+        // duas faixas verticais mais claras nas laterais da frente do painel.
+        const [L, C] = eixos(b);
+        const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
+        const hBase = b.h * 0.4;
+        const prof = C * 0.3;
+        const clara = cores ? cores.map((c) => misturar(c, '#FFFFFF', 0.35)) : null;
+        caixa(pai, P, loc(0, L, 0, C, 0, hBase), { cores, vidro: true, prateleiras: 3, modulo: L / 3 });
+        caixa(pai, P, loc(L * 0.04, L * 0.96, 0, prof, hBase, b.h), { cores, vidro: true });
+        [[0.1, 0.24], [0.76, 0.9]].forEach(([u0, u1]) => {
+          caixa(pai, P, loc(L * u0, L * u1, prof, prof + 0.05, hBase + b.h * 0.05, b.h * 0.95), { cores: clara, vidro: true });
+        });
         break;
       }
       case 'PAINEL':
@@ -3248,7 +3304,7 @@ const Render = (() => {
     const ancoraDe = (m) => {
       if (m.tipo === 'VITRINE_L') {
         const t = espessuraL(m);
-        return P(m.x + m.w / 2, m.y + m.d - t / 2, m.z + m.h);
+        return P(m.x + m.w / 2, cantoL(m).frente ? m.y + m.d - t / 2 : m.y + t / 2, m.z + m.h);
       }
       return P(m.x + m.w / 2, m.y + m.d / 2, m.z + m.h);
     };
@@ -3297,6 +3353,12 @@ const Render = (() => {
       }
       const i = info[m.id];
       if (i) novoGrupo(m.id, m, i, i.etiquetas.slice(0, limitePorTipo[m.tipo] || i.etiquetas.length), i.simbolo, ancoraDe(m), ajuste);
+      // Testeiras do móvel make: a linha própria com etiqueta mostra 1, em cima da testeira.
+      primitivas(m).filter((p) => p.espaco).forEach((p) => {
+        const id = m.id + '/' + p.espaco.id;
+        const ie = infoEspaco[id];
+        if (ie) novoGrupo(id, m, ie, ie.etiquetas.slice(0, 1), ie.simbolo, P(p.x + p.w / 2, p.y + p.d / 2, p.z + p.h), ajuste);
+      });
     });
     posicionar(grupos, obstaculos);
     grupos.forEach((gr) => {
@@ -3479,7 +3541,7 @@ const Planilha = (() => {
       '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto do móvel; "Marca Etiqueta N" define a cor de cada uma (vazio = cor do móvel). Pirâmide e mesa destaque mostram só 1 etiqueta (as colunas que não aparecem na planta ficam cinza).',
       '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
-      '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GON-01/PONTA-1, GON-01/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO).',
+      '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GON-01/PONTA-1, GON-01/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO). O móvel make funciona igual, com as testeiras (ex.: MAKE-01/TESTEIRA-1 … TESTEIRA-4), cada uma com cor própria.',
       '6.2 A gôndola mostra uma etiqueta por bloco. Na linha da gôndola inteira: Etiqueta 1 = Ponta 1, Etiqueta 2 = Meio A, Etiqueta 3 = Meio B, Etiqueta 4 = Ponta 2. A Etiqueta 1 da linha de um espaço substitui a etiqueta daquele bloco.',
       '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Planta = TODAS faz a linha valer para todas as plantas; uma linha da planta específica tem prioridade.',
       '8. Salve o arquivo e use o botão "Importar planilha" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',
@@ -3624,7 +3686,7 @@ const Planilha = (() => {
         largura: p.loja.largura, profundidade: p.loja.profundidade, altura: p.loja.alturaParede, ajusteX: 0, ajusteY: 0,
       }].concat(p.moveis.map((m) => ({
         planta: plantaNaPlanilha(dados, p.id), movel: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z,
-        largura: m.w, profundidade: m.d, altura: m.h, ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '',
+        largura: m.w, profundidade: m.d, altura: m.h, ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '', giro: m.giro || 0,
       })));
       linhas.forEach((l) => {
         const row = ws.addRow(l);
@@ -3758,7 +3820,7 @@ const Construtor = (() => {
       icone: 'M7 21V3h10v18zM7 7.5h10M7 12h10M7 16.5h10',
     },
     FILA: {
-      nome: 'Móvel de fila', prefixo: 'FILA', tam: [1.5, 0.4, 0.99],
+      nome: 'Móvel de fila', prefixo: 'FILA', tam: [1.5, 0.4, 1.94],
       icone: 'M2 8h20v12H2zM2 11h20M2 14h20M2 17h20',
     },
     GONDOLA_PAREDE: {
@@ -3790,16 +3852,20 @@ const Construtor = (() => {
       icone: 'M3 12h18v9H3zM9 4h6v5H9zM12 9v3',
     },
     PAINEL: {
-      nome: 'Painel O.U.i', prefixo: 'OUI', tam: [3.6, 0.6, 5],
+      nome: 'Parede O.U.i', prefixo: 'OUI', tam: [3.6, 0.9, 5],
       icone: 'M3 3h18v18H3zM6 6h12v12H6z',
     },
     EXPOSITOR_OUI: {
-      nome: 'Expositor O.U.i', prefixo: 'OUI', tam: [0.8, 1.6, 3.8],
-      icone: 'M8 2h8v18H8zM10 5h4v12h-4zM6 21h12',
+      nome: 'Totem O.U.i', prefixo: 'OUI', tam: [0.8, 1.6, 1.94],
+      icone: 'M8 6h8v14H8zM10 9h4v8h-4zM6 21h12',
+    },
+    ILHA_OUI: {
+      nome: 'Ilha premium O.U.i', prefixo: 'ILHAOUI', tam: [3, 1.6, 3],
+      icone: 'M2 13h20v8H2zM2 17h20M4 3h16v10M6 4v8M18 4v8',
     },
     MAKE: {
       nome: 'Móvel make', prefixo: 'MAKE', tam: [6, 1.4, 3.2],
-      icone: 'M4 2h16v4H4zM4 6v15h16v-3h-4v-3h-4v-3H8V6',
+      icone: 'M3 2h4v4H3zM8 2h4v4H8zM13 2h4v4h-4zM18 2h3v4h-3zM3 6v15M21 6v15M3 10h18M3 14h18M3 18h18M3 21h18',
     },
   };
 
@@ -4078,6 +4144,13 @@ const Construtor = (() => {
     const m = movelSelecionado();
     if (!m) return;
     registrar();
+    if (m.tipo === 'VITRINE_L') {
+      // Balcão em L (lados iguais): gira 90° mudando o canto onde os dois braços se encontram.
+      m.giro = ((m.giro || 0) + 90) % 360;
+      preencherFormulario();
+      redesenhar();
+      return;
+    }
     // Gira em torno do centro: troca largura e fundo.
     const cx = m.x + m.w / 2;
     const cy = m.y + m.d / 2;
@@ -4130,7 +4203,7 @@ const Construtor = (() => {
         loja: p.loja,
         moveis: p.moveis.map((m) => ({
           id: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h,
-          ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '',
+          ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '', giro: m.giro || 0,
         })),
       };
       const r = await app.chamar('salvarLayout', p.id, layout);
@@ -4164,7 +4237,7 @@ const Construtor = (() => {
       '  "formato": "plano-varejo-layout",',
       '  "versao": 1,',
       '  "geradoEm": ' + JSON.stringify(new Date().toISOString()) + ',',
-      '  "legenda": "móvel = [ID, descrição, tipo, x, y, largura, profundidade, altura, elevação, ajuste etiqueta X, ajuste etiqueta Y, meios divididos]",',
+      '  "legenda": "móvel = [ID, descrição, tipo, x, y, largura, profundidade, altura, elevação, ajuste etiqueta X, ajuste etiqueta Y, meios divididos, giro]",',
       '  "plantas": {',
     ];
     plantas.forEach((p, i) => {
@@ -4172,7 +4245,7 @@ const Construtor = (() => {
       L.push('      "loja": ' + JSON.stringify([p.loja.largura, p.loja.profundidade, p.loja.alturaParede]) + ',');
       L.push('      "moveis": [');
       p.moveis.forEach((m, j) => {
-        const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0, m.dividido || ''];
+        const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0, m.dividido || '', m.giro || 0];
         L.push('        ' + JSON.stringify(t) + (j < p.moveis.length - 1 ? ',' : ''));
       });
       L.push('      ]');
@@ -4203,7 +4276,7 @@ const Construtor = (() => {
           loja: { largura: p.loja[0], profundidade: p.loja[1], alturaParede: p.loja[2] },
           moveis: p.moveis.map((t) => ({
             id: t[0], descricao: t[1], tipo: t[2], x: t[3], y: t[4], w: t[5], d: t[6], h: t[7], z: t[8] || 0,
-            ajusteX: t[9] || 0, ajusteY: t[10] || 0, dividido: t[11] || '',
+            ajusteX: t[9] || 0, ajusteY: t[10] || 0, dividido: t[11] || '', giro: t[12] || 0,
           })),
         });
       }

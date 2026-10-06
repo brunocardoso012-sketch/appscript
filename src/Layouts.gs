@@ -12,7 +12,7 @@
  *   - Z é a elevação (0 = chão). Largura = eixo X, Profundidade = eixo Y.
  *
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
- *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB')]
+ *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270)]
  *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato.
  */
 
@@ -22,7 +22,7 @@
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 5, '02': 4, '03': 2, '04': 2 };
+const VERSAO_MODELO_PLANTAS = { '01': 6, '02': 5, '03': 2, '04': 2 };
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06_2.json).
@@ -40,8 +40,8 @@ const LAYOUT_PADRAO = {
       ['MESA-01', 'Mesa destaque', 'MESA', 9, 3.5, 2.6, 1.4, 2.6],
       ['PDV-01', 'PDV móvel', 'CUBO', 6, 7, 1.3, 1.3, 1.6],
       ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 9.8, 7.3, 2.4, 2.4, 1.92],
-      ['FILA-01', 'Móvel de fila 1', 'FILA', 2, 7.5, 0.4, 1.5, 0.99],
-      ['FILA-02', 'Móvel de fila 2', 'FILA', 3.5, 7.5, 0.4, 1.5, 0.99],
+      ['FILA-01', 'Móvel de fila 1', 'FILA', 2, 7.5, 0.4, 1.5, 1.94],
+      ['FILA-02', 'Móvel de fila 2', 'FILA', 3.5, 7.5, 0.4, 1.5, 1.94],
       ['TOTEM-01', 'Totem', 'TOTEM', 6.5, 8.5, 0.35, 1.5, 3.4],
       ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
@@ -61,8 +61,8 @@ const LAYOUT_PADRAO = {
       ['PIR-03', 'Pirâmide 3', 'PIRAMIDE', 10, 6, 1.02, 1.02, 1.94],
       ['PIR-04', 'Pirâmide 4', 'PIRAMIDE', 13, 6, 1.02, 1.02, 1.94],
       ['MESA-01', 'Mesa destaque', 'MESA', 10, 8.5, 2.6, 1.4, 2.6],
-      ['FILA-02', 'Móvel de fila 2', 'FILA', 2.25, 8.2, 1.5, 0.4, 0.99],
-      ['FILA-01', 'Móvel de fila 1', 'FILA', 2.25, 10.7, 1.5, 0.4, 0.99],
+      ['FILA-02', 'Móvel de fila 2', 'FILA', 2.25, 8.2, 1.5, 0.4, 1.94],
+      ['FILA-01', 'Móvel de fila 1', 'FILA', 2.25, 10.7, 1.5, 0.4, 1.94],
       ['PDV-01', 'PDV móvel', 'CUBO', 8, 10.5, 1.3, 1.3, 1.6],
       ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 12.8, 10.8, 2.4, 2.4, 1.92],
       ['TOTEM-01', 'Totem', 'TOTEM', 8.5, 12.5, 0.35, 1.5, 3.4],
@@ -338,7 +338,7 @@ function valoresLayoutPadrao_() {
     p.moveis.forEach(function (m) {
       linhas.push(linha({
         planta: planta, movel: m[0], descricao: m[1], tipo: m[2], x: m[3], y: m[4], z: m[8] || 0,
-        largura: m[5], profundidade: m[6], altura: m[7], ajusteX: m[9] || 0, ajusteY: m[10] || 0, dividido: m[11] || '',
+        largura: m[5], profundidade: m[6], altura: m[7], ajusteX: m[9] || 0, ajusteY: m[10] || 0, dividido: m[11] || '', giro: m[12] || 0,
       }));
     });
   });

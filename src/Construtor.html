@@ -32,7 +32,7 @@ const Construtor = (() => {
       icone: 'M7 21V3h10v18zM7 7.5h10M7 12h10M7 16.5h10',
     },
     FILA: {
-      nome: 'Móvel de fila', prefixo: 'FILA', tam: [1.5, 0.4, 0.99],
+      nome: 'Móvel de fila', prefixo: 'FILA', tam: [1.5, 0.4, 1.94],
       icone: 'M2 8h20v12H2zM2 11h20M2 14h20M2 17h20',
     },
     GONDOLA_PAREDE: {
@@ -64,16 +64,20 @@ const Construtor = (() => {
       icone: 'M3 12h18v9H3zM9 4h6v5H9zM12 9v3',
     },
     PAINEL: {
-      nome: 'Painel O.U.i', prefixo: 'OUI', tam: [3.6, 0.6, 5],
+      nome: 'Parede O.U.i', prefixo: 'OUI', tam: [3.6, 0.9, 5],
       icone: 'M3 3h18v18H3zM6 6h12v12H6z',
     },
     EXPOSITOR_OUI: {
-      nome: 'Expositor O.U.i', prefixo: 'OUI', tam: [0.8, 1.6, 3.8],
-      icone: 'M8 2h8v18H8zM10 5h4v12h-4zM6 21h12',
+      nome: 'Totem O.U.i', prefixo: 'OUI', tam: [0.8, 1.6, 1.94],
+      icone: 'M8 6h8v14H8zM10 9h4v8h-4zM6 21h12',
+    },
+    ILHA_OUI: {
+      nome: 'Ilha premium O.U.i', prefixo: 'ILHAOUI', tam: [3, 1.6, 3],
+      icone: 'M2 13h20v8H2zM2 17h20M4 3h16v10M6 4v8M18 4v8',
     },
     MAKE: {
       nome: 'Móvel make', prefixo: 'MAKE', tam: [6, 1.4, 3.2],
-      icone: 'M4 2h16v4H4zM4 6v15h16v-3h-4v-3h-4v-3H8V6',
+      icone: 'M3 2h4v4H3zM8 2h4v4H8zM13 2h4v4h-4zM18 2h3v4h-3zM3 6v15M21 6v15M3 10h18M3 14h18M3 18h18M3 21h18',
     },
   };
 
@@ -352,6 +356,13 @@ const Construtor = (() => {
     const m = movelSelecionado();
     if (!m) return;
     registrar();
+    if (m.tipo === 'VITRINE_L') {
+      // Balcão em L (lados iguais): gira 90° mudando o canto onde os dois braços se encontram.
+      m.giro = ((m.giro || 0) + 90) % 360;
+      preencherFormulario();
+      redesenhar();
+      return;
+    }
     // Gira em torno do centro: troca largura e fundo.
     const cx = m.x + m.w / 2;
     const cy = m.y + m.d / 2;
@@ -404,7 +415,7 @@ const Construtor = (() => {
         loja: p.loja,
         moveis: p.moveis.map((m) => ({
           id: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h,
-          ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '',
+          ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '', giro: m.giro || 0,
         })),
       };
       const r = await app.chamar('salvarLayout', p.id, layout);
@@ -438,7 +449,7 @@ const Construtor = (() => {
       '  "formato": "plano-varejo-layout",',
       '  "versao": 1,',
       '  "geradoEm": ' + JSON.stringify(new Date().toISOString()) + ',',
-      '  "legenda": "móvel = [ID, descrição, tipo, x, y, largura, profundidade, altura, elevação, ajuste etiqueta X, ajuste etiqueta Y, meios divididos]",',
+      '  "legenda": "móvel = [ID, descrição, tipo, x, y, largura, profundidade, altura, elevação, ajuste etiqueta X, ajuste etiqueta Y, meios divididos, giro]",',
       '  "plantas": {',
     ];
     plantas.forEach((p, i) => {
@@ -446,7 +457,7 @@ const Construtor = (() => {
       L.push('      "loja": ' + JSON.stringify([p.loja.largura, p.loja.profundidade, p.loja.alturaParede]) + ',');
       L.push('      "moveis": [');
       p.moveis.forEach((m, j) => {
-        const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0, m.dividido || ''];
+        const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0, m.dividido || '', m.giro || 0];
         L.push('        ' + JSON.stringify(t) + (j < p.moveis.length - 1 ? ',' : ''));
       });
       L.push('      ]');
@@ -477,7 +488,7 @@ const Construtor = (() => {
           loja: { largura: p.loja[0], profundidade: p.loja[1], alturaParede: p.loja[2] },
           moveis: p.moveis.map((t) => ({
             id: t[0], descricao: t[1], tipo: t[2], x: t[3], y: t[4], w: t[5], d: t[6], h: t[7], z: t[8] || 0,
-            ajusteX: t[9] || 0, ajusteY: t[10] || 0, dividido: t[11] || '',
+            ajusteX: t[9] || 0, ajusteY: t[10] || 0, dividido: t[11] || '', giro: t[12] || 0,
           })),
         });
       }
