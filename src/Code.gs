@@ -74,6 +74,7 @@ function getDados() {
   } catch (e) {
     return { precisaConfigurar: true, mensagem: e.message };
   }
+  if (ss.getSheetByName(CONFIG.ABAS.LAYOUT)) atualizarModelosNaPlanilha_(ss);
   const dados = montarDados_(
     lerAba_(ss, CONFIG.ABAS.LAYOUT, false),
     lerAba_(ss, CONFIG.ABAS.MOVIMENTOS, true),
@@ -101,6 +102,8 @@ function configurarPlanilha() {
 
   const criadas = comTrava_(function () {
     const lista = [];
+    // Planilha nova já nasce com os modelos atuais.
+    if (!ss.getSheetByName(CONFIG.ABAS.LAYOUT)) gravarVersoesModelo_(VERSAO_MODELO_PLANTAS);
     if (criarSeVazia_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), valoresLayoutPadrao_())) {
       lista.push(CONFIG.ABAS.LAYOUT);
     }
@@ -280,6 +283,32 @@ function salvarLayout(planta, layout) {
 }
 
 /* ======================= TRANSFORMAÇÃO (sem I/O) ========================== */
+
+/**
+ * Atualiza para o modelo base mais novo as plantas cuja versão salva é menor
+ * que VERSAO_MODELO_PLANTAS (layout da planta + linhas dela no ciclo de exemplo).
+ * Função pura: recebe e devolve as matrizes das abas.
+ * @param {{layout: Array, movimentos: Array}} abas
+ * @param {Object<string, number>} versoes  versões já aplicadas (planta → número)
+ * @return {{abas: Object, versoes: Object, plantas: string[]}} plantas = as que mudaram
+ */
+function atualizarModelosPlantas_(abas, versoes) {
+  const novas = {};
+  Object.keys(versoes || {}).forEach(function (k) { novas[k] = versoes[k]; });
+  const mudaram = [];
+  Object.keys(VERSAO_MODELO_PLANTAS).forEach(function (planta) {
+    if ((novas[planta] || 1) >= VERSAO_MODELO_PLANTAS[planta]) return;
+    const daPlanta = function (o) { return normPlanta_(o.planta) === planta; };
+    const layout = objetosDeValores_(valoresLayoutPadrao_(), colunasLayout_()).linhas.filter(daPlanta);
+    abas.layout = mesclarLinhas_(abas.layout || [], layout, colunasLayout_());
+    const exemplo = objetosDeValores_(valoresMovimentosExemplo_(), colunasMovimentos_()).linhas.filter(daPlanta);
+    if (exemplo.length) abas.movimentos = mesclarLinhas_(abas.movimentos || [], exemplo, colunasMovimentos_());
+    novas[planta] = VERSAO_MODELO_PLANTAS[planta];
+    mudaram.push(planta);
+  });
+  return { abas: abas, versoes: novas, plantas: mudaram };
+}
+
 
 /**
  * Converte as matrizes das abas no objeto usado pela página.
@@ -734,6 +763,37 @@ function sanitizarMatriz_(valores) {
 }
 
 /* ================================ I/O ===================================== */
+
+const PROPRIEDADE_VERSOES_MODELO = 'VERSOES_MODELO_PLANTAS';
+
+function lerVersoesModelo_() {
+  try {
+    return JSON.parse(PropertiesService.getScriptProperties().getProperty(PROPRIEDADE_VERSOES_MODELO) || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function gravarVersoesModelo_(versoes) {
+  PropertiesService.getScriptProperties().setProperty(PROPRIEDADE_VERSOES_MODELO, JSON.stringify(versoes));
+}
+
+/** Aplica atualizarModelosPlantas_ nas abas da planilha (só grava se algo mudou). */
+function atualizarModelosNaPlanilha_(ss) {
+  const versoes = lerVersoesModelo_();
+  const pendente = Object.keys(VERSAO_MODELO_PLANTAS).some(function (p) { return (versoes[p] || 1) < VERSAO_MODELO_PLANTAS[p]; });
+  if (!pendente) return;
+  comTrava_(function () {
+    const abas = {
+      layout: ss.getSheetByName(CONFIG.ABAS.LAYOUT).getDataRange().getValues(),
+      movimentos: ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS) ? ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS).getDataRange().getValues() : [],
+    };
+    const r = atualizarModelosPlantas_(abas, versoes);
+    escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), r.abas.layout);
+    if (r.abas.movimentos.length) escreverAba_(ss, CONFIG.ABAS.MOVIMENTOS, colunasMovimentos_(), r.abas.movimentos);
+    gravarVersoesModelo_(r.versoes);
+  });
+}
 
 function planilha_() {
   const ativa = SpreadsheetApp.getActiveSpreadsheet();

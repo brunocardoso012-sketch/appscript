@@ -161,3 +161,27 @@ test('gôndola: espaços, divisão dos meios e IDs de espaço na planilha', () =
   assert.equal(linhas[1].dividido, 'B');
   assert.equal(linhas[2].dividido, '', 'divisão só vale para gôndola');
 });
+
+test('modelo base novo de uma planta substitui só aquela planta (e o exemplo dela)', () => {
+  const { run } = carregarGas();
+  const r = run(`(function () {
+    const layout = valoresLayoutPadrao_().filter(function (l, i) { return i === 0 || l[0] !== '02'; });
+    layout.push(['02', 'VELHO-01', 'Móvel antigo', 'GONDOLA', 1, 1, 0, 2, 1, 2, 0, 0, '']);
+    layout.push(['01', 'MEU-01', 'Meu móvel', 'PIRAMIDE', 3, 3, 0, 1, 1, 2, 0, 0, '']);
+    const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
+    movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
+    movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, {});
+  })()`);
+  assert.deepEqual(r.plantas, ['02']);
+  assert.equal(r.versoes['02'], 2);
+  const ids = (planta) => r.abas.layout.slice(1).filter((l) => l[0] === planta).map((l) => l[1]);
+  assert.ok(!ids('02').includes('VELHO-01') && ids('02').includes('MESA-01') && ids('02').includes('LOJA'), 'planta 02 com o modelo novo');
+  assert.ok(ids('01').includes('MEU-01'), 'planta 01 intacta');
+  const mov = r.abas.movimentos.slice(1).filter((l) => l[1] === '02');
+  assert.ok(mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'MESA-01'), 'exemplo da planta 02 atualizado');
+  assert.ok(!mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'VELHO-01'));
+  assert.ok(mov.some((l) => l[0] === 'C9'), 'outros ciclos da planta 02 intactos');
+  const de_novo = run(`atualizarModelosPlantas_({ layout: valoresLayoutPadrao_(), movimentos: [] }, { '02': 2 })`);
+  assert.deepEqual(de_novo.plantas, [], 'não repete quando a versão já foi aplicada');
+});

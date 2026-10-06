@@ -16,6 +16,14 @@
  *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato.
  */
 
+/**
+ * Versão do modelo base de cada planta. Ao mudar o modelo de uma planta aqui,
+ * aumente o número dela: na próxima abertura, essa planta (layout + linhas do
+ * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
+ * Plantas que não aparecem aqui estão na versão 1.
+ */
+const VERSAO_MODELO_PLANTAS = { '02': 2 };
+
 const LAYOUT_PADRAO = {
   '01': {
     loja: [16, 14, 4.4], // largura (X), profundidade (Y), altura das paredes

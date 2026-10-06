@@ -78,6 +78,8 @@ Para **ajustar a planta** (posição e tamanho dos móveis):
 2. Mude X, Y, Largura, Profundidade e Altura no Excel e importe. As plantas presentes na aba são substituídas por inteiro.
 3. Quando estiver tudo certo, baixe a planilha com a aba Layout e importe na versão Apps Script. O Apps Script aceita o mesmo arquivo.
 
+Quando o modelo base de uma planta muda no código (`VERSAO_MODELO_PLANTAS` em [`src/Layouts.gs`](src/Layouts.gs)), essa planta e as linhas dela no *Ciclo exemplo* são atualizadas sozinhas na próxima abertura, na versão web e no Apps Script. As outras plantas e os outros ciclos não mudam.
+
 Na versão web os dados ficam só naquele navegador. Para levar a outro computador, baixe a planilha (com Layout) e importe lá. O botão **Restaurar exemplo** volta ao ciclo de exemplo.
 
 Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`.

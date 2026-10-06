@@ -15,15 +15,23 @@
       layout: valoresLayoutPadrao_(),
       movimentos: valoresMovimentosExemplo_(),
       paineis: valoresPaineisExemplo_(),
+      versoesModelo: Object.assign({}, VERSAO_MODELO_PLANTAS),
     };
   }
 
   function ler() {
+    let salvo = null;
     try {
-      const salvo = JSON.parse(window.localStorage.getItem(CHAVE));
-      if (salvo && salvo.layout && salvo.movimentos && salvo.paineis) return salvo;
+      salvo = JSON.parse(window.localStorage.getItem(CHAVE));
     } catch (e) { /* sem armazenamento ou dado corrompido */ }
-    return exemplo();
+    if (!salvo || !salvo.layout || !salvo.movimentos || !salvo.paineis) return exemplo();
+    // Plantas cujo modelo base mudou desde que os dados foram salvos são atualizadas.
+    const r = atualizarModelosPlantas_(salvo, salvo.versoesModelo || {});
+    if (r.plantas.length) {
+      salvo.versoesModelo = r.versoes;
+      try { gravar(salvo); } catch (e) { /* segue com os dados atualizados só nesta sessão */ }
+    }
+    return salvo;
   }
 
   function gravar(abas) {
