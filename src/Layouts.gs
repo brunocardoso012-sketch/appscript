@@ -22,7 +22,7 @@
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 10, '02': 9, '03': 6, '04': 7 };
+const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 9, '03': 6, '04': 7 };
 
 /**
  * Versão do ciclo de exemplo inteiro (Movimentos + Painéis, todas as plantas e TODAS).
@@ -36,9 +36,7 @@ const LAYOUT_PADRAO = {
   '01': {
     loja: [12, 10, 4.4],
     moveis: [
-      ['MOVEL DE PAREDE 2', 'Móvel de parede 2', 'GONDOLA_PAREDE', 3.5, 0, 4, 1.1, 3.2],
-      ['MOVEL DE PAREDE 3', 'Móvel de parede 3', 'GONDOLA_PAREDE', 7.5, 0, 4, 1.1, 3.2],
-      ['MOVEL DE PAREDE 1', 'Móvel de parede 1', 'GONDOLA_PAREDE', 0, 0, 4, 1.1, 3.2],
+      ['MOVEL DE PAREDE 1', 'Móvel de parede 1', 'GONDOLA_PAREDE', 0, 0, 3, 1.1, 3.2],
       ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 2.5, 2, 1.6, 4, 1.94],
       ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 6, 2.5, 1.02, 1.02, 1.94],
       ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 6, 4.5, 1.02, 1.02, 1.94],
@@ -53,6 +51,9 @@ const LAYOUT_PADRAO = {
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
       ['MOVEL MAKE 1', 'Móvel make 1', 'MAKE', 0, 1.5, 0.6, 6, 3.2],
       ['MOVEL DE ATENDIMENTO 1', 'Móvel de atendimento 1', 'CAIXA', 0, 8, 1.2, 1.8, 1.7],
+      ['MOVEL DE PAREDE 2', 'Móvel de parede 2', 'GONDOLA_PAREDE', 3, 0, 3, 1.1, 3.2],
+      ['MOVEL DE PAREDE 3', 'Móvel de parede 3', 'GONDOLA_PAREDE', 6, 0, 3, 1.1, 3.2],
+      ['MOVEL DE PAREDE 4', 'Móvel de parede 4', 'GONDOLA_PAREDE', 9, 0, 3, 1.1, 3.2],
     ],
   },
   // PLANTA 02 (ER M): layout montado no modo "Construir loja".
@@ -187,6 +188,7 @@ const EXEMPLO_MOVIMENTOS = {
     'MOVEL DE PAREDE 1': ['NEUTRO', [['CUIDADOS (NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 2': ['NEUTRO', [['PERF MASC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 3': ['NEUTRO', [['CUIDADOS (CBEM)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    'MOVEL DE PAREDE 4': ['NEUTRO', [['PERF FEM', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'GONDOLA 1': ['BOT', [['', ''], ['BOTIK', 'BOT'], ['UOMINI HERO', 'BOT'], ['BOTI PROMO', 'BOT']], 'FIXO'],
     'GONDOLA 1/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'PIRAMIDE 1': ['EUD', [['MULTI PROMO', 'MULTI']]],
