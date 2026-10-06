@@ -31,6 +31,9 @@ const Render = (() => {
     textoNota: '#1F3B73',
     tituloNota: '#0B2A5B',
     etiquetaPadrao: '#4A4A4A',
+    metal: '#A7ABB1',
+    tela: '#C9CCD1',
+    rodape: '#4B4F56',
   };
   const ESPESSURA_PAREDE = 0.35;
   const ESPESSURA_PISO = 0.35;
@@ -241,6 +244,17 @@ const Render = (() => {
 
   const espessuraL = (m) => Math.min(0.6, m.w / 2, m.d / 2);
 
+  /** [comprimento, largura] do móvel: o lado maior é o eixo "u". */
+  const eixos = (b) => (b.w >= b.d ? [b.w, b.d] : [b.d, b.w]);
+
+  /** Caixa em coordenadas locais do móvel (u ao longo do lado maior, v = 0 no lado do fundo). */
+  function caixaLocal(b, u0, u1, v0, v1, z0, z1) {
+    const base = { z: b.z + z0, h: z1 - z0 };
+    return b.w >= b.d
+      ? Object.assign(base, { x: b.x + u0, w: u1 - u0, y: b.y + v0, d: v1 - v0 })
+      : Object.assign(base, { x: b.x + v0, w: v1 - v0, y: b.y + u0, d: u1 - u0 });
+  }
+
   /** Espaços da gôndola (mesma regra de espacosDoMovel_ em Config.gs). */
   function espacos(m) {
     if (!m || m.tipo !== 'GONDOLA') return [];
@@ -303,21 +317,59 @@ const Render = (() => {
       case 'GONDOLA_PAREDE':
         caixa(pai, P, b, { cores, prateleiras: 5, modulo: 2.2 });
         break;
-      case 'CUBO':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2 });
+      case 'CUBO': {
+        // Cubo de vidro sobre um rodapé escuro.
+        const r = Math.min(0.12, b.h * 0.1);
+        const m = Math.min(0.06, b.w * 0.05, b.d * 0.05);
+        caixa(pai, P, { x: b.x + m, y: b.y + m, z: b.z, w: b.w - 2 * m, d: b.d - 2 * m, h: r }, { cores: [COR.rodape] });
+        caixa(pai, P, Object.assign({}, b, { z: b.z + r, h: b.h - r }), { cores, vidro: true });
         break;
-      case 'MESA':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 1, modulo: 1.3, gradeTopo: true });
+      }
+      case 'MESA': {
+        // Expositor VM: estrutura com pernas, 4 nichos (2×2) em cima e painel de vidro de duas lâminas ao fundo.
+        const [L, C] = eixos(b);
+        const hBase = b.h * 0.32;
+        const hNicho = b.h * 0.27;
+        const painel = Math.min(0.15, C * 0.1);
+        const fresta = Math.min(0.08, L * 0.04);
+        const perna = Math.min(0.08, L * 0.05);
+        const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
+        caixa(pai, P, loc(0, L / 2 - fresta / 2, 0, painel, hBase, b.h), { cores, vidro: true });
+        caixa(pai, P, loc(L / 2 + fresta / 2, L, 0, painel, hBase, b.h), { cores, vidro: true });
+        [[0, painel], [L - perna, painel], [0, C - perna], [L - perna, C - perna]].forEach(([u, v]) => {
+          caixa(pai, P, loc(u, u + perna, v, v + perna, 0, hBase - 0.06), { cores: [COR.metal] });
+        });
+        caixa(pai, P, loc(0, L, painel, C, hBase - 0.06, hBase), { cores: [COR.metal] });
+        const v0 = painel + 0.05;
+        const meioV = (v0 + C) / 2;
+        [[0, v0], [L / 2, v0], [0, meioV], [L / 2, meioV]].forEach(([u, v]) => {
+          const g = 0.03;
+          caixa(pai, P, loc(u + g, u + L / 2 - g, v + g, v + (C - v0) / 2 - g, hBase, hBase + hNicho), { cores, vidro: true });
+        });
         break;
-      case 'TOTEM':
-        caixa(pai, P, Object.assign({}, b, { h: 0.25 }), { corNeutra: '#9A9A9A' });
-        caixa(pai, P, Object.assign({}, b, { z: b.z + 0.25, h: b.h - 0.25 }), { cores, prateleiras: 5 });
+      }
+      case 'TOTEM': {
+        // Totem: base, montantes e travessa metálicos, tela perfurada embaixo e 3 painéis na cor da marca.
+        const [L, C] = eixos(b);
+        const t = Math.min(0.12, L * 0.1);
+        const base = 0.1;
+        const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
+        caixa(pai, P, loc(-0.1, L + 0.1, -0.1, C + 0.1, 0, base), { cores: [COR.metal] });
+        caixa(pai, P, loc(0, t, 0, C, base, b.h), { cores: [COR.metal] });
+        caixa(pai, P, loc(t, L - t, C * 0.35, C * 0.65, base, b.h * 0.3), { cores: [COR.tela] });
+        for (let k = 0; k < 3; k++) {
+          const z0 = b.h * (0.33 + 0.21 * k);
+          caixa(pai, P, loc(t, L - t, 0, C, z0, z0 + b.h * 0.15), { cores, vidro: true });
+        }
+        caixa(pai, P, loc(t, L - t, 0, C, b.h - t, b.h), { cores: [COR.metal] });
+        caixa(pai, P, loc(L - t, L, 0, C, base, b.h), { cores: [COR.metal] });
         break;
+      }
       case 'PAINEL':
         caixa(pai, P, b, { cores, moldura: true });
         break;
       case 'VITRINE_L':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2, modulo: 1.8 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3 });
         break;
       case 'CAIXA': {
         caixa(pai, P, b, { cores, prateleiras: 0 });

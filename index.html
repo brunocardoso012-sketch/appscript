@@ -440,7 +440,7 @@ const SECOES_PAINEL = {
 
 /**
  * Tipos de móvel aceitos na aba "Layout" (definem o desenho 3D).
- * O modo "Construir loja" oferece só PIRAMIDE, GONDOLA e FILA; os demais
+ * O modo "Construir loja" oferece os tipos de TIPOS_CONSTRUCAO; os demais
  * continuam sendo desenhados para não quebrar layouts antigos.
  */
 const TIPOS_MOVEL = {
@@ -449,17 +449,17 @@ const TIPOS_MOVEL = {
   GONDOLA: 'Gôndola: 2 pontas + 2 meios (cada meio pode ser dividido em dois), 4 níveis de prateleira',
   FILA: 'Móvel de fila: bloco único retangular com 4 níveis',
   GONDOLA_PAREDE: '(antigo) Gôndola de parede',
-  CUBO: '(antigo) Cubo expositor',
-  MESA: '(antigo) Mesa / expositor baixo',
-  TOTEM: '(antigo) Totem / display vertical',
+  CUBO: 'Cubo expositor de vidro (sobre rodapé)',
+  MESA: 'Expositor VM: 4 nichos (2×2) sobre estrutura, com painel de vidro ao fundo',
+  TOTEM: 'Totem: estrutura metálica com 3 painéis',
   PAINEL: '(antigo) Painel alto e fino',
-  VITRINE_L: '(antigo) Vitrine em "L"',
+  VITRINE_L: 'Vitrine em "L"',
   CAIXA: '(antigo) Caixa / balcão de atendimento',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
 };
 
 /** Tipos oferecidos no modo "Construir loja". */
-const TIPOS_CONSTRUCAO = ['PIRAMIDE', 'GONDOLA', 'FILA'];
+const TIPOS_CONSTRUCAO = ['GONDOLA', 'PIRAMIDE', 'FILA', 'TOTEM', 'CUBO', 'MESA', 'VITRINE_L'];
 
 /**
  * Espaços de uma gôndola. Na planilha, cada espaço é endereçado como
@@ -1455,8 +1455,8 @@ const LAYOUT_PADRAO = {
       ['CX-01', 'Caixa 1', 'CAIXA', 2.4, 12.2, 1.8, 1.2, 1.7],
       ['CX-02', 'Caixa 2', 'CAIXA', 4.5, 12.2, 1.8, 1.2, 1.7],
       ['TOTEM-01', 'Totem próximo aos caixas', 'TOTEM', 7.2, 12.4, 1.5, 0.35, 3.4],
-      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 8.4, 10.2, 1.3, 1.3, 1.9],
-      ['MESA-VM', 'Mesa VM permanente', 'MESA', 10.6, 8.6, 2.4, 2.2, 1.5],
+      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 8.4, 10.2, 1.3, 1.3, 1.6],
+      ['MESA-VM', 'Expositor VM permanente', 'MESA', 10.6, 8.6, 2.4, 2.2, 2.6],
       ['VITRINE', 'Vitrine em L (entrada)', 'VITRINE_L', 10.8, 11.2, 3.4, 2.6, 2.4],
       ['PIR-01', 'Pirâmide 1 (principais oportunidades)', 'PIRAMIDE', 13.12, 3.72, 0.96, 0.96, 2.16],
       ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 13.92, 7.12, 0.96, 0.96, 2.16],
@@ -1495,9 +1495,9 @@ const LAYOUT_PADRAO = {
       ['CX-02', 'Caixa 2', 'CAIXA', 4.5, 17, 1.8, 1.2, 1.7],
       ['CX-03', 'Caixa 3', 'CAIXA', 6.6, 17, 1.8, 1.2, 1.7],
       ['TOTEM-01', 'Totem próximo aos caixas', 'TOTEM', 9.4, 16.2, 1.5, 0.35, 3.4],
-      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 10.6, 14.2, 1.3, 1.3, 1.9],
+      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 10.6, 14.2, 1.3, 1.3, 1.6],
       ['OUI-01', 'Expositor O.U.i (frente)', 'PAINEL', 12, 12.6, 0.8, 1.6, 3.8],
-      ['MESA-VM', 'Mesa VM permanente', 'MESA', 14, 9.8, 2.6, 2.4, 1.5],
+      ['MESA-VM', 'Expositor VM permanente', 'MESA', 14, 9.8, 2.6, 2.4, 2.6],
       ['VITRINE', 'Vitrine em L (entrada)', 'VITRINE_L', 14.6, 14.6, 3.6, 3, 2.4],
       ['PIR-01', 'Pirâmide 1 (principais oportunidades)', 'PIRAMIDE', 16.74, 4.34, 1.02, 1.02, 2.16],
       ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 19.54, 6.94, 1.02, 1.02, 2.16],
@@ -1540,9 +1540,9 @@ const LAYOUT_PADRAO = {
       ['CX-02', 'Caixa 2', 'CAIXA', 4.5, 18, 1.8, 1.2, 1.7],
       ['CX-03', 'Caixa 3', 'CAIXA', 6.6, 18, 1.8, 1.2, 1.7],
       ['TOTEM-01', 'Totem próximo aos caixas', 'TOTEM', 9.6, 17.2, 1.5, 0.35, 3.4],
-      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 10.8, 15.2, 1.3, 1.3, 1.9],
+      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 10.8, 15.2, 1.3, 1.3, 1.6],
       ['OUI-01', 'Expositor O.U.i (frente)', 'PAINEL', 12.2, 13.4, 0.8, 1.6, 3.8],
-      ['MESA-VM', 'Mesa VM permanente', 'MESA', 14.4, 12.6, 2.6, 2.4, 1.5],
+      ['MESA-VM', 'Expositor VM permanente', 'MESA', 14.4, 12.6, 2.6, 2.4, 2.6],
       ['VITRINE', 'Vitrine em L (entrada)', 'VITRINE_L', 15.6, 15.8, 3.6, 3, 2.4],
       ['PIR-01', 'Pirâmide 1 (principais oportunidades)', 'PIRAMIDE', 21.74, 8.74, 1.02, 1.02, 2.16],
       ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 19.74, 13.54, 1.02, 1.02, 2.16],
@@ -1602,8 +1602,8 @@ const LAYOUT_PADRAO = {
       ['CX-02', 'Caixa 2', 'CAIXA', 4.5, 19.8, 1.8, 1.2, 1.7],
       ['CX-03', 'Caixa 3', 'CAIXA', 6.6, 19.8, 1.8, 1.2, 1.7],
       ['TOTEM-01', 'Totem próximo aos caixas', 'TOTEM', 9.6, 19, 1.5, 0.35, 3.4],
-      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 10.6, 17.4, 1.3, 1.3, 1.9],
-      ['MESA-VM', 'Mesa VM permanente', 'MESA', 14.4, 17.4, 2.8, 2.4, 1.5],
+      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 10.6, 17.4, 1.3, 1.3, 1.6],
+      ['MESA-VM', 'Expositor VM permanente', 'MESA', 14.4, 17.4, 2.8, 2.4, 2.6],
       ['VITRINE', 'Vitrine em L (entrada)', 'VITRINE_L', 18, 18.2, 3.8, 3, 2.4],
       ['PIR-04', 'Pirâmide 4 (iscas exaustão)', 'PIRAMIDE', 18.14, 13.94, 1.02, 1.02, 2.16],
       ['PIR-03', 'Pirâmide 3 (PEC regional)', 'PIRAMIDE', 21.34, 15.74, 1.02, 1.02, 2.16],
@@ -2211,6 +2211,9 @@ const Render = (() => {
     textoNota: '#1F3B73',
     tituloNota: '#0B2A5B',
     etiquetaPadrao: '#4A4A4A',
+    metal: '#A7ABB1',
+    tela: '#C9CCD1',
+    rodape: '#4B4F56',
   };
   const ESPESSURA_PAREDE = 0.35;
   const ESPESSURA_PISO = 0.35;
@@ -2421,6 +2424,17 @@ const Render = (() => {
 
   const espessuraL = (m) => Math.min(0.6, m.w / 2, m.d / 2);
 
+  /** [comprimento, largura] do móvel: o lado maior é o eixo "u". */
+  const eixos = (b) => (b.w >= b.d ? [b.w, b.d] : [b.d, b.w]);
+
+  /** Caixa em coordenadas locais do móvel (u ao longo do lado maior, v = 0 no lado do fundo). */
+  function caixaLocal(b, u0, u1, v0, v1, z0, z1) {
+    const base = { z: b.z + z0, h: z1 - z0 };
+    return b.w >= b.d
+      ? Object.assign(base, { x: b.x + u0, w: u1 - u0, y: b.y + v0, d: v1 - v0 })
+      : Object.assign(base, { x: b.x + v0, w: v1 - v0, y: b.y + u0, d: u1 - u0 });
+  }
+
   /** Espaços da gôndola (mesma regra de espacosDoMovel_ em Config.gs). */
   function espacos(m) {
     if (!m || m.tipo !== 'GONDOLA') return [];
@@ -2483,21 +2497,59 @@ const Render = (() => {
       case 'GONDOLA_PAREDE':
         caixa(pai, P, b, { cores, prateleiras: 5, modulo: 2.2 });
         break;
-      case 'CUBO':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2 });
+      case 'CUBO': {
+        // Cubo de vidro sobre um rodapé escuro.
+        const r = Math.min(0.12, b.h * 0.1);
+        const m = Math.min(0.06, b.w * 0.05, b.d * 0.05);
+        caixa(pai, P, { x: b.x + m, y: b.y + m, z: b.z, w: b.w - 2 * m, d: b.d - 2 * m, h: r }, { cores: [COR.rodape] });
+        caixa(pai, P, Object.assign({}, b, { z: b.z + r, h: b.h - r }), { cores, vidro: true });
         break;
-      case 'MESA':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 1, modulo: 1.3, gradeTopo: true });
+      }
+      case 'MESA': {
+        // Expositor VM: estrutura com pernas, 4 nichos (2×2) em cima e painel de vidro de duas lâminas ao fundo.
+        const [L, C] = eixos(b);
+        const hBase = b.h * 0.32;
+        const hNicho = b.h * 0.27;
+        const painel = Math.min(0.15, C * 0.1);
+        const fresta = Math.min(0.08, L * 0.04);
+        const perna = Math.min(0.08, L * 0.05);
+        const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
+        caixa(pai, P, loc(0, L / 2 - fresta / 2, 0, painel, hBase, b.h), { cores, vidro: true });
+        caixa(pai, P, loc(L / 2 + fresta / 2, L, 0, painel, hBase, b.h), { cores, vidro: true });
+        [[0, painel], [L - perna, painel], [0, C - perna], [L - perna, C - perna]].forEach(([u, v]) => {
+          caixa(pai, P, loc(u, u + perna, v, v + perna, 0, hBase - 0.06), { cores: [COR.metal] });
+        });
+        caixa(pai, P, loc(0, L, painel, C, hBase - 0.06, hBase), { cores: [COR.metal] });
+        const v0 = painel + 0.05;
+        const meioV = (v0 + C) / 2;
+        [[0, v0], [L / 2, v0], [0, meioV], [L / 2, meioV]].forEach(([u, v]) => {
+          const g = 0.03;
+          caixa(pai, P, loc(u + g, u + L / 2 - g, v + g, v + (C - v0) / 2 - g, hBase, hBase + hNicho), { cores, vidro: true });
+        });
         break;
-      case 'TOTEM':
-        caixa(pai, P, Object.assign({}, b, { h: 0.25 }), { corNeutra: '#9A9A9A' });
-        caixa(pai, P, Object.assign({}, b, { z: b.z + 0.25, h: b.h - 0.25 }), { cores, prateleiras: 5 });
+      }
+      case 'TOTEM': {
+        // Totem: base, montantes e travessa metálicos, tela perfurada embaixo e 3 painéis na cor da marca.
+        const [L, C] = eixos(b);
+        const t = Math.min(0.12, L * 0.1);
+        const base = 0.1;
+        const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
+        caixa(pai, P, loc(-0.1, L + 0.1, -0.1, C + 0.1, 0, base), { cores: [COR.metal] });
+        caixa(pai, P, loc(0, t, 0, C, base, b.h), { cores: [COR.metal] });
+        caixa(pai, P, loc(t, L - t, C * 0.35, C * 0.65, base, b.h * 0.3), { cores: [COR.tela] });
+        for (let k = 0; k < 3; k++) {
+          const z0 = b.h * (0.33 + 0.21 * k);
+          caixa(pai, P, loc(t, L - t, 0, C, z0, z0 + b.h * 0.15), { cores, vidro: true });
+        }
+        caixa(pai, P, loc(t, L - t, 0, C, b.h - t, b.h), { cores: [COR.metal] });
+        caixa(pai, P, loc(L - t, L, 0, C, base, b.h), { cores: [COR.metal] });
         break;
+      }
       case 'PAINEL':
         caixa(pai, P, b, { cores, moldura: true });
         break;
       case 'VITRINE_L':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2, modulo: 1.8 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3 });
         break;
       case 'CAIXA': {
         caixa(pai, P, b, { cores, prateleiras: 0 });
@@ -3471,7 +3523,8 @@ const Planilha = (() => {
  * ============================================================================
  *  CONSTRUIR LOJA (editor visual do layout das plantas)
  * ============================================================================
- *  - Paleta "Adicionar móvel" (Gôndola, Pirâmide, Móvel de fila): um clique
+ *  - Paleta "Adicionar móvel" (Gôndola, Pirâmide, Móvel de fila, Totem, Cubo,
+ *    Expositor VM, Vitrine em L): um clique
  *    cria o móvel no centro da loja.
  *  - Clicar num móvel seleciona; arrastar move (Alt = movimento fino);
  *    clicar no piso vazio desmarca.
@@ -3498,6 +3551,22 @@ const Construtor = (() => {
     FILA: {
       nome: 'Móvel de fila', prefixo: 'FILA', tam: [3, 0.8, 1.8],
       icone: 'M2 8h20v12H2zM2 11h20M2 14h20M2 17h20',
+    },
+    TOTEM: {
+      nome: 'Totem', prefixo: 'TOTEM', tam: [1.5, 0.35, 3.4],
+      icone: 'M7 3v17M17 3v17M7 3h10M5 21h14M7 7h10v3H7zM7 12h10v3H7zM9 17h6',
+    },
+    CUBO: {
+      nome: 'Cubo', prefixo: 'CUBO', tam: [1.3, 1.3, 1.6],
+      icone: 'M5 8l7-4 7 4v9l-7 4-7-4zM5 8l7 4 7-4M12 12v9M4 19l8 4 8-4',
+    },
+    MESA: {
+      nome: 'Expositor VM', prefixo: 'VM', tam: [2.6, 2.4, 2.6],
+      icone: 'M4 3h7v8H4zM13 3h7v8h-7zM3 11h18v4H3zM3 15h18M3 18h18M5 18v4M19 18v4M12 11v7',
+    },
+    VITRINE_L: {
+      nome: 'Vitrine em L', prefixo: 'VIT', tam: [3.6, 3, 2.4],
+      icone: 'M14 3h6v18H4v-6h10z',
     },
   };
 

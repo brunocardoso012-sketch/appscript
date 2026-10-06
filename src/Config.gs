@@ -98,7 +98,7 @@ const SECOES_PAINEL = {
 
 /**
  * Tipos de móvel aceitos na aba "Layout" (definem o desenho 3D).
- * O modo "Construir loja" oferece só PIRAMIDE, GONDOLA e FILA; os demais
+ * O modo "Construir loja" oferece os tipos de TIPOS_CONSTRUCAO; os demais
  * continuam sendo desenhados para não quebrar layouts antigos.
  */
 const TIPOS_MOVEL = {
@@ -107,17 +107,17 @@ const TIPOS_MOVEL = {
   GONDOLA: 'Gôndola: 2 pontas + 2 meios (cada meio pode ser dividido em dois), 4 níveis de prateleira',
   FILA: 'Móvel de fila: bloco único retangular com 4 níveis',
   GONDOLA_PAREDE: '(antigo) Gôndola de parede',
-  CUBO: '(antigo) Cubo expositor',
-  MESA: '(antigo) Mesa / expositor baixo',
-  TOTEM: '(antigo) Totem / display vertical',
+  CUBO: 'Cubo expositor de vidro (sobre rodapé)',
+  MESA: 'Expositor VM: 4 nichos (2×2) sobre estrutura, com painel de vidro ao fundo',
+  TOTEM: 'Totem: estrutura metálica com 3 painéis',
   PAINEL: '(antigo) Painel alto e fino',
-  VITRINE_L: '(antigo) Vitrine em "L"',
+  VITRINE_L: 'Vitrine em "L"',
   CAIXA: '(antigo) Caixa / balcão de atendimento',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
 };
 
 /** Tipos oferecidos no modo "Construir loja". */
-const TIPOS_CONSTRUCAO = ['PIRAMIDE', 'GONDOLA', 'FILA'];
+const TIPOS_CONSTRUCAO = ['GONDOLA', 'PIRAMIDE', 'FILA', 'TOTEM', 'CUBO', 'MESA', 'VITRINE_L'];
 
 /**
  * Espaços de uma gôndola. Na planilha, cada espaço é endereçado como
