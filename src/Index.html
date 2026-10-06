@@ -236,6 +236,23 @@
       </form>
     </dialog>
 
+    <dialog id="dlgPng" class="dialogo">
+      <form method="dialog">
+        <h2>Baixar PNG</h2>
+        <p class="sub">Imagem em alta resolução da planta selecionada.</p>
+        <fieldset class="campo bloco">
+          <legend>Conteúdo</legend>
+          <label class="opcao"><input type="radio" name="pngModo" value="slide" checked> <span>Slide completo (com painéis, notas e fundo)</span></label>
+          <label class="opcao"><input type="radio" name="pngModo" value="planta"> <span>Só a planta com as etiquetas (sem painéis e sem fundo)</span></label>
+        </fieldset>
+        <p class="sub" id="pngFiltroTexto" hidden></p>
+        <div class="rodape-dialogo">
+          <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
+          <button class="btn primario" value="baixar" type="submit">Baixar PNG</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="dlgResultado" class="dialogo">
       <form method="dialog">
         <h2 id="resTitulo"></h2>
