@@ -131,6 +131,7 @@ const TIPOS_MOVEL = {
   TOTEM: 'Totem: estrutura metálica com 3 painéis',
   PAINEL: 'Painel O.U.i: painel alto e fino, com moldura',
   EXPOSITOR_OUI: 'Expositor O.U.i: expositor alto e estreito, com moldura',
+  MAKE: 'Móvel make: estante de parede com prateleiras em degrau e testeira no alto',
   VITRINE_L: 'Balcão recepção: em "L", com os dois lados do mesmo tamanho',
   CAIXA: 'Móvel de atendimento (caixa): balcão com tela preta em cima',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
@@ -138,7 +139,7 @@ const TIPOS_MOVEL = {
 
 /** Tipos oferecidos no modo "Construir loja". */
 const TIPOS_CONSTRUCAO = [
-  'GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L', 'CAIXA', 'PAINEL', 'EXPOSITOR_OUI',
+  'GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L', 'CAIXA', 'PAINEL', 'EXPOSITOR_OUI', 'MAKE',
 ];
 
 /**

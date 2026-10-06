@@ -474,6 +474,7 @@ const TIPOS_MOVEL = {
   TOTEM: 'Totem: estrutura metálica com 3 painéis',
   PAINEL: 'Painel O.U.i: painel alto e fino, com moldura',
   EXPOSITOR_OUI: 'Expositor O.U.i: expositor alto e estreito, com moldura',
+  MAKE: 'Móvel make: estante de parede com prateleiras em degrau e testeira no alto',
   VITRINE_L: 'Balcão recepção: em "L", com os dois lados do mesmo tamanho',
   CAIXA: 'Móvel de atendimento (caixa): balcão com tela preta em cima',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
@@ -481,7 +482,7 @@ const TIPOS_MOVEL = {
 
 /** Tipos oferecidos no modo "Construir loja". */
 const TIPOS_CONSTRUCAO = [
-  'GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L', 'CAIXA', 'PAINEL', 'EXPOSITOR_OUI',
+  'GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L', 'CAIXA', 'PAINEL', 'EXPOSITOR_OUI', 'MAKE',
 ];
 
 /**
@@ -2699,6 +2700,29 @@ const Render = (() => {
         caixa(pai, P, loc(L - t, L, 0, C, base, b.h), { cores: [COR.metal] });
         break;
       }
+      case 'MAKE': {
+        // Móvel make (encostado na parede, v = 0): rodapé escuro, fundo, prateleiras em degrau
+        // (a de baixo avança mais), cada uma com a fileira de produtos na frente, e testeira no alto.
+        const [L, C] = eixos(b);
+        const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
+        const fundo = Math.min(0.15, C * 0.12);
+        const rodape = Math.min(0.12, b.h * 0.05);
+        const zTesteira = b.h * 0.8;
+        const n = 5;
+        const dv = (C - fundo) / n;
+        const dz = (b.h * 0.7 - rodape) / n;
+        caixa(pai, P, loc(0, L, 0, fundo, 0, zTesteira), { cores, modulo: 1.5 });
+        caixa(pai, P, loc(0, L, 0, Math.min(C, fundo + 0.25), zTesteira, b.h), { cores, modulo: 1.5 });
+        caixa(pai, P, loc(0, L, fundo, C, 0, rodape), { cores: [COR.rodape] });
+        for (let k = 0; k < n; k++) { // de trás (a mais alta) para a frente
+          const v0 = fundo + k * dv;
+          const z1 = rodape + (n - k) * dz;
+          caixa(pai, P, loc(0, L, v0, v0 + dv, rodape, z1), { cores, modulo: 1.5 });
+          const faixa = Math.min(0.1, dv * 0.4);
+          caixa(pai, P, loc(0.04, L - 0.04, v0 + dv - faixa - 0.03, v0 + dv - 0.03, z1, z1 + 0.07), { cores: ['#3A3A3A'] });
+        }
+        break;
+      }
       case 'PAINEL':
       case 'EXPOSITOR_OUI':
         caixa(pai, P, b, { cores, moldura: true });
@@ -3772,6 +3796,10 @@ const Construtor = (() => {
     EXPOSITOR_OUI: {
       nome: 'Expositor O.U.i', prefixo: 'OUI', tam: [0.8, 1.6, 3.8],
       icone: 'M8 2h8v18H8zM10 5h4v12h-4zM6 21h12',
+    },
+    MAKE: {
+      nome: 'Móvel make', prefixo: 'MAKE', tam: [6, 1.4, 3.2],
+      icone: 'M4 2h16v4H4zM4 6v15h16v-3h-4v-3h-4v-3H8V6',
     },
   };
 
