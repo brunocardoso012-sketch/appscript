@@ -22,7 +22,7 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 - **Botão "Importar planilha"**: lê o `.xlsx` preenchido, grava no Google Sheets e já mostra o ciclo importado.
 - **Filtro por marca**: clique numa marca da legenda para destacar só os móveis dela.
 - **Baixar PNG** em 3840×2160, pronto para colar na apresentação.
-- **Ajustar etiquetas**: as etiquetas se afastam sozinhas para não se sobrepor. Se quiser outra posição, arraste e clique em *Salvar posições*. As etiquetas de uma gôndola movem juntas.
+- **Etiquetas sem sobreposição**: as etiquetas se afastam sozinhas para nenhuma ficar em cima de outra (nem das caixas de destaque e notas); se não houver lugar perto do móvel, vão para o espaço livre mais próximo, com linha-guia. Para outra posição, use *Ajustar etiquetas*, arraste e clique em *Salvar posições* (as de uma gôndola movem juntas). Os móveis aparecem em cores foscas e opacas; as etiquetas mantêm as cores das marcas.
 
 ## Construir loja (editor do layout)
 
@@ -42,22 +42,22 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 
 | Móvel | Como é desenhado | Na planilha |
 |---|---|---|
-| **Gôndola** (`GONDOLA 1`…) | 4 espaços: **Ponta 1**, **Meio A**, **Meio B** e **Ponta 2**, com 4 níveis de prateleira. Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GONDOLA 1`) e uma por espaço: `GONDOLA 1/PONTA-1`, `GONDOLA 1/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GONDOLA 1/MEIO-B`, `GONDOLA 1/PONTA-2`. O espaço preenchido tem cor e etiqueta próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. **Uma etiqueta por bloco:** na linha da gôndola inteira, Etiqueta 1 = Ponta 1, 2 = Meio A, 3 = Meio B e 4 = Ponta 2; a Etiqueta 1 da linha de um espaço substitui a daquele bloco. |
+| **Gôndola** (`GONDOLA 1`…) | 4 espaços: **Lado A**, **Meio A**, **Meio B** e **Lado B**, com 4 níveis de prateleira. "A" é sempre o que está virado para quem olha a planta (o lado A é a ponta da frente; o meio A, a face da frente). Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GONDOLA 1`) e uma por espaço: `GONDOLA 1/LADO-A`, `GONDOLA 1/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GONDOLA 1/MEIO-B`, `GONDOLA 1/LADO-B`. O espaço preenchido tem cor e etiqueta próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. **Uma etiqueta por bloco:** na linha da gôndola inteira, Etiqueta 1 = Lado A, 2 = Meio A, 3 = Meio B e 4 = Lado B; a Etiqueta 1 da linha de um espaço substitui a daquele bloco. (Os nomes antigos `PONTA-2` e `PONTA-1` continuam aceitos como Lado A e Lado B.) |
 | **Pirâmide** (`PIRAMIDE 1`…) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 1,94). | Uma linha, **1 etiqueta**. |
 | **Móvel de fila** (`MOVEL DE FILA 1`…) | Bloco único retangular com 3 níveis (padrão 1,5 × 0,4 × 1,46). | Uma linha. |
 | **Móvel de parede** (`MOVEL DE PAREDE 1`…) | Estante encostada na parede, com prateleiras (padrão 4 × 1,1 × 3,2). | Uma linha. |
 | **Totem** (`TOTEM 1`…) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
 | **PDV móvel** (`PDV MOVEL 1`…) | Cubo de vidro sobre rodapé escuro (padrão 1,3 × 1,3 × 1,44). | Uma linha. |
-| **Mesa destaque** (`MESA DESTAQUE 1`…) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 cartazes na frente, da largura das lâminas do fundo, subindo do chão até o topo dos nichos. | Uma linha, **1 etiqueta**. |
-| **Mesa destaque 3 frentes** (`MESA DESTAQUE 3 FRENTES 1`…) | Estrutura com pernas, 3 nichos baixos em cima (mesma altura dos da mesa destaque), painel de 3 lâminas ao fundo e 3 cartazes na frente, iguais aos da mesa destaque (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
-| **Balcão recepção** (`BALCAO RECEPCAO 1`…) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); 2 níveis; padrão 2,4 × 2,4 × 1,28. *Girar* muda o canto do L. | Uma linha. |
-| **Móvel de atendimento** (`MOVEL DE ATENDIMENTO 1`…) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | Uma linha. |
+| **Mesa destaque** (`MESA DESTAQUE 1`…) | Estrutura com pernas e **2 frentes**, cada uma com nicho baixo em cima, lâmina de vidro ao fundo e cartaz na frente (do chão até o topo do nicho). | Uma linha para a mesa inteira (1 etiqueta, no centro) e uma por frente (`MESA DESTAQUE 1/FRENTE-1` e `FRENTE-2`), cada uma com **cor e etiqueta próprias**; frente sem linha usa a cor da mesa. Frentes com o mesmo texto e cor ficam com uma etiqueta só, centralizada. |
+| **Mesa destaque 3 frentes** (`MESA DESTAQUE 3 FRENTES 1`…) | Igual à mesa destaque, com **3 frentes** (padrão 3,9 × 1,4 × 2,6). | Uma linha para a mesa inteira e uma por frente (`FRENTE-1` a `FRENTE-3`), com cor e etiqueta próprias, como na mesa destaque. |
+| **Balcão recepção** (`BALCAO RECEPCAO 1`…) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); 3 blocos (os dois braços e o canto), 2 níveis; padrão 2,4 × 2,4 × 1,28. *Girar* muda o canto do L. | Uma linha para o balcão inteiro e uma por bloco (`BALCAO RECEPCAO 1/BLOCO-1`, `BLOCO-2` = canto, `BLOCO-3`), cada um com **cor e etiqueta próprias**. Blocos vizinhos com o mesmo texto e cor ficam com uma etiqueta só. |
+| **Móvel de atendimento** (`MOVEL DE ATENDIMENTO 1`…) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | **Fica fora da planilha** (não leva cor nem etiqueta). |
 | **Parede O.U.i** (`PAREDE OUI 1`…) | Painel alto com moldura, para a parede (padrão 3,6 × 0,9 × 5). | Uma linha. |
 | **Totem O.U.i** (`TOTEM OUI 1`…) | Expositor de base quadrada com moldura, na altura da gôndola (padrão 0,8 × 0,8 × 1,94). | Uma linha. |
 | **Ilha premium O.U.i** (`ILHA PREMIUM OUI 1`…) | Base com prateleiras e, centralizado em cima dela, painel alto com duas faixas verticais mais claras nas laterais (padrão 3 × 1,6 × 3). | Uma linha. |
-| **Móvel make** (`MOVEL MAKE 1`…) | Estante de parede com painel de fundo, montantes nas pontas, base com rodapé escuro, 5 prateleiras com a fileira de produtos na borda e **4 testeiras** no alto; o fundo fica do lado da parede (padrão 6 × 1,4 × 3,2). | Uma linha para o móvel e uma por testeira (`MOVEL MAKE 1/TESTEIRA-1` … `TESTEIRA-4`), como nos espaços da gôndola: a testeira com linha própria usa a cor (e a Etiqueta 1) dela; sem linha, usa a do móvel. |
+| **Móvel make** (`MOVEL MAKE 1`…) | Estante de parede com painel de fundo, montantes nas pontas, base com rodapé escuro, 5 prateleiras com a fileira de produtos na borda e **4 testeiras** no alto; o fundo fica do lado da parede (padrão 6 × 1,4 × 3,2). | Uma linha para o móvel e uma por testeira (`MOVEL MAKE 1/TESTEIRA-1` … `TESTEIRA-4`), como nos espaços da gôndola: a testeira com linha própria usa a cor (e a Etiqueta 1) dela; sem linha, usa a do móvel. Testeiras vizinhas com o mesmo texto e cor ficam com uma etiqueta só, centralizada. |
 
-O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. A gôndola tem por padrão a mesma altura da pirâmide (1,94).
+Lado A e meio A são sempre os que estão virados para quem olha a planta. A gôndola tem por padrão a mesma altura da pirâmide (1,94).
 
 Durante a construção, os móveis aparecem **sem cor e sem etiquetas**, para o foco ficar no layout. Para conferir com o ciclo, marque *Mostrar cores e etiquetas do ciclo* em **Exibição e encaixe**.
 

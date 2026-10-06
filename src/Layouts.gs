@@ -29,7 +29,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 10, '02': 9, '03': 6, '04': 7 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 2;
+const VERSAO_EXEMPLO = 3;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -187,25 +187,30 @@ const EXEMPLO_MOVIMENTOS = {
     'MOVEL DE PAREDE 1': ['NEUTRO', [['CUIDADOS (NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 2': ['NEUTRO', [['PERF MASC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 3': ['NEUTRO', [['CUIDADOS (CBEM)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'GONDOLA 1': ['BOT', [['BOTI PROMO', 'BOT'], ['BOTIK', 'BOT'], ['UOMINI HERO', 'BOT']], 'FIXO'],
-    'GONDOLA 1/PONTA-2': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 1': ['BOT', [['', ''], ['BOTIK', 'BOT'], ['UOMINI HERO', 'BOT'], ['BOTI PROMO', 'BOT']], 'FIXO'],
+    'GONDOLA 1/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'PIRAMIDE 1': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'PIRAMIDE 2': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT']]],
-    'MESA DESTAQUE 1': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI']]],
+    'MESA DESTAQUE 1': ['MULTI'],
+    'MESA DESTAQUE 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
+    'MESA DESTAQUE 1/FRENTE-2': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
     'PDV MOVEL 1': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
-    'BALCAO RECEPCAO 1': ['BOT', [['LÇTO EGEO', 'BOT+QDB']]],
+    'BALCAO RECEPCAO 1': ['BOT'],
+    'BALCAO RECEPCAO 1/BLOCO-1': ['BOT', [['LÇTO EGEO', 'BOT']]],
+    'BALCAO RECEPCAO 1/BLOCO-2': ['QDB', [['JUICY MOOD', 'QDB']]],
+    'BALCAO RECEPCAO 1/BLOCO-3': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
     'MOVEL DE FILA 1': ['EUD', [['OUTLET EUD', 'EUD']]],
     'MOVEL DE FILA 2': ['BOT', [['BOTIPROMO', 'BOT']]],
     'TOTEM 1': ['BOT', [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT']]],
     'MOVEL MAKE 1': ['NEUTRO', [['TESTEIRA MAKE MULTIPROMO', 'MULTI']]],
     'MOVEL MAKE 1/TESTEIRA-1': ['#1F1F1F'],
-    'MOVEL MAKE 1/TESTEIRA-2': ['BOT'],
-    'MOVEL MAKE 1/TESTEIRA-3': ['QDB'],
+    'MOVEL MAKE 1/TESTEIRA-2': ['BOT', [['BOTIPROMO MAKE B.', 'BOT']]],
+    'MOVEL MAKE 1/TESTEIRA-3': ['BOT', [['BOTIPROMO MAKE B.', 'BOT']]],
     'MOVEL MAKE 1/TESTEIRA-4': ['EUD'],
   },
   '02': {
-    'GONDOLA 2': ['EUD', [['OUTLET EUD', 'EUD'], ['PERFUMARIA', 'EUD'], ['CUIDADOS', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 2/PONTA-2': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 2': ['EUD', [['', ''], ['PERFUMARIA', 'EUD'], ['CUIDADOS', 'EUD'], ['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 2/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'PIRAMIDE 3': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'MOVEL DE FILA 3': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 4': ['QDB', [['LIQUIDA QDB', 'QDB']]],
@@ -216,7 +221,10 @@ const EXEMPLO_MOVIMENTOS = {
     'GONDOLA 3': ['MULTI', [['MULTI PROMO', 'MULTI'], ['CURTO PRAZO', 'MULTI'], ['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 8': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'MESA DESTAQUE 3 FRENTES 1': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI'], ['UOMINI GLORIFICADO', 'BOT'], ['SIÀGE GLORIFICADO', 'EUD']]],
+    'MESA DESTAQUE 3 FRENTES 1': ['MULTI'],
+    'MESA DESTAQUE 3 FRENTES 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
+    'MESA DESTAQUE 3 FRENTES 1/FRENTE-2': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI']]],
+    'MESA DESTAQUE 3 FRENTES 1/FRENTE-3': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
   },
   '04': {
     'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']], 'MOVIMENTO'],
