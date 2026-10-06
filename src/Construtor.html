@@ -49,7 +49,7 @@ const Construtor = (() => {
     },
     MESA: {
       nome: 'Mesa destaque', prefixo: 'MESA', tam: [2.6, 1.4, 2.6],
-      icone: 'M4 3h7v9H4zM13 3h7v9h-7zM3 12h18v3H3zM5 15v6M19 15v6',
+      icone: 'M4 3h7v9H4zM13 3h7v9h-7zM3 12h18v3H3zM5 15v6M19 15v6M7.5 15h3v6h-3zM13.5 15h3v6h-3z',
     },
     MESA_3: {
       nome: 'Mesa destaque 3 frentes', prefixo: 'MESA3', tam: [3.9, 1.4, 2.6],
@@ -78,6 +78,8 @@ const Construtor = (() => {
   const $ = (id) => document.getElementById(id);
   const clonar = (o) => JSON.parse(JSON.stringify(o));
   const arred = (v) => Math.round(v * 100) / 100;
+  /** Nome da planta (mesma regra de nomePlanta_ no Code.gs). */
+  const nomePlanta = (id) => (app.estado.dados.config.nomesPlantas || {})[id] || 'PLANTA ' + id;
   const nomeTipo = (t) => (TIPOS[t] ? TIPOS[t].nome : t.charAt(0) + t.slice(1).toLowerCase().replace(/_/g, ' '));
   const sujo = () => c.nova || c.historico.length > 0;
 
@@ -364,7 +366,7 @@ const Construtor = (() => {
     while (ids.indexOf(id) >= 0) { n++; id = (n < 10 ? '0' : '') + n; }
     const base = c.planta;
     c.planta = {
-      id, nome: 'PLANTA ' + id,
+      id, nome: nomePlanta(id),
       loja: { largura: 20, profundidade: 18, alturaParede: 4.6 },
       // Começa com as paredes e os extras da planta atual (ajuste depois).
       moveis: clonar(base.moveis.filter((m) => m.tipo === 'GONDOLA_PAREDE' || m.tipo === 'EXTRA')),
@@ -375,7 +377,7 @@ const Construtor = (() => {
     lerReferencia(id);
     preencherTudo();
     app.desenhar();
-    app.toast('PLANTA ' + id + ' criada. Ajuste e clique em Salvar planta.');
+    app.toast(c.planta.nome + ' criada. Ajuste e clique em Salvar planta.');
   }
 
   async function salvar() {
@@ -451,7 +453,7 @@ const Construtor = (() => {
       const json = JSON.parse(await arquivo.text());
       if (!json || json.formato !== 'plano-varejo-layout' || !json.plantas) throw new Error('Arquivo não é um código de loja deste visualizador.');
       const ids = Object.keys(json.plantas);
-      if (!window.confirm('Substituir o layout de: ' + ids.map((i) => 'PLANTA ' + i).join(', ') + '?')) return;
+      if (!window.confirm('Substituir o layout de: ' + ids.map(nomePlanta).join(', ') + '?')) return;
       app.carregando(true, 'Carregando layout…');
       for (const id of ids) {
         const p = json.plantas[id];

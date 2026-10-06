@@ -298,6 +298,46 @@ const Render = (() => {
     });
   }
 
+  /** Blocos da gôndola na ordem das colunas Etiqueta 1…4 da linha da gôndola inteira. */
+  const BLOCOS_GONDOLA = ['PONTA-1', 'MEIO-A', 'MEIO-B', 'PONTA-2'];
+
+  /**
+   * Etiquetas da gôndola: uma por bloco. A linha do espaço (GON-01/MEIO-A…) usa a
+   * própria Etiqueta 1; sem ela, o bloco mostra a etiqueta da linha da gôndola inteira
+   * na posição dele (Etiqueta 1 = Ponta 1, 2 = Meio A, 3 = Meio B, 4 = Ponta 2). As
+   * metades de um meio dividido que usam a mesma etiqueta da gôndola mostram uma só,
+   * no centro do meio. O símbolo da gôndola inteira vai só na primeira etiqueta dela.
+   * @return {Array<{id, info, etiquetas, simbolo, topo: number[]}>} topo = ponto 3D (x, y, z) da âncora
+   */
+  function etiquetasGondola(m, geral, infoEspaco) {
+    const lista = [];
+    const porBloco = {};
+    let simboloGeral = geral ? geral.simbolo : '';
+    caixasGondola(m).forEach((b) => {
+      const id = m.id + '/' + b.espaco.id;
+      const topo = [b.x + b.w / 2, b.y + b.d / 2, b.z + b.h];
+      const proprio = infoEspaco[id];
+      if (proprio && proprio.etiquetas.length) {
+        lista.push({ id, info: proprio, etiquetas: proprio.etiquetas.slice(0, 1), simbolo: proprio.simbolo, pontos: [topo] });
+        return;
+      }
+      const bloco = b.espaco.id.replace(/^(MEIO-[AB])-\d$/, '$1');
+      if (porBloco[bloco]) {
+        porBloco[bloco].pontos.push(topo);
+        return;
+      }
+      const n = BLOCOS_GONDOLA.indexOf(bloco) + 1;
+      const e = geral ? geral.etiquetas.filter((x, k) => (x.posicao || k + 1) === n)[0] : null;
+      if (!e) return;
+      porBloco[bloco] = { id: m.id + '/' + bloco, info: geral, etiquetas: [e], simbolo: simboloGeral, pontos: [topo] };
+      simboloGeral = '';
+      lista.push(porBloco[bloco]);
+    });
+    return lista.map((it) => Object.assign(it, {
+      topo: [0, 1, 2].map((k) => it.pontos.reduce((s, p) => s + p[k], 0) / it.pontos.length),
+    }));
+  }
+
   /** Quebra um móvel em caixas "ordenáveis" (gôndola → espaços; vitrine em L → dois braços). */
   function primitivas(m) {
     if (m.tipo === 'GONDOLA') return caixasGondola(m);
@@ -328,27 +368,38 @@ const Render = (() => {
       case 'MESA':
       case 'MESA_3': {
         // Mesa destaque: estrutura com pernas, 2 (ou 3) nichos lado a lado em cima
-        // e painel de vidro ao fundo com uma lâmina por nicho.
+        // e painel de vidro ao fundo com uma lâmina por nicho. A mesa de 2 nichos tem
+        // nichos baixos e, embaixo do tampo, um bloco vertical na frente de cada nicho.
         const n = m.tipo === 'MESA_3' ? 3 : 2;
+        const blocosFrente = m.tipo === 'MESA';
         const [L, C] = eixos(b);
         const hBase = b.h * 0.32;
-        const hNicho = b.h * 0.27;
+        const hNicho = b.h * (blocosFrente ? 0.15 : 0.27);
         const painel = Math.min(0.15, C * 0.12);
         const fresta = Math.min(0.08, L * 0.04);
         const perna = Math.min(0.08, L * 0.05);
         const passo = L / n;
+        const g = 0.03;
         const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
         for (let k = 0; k < n; k++) {
           const u0 = k * passo + (k ? fresta / 2 : 0);
           const u1 = (k + 1) * passo - (k < n - 1 ? fresta / 2 : 0);
           caixa(pai, P, loc(u0, u1, 0, painel, hBase, b.h), { cores, vidro: true });
         }
-        [[0, painel], [L - perna, painel], [0, C - perna], [L - perna, C - perna]].forEach(([u, v]) => {
-          caixa(pai, P, loc(u, u + perna, v, v + perna, 0, hBase - 0.06), { cores: [COR.metal] });
-        });
+        // Pernas do fundo, blocos da frente e pernas da frente, nessa ordem (pintura de trás para a frente).
+        const desenharPerna = ([u, v]) => caixa(pai, P, loc(u, u + perna, v, v + perna, 0, hBase - 0.06), { cores: [COR.metal] });
+        [[0, painel], [L - perna, painel]].forEach(desenharPerna);
+        if (blocosFrente) {
+          const larg = Math.min(passo * 0.42, (hBase - 0.06) * 0.7); // mais alto que largo
+          const fundo = C * 0.4;
+          for (let k = 0; k < n; k++) {
+            const meio = (k + 0.5) * passo;
+            caixa(pai, P, loc(meio - larg / 2, meio + larg / 2, C - fundo, C - g, 0, hBase - 0.06), { cores, vidro: true });
+          }
+        }
+        [[0, C - perna], [L - perna, C - perna]].forEach(desenharPerna);
         caixa(pai, P, loc(0, L, painel, C, hBase - 0.06, hBase), { cores: [COR.metal] });
         const v0 = painel + 0.05;
-        const g = 0.03;
         for (let k = 0; k < n; k++) {
           caixa(pai, P, loc(k * passo + g, (k + 1) * passo - g, v0 + g, C - g, hBase, hBase + hNicho), { cores, vidro: true });
         }
@@ -917,12 +968,14 @@ const Render = (() => {
       obstaculos.push(c);
     });
 
-    // Etiquetas: uma pilha por móvel e, nas gôndolas, uma por espaço que tenha linha própria.
+    // Etiquetas: uma pilha por móvel (limitada por tipo) e, na gôndola, uma por bloco.
+    // As etiquetas de uma gôndola compartilham o ajuste manual do móvel (movem juntas).
+    const limitePorTipo = ctx.dados.config.etiquetasPorTipo || {};
     const grupos = [];
-    const novoGrupo = (id, m, i, ancora, ajuste) => {
-      if (!i || !i.etiquetas.length) return;
+    const novoGrupo = (id, m, i, etiquetas, simbolo, ancora, ajuste) => {
+      if (!etiquetas.length) return;
       const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta')) || [COR.etiquetaPadrao];
-      const med = medirGrupo(i.etiquetas, i.simbolo, corPadrao);
+      const med = medirGrupo(etiquetas, simbolo, corPadrao);
       const baseX = ancora[0] - med.w / 2;
       const baseY = ancora[1] - med.h / 2;
       grupos.push(Object.assign(med, {
@@ -932,13 +985,14 @@ const Render = (() => {
     };
     moveis.forEach((m) => {
       const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
-      novoGrupo(m.id, m, info[m.id], ancoraDe(m), ajuste);
       if (m.tipo === 'GONDOLA') {
-        caixasGondola(m).forEach((b) => {
-          const id = m.id + '/' + b.espaco.id;
-          novoGrupo(id, m, infoEspaco[id], P(b.x + b.w / 2, b.y + b.d / 2, b.z + b.h), { x: 0, y: 0 });
+        etiquetasGondola(m, info[m.id], infoEspaco).forEach((e) => {
+          novoGrupo(e.id, m, e.info, e.etiquetas, e.simbolo, P(e.topo[0], e.topo[1], e.topo[2]), ajuste);
         });
+        return;
       }
+      const i = info[m.id];
+      if (i) novoGrupo(m.id, m, i, i.etiquetas.slice(0, limitePorTipo[m.tipo] || i.etiquetas.length), i.simbolo, ancoraDe(m), ajuste);
     });
     posicionar(grupos, obstaculos);
     grupos.forEach((gr) => {

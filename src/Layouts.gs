@@ -22,10 +22,10 @@
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 4, '02': 3, '03': 2, '04': 2 };
+const VERSAO_MODELO_PLANTAS = { '01': 5, '02': 4, '03': 2, '04': 2 };
 
 const LAYOUT_PADRAO = {
-  // PLANTA 01: layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06_2.json).
+  // PLANTA 01 (ER P): layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06_2.json).
   '01': {
     loja: [12, 10, 4.4],
     moveis: [
@@ -49,7 +49,7 @@ const LAYOUT_PADRAO = {
     ],
   },
 
-  // PLANTA 02: layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06.json),
+  // PLANTA 02 (ER M): layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06.json),
   // com gôndolas na altura da pirâmide e móveis de fila pela metade.
   '02': {
     loja: [16, 14, 4.4],
@@ -72,6 +72,7 @@ const LAYOUT_PADRAO = {
     ],
   },
 
+  // PLANTA 03 (ER G)
   '03': {
     loja: [24, 20, 4.6],
     moveis: [
@@ -117,6 +118,7 @@ const LAYOUT_PADRAO = {
     ],
   },
 
+  // PLANTA 04 (ER GG)
   '04': {
     loja: [28, 22, 4.6],
     moveis: [
@@ -186,6 +188,8 @@ const LAYOUT_PADRAO = {
  *  Móvel: ID → [marca do móvel, [[etiqueta, marca da etiqueta], ...], símbolo]
  *  Planta "TODAS" vale para todas as plantas que tiverem aquele ID
  *  (uma linha da planta específica tem prioridade).
+ *  Pirâmide e mesa destaque mostram 1 etiqueta; na gôndola inteira, as
+ *  etiquetas 1–4 vão para Ponta 1, Meio A, Meio B e Ponta 2 (ETIQUETAS_POR_TIPO).
  * ------------------------------------------------------------------------ */
 
 const EXEMPLO_CICLO = 'Ciclo exemplo';
@@ -198,10 +202,7 @@ const EXEMPLO_MOVIMENTOS = {
     'PF-01': ['NEUTRO', [['CUIDADOS (CBEM)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'TOTEM-01': ['BOT', [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT']]],
     'CUBO-SIAGE': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
-    'MESA-VM': ['MULTI', [
-      ['VM PERMANENTE MULTI PROMO', 'MULTI'], ['UOMINI GLORIFICADO', 'BOT'],
-      ['SIÀGE GLORIFICADO', 'EUD'], ['VERSO: LÇTO EGEO', 'BOT+QDB'],
-    ]],
+    'MESA-VM': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI']]],
     'VITRINE': ['BOT', [['LÇTO EGEO', 'BOT+QDB']]],
     'ILHA-06': ['BOT', [['EGEO + QDB JUICY MOOD', 'BOT+QDB']]],
     'ILHA-01': ['BOT', [['BOTIK', 'BOT']], 'FIXO'],
@@ -209,9 +210,9 @@ const EXEMPLO_MOVIMENTOS = {
     'ILHA-03': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'GON-01': ['MULTI', [['ITENS FIXOS', 'MULTI']], 'FIXO'],
     'GON-02': ['MULTI', [['CURTO PRAZO', 'MULTI']], 'FIXO'],
-    'PIR-01': ['BOT', [['BOTI PROMO', 'BOT'], ['OUTLET EUD', 'EUD'], ['PRINCIPAIS OPORTUNIDADES', 'EUD']]],
-    'PIR-02': ['EUD', [['MULTI PROMO', 'MULTI'], ['BOT + EUD + OUI', 'MULTI']]],
-    'PIR-03': ['MULTI', [['CURTO PRAZO', 'MULTI'], ['+PEC REGIONAL', 'MULTI']], 'FIXO'],
+    'PIR-01': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT']]],
+    'PIR-02': ['EUD', [['MULTI PROMO', 'MULTI']]],
+    'PIR-03': ['MULTI', [['CURTO PRAZO +PEC REGIONAL', 'MULTI']], 'FIXO'],
     'PF-04': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
     'EXTRA-CESTINHAS': ['NEUTRO', [['LÇTO EGEO', 'BOT+QDB']]],
     'EXTRA-BELEZA': ['NEUTRO', [['BOTIPROMO MAKE B.', 'BOT'], ['LIQUIDA MAKE', 'QDB']]],
@@ -222,28 +223,22 @@ const EXEMPLO_MOVIMENTOS = {
     'PAR-02': ['NEUTRO', [['PERF FEM', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'PAR-04': ['NEUTRO', [['PERF MASC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'PAR-01': ['NEUTRO', [['CUIDADOS (CBEM)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'GON-01': ['BOT', [['BOTIK', 'BOT']], 'FIXO'],
+    'GON-01': ['BOT', [['BOTI PROMO', 'BOT'], ['BOTIK', 'BOT'], ['UOMINI HERO', 'BOT']], 'FIXO'],
     'GON-01/PONTA-2': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'MESA-01': ['MULTI', [
-      ['VM PERMANENTE MULTI PROMO', 'MULTI'], ['UOMINI GLORIFICADO', 'BOT'],
-      ['SIÀGE GLORIFICADO', 'EUD'], ['VERSO: LÇTO EGEO', 'BOT+QDB'],
-    ]],
+    'MESA-01': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI']]],
     'BALCAO-01': ['BOT', [['LÇTO EGEO', 'BOT+QDB']]],
     'PDV-01': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
     'FILA-01': ['BOT', [['BOTIPROMO', 'BOT']]],
     'FILA-02': ['EUD', [['OUTLET EUD', 'EUD']]],
   },
   '02': {
-    'GON-01': ['MULTI', [['ITENS FIXOS', 'MULTI']], 'FIXO'],
+    'GON-01': ['MULTI', [['ITENS FIXOS', 'MULTI'], ['CURTO PRAZO', 'MULTI'], ['MULTI PROMO', 'MULTI']], 'FIXO'],
     'GON-01/PONTA-2': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
-    'GON-02': ['EUD', [['OUTLET EUD', 'EUD'], ['PERFUMARIA', 'EUD']], 'MOVIMENTO'],
+    'GON-02': ['EUD', [['OUTLET EUD', 'EUD'], ['PERFUMARIA', 'EUD'], ['CUIDADOS', 'EUD']], 'MOVIMENTO'],
     'GON-02/PONTA-2': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'PIR-03': ['BOT', [['BOTI PROMO', 'BOT'], ['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
-    'PIR-04': ['MULTI', [['CURTO PRAZO', 'MULTI'], ['+PEC REGIONAL', 'MULTI']], 'FIXO'],
-    'MESA-01': ['MULTI', [
-      ['VM PERMANENTE MULTI PROMO', 'MULTI'], ['UOMINI GLORIFICADO', 'BOT'],
-      ['SIÀGE GLORIFICADO', 'EUD'], ['VERSO: LÇTO EGEO', 'BOT+QDB'],
-    ]],
+    'PIR-03': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
+    'PIR-04': ['MULTI', [['CURTO PRAZO +PEC REGIONAL', 'MULTI']], 'FIXO'],
+    'MESA-01': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI']]],
     'FILA-01': ['BOT', [['BOTIPROMO', 'BOT']]],
     'FILA-02': ['EUD', [['OUTLET EUD', 'EUD']]],
     'PDV-01': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
@@ -292,8 +287,8 @@ const EXEMPLO_MOVIMENTOS = {
     'GON-06': ['EUD', [['EXAUSTÃO EUD', 'EUD']], 'MOVIMENTO'],
     'OUI-01': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
     'OUI-02': ['OUI', [['Hôtel de Ville 193', 'OUI'], ['MON AMIE + LOÇÃO', 'OUI']], 'EXPOSICAO'],
-    'PIR-04': ['MULTI', [['OUTLET EUD', 'EUD'], ['ISCAS EXAUSTÃO', 'EUD']], 'MOVIMENTO'],
-    'PIR-05': ['BOT', [['BOTI PROMO', 'BOT'], ['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
+    'PIR-04': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']], 'MOVIMENTO'],
+    'PIR-05': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
   },
 };
 

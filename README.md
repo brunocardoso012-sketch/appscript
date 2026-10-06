@@ -2,7 +2,7 @@
 
 App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, no formato de slide (16:9), com cada móvel pintado pela cor da marca. Tudo vem de uma planilha: é só trocar o **ciclo** no seletor que as cores e os textos mudam.
 
-![Exemplo — Planta 02](docs/exemplo-planta-02.png)
+![Exemplo — ER M (planta 02)](docs/exemplo-planta-02.png)
 
 | Cor | Marca | Código na planilha |
 |---|---|---|
@@ -15,13 +15,13 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 
 ## O que ele faz
 
-- **Seletor de ciclo e abas por planta** (PLANTA 01…04). As setas ← → do teclado trocam de planta.
+- **Seletor de ciclo e abas por planta** (ER P, ER M, ER G e ER GG = plantas 01 a 04). As setas ← → do teclado trocam de planta.
 - **Móveis coloridos pela marca**, com as etiquetas (caixas de texto) de cada móvel, os símbolos ▶ ◆ Ⓔ e NEW, as caixas de destaque que apontam para um móvel, a lateral TV/rádio, (A), (C), as notas e a faixa Cestinhas / Espaço da Beleza / Cavalete.
 - **Botão "Baixar planilha base"**: gera um `.xlsx` com uma linha por móvel de cada planta, listas suspensas e cores por marca. Pode vir em branco ou já preenchido com um ciclo existente, para servir de ponto de partida do próximo.
 - **Botão "Importar planilha"**: lê o `.xlsx` preenchido, grava no Google Sheets e já mostra o ciclo importado.
 - **Filtro por marca**: clique numa marca da legenda para destacar só os móveis dela.
 - **Baixar PNG** em 3840×2160, pronto para colar na apresentação.
-- **Ajustar etiquetas**: as etiquetas se afastam sozinhas para não se sobrepor. Se quiser outra posição, arraste e clique em *Salvar posições*.
+- **Ajustar etiquetas**: as etiquetas se afastam sozinhas para não se sobrepor. Se quiser outra posição, arraste e clique em *Salvar posições*. As etiquetas de uma gôndola movem juntas.
 
 ## Construir loja (editor do layout)
 
@@ -41,14 +41,14 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 
 | Móvel | Como é desenhado | Na planilha |
 |---|---|---|
-| **Gôndola** (`GON-…`) | 4 espaços: **Ponta 1**, **Meio A**, **Meio B** e **Ponta 2**, com 4 níveis de prateleira. Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GON-01`) e uma por espaço: `GON-01/PONTA-1`, `GON-01/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GON-01/MEIO-B`, `GON-01/PONTA-2`. O espaço preenchido tem cor e etiquetas próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. |
-| **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 1,94). | Uma linha. |
+| **Gôndola** (`GON-…`) | 4 espaços: **Ponta 1**, **Meio A**, **Meio B** e **Ponta 2**, com 4 níveis de prateleira. Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GON-01`) e uma por espaço: `GON-01/PONTA-1`, `GON-01/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GON-01/MEIO-B`, `GON-01/PONTA-2`. O espaço preenchido tem cor e etiqueta próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. **Uma etiqueta por bloco:** na linha da gôndola inteira, Etiqueta 1 = Ponta 1, 2 = Meio A, 3 = Meio B e 4 = Ponta 2; a Etiqueta 1 da linha de um espaço substitui a daquele bloco. |
+| **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 1,94). | Uma linha, **1 etiqueta**. |
 | **Móvel de fila** (`FILA-…`) | Bloco único retangular com 4 níveis (padrão 1,5 × 0,4 × 0,99). | Uma linha. |
 | **Móvel de parede** (`PAR-…`) | Estante encostada na parede, com prateleiras (padrão 4 × 1,1 × 3,2). | Uma linha. |
 | **Totem** (`TOTEM-…`) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
 | **PDV móvel** (`PDV-…`) | Cubo de vidro sobre rodapé escuro. | Uma linha. |
-| **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos lado a lado em cima e painel de vidro de duas lâminas ao fundo. | Uma linha. |
-| **Mesa destaque 3 frentes** (`MESA3-…`) | Igual à mesa destaque, com 3 nichos e painel de 3 lâminas (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
+| **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 blocos verticais na frente, embaixo do tampo. | Uma linha, **1 etiqueta**. |
+| **Mesa destaque 3 frentes** (`MESA3-…`) | Estrutura com pernas, 3 nichos em cima e painel de 3 lâminas ao fundo, sem blocos embaixo (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
 | **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); padrão 2,4 × 2,4 × 1,92. | Uma linha. |
 
 O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. Os tipos antigos do layout de exemplo (caixa, painel) continuam aparecendo, mas não são oferecidos na paleta. A gôndola tem por padrão a mesma altura da pirâmide (1,94).
@@ -145,11 +145,11 @@ Também dá para editar direto nas abas do Google Sheets e clicar em **Atualizar
 | Coluna | O que é |
 |---|---|
 | **Ciclo** | Nome do ciclo (ex.: `C15/2026`). Aparece no seletor. |
-| **Planta** | `01`, `02`… ou `TODAS` (vale para todas as plantas que têm o móvel; a linha da planta específica tem prioridade). |
+| **Planta** | Nome da planta (`ER P`, `ER M`, `ER G`, `ER GG`), o número dela (`01`…`04`) ou `TODAS` (vale para todas as plantas que têm o móvel; a linha da planta específica tem prioridade). A planilha base vem com o nome. |
 | **ID Móvel** | Liga a linha ao desenho. **Não altere**, deve existir na aba Layout. |
 | Móvel (referência) | Só para orientação (ex.: *Ilha central – Botik*). |
 | **Marca do Móvel** | Cor do móvel: `BOT`, `QDB`, `EUD`, `OUI`, `MULTI`, `NEUTRO`. Aceita combinação (`BOT+QDB` gera degradê) ou cor livre (`#FF8800`). |
-| Etiqueta 1…4 | Texto de cada caixinha. Quebra de linha na célula (Alt+Enter) vira quebra na etiqueta. |
+| Etiqueta 1…4 | Texto de cada caixinha. Quebra de linha na célula (Alt+Enter) vira quebra na etiqueta. Pirâmide e mesa destaque mostram só a primeira; na gôndola, cada etiqueta vai para um bloco (ver *Os móveis*). Na planilha base, as colunas que não aparecem na planta ficam cinza. |
 | Marca Etiqueta 1…4 | Cor de cada etiqueta. Se vazio, usa a cor do móvel. |
 | Símbolo | `MOVIMENTO` (▶), `FIXO` (◆), `EXPOSICAO` (Ⓔ), `NOVO` (selo NEW). |
 | Observação | Aparece ao passar o mouse sobre o móvel. |
@@ -190,12 +190,13 @@ Cada linha é um móvel de uma planta. **Para criar uma planta nova, basta acres
 | Largura (eixo X), Profundidade (eixo Y), Altura | Tamanho. |
 | Ajuste Etiqueta X / Y (px) | Preenchidos pelo botão *Salvar posições*. Zere para voltar ao posicionamento automático. |
 
-O layout que vem pronto é uma **aproximação** das plantas de referência; as **PLANTAS 01 e 02** já usam layouts montados no modo Construir loja. Ajuste as coordenadas na aba Layout e clique em **Atualizar** para ver o resultado.
+O layout que vem pronto é uma **aproximação** das plantas de referência; as plantas **ER P (01) e ER M (02)** já usam layouts montados no modo Construir loja. Ajuste as coordenadas na aba Layout e clique em **Atualizar** para ver o resultado.
 
 ## Personalização
 
 - **Cores e marcas:** `MARCAS` em [`src/Config.gs`](src/Config.gs). Cada marca tem a cor da etiqueta, a cor do móvel e apelidos aceitos na planilha. Uma marca nova aparece sozinha na legenda, nas listas suspensas e na planilha base.
-- **Quantidade de etiquetas por móvel:** `CONFIG.MAX_ETIQUETAS` (padrão 4).
+- **Quantidade de etiquetas por móvel:** `CONFIG.MAX_ETIQUETAS` (padrão 4); por tipo de móvel, `ETIQUETAS_POR_TIPO` (pirâmide 1, mesa destaque 1, gôndola 1 por bloco).
+- **Nomes das plantas:** `NOMES_PLANTAS` (01 = ER P, 02 = ER M, 03 = ER G, 04 = ER GG). Planta sem nome aparece como *PLANTA 05*.
 - **Nomes das abas:** `CONFIG.ABAS`.
 - **Menu Plano de Varejo › Restaurar layout padrão** recria a aba Layout a partir de [`src/Layouts.gs`](src/Layouts.gs).
 
