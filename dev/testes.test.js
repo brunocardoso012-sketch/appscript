@@ -85,7 +85,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.equal(ilha.simbolo, 'MOVIMENTO');
   assert.deepEqual(Object.keys(d2.movimentos['Ciclo exemplo']['01']), ['PIR-01'], 'par (ciclo, planta) substituído');
   assert.equal(d2.movimentos['Ciclo exemplo']['01']['PIR-01'].etiquetas[0].texto, '10/2026');
-  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 11, 'outras plantas intactas');
+  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 21, 'outras plantas intactas');
   assert.equal(d2.paineis['C15/2026'].TODAS[0].secao, 'TV');
 
   const aj = run("salvarAjustesEtiquetas('2', { 'PIR-01': { x: 40.4, y: -12 } })");
@@ -178,7 +178,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 7, '03': 2, '04': 3 }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
-  assert.equal(r.versoes['02'], 5);
+  assert.equal(r.versoes['02'], 6);
   const ids = (planta) => r.abas.layout.slice(1).filter((l) => l[0] === planta).map((l) => l[1]);
   assert.ok(!ids('02').includes('VELHO-01') && ids('02').includes('MESA-01') && ids('02').includes('LOJA'), 'planta 02 com o modelo novo');
   assert.ok(ids('01').includes('MEU-01'), 'planta 01 intacta');
