@@ -394,8 +394,8 @@ const Render = (() => {
       case 'MESA':
       case 'MESA_3': {
         // Mesa destaque: estrutura com pernas, 2 (ou 3) nichos baixos lado a lado em cima e
-        // painel de vidro ao fundo com uma lâmina por nicho. Na frente, um cartaz por nicho, do
-        // mesmo tamanho da lâmina do fundo, que sobe do chão e fica na frente do nicho.
+        // painel de vidro ao fundo com uma lâmina por nicho. Na frente, um cartaz por nicho, da
+        // largura da lâmina do fundo, que sobe do chão e termina junto com o topo do nicho.
         const n = m.tipo === 'MESA_3' ? 3 : 2;
         const [L, C] = eixos(b);
         const hBase = b.h * 0.32;
@@ -422,7 +422,7 @@ const Render = (() => {
         }
         for (let k = 0; k < n; k++) {
           const [u0, u1] = lamina(k);
-          caixa(pai, P, loc(u0, u1, frente, C, 0, b.h - hBase), { cores, vidro: true });
+          caixa(pai, P, loc(u0, u1, frente, C, 0, hBase + hNicho), { cores, vidro: true });
         }
         break;
       }
@@ -492,7 +492,7 @@ const Render = (() => {
         caixa(pai, P, b, { cores, moldura: true });
         break;
       case 'VITRINE_L':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2 });
         break;
       case 'CAIXA': {
         // Móvel de atendimento: balcão com a tela preta em cima, no lado do fundo (acompanha o giro).
@@ -509,7 +509,7 @@ const Render = (() => {
         break;
       }
       case 'FILA':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4, modulo: 1.5 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3, modulo: 1.5 });
         break;
       default: // GONDOLA (cada espaço é uma caixa) e tipos desconhecidos
         caixa(pai, P, b, { cores, vidro: true, prateleiras: 4 });

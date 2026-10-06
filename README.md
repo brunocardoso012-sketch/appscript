@@ -43,16 +43,16 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 |---|---|---|
 | **Gôndola** (`GON-…`) | 4 espaços: **Ponta 1**, **Meio A**, **Meio B** e **Ponta 2**, com 4 níveis de prateleira. Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GON-01`) e uma por espaço: `GON-01/PONTA-1`, `GON-01/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GON-01/MEIO-B`, `GON-01/PONTA-2`. O espaço preenchido tem cor e etiqueta próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. **Uma etiqueta por bloco:** na linha da gôndola inteira, Etiqueta 1 = Ponta 1, 2 = Meio A, 3 = Meio B e 4 = Ponta 2; a Etiqueta 1 da linha de um espaço substitui a daquele bloco. |
 | **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 1,94). | Uma linha, **1 etiqueta**. |
-| **Móvel de fila** (`FILA-…`) | Bloco único retangular com 4 níveis (padrão 1,5 × 0,4 × 1,94, a altura da gôndola). | Uma linha. |
+| **Móvel de fila** (`FILA-…`) | Bloco único retangular com 3 níveis (padrão 1,5 × 0,4 × 1,46). | Uma linha. |
 | **Móvel de parede** (`PAR-…`) | Estante encostada na parede, com prateleiras (padrão 4 × 1,1 × 3,2). | Uma linha. |
 | **Totem** (`TOTEM-…`) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
 | **PDV móvel** (`PDV-…`) | Cubo de vidro sobre rodapé escuro. | Uma linha. |
-| **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 cartazes na frente, do mesmo tamanho das lâminas do fundo, subindo do chão na frente dos nichos. | Uma linha, **1 etiqueta**. |
+| **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 cartazes na frente, da largura das lâminas do fundo, subindo do chão até o topo dos nichos. | Uma linha, **1 etiqueta**. |
 | **Mesa destaque 3 frentes** (`MESA3-…`) | Estrutura com pernas, 3 nichos baixos em cima (mesma altura dos da mesa destaque), painel de 3 lâminas ao fundo e 3 cartazes na frente, iguais aos da mesa destaque (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
-| **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); padrão 2,4 × 2,4 × 1,92. *Girar* muda o canto do L. | Uma linha. |
+| **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); 2 níveis; padrão 2,4 × 2,4 × 1,28. *Girar* muda o canto do L. | Uma linha. |
 | **Móvel de atendimento** (`CX-…`) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | Uma linha. |
 | **Parede O.U.i** (`OUI-…`) | Painel alto com moldura, para a parede (padrão 3,6 × 0,9 × 5). | Uma linha. |
-| **Totem O.U.i** (`OUI-…`) | Expositor estreito com moldura, na altura da gôndola (padrão 0,8 × 1,6 × 1,94). | Uma linha. |
+| **Totem O.U.i** (`OUI-…`) | Expositor de base quadrada com moldura, na altura da gôndola (padrão 0,8 × 0,8 × 1,94). | Uma linha. |
 | **Ilha premium O.U.i** (`ILHAOUI-…`) | Base com prateleiras e, atrás, painel alto com duas faixas verticais mais claras nas laterais (padrão 3 × 1,6 × 3). | Uma linha. |
 | **Móvel make** (`MAKE-…`) | Estante de parede com painel de fundo, montantes nas pontas, base com rodapé escuro, 5 prateleiras com a fileira de produtos na borda e **4 testeiras** no alto; o fundo fica do lado da parede (padrão 6 × 1,4 × 3,2). | Uma linha para o móvel e uma por testeira (`MAKE-01/TESTEIRA-1` … `TESTEIRA-4`), como nos espaços da gôndola: a testeira com linha própria usa a cor (e a Etiqueta 1) dela; sem linha, usa a do móvel. |
 

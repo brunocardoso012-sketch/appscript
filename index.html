@@ -466,7 +466,7 @@ const TIPOS_MOVEL = {
   LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
   PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados (1 etiqueta)',
   GONDOLA: 'Gôndola: 2 pontas + 2 meios (cada meio pode ser dividido em dois), 4 níveis de prateleira, 1 etiqueta por bloco',
-  FILA: 'Móvel de fila: bloco único retangular com 4 níveis, na altura da gôndola',
+  FILA: 'Móvel de fila: bloco único retangular com 3 níveis',
   GONDOLA_PAREDE: 'Móvel de parede: estante encostada na parede, com prateleiras',
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
   MESA: 'Mesa destaque: 2 nichos baixos sobre estrutura, painel de vidro ao fundo e 2 painéis na frente, embaixo (1 etiqueta)',
@@ -1547,7 +1547,7 @@ function removerAbaPadraoVazia_(ss) {
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 7, '02': 6, '03': 2, '04': 3 };
+const VERSAO_MODELO_PLANTAS = { '01': 8, '02': 7, '03': 3, '04': 4 };
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06_2.json, 2ª versão):
@@ -1563,9 +1563,9 @@ const LAYOUT_PADRAO = {
       ['PIR-01', 'Pirâmide 1', 'PIRAMIDE', 6, 4.5, 1.02, 1.02, 1.94],
       ['MESA-01', 'Mesa destaque', 'MESA', 8.5, 3.5, 2.6, 1.4, 2.6],
       ['PDV-01', 'PDV móvel', 'CUBO', 5.5, 7, 1.3, 1.3, 1.6],
-      ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 9.5, 6.5, 2.4, 2.4, 1.92, 0, 0, 0, '', 90],
-      ['FILA-01', 'Móvel de fila 1', 'FILA', 2, 9.5, 1.5, 0.4, 1.94],
-      ['FILA-02', 'Móvel de fila 2', 'FILA', 2, 8, 1.5, 0.4, 1.94],
+      ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 9.5, 6.5, 2.4, 2.4, 1.28, 0, 0, 0, '', 90],
+      ['FILA-01', 'Móvel de fila 1', 'FILA', 2, 9.5, 1.5, 0.4, 1.46],
+      ['FILA-02', 'Móvel de fila 2', 'FILA', 2, 8, 1.5, 0.4, 1.46],
       ['TOTEM-01', 'Totem', 'TOTEM', 6, 8.5, 0.35, 1.5, 3.4],
       ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
@@ -1585,10 +1585,10 @@ const LAYOUT_PADRAO = {
       ['PIR-01', 'Pirâmide 1', 'PIRAMIDE', 10, 3.5, 1.02, 1.02, 1.94],
       ['PIR-03', 'Pirâmide 3', 'PIRAMIDE', 12, 3.5, 1.02, 1.02, 1.94],
       ['MESA-01', 'Mesa destaque', 'MESA', 11.5, 7.5, 2.6, 1.4, 2.6],
-      ['FILA-02', 'Móvel de fila 2', 'FILA', 2.5, 10.5, 1.5, 0.4, 1.94],
-      ['FILA-01', 'Móvel de fila 1', 'FILA', 2.5, 12.5, 1.5, 0.4, 1.94],
+      ['FILA-02', 'Móvel de fila 2', 'FILA', 2.5, 10.5, 1.5, 0.4, 1.46],
+      ['FILA-01', 'Móvel de fila 1', 'FILA', 2.5, 12.5, 1.5, 0.4, 1.46],
       ['PDV-01', 'PDV móvel', 'CUBO', 8, 11, 1.3, 1.3, 1.6],
-      ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 13.5, 11, 2.4, 2.4, 1.92, 0, 0, 0, '', 90],
+      ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 13.5, 11, 2.4, 2.4, 1.28, 0, 0, 0, '', 90],
       ['TOTEM-01', 'Totem', 'TOTEM', 8.5, 12.5, 0.35, 1.5, 3.4],
       ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
@@ -1599,10 +1599,10 @@ const LAYOUT_PADRAO = {
       ['MAKE-01', 'Móvel make', 'MAKE', 0, 1.5, 1.4, 6, 3.2],
       ['CX-01', 'Móvel de atendimento 1', 'CAIXA', 0, 11.5, 1.2, 1.8, 1.7],
       ['CX-02', 'Móvel de atendimento 2', 'CAIXA', 0, 9.5, 1.2, 1.8, 1.7],
-      ['FILA-04', 'Móvel de fila 4', 'FILA', 4, 12.5, 1.5, 0.4, 1.94],
-      ['FILA-05', 'Móvel de fila 5', 'FILA', 4, 10.5, 1.5, 0.4, 1.94],
+      ['FILA-04', 'Móvel de fila 4', 'FILA', 4, 12.5, 1.5, 0.4, 1.46],
+      ['FILA-05', 'Móvel de fila 5', 'FILA', 4, 10.5, 1.5, 0.4, 1.46],
       ['OUI-01', 'Parede O.U.i', 'PAINEL', 12.5, 0, 3.6, 0.9, 5],
-      ['OUI-02', 'Totem O.U.i', 'EXPOSITOR_OUI', 8.5, 9, 0.8, 1.6, 1.94],
+      ['OUI-02', 'Totem O.U.i', 'EXPOSITOR_OUI', 8.5, 9.4, 0.8, 0.8, 1.94],
       ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 14, 3.5, 1.02, 1.02, 1.94],
     ],
   },
@@ -1643,7 +1643,7 @@ const LAYOUT_PADRAO = {
       ['CUBO-SIAGE', 'PDV móvel Siàge', 'CUBO', 10.8, 15.2, 1.3, 1.3, 1.6],
       ['OUI-01', 'Expositor O.U.i (frente)', 'PAINEL', 12.2, 13.4, 0.8, 1.6, 3.8],
       ['MESA-VM', 'Mesa destaque VM permanente', 'MESA', 14.4, 12.6, 2.6, 1.4, 2.6],
-      ['VITRINE', 'Balcão recepção (entrada)', 'VITRINE_L', 16.23, 15.83, 2.64, 2.64, 1.92],
+      ['VITRINE', 'Balcão recepção (entrada)', 'VITRINE_L', 16.23, 15.83, 2.64, 2.64, 1.28],
       ['PIR-01', 'Pirâmide 1 (principais oportunidades)', 'PIRAMIDE', 21.74, 8.74, 1.02, 1.02, 1.94],
       ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 19.74, 13.54, 1.02, 1.02, 1.94],
       ['PIR-03', 'Pirâmide 3 (PEC regional)', 'PIRAMIDE', 20.14, 10.94, 1.02, 1.02, 1.94],
@@ -1664,11 +1664,11 @@ const LAYOUT_PADRAO = {
       ['PIR-01', '', 'PIRAMIDE', 14.5, 2.5, 1.02, 1.02, 1.94],
       ['GON-01', '', 'GONDOLA', 3.5, 2.5, 1.6, 4, 1.94],
       ['PDV-01', '', 'CUBO', 8.5, 17, 1.3, 1.3, 1.6],
-      ['BALCAO-01', '', 'VITRINE_L', 14.5, 17.5, 2.4, 2.4, 1.92],
+      ['BALCAO-01', '', 'VITRINE_L', 14.5, 17.5, 2.4, 2.4, 1.28],
       ['CX-01', '', 'CAIXA', 0, 17, 1.2, 1.8, 1.7],
       ['OUI-01', '', 'PAINEL', 12.5, 0, 3.6, 0.8, 4.5],
-      ['FILA-01', '', 'FILA', 3, 16.5, 1.5, 0.4, 1.94],
-      ['OUI-02', '', 'EXPOSITOR_OUI', 9, 15, 0.8, 1.6, 1.94],
+      ['FILA-01', '', 'FILA', 3, 16.5, 1.5, 0.4, 1.46],
+      ['OUI-02', '', 'EXPOSITOR_OUI', 9, 15.4, 0.8, 0.8, 1.94],
       ['PAR-01', '', 'GONDOLA_PAREDE', 0, -0.5, 4, 1.1, 3.2],
       ['PAR-02', '', 'GONDOLA_PAREDE', 4, -0.5, 4, 1.1, 3.2],
       ['PAR-05', '', 'GONDOLA_PAREDE', 0, 0.5, 1.1, 4, 3.2],
@@ -1684,17 +1684,17 @@ const LAYOUT_PADRAO = {
       ['PIR-04', '', 'PIRAMIDE', 14.5, 8.5, 1.02, 1.02, 1.94],
       ['PIR-05', '', 'PIRAMIDE', 14.5, 10.5, 1.02, 1.02, 1.94],
       ['CX-02', '', 'CAIXA', 0, 14.5, 1.2, 1.8, 1.7],
-      ['FILA-02', '', 'FILA', 1.5, 18.5, 1.5, 0.4, 1.94],
-      ['FILA-03', '', 'FILA', 1.5, 16.5, 1.5, 0.4, 1.94],
-      ['FILA-04', '', 'FILA', 4.5, 16.5, 1.5, 0.4, 1.94],
-      ['FILA-05', '', 'FILA', 1.5, 14.5, 1.5, 0.4, 1.94],
-      ['FILA-06', '', 'FILA', 3, 14.5, 1.5, 0.4, 1.94],
-      ['FILA-07', '', 'FILA', 3, 18.5, 1.5, 0.4, 1.94],
-      ['FILA-08', '', 'FILA', 4.5, 18.5, 1.5, 0.4, 1.94],
+      ['FILA-02', '', 'FILA', 1.5, 18.5, 1.5, 0.4, 1.46],
+      ['FILA-03', '', 'FILA', 1.5, 16.5, 1.5, 0.4, 1.46],
+      ['FILA-04', '', 'FILA', 4.5, 16.5, 1.5, 0.4, 1.46],
+      ['FILA-05', '', 'FILA', 1.5, 14.5, 1.5, 0.4, 1.46],
+      ['FILA-06', '', 'FILA', 3, 14.5, 1.5, 0.4, 1.46],
+      ['FILA-07', '', 'FILA', 3, 18.5, 1.5, 0.4, 1.46],
+      ['FILA-08', '', 'FILA', 4.5, 18.5, 1.5, 0.4, 1.46],
       ['MESA3-01', '', 'MESA_3', 11.5, 14.5, 3.9, 1.4, 2.6],
       ['TOTEM-01', '', 'TOTEM', 9, 18.5, 0.35, 1.5, 3.4],
       ['PAR-03', '', 'GONDOLA_PAREDE', 8, -0.5, 4, 1.1, 3.2],
-      ['FILA-09', '', 'FILA', 4.5, 14.5, 1.5, 0.4, 1.94],
+      ['FILA-09', '', 'FILA', 4.5, 14.5, 1.5, 0.4, 1.46],
     ],
   },
 };
@@ -2682,8 +2682,8 @@ const Render = (() => {
       case 'MESA':
       case 'MESA_3': {
         // Mesa destaque: estrutura com pernas, 2 (ou 3) nichos baixos lado a lado em cima e
-        // painel de vidro ao fundo com uma lâmina por nicho. Na frente, um cartaz por nicho, do
-        // mesmo tamanho da lâmina do fundo, que sobe do chão e fica na frente do nicho.
+        // painel de vidro ao fundo com uma lâmina por nicho. Na frente, um cartaz por nicho, da
+        // largura da lâmina do fundo, que sobe do chão e termina junto com o topo do nicho.
         const n = m.tipo === 'MESA_3' ? 3 : 2;
         const [L, C] = eixos(b);
         const hBase = b.h * 0.32;
@@ -2710,7 +2710,7 @@ const Render = (() => {
         }
         for (let k = 0; k < n; k++) {
           const [u0, u1] = lamina(k);
-          caixa(pai, P, loc(u0, u1, frente, C, 0, b.h - hBase), { cores, vidro: true });
+          caixa(pai, P, loc(u0, u1, frente, C, 0, hBase + hNicho), { cores, vidro: true });
         }
         break;
       }
@@ -2780,7 +2780,7 @@ const Render = (() => {
         caixa(pai, P, b, { cores, moldura: true });
         break;
       case 'VITRINE_L':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2 });
         break;
       case 'CAIXA': {
         // Móvel de atendimento: balcão com a tela preta em cima, no lado do fundo (acompanha o giro).
@@ -2797,7 +2797,7 @@ const Render = (() => {
         break;
       }
       case 'FILA':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4, modulo: 1.5 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3, modulo: 1.5 });
         break;
       default: // GONDOLA (cada espaço é uma caixa) e tipos desconhecidos
         caixa(pai, P, b, { cores, vidro: true, prateleiras: 4 });
@@ -3816,7 +3816,7 @@ const Construtor = (() => {
       icone: 'M7 21V3h10v18zM7 7.5h10M7 12h10M7 16.5h10',
     },
     FILA: {
-      nome: 'Móvel de fila', prefixo: 'FILA', tam: [1.5, 0.4, 1.94],
+      nome: 'Móvel de fila', prefixo: 'FILA', tam: [1.5, 0.4, 1.46],
       icone: 'M2 8h20v12H2zM2 11h20M2 14h20M2 17h20',
     },
     GONDOLA_PAREDE: {
@@ -3840,7 +3840,7 @@ const Construtor = (() => {
       icone: 'M2 3h6v9H2zM9 3h6v9H9zM16 3h6v9h-6zM1 12h22v3H1zM3 15v6M21 15v6',
     },
     VITRINE_L: {
-      nome: 'Balcão recepção', prefixo: 'BALCAO', tam: [2.4, 2.4, 1.92],
+      nome: 'Balcão recepção', prefixo: 'BALCAO', tam: [2.4, 2.4, 1.28],
       icone: 'M14 3h6v18H4v-6h10z',
     },
     CAIXA: {
@@ -3852,7 +3852,7 @@ const Construtor = (() => {
       icone: 'M3 3h18v18H3zM6 6h12v12H6z',
     },
     EXPOSITOR_OUI: {
-      nome: 'Totem O.U.i', prefixo: 'OUI', tam: [0.8, 1.6, 1.94],
+      nome: 'Totem O.U.i', prefixo: 'OUI', tam: [0.8, 0.8, 1.94],
       icone: 'M8 6h8v14H8zM10 9h4v8h-4zM6 21h12',
     },
     ILHA_OUI: {
