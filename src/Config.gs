@@ -123,14 +123,16 @@ const TIPOS_MOVEL = {
   LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
   PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados (1 etiqueta)',
   GONDOLA: 'Gôndola: 2 pontas + 2 meios (cada meio pode ser dividido em dois), 4 níveis de prateleira, 1 etiqueta por bloco',
-  FILA: 'Móvel de fila: bloco único retangular com 4 níveis',
+  FILA: 'Móvel de fila: bloco único retangular com 4 níveis, na altura da gôndola',
   GONDOLA_PAREDE: 'Móvel de parede: estante encostada na parede, com prateleiras',
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
   MESA: 'Mesa destaque: 2 nichos baixos sobre estrutura, painel de vidro ao fundo e 2 painéis na frente, embaixo (1 etiqueta)',
   MESA_3: 'Mesa destaque 3 frentes: 3 nichos sobre estrutura, com painel de vidro ao fundo',
   TOTEM: 'Totem: estrutura metálica com 3 painéis',
-  PAINEL: 'Painel O.U.i: painel alto e fino, com moldura',
-  EXPOSITOR_OUI: 'Expositor O.U.i: expositor alto e estreito, com moldura',
+  PAINEL: 'Parede O.U.i: painel alto com moldura',
+  EXPOSITOR_OUI: 'Totem O.U.i: expositor estreito com moldura, na altura da gôndola',
+  ILHA_OUI: 'Ilha premium O.U.i: base com prateleiras e painel alto atrás, com faixas claras nas laterais',
+  MAKE: 'Móvel make: estante de parede com prateleiras e 4 testeiras no alto (cada uma pode ter cor própria)',
   VITRINE_L: 'Balcão recepção: em "L", com os dois lados do mesmo tamanho',
   CAIXA: 'Móvel de atendimento (caixa): balcão com tela preta em cima',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
@@ -138,18 +140,22 @@ const TIPOS_MOVEL = {
 
 /** Tipos oferecidos no modo "Construir loja". */
 const TIPOS_CONSTRUCAO = [
-  'GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L', 'CAIXA', 'PAINEL', 'EXPOSITOR_OUI',
+  'GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L', 'CAIXA', 'PAINEL', 'EXPOSITOR_OUI', 'ILHA_OUI', 'MAKE',
 ];
 
 /**
- * Espaços de uma gôndola. Na planilha, cada espaço é endereçado como
- * "<ID da gôndola>/<espaço>", ex.: GON-01/MEIO-A ou GON-01/MEIO-A-2.
- * Uma linha só com o ID da gôndola vale para todos os espaços sem linha própria.
+ * Espaços de um móvel: os da gôndola (pontas e meios) e as 4 testeiras do
+ * móvel make. Na planilha, cada espaço é endereçado como "<ID do móvel>/<espaço>",
+ * ex.: GON-01/MEIO-A, GON-01/MEIO-A-2 ou MAKE-01/TESTEIRA-2.
+ * Uma linha só com o ID do móvel vale para todos os espaços sem linha própria.
  * (A página tem uma cópia desta regra em Render.espacos.)
  * @param {{tipo: string, dividido: string}} m  dividido = '', 'A', 'B' ou 'AB'
  * @return {Array<{id: string, nome: string}>}
  */
 function espacosDoMovel_(m) {
+  if (m && m.tipo === 'MAKE') {
+    return [1, 2, 3, 4].map(function (n) { return { id: 'TESTEIRA-' + n, nome: 'Testeira ' + n }; });
+  }
   if (!m || m.tipo !== 'GONDOLA') return [];
   const div = String(m.dividido || '').toUpperCase();
   const lista = [{ id: 'PONTA-1', nome: 'Ponta 1' }];
@@ -213,5 +219,6 @@ function colunasLayout_() {
     { chave: 'ajusteX', titulo: 'Ajuste Etiqueta X (px)', apelidos: ['Ajuste X'] },
     { chave: 'ajusteY', titulo: 'Ajuste Etiqueta Y (px)', apelidos: ['Ajuste Y'] },
     { chave: 'dividido', titulo: 'Meios divididos', texto: true, apelidos: ['Divisão', 'Dividido'] },
+    { chave: 'giro', titulo: 'Giro (graus)', apelidos: ['Giro', 'Rotação', 'Rotacao'] },
   ];
 }

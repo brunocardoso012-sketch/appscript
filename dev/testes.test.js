@@ -175,10 +175,10 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
     movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
     movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
-    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 5, '03': 2, '04': 2 }); // só a 02 pendente
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 6, '03': 2, '04': 3 }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
-  assert.equal(r.versoes['02'], 4);
+  assert.equal(r.versoes['02'], 5);
   const ids = (planta) => r.abas.layout.slice(1).filter((l) => l[0] === planta).map((l) => l[1]);
   assert.ok(!ids('02').includes('VELHO-01') && ids('02').includes('MESA-01') && ids('02').includes('LOJA'), 'planta 02 com o modelo novo');
   assert.ok(ids('01').includes('MEU-01'), 'planta 01 intacta');
@@ -200,4 +200,27 @@ test('etiquetas guardam a coluna de origem; planta aceita o nome', () => {
   const gon = d.movimentos.C1['01']['GON-01'];
   assert.deepEqual(gon.etiquetas.map((e) => [e.texto, e.posicao]), [['MEIO A', 2], ['PONTA 2', 4]]);
   assert.deepEqual(d.config.etiquetasPorTipo, { PIRAMIDE: 1, MESA: 1, GONDOLA: 4 });
+});
+
+test('giro do balcão e testeiras do móvel make', () => {
+  const { run } = carregarGas();
+  assert.equal(run("normGiro_('90')"), 90);
+  assert.equal(run('normGiro_(-90)'), 270);
+  assert.equal(run('normGiro_(360)'), 0);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'MAKE' })").map((e) => e.id), ['TESTEIRA-1', 'TESTEIRA-2', 'TESTEIRA-3', 'TESTEIRA-4']);
+  const d = run(`montarDados_([
+    ['Planta', 'ID Móvel', 'Tipo', 'X', 'Y', 'Largura (eixo X)', 'Profundidade (eixo Y)', 'Altura', 'Giro (graus)'],
+    ['01', 'LOJA', 'LOJA', 0, 0, 20, 20, 4],
+    ['01', 'BALCAO-01', 'VITRINE_L', 5, 5, 2.4, 2.4, 1.92, 180],
+    ['01', 'MAKE-01', 'MAKE', 0, 0, 6, 1.4, 3.2],
+  ], [
+    ['Ciclo', 'Planta', 'ID Móvel', 'Marca do Móvel'],
+    ['C1', '01', 'MAKE-01/TESTEIRA-3', 'QDB'],
+  ], null)`);
+  assert.deepEqual(d.avisos, []);
+  assert.equal(d.plantas[0].moveis[0].giro, 180);
+  const linhas = run(`objetosLayoutDaPlanta_('01', { loja: { largura: 10, profundidade: 10, alturaParede: 4 }, moveis: [
+    { id: 'BALCAO-01', tipo: 'VITRINE_L', x: 1, y: 1, w: 2, d: 2, h: 2, giro: 270 },
+  ] })`);
+  assert.equal(linhas[1].giro, 270);
 });
