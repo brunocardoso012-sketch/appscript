@@ -1,0 +1,2268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <title>Plano de Varejo · Plantas</title>
+    <style>
+  :root {
+    --fundo: #f3f4f6;
+    --superficie: #ffffff;
+    --borda: #dfe2e6;
+    --borda-forte: #c9cdd3;
+    --texto: #16181b;
+    --texto-2: #5b6068;
+    --primario: #16181b;
+    --primario-texto: #ffffff;
+    --destaque: #fff7d6;
+    --raio: 8px;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .06), 0 4px 16px rgba(0, 0, 0, .06);
+    --fonte: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--fundo);
+    color: var(--texto);
+    font: 14px/1.4 var(--fonte);
+    display: flex;
+    flex-direction: column;
+  }
+  [hidden] { display: none !important; }
+
+  /* ---------- topo ---------- */
+  .topo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+    padding: 10px 16px;
+    background: var(--superficie);
+    border-bottom: 1px solid var(--borda);
+  }
+  .identidade { display: flex; align-items: center; gap: 10px; min-width: 190px; }
+  .identidade h1 { margin: 0; font-size: 15px; letter-spacing: .2px; }
+  .identidade p { margin: 0; font-size: 12px; color: var(--texto-2); }
+  .logo { width: 26px; height: 26px; color: var(--texto); }
+
+  .seletores { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; flex: 1 1 auto; }
+  .acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .campo { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--texto-2); }
+  .campo > span, .campo > legend { font-weight: 600; text-transform: uppercase; letter-spacing: .4px; font-size: 11px; }
+  .campo.bloco { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin: 0 0 14px; border: 0; padding: 0; }
+
+  select, input[type="text"] {
+    font: inherit;
+    color: var(--texto);
+    background: var(--superficie);
+    border: 1px solid var(--borda-forte);
+    border-radius: var(--raio);
+    padding: 7px 10px;
+    min-width: 170px;
+  }
+  select:focus-visible, input:focus-visible, .btn:focus-visible, .aba:focus-visible, .chip:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 1px;
+  }
+
+  .abas { display: inline-flex; background: #eceef1; border-radius: 10px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+  .aba {
+    border: 0;
+    background: transparent;
+    font: 600 12px var(--fonte);
+    letter-spacing: .4px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    color: var(--texto-2);
+    cursor: pointer;
+  }
+  .aba:hover { color: var(--texto); }
+  .aba[aria-selected="true"] { background: var(--primario); color: var(--primario-texto); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 600 13px var(--fonte);
+    padding: 7px 12px;
+    border-radius: var(--raio);
+    border: 1px solid var(--borda-forte);
+    background: var(--superficie);
+    color: var(--texto);
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #f5f6f8; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .btn.primario { background: var(--primario); border-color: var(--primario); color: var(--primario-texto); }
+  .btn.primario:hover { background: #2b2f35; }
+  .btn.fantasma { border-color: transparent; background: transparent; color: var(--texto-2); }
+  .btn.fantasma:hover { color: var(--texto); background: #f0f1f3; }
+  .btn.pequeno { padding: 5px 10px; font-size: 12px; }
+  .btn[aria-pressed="true"] { background: var(--destaque); border-color: #e2c64a; }
+
+  /* ---------- legenda e avisos ---------- */
+  .faixa {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 8px 16px 0;
+  }
+  .legenda { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .legenda .rotulo { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); margin-right: 4px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--borda);
+    background: var(--superficie);
+    border-radius: 999px;
+    padding: 3px 10px 3px 4px;
+    font: 600 12px var(--fonte);
+    color: var(--texto);
+    cursor: pointer;
+  }
+  .chip .cor { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .15); }
+  .chip[aria-pressed="true"] { border-color: var(--texto); box-shadow: inset 0 0 0 1px var(--texto); }
+  .chip.inativo { opacity: .6; }
+  .chip.inativo .cor { filter: grayscale(1); }
+  .legenda .dica { font-size: 12px; color: var(--texto-2); }
+
+  .avisos { font-size: 12px; color: #7a4b00; background: #fff8e6; border: 1px solid #f1d58a; border-radius: var(--raio); padding: 4px 10px; max-width: 640px; }
+  .avisos summary { cursor: pointer; font-weight: 600; }
+  .avisos ul { margin: 6px 0 4px; padding-left: 18px; max-height: 180px; overflow: auto; }
+
+  .aviso-local { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--texto-2); background: #eef2ff; border: 1px solid #c7d2fe; border-radius: var(--raio); padding: 2px 4px 2px 10px; }
+  .bloco-opcao { margin: 0 0 14px; }
+
+  .barra-edicao {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 16px 0;
+    padding: 8px 12px;
+    background: var(--destaque);
+    border: 1px solid #e2c64a;
+    border-radius: var(--raio);
+    font-size: 13px;
+  }
+  .grupo-botoes { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ---------- palco (slide) ---------- */
+  .palco {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 10px 16px 16px;
+  }
+  #slide {
+    width: min(100%, calc((100vh - 150px) * 16 / 9));
+    min-width: 320px;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    background: #f3efea;
+    border-radius: 6px;
+    box-shadow: var(--sombra);
+    user-select: none;
+  }
+  #slide .movel:hover polygon { stroke-width: 2.2; }
+  #slide .arrastavel { cursor: grab; }
+  #slide .arrastavel:hover rect { stroke: #111; stroke-width: 1.5; }
+  #slide .arrastavel:active { cursor: grabbing; }
+
+  #slide .movel.selecionado polygon { stroke: #ff6a00; stroke-width: 2.6; }
+  #slide.construindo .movel { cursor: move; }
+  #slide.construindo .camada-etiquetas,
+  #slide.construindo .camada-guias { opacity: .35; pointer-events: none; }
+  #slide.construindo .camada-sobreposta { pointer-events: none; }
+
+  /* ---------- construir loja ---------- */
+  body.construindo .palco { gap: 14px; align-items: flex-start; position: relative; }
+  body.construindo #slide { width: min(calc(100% - 350px), calc((100vh - 150px) * 16 / 9)); }
+  #slide.construindo .movel:hover polygon { stroke: #ff9a52; }
+  .construtor {
+    flex: 0 0 336px;
+    max-height: calc(100vh - 140px);
+    overflow: auto;
+    background: var(--superficie);
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    box-shadow: var(--sombra);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+  }
+  .construtor > * { padding-left: 14px; padding-right: 14px; }
+  .cns-topo { display: flex; justify-content: space-between; align-items: flex-start; padding-top: 12px; }
+  .cns-topo h2 { margin: 0; font-size: 15px; }
+  #cnsPlanta { font-size: 12px; color: var(--texto-2); font-weight: 600; }
+  .cns-dica, .cns-ajuda { margin: 6px 0 10px; font-size: 12px; color: var(--texto-2); }
+  kbd { font: 600 11px var(--fonte); background: #f0f1f3; border: 1px solid var(--borda-forte); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+  .construtor section { border-top: 1px solid var(--borda); padding-top: 10px; padding-bottom: 10px; }
+  .construtor h3 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); }
+
+  .cns-salvos { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 10px; padding: 8px 10px; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; font-size: 12px; color: var(--texto-2); }
+  .cns-paleta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .cns-paleta button {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    border: 1px solid var(--borda); background: #fafbfc; border-radius: 8px;
+    padding: 7px 4px 6px; font: 600 11px var(--fonte); color: var(--texto); cursor: pointer;
+  }
+  .cns-paleta button:hover { border-color: var(--texto); background: #fff; }
+  .cns-paleta svg { width: 28px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+
+  #cnsEspacos { word-break: break-word; font-weight: 600; color: var(--texto); }
+  .cns-vazio { margin: 4px 0; color: var(--texto-2); font-style: italic; }
+  .cns-campo { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 600; color: var(--texto-2); margin-bottom: 8px; }
+  .cns-grupo { margin-bottom: 4px; }
+  .cns-grupo > span { font-size: 11px; font-weight: 600; color: var(--texto-2); }
+  .construtor .campos { display: grid; gap: 8px; margin: 4px 0 8px; }
+  .construtor .campos.dois { grid-template-columns: 1fr 1fr; }
+  .construtor .campos.tres { grid-template-columns: repeat(3, 1fr); }
+  .construtor .campos label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--texto-2); }
+  .construtor input[type="number"], .construtor input[type="text"], .construtor select { min-width: 0; width: 100%; padding: 5px 7px; font-size: 13px; }
+  .cns-mais summary, .cns-secao summary { cursor: pointer; font-weight: 600; font-size: 12px; color: var(--texto-2); padding: 2px 0; }
+  .cns-mais { margin-top: 2px; }
+  .cns-secao { border-top: 1px solid var(--borda); padding-top: 9px; padding-bottom: 9px; }
+  .cns-secao[open] summary { margin-bottom: 8px; color: var(--texto); }
+  .construtor #cnsLista { height: auto; }
+  .construtor .linha-botoes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .construtor .campo-linha { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--texto-2); margin: 6px 0; }
+  .construtor .campo-linha select { width: auto; }
+  .construtor .campo-linha input[type="range"] { flex: 1; }
+
+  .cns-rodape {
+    position: sticky; bottom: 0; margin-top: auto;
+    background: var(--superficie); border-top: 1px solid var(--borda);
+    padding-top: 10px; padding-bottom: 6px;
+  }
+  #cnsStatus { display: block; font-size: 12px; font-weight: 600; color: #15803d; margin-bottom: 6px; }
+  #cnsStatus.sujo { color: #b45309; }
+
+  .cns-flutuante {
+    position: absolute; z-index: 5; display: flex; gap: 2px;
+    background: #16181b; border-radius: 8px; padding: 3px; box-shadow: var(--sombra);
+    transform: translate(-50%, -100%);
+  }
+  .cns-flutuante button { border: 0; background: transparent; color: #fff; font: 600 12px var(--fonte); padding: 5px 9px; border-radius: 6px; cursor: pointer; }
+  .cns-flutuante button:hover { background: rgba(255, 255, 255, .15); }
+  .cns-flutuante button[data-acao="excluir"]:hover { background: #b42318; }
+
+  @media (max-width: 1100px) {
+    body.construindo .palco { flex-wrap: wrap; }
+    body.construindo #slide { width: 100%; }
+    .construtor { flex: 1 1 100%; max-height: none; }
+  }
+
+  .vazio {
+    max-width: 520px;
+    margin: 40px auto;
+    background: var(--superficie);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: var(--sombra);
+    text-align: center;
+  }
+  .vazio h2 { margin: 0 0 8px; font-size: 18px; }
+  .vazio p { color: var(--texto-2); }
+
+  /* ---------- diálogos ---------- */
+  .dialogo {
+    border: 0;
+    border-radius: 12px;
+    padding: 22px 22px 16px;
+    width: min(460px, calc(100vw - 32px));
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+    color: var(--texto);
+  }
+  .dialogo::backdrop { background: rgba(15, 17, 20, .45); }
+  .dialogo h2 { margin: 0 0 4px; font-size: 17px; }
+  .dialogo .sub { margin: 0 0 16px; color: var(--texto-2); font-size: 13px; }
+  .dialogo input[type="text"], .dialogo select { width: 100%; }
+  .opcao { display: flex; align-items: center; gap: 8px; color: var(--texto); font-size: 13px; padding: 3px 0; cursor: pointer; }
+  .rodape-dialogo { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  .lista-avisos { max-height: 240px; overflow: auto; font-size: 12px; color: #7a4b00; padding-left: 18px; }
+  .lista-avisos:empty { display: none; }
+
+  /* ---------- carregando / toast ---------- */
+  .carregando {
+    position: fixed;
+    inset: 0;
+    background: rgba(243, 244, 246, .72);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-weight: 600;
+    z-index: 20;
+  }
+  .spinner {
+    width: 34px;
+    height: 34px;
+    border: 3px solid #cfd3d8;
+    border-top-color: var(--texto);
+    border-radius: 50%;
+    animation: girar .8s linear infinite;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    background: #16181b;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    box-shadow: var(--sombra);
+    z-index: 30;
+    max-width: calc(100vw - 32px);
+  }
+  .toast.erro { background: #b42318; }
+
+  @media (max-width: 720px) {
+    .topo { padding: 10px 12px; }
+    .faixa, .palco { padding-left: 12px; padding-right: 12px; }
+    .acoes .btn { flex: 1 1 auto; justify-content: center; }
+    #slide { width: 100%; }
+  }
+</style>
+
+  </head>
+  <body>
+    <header class="topo">
+      <div class="identidade">
+        <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2 22 7.5v9L12 22 2 16.5v-9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M2 7.5 12 13l10-5.5M12 13v9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+        <div>
+          <h1>Plano de Varejo</h1>
+          <p>Visualizador de plantas por ciclo</p>
+        </div>
+      </div>
+
+      <div class="seletores">
+        <label class="campo">
+          <span>Ciclo</span>
+          <select id="selCiclo" aria-label="Ciclo"></select>
+        </label>
+        <div class="abas" id="abasPlanta" role="tablist" aria-label="Plantas"></div>
+      </div>
+
+      <div class="acoes">
+        <button id="btnPng" class="btn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
+          Baixar PNG
+        </button>
+        <button id="btnEditar" class="btn" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
+          Ajustar etiquetas
+        </button>
+        <button id="btnAtualizar" class="btn fantasma" type="button" title="Ler a planilha de novo">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
+          Atualizar
+        </button>
+        <a id="lnkPlanilha" class="btn fantasma" target="_blank" rel="noopener" hidden>
+          Abrir planilha
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+        </a>
+      </div>
+    </header>
+
+    <div class="faixa">
+      <div class="legenda" id="legenda" aria-label="Marcas"></div>
+      <div class="aviso-local" id="avisoLocal" hidden>
+        <span>Modo local: os dados ficam salvos só neste navegador.</span>
+        <button id="btnRestaurar" class="btn pequeno fantasma" type="button">Restaurar exemplo</button>
+      </div>
+            <details class="avisos" id="avisos" hidden>
+        <summary></summary>
+        <ul></ul>
+      </details>
+    </div>
+
+    <div class="barra-edicao" id="barraEdicao" hidden>
+      <span><strong>Modo ajuste:</strong> arraste as etiquetas para reposicionar. <span id="qtdAjustes"></span></span>
+      <span class="grupo-botoes">
+        <button id="btnAutoOrganizar" class="btn pequeno" type="button">Organizar automaticamente</button>
+        <button id="btnDescartar" class="btn pequeno" type="button">Descartar</button>
+        <button id="btnSalvarAjustes" class="btn pequeno primario" type="button">Salvar posições</button>
+      </span>
+    </div>
+
+    <main class="palco" id="palco">
+      <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
+      <section class="vazio" id="telaConfig" hidden>
+        <h2>Planilha ainda não configurada</h2>
+        <p id="msgConfig"></p>
+      </section>
+    </main>
+
+
+    <dialog id="dlgPng" class="dialogo">
+      <form method="dialog">
+        <h2>Baixar PNG</h2>
+        <p class="sub">Imagem em alta resolução da planta selecionada.</p>
+        <fieldset class="campo bloco">
+          <legend>Conteúdo</legend>
+          <label class="opcao"><input type="radio" name="pngModo" value="slide" checked> <span>Slide completo (com painéis, notas e fundo)</span></label>
+          <label class="opcao"><input type="radio" name="pngModo" value="planta"> <span>Só a planta com as etiquetas (sem painéis e sem fundo)</span></label>
+        </fieldset>
+        <p class="sub" id="pngFiltroTexto" hidden></p>
+        <div class="rodape-dialogo">
+          <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
+          <button class="btn primario" value="baixar" type="submit">Baixar PNG</button>
+        </div>
+      </form>
+    </dialog>
+
+
+    <div class="carregando" id="carregando" hidden>
+      <div class="spinner" aria-hidden="true"></div>
+      <span id="carregandoTexto">Carregando…</span>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script>
+/**
+ * ============================================================================
+ *  RENDERIZADOR DA PLANTA (SVG isométrico, 1920×1080 — formato de slide)
+ * ============================================================================
+ *  Render.desenhar(svg, contexto) redesenha o slide inteiro:
+ *   - planta isométrica (piso, paredes e móveis coloridos pela marca);
+ *   - etiquetas de cada móvel (com desvio automático de sobreposição);
+ *   - caixas de destaque (CALLOUT), painel lateral (TV / A / C), notas,
+ *     legenda de símbolos e faixa de itens extras.
+ *  Todo o estilo vai em atributos SVG (não em CSS) para o PNG exportado
+ *  ficar idêntico ao que aparece na tela.
+ */
+const Render = (() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const FONTE = 'Arial, Helvetica, sans-serif';
+  const COS30 = Math.cos(Math.PI / 6);
+
+  const TELA = { w: 1920, h: 1080, fundo: '#F3EFEA' };
+  const REGIAO_PLANTA = { x: 500, y: 70, w: 1400, h: 950 };
+  const LIMITES = { x0: 470, y0: 8, x1: 1912, y1: 1072 };
+  const ETQ = { fonte: 12, lh: 14, padX: 7, padY: 4, gap: 3, maxTexto: 190, simbolo: 20 };
+  const CALLOUT = { fonte: 12.5, lh: 16, pad: 9, maxW: 360 };
+  const COR = {
+    contorno: '#1C1C1C',
+    contornoNeutro: '#B5B5B5',
+    prateleiraNeutra: '#D0D0D0',
+    neutro: '#F7F7F7',
+    piso: '#EAEAEA',
+    pisoBorda: '#D7D7D7',
+    textoNota: '#1F3B73',
+    tituloNota: '#0B2A5B',
+    etiquetaPadrao: '#4A4A4A',
+    metal: '#A7ABB1',
+    tela: '#C9CCD1',
+    rodape: '#4B4F56',
+    // Filtro por marca: as outras marcas ficam em cinza (etiquetas mais escuras, móveis mais claros).
+    cinzaEtiqueta: '#8C8C8C',
+    cinzaMovel: '#D2D2D2',
+  };
+  const ESPESSURA_PAREDE = 0.35;
+  const ESPESSURA_PISO = 0.35;
+
+  let marcas = {};
+  let filtroMarca = ''; // marca destacada pelo filtro ('' = todas coloridas)
+  let defs = null;
+  let gradientes = {};
+
+  /* ------------------------------ utilidades ------------------------------ */
+
+  function el(tag, attrs, pai) {
+    const e = document.createElementNS(NS, tag);
+    if (attrs) {
+      Object.keys(attrs).forEach((k) => {
+        if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]);
+      });
+    }
+    if (pai) pai.appendChild(e);
+    return e;
+  }
+
+  function texto(pai, x, y, conteudo, attrs) {
+    const t = el('text', Object.assign({ x, y, 'font-family': FONTE }, attrs), pai);
+    t.textContent = conteudo;
+    return t;
+  }
+
+  /** Dica ao passar o mouse (<title> precisa ser o primeiro filho). */
+  function dica(alvo, conteudo) {
+    const t = document.createElementNS(NS, 'title');
+    t.textContent = conteudo;
+    alvo.insertBefore(t, alvo.firstChild);
+  }
+
+  const pontos = (lista) => lista.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+
+  function poligono(pai, lista, attrs) {
+    return el('polygon', Object.assign({ points: pontos(lista) }, attrs), pai);
+  }
+
+  function linha(pai, a, b, attrs) {
+    return el('line', Object.assign({ x1: a[0].toFixed(1), y1: a[1].toFixed(1), x2: b[0].toFixed(1), y2: b[1].toFixed(1) }, attrs), pai);
+  }
+
+  const medidor = document.createElement('canvas').getContext('2d');
+  function largura(txt, tam, peso, estilo) {
+    medidor.font = (estilo || 'normal') + ' ' + (peso || 700) + ' ' + tam + 'px ' + FONTE;
+    return medidor.measureText(txt).width;
+  }
+
+  /** Quebra o texto em linhas que caibam em maxW (respeita quebras de linha). */
+  function quebrar(txt, maxW, tam, peso) {
+    const linhas = [];
+    String(txt).split('\n').forEach((par) => {
+      if (!par.trim()) { linhas.push(''); return; }
+      let atual = '';
+      par.trim().split(/\s+/).forEach((palavra) => {
+        const tentativa = atual ? atual + ' ' + palavra : palavra;
+        if (!atual || largura(tentativa, tam, peso) <= maxW) atual = tentativa;
+        else { linhas.push(atual); atual = palavra; }
+      });
+      linhas.push(atual);
+    });
+    while (linhas.length > 1 && linhas[linhas.length - 1] === '') linhas.pop();
+    return linhas;
+  }
+
+  /* -------------------------------- cores --------------------------------- */
+
+  function rgb(hex) {
+    let h = hex.replace('#', '');
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    return [0, 2, 4].map((i) => parseInt(h.substr(i, 2), 16));
+  }
+  function paraHex(v) {
+    return '#' + v.map((c) => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0')).join('');
+  }
+  function misturar(cor, alvo, t) {
+    const a = rgb(cor);
+    const b = rgb(alvo);
+    return paraHex(a.map((v, i) => v + (b[i] - v) * t));
+  }
+
+  /** Cor fosca para os móveis: tira parte da saturação (mistura com o cinza de mesma luminância). */
+  function fosco(cor) {
+    const [r, g, b] = rgb(cor);
+    const cinza = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+    return misturar(cor, paraHex([cinza, cinza, cinza]), 0.3);
+  }
+
+  /**
+   * "BOT+QDB" → ['#..', '#..'] ; tipo = 'movel' (cores foscas) | 'etiqueta' (cores da marca).
+   * filtrar: com uma marca no filtro, as outras viram cinza (cinzaMovel / cinzaEtiqueta).
+   */
+  function coresDe(valor, tipo, filtrar) {
+    if (!valor) return null;
+    const cinza = tipo === 'movel' ? COR.cinzaMovel : COR.cinzaEtiqueta;
+    const cores = String(valor).split('+').map((p) => p.trim()).map((p) => {
+      const cor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(p) ? p : marcas[p] ? marcas[p][tipo] : null;
+      if (!cor) return null;
+      if (filtrar && filtroMarca && p !== filtroMarca) return cinza;
+      return tipo === 'movel' ? fosco(cor) : cor;
+    }).filter(Boolean);
+    if (!cores.length) return null;
+    // Combinação toda em cinza vira uma cor só (sem degradê cinza-cinza).
+    return cores.every((c) => c === cinza) ? [cinza] : cores;
+  }
+
+  /** Cor da etiqueta sem marca: cinza escuro padrão (ou o cinza do filtro, quando há marca filtrada). */
+  const corEtiquetaPadrao = (filtrar) => [filtrar && filtroMarca ? COR.cinzaEtiqueta : COR.etiquetaPadrao];
+
+  function ehNeutro(valor) {
+    return !valor || valor === 'NEUTRO';
+  }
+
+  /** Cor sólida ou degradê (para combinações de marcas). sombra < 0 clareia, > 0 escurece. */
+  function tinta(cores, sombra) {
+    const aplicar = (c) => (sombra < 0 ? misturar(c, '#FFFFFF', -sombra) : sombra > 0 ? misturar(c, '#000000', sombra) : c);
+    if (cores.length === 1) return aplicar(cores[0]);
+    const chave = cores.join('-') + '|' + sombra;
+    if (!gradientes[chave]) {
+      const id = 'grad' + Object.keys(gradientes).length;
+      const g = el('linearGradient', { id, x1: 0, y1: 0, x2: 1, y2: 0 }, defs);
+      cores.forEach((c, i) => el('stop', { offset: i / (cores.length - 1), 'stop-color': aplicar(c) }, g));
+      gradientes[chave] = 'url(#' + id + ')';
+    }
+    return gradientes[chave];
+  }
+
+  /* ------------------------------ projeção -------------------------------- */
+
+  function criarProjecao(loja) {
+    const W = loja.largura;
+    const D = loja.profundidade;
+    const H = loja.alturaParede;
+    const t = ESPESSURA_PAREDE;
+    const cantos = [
+      [-t, -t, H], [W, -t, H], [-t, D, H],
+      [W, -t, -ESPESSURA_PISO], [W, D, -ESPESSURA_PISO], [-t, D, -ESPESSURA_PISO],
+    ];
+    const bruto = (p) => [(p[0] - p[1]) * COS30, (p[0] + p[1]) * 0.5 - p[2]];
+    const bx = cantos.map((p) => bruto(p)[0]);
+    const by = cantos.map((p) => bruto(p)[1]);
+    const minX = Math.min.apply(null, bx);
+    const minY = Math.min.apply(null, by);
+    const larg = Math.max.apply(null, bx) - minX;
+    const alt = Math.max.apply(null, by) - minY;
+    const s = Math.min(REGIAO_PLANTA.w / larg, REGIAO_PLANTA.h / alt);
+    const ox = REGIAO_PLANTA.x + (REGIAO_PLANTA.w - larg * s) / 2 - minX * s;
+    const oy = REGIAO_PLANTA.y + (REGIAO_PLANTA.h - alt * s) / 2 - minY * s;
+    return {
+      escala: s,
+      P: (x, y, z) => [ox + (x - y) * COS30 * s, oy + ((x + y) * 0.5 - (z || 0)) * s],
+    };
+  }
+
+  /* --------------------------- caixas (móveis) ---------------------------- */
+
+  /**
+   * Desenha uma caixa isométrica, sempre opaca (cores sobrepostas confundiam a leitura).
+   * est: { cores, vidro, prateleiras, modulo, gradeTopo, moldura } — vidro só deixa as linhas
+   * internas tracejadas, para lembrar o material.
+   */
+  function caixa(pai, P, b, est) {
+    const x0 = b.x, x1 = b.x + b.w, y0 = b.y, y1 = b.y + b.d, z0 = b.z, z1 = b.z + b.h;
+    const neutro = !est.cores;
+    const base = est.cores || [est.corNeutra || COR.neutro];
+    const contorno = neutro ? COR.contornoNeutro : COR.contorno;
+    const comum = { stroke: contorno, 'stroke-width': neutro ? 1 : 1.3, 'stroke-linejoin': 'round' };
+
+    const esq = [P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)]; // face y = y1
+    const dir = [P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)]; // face x = x1
+    const topo = [P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)];
+    poligono(pai, esq, Object.assign({ fill: tinta(base, neutro ? 0.03 : 0) }, comum));
+    poligono(pai, dir, Object.assign({ fill: tinta(base, neutro ? 0.1 : 0.16) }, comum));
+    poligono(pai, topo, Object.assign({ fill: tinta(base, neutro ? 0 : -0.3) }, comum));
+
+    const detalhe = neutro
+      ? { stroke: COR.prateleiraNeutra, 'stroke-width': 1 }
+      : est.vidro
+        ? { stroke: misturar(base[0], '#000000', 0.35), 'stroke-width': 1, 'stroke-dasharray': '5 4' }
+        : { stroke: misturar(base[0], '#000000', 0.35), 'stroke-width': 1 };
+
+    // Prateleiras.
+    const n = est.prateleiras || 0;
+    for (let k = 1; k < n; k++) {
+      const z = z0 + (b.h * k) / n;
+      if (b.w > 0.3) linha(pai, P(x0, y1, z), P(x1, y1, z), detalhe);
+      if (b.d > 0.3) linha(pai, P(x1, y0, z), P(x1, y1, z), detalhe);
+    }
+    // Divisórias verticais (módulos).
+    if (est.modulo) {
+      const nx = Math.round(b.w / est.modulo);
+      for (let k = 1; k < nx; k++) {
+        const x = x0 + (b.w * k) / nx;
+        linha(pai, P(x, y1, z0), P(x, y1, z1), detalhe);
+      }
+      const ny = Math.round(b.d / est.modulo);
+      for (let k = 1; k < ny; k++) {
+        const y = y0 + (b.d * k) / ny;
+        linha(pai, P(x1, y, z0), P(x1, y, z1), detalhe);
+      }
+    }
+    if (est.gradeTopo) {
+      const xm = (x0 + x1) / 2;
+      const ym = (y0 + y1) / 2;
+      linha(pai, P(xm, y0, z1), P(xm, y1, z1), detalhe);
+      linha(pai, P(x0, ym, z1), P(x1, ym, z1), detalhe);
+    }
+    if (est.moldura) {
+      const m = 0.12;
+      const face = b.d >= b.w
+        ? [P(x1, y0 + b.d * m, z0 + b.h * m), P(x1, y1 - b.d * m, z0 + b.h * m), P(x1, y1 - b.d * m, z1 - b.h * m), P(x1, y0 + b.d * m, z1 - b.h * m)]
+        : [P(x0 + b.w * m, y1, z0 + b.h * m), P(x1 - b.w * m, y1, z0 + b.h * m), P(x1 - b.w * m, y1, z1 - b.h * m), P(x0 + b.w * m, y1, z1 - b.h * m)];
+      poligono(pai, face, Object.assign({ fill: 'none' }, detalhe, { 'stroke-dasharray': '6 4' }));
+    }
+  }
+
+  const espessuraL = (m) => Math.min(0.6, m.w / 2, m.d / 2);
+
+  /** [comprimento, largura] do móvel: o lado maior é o eixo "u". */
+  const eixos = (b) => (b.w >= b.d ? [b.w, b.d] : [b.d, b.w]);
+
+  /** Caixa em coordenadas locais do móvel (u ao longo do lado maior, v = 0 no lado do fundo). */
+  function caixaLocal(b, u0, u1, v0, v1, z0, z1) {
+    const base = { z: b.z + z0, h: z1 - z0 };
+    return b.w >= b.d
+      ? Object.assign(base, { x: b.x + u0, w: u1 - u0, y: b.y + v0, d: v1 - v0 })
+      : Object.assign(base, { x: b.x + v0, w: v1 - v0, y: b.y + u0, d: u1 - u0 });
+  }
+
+  /** Espaços do móvel: gôndola e testeiras do móvel make (mesma regra de espacosDoMovel_ em Config.gs). */
+  function espacos(m) {
+    const numerados = (prefixo, nome, n) => Array.from({ length: n }, (_, i) => ({ id: prefixo + '-' + (i + 1), nome: nome + ' ' + (i + 1) }));
+    if (!m) return [];
+    if (m.tipo === 'MAKE') return numerados('TESTEIRA', 'Testeira', 4);
+    if (m.tipo === 'MESA') return numerados('FRENTE', 'Frente', 2);
+    if (m.tipo === 'MESA_3') return numerados('FRENTE', 'Frente', 3);
+    if (m.tipo !== 'GONDOLA') return [];
+    const div = String(m.dividido || '').toUpperCase();
+    const lista = [{ id: 'LADO-A', nome: 'Lado A' }];
+    ['A', 'B'].forEach((lado) => {
+      if (div.indexOf(lado) >= 0) {
+        lista.push({ id: 'MEIO-' + lado + '-1', nome: 'Meio ' + lado + ' (metade 1)' });
+        lista.push({ id: 'MEIO-' + lado + '-2', nome: 'Meio ' + lado + ' (metade 2)' });
+      } else {
+        lista.push({ id: 'MEIO-' + lado, nome: 'Meio ' + lado });
+      }
+    });
+    lista.push({ id: 'LADO-B', nome: 'Lado B' });
+    return lista;
+  }
+
+  /**
+   * Caixa de cada espaço da gôndola: os lados (pontas) nas extremidades do lado maior
+   * e os dois meios lado a lado. "A" é sempre o que está virado para quem olha a planta:
+   * o lado A fica na ponta mais à frente e o meio A na face mais à frente.
+   */
+  function caixasGondola(m) {
+    const aoLongoDeX = m.w >= m.d;
+    const L = aoLongoDeX ? m.w : m.d; // comprimento
+    const C = aoLongoDeX ? m.d : m.w; // largura (de um meio ao outro)
+    const p = Math.min(0.6, L * 0.18); // espessura da ponta
+    const meio = (L - 2 * p) / 2;
+    const faixa = { 'LADO-B': [0, p, 0, C], 'LADO-A': [L - p, L, 0, C] };
+    ['A', 'B'].forEach((lado) => {
+      const v = lado === 'A' ? [C / 2, C] : [0, C / 2];
+      faixa['MEIO-' + lado] = [p, L - p, v[0], v[1]];
+      // Metades com um vão entre elas, para a divisão ficar visível na planta.
+      faixa['MEIO-' + lado + '-1'] = [p, p + meio - 0.06, v[0], v[1]];
+      faixa['MEIO-' + lado + '-2'] = [p + meio + 0.06, L - p, v[0], v[1]];
+    });
+    return espacos(m).map((e) => {
+      const [u0, u1, v0, v1] = faixa[e.id];
+      const caixaXY = aoLongoDeX
+        ? { x: m.x + u0, w: u1 - u0, y: m.y + v0, d: v1 - v0 }
+        : { x: m.x + v0, w: v1 - v0, y: m.y + u0, d: u1 - u0 };
+      return Object.assign(caixaXY, { z: m.z, h: m.h, movel: m, espaco: e });
+    });
+  }
+
+  /** Blocos da gôndola na ordem das colunas Etiqueta 1…4 da linha da gôndola inteira. */
+  const BLOCOS_GONDOLA = ['LADO-A', 'MEIO-A', 'MEIO-B', 'LADO-B'];
+
+  /**
+   * Etiquetas da gôndola: uma por bloco. A linha do espaço (GONDOLA 1/MEIO-A…) usa a
+   * própria Etiqueta 1; sem ela, o bloco mostra a etiqueta da linha da gôndola inteira
+   * na posição dele (Etiqueta 1 = Lado A, 2 = Meio A, 3 = Meio B, 4 = Lado B). As
+   * metades de um meio dividido que usam a mesma etiqueta da gôndola mostram uma só,
+   * no centro do meio. O símbolo da gôndola inteira vai só na primeira etiqueta dela.
+   * @return {Array<{id, info, etiquetas, simbolo, topo: number[]}>} topo = ponto 3D (x, y, z) da âncora
+   */
+  function etiquetasGondola(m, geral, infoEspaco) {
+    const lista = [];
+    const porBloco = {};
+    let simboloGeral = geral ? geral.simbolo : '';
+    caixasGondola(m).forEach((b) => {
+      const id = m.id + '/' + b.espaco.id;
+      const topo = [b.x + b.w / 2, b.y + b.d / 2, b.z + b.h];
+      const proprio = infoEspaco[id];
+      if (proprio && proprio.etiquetas.length) {
+        lista.push({ id, info: proprio, etiquetas: proprio.etiquetas.slice(0, 1), simbolo: proprio.simbolo, pontos: [topo] });
+        return;
+      }
+      const bloco = b.espaco.id.replace(/^(MEIO-[AB])-\d$/, '$1');
+      if (porBloco[bloco]) {
+        porBloco[bloco].pontos.push(topo);
+        return;
+      }
+      const n = BLOCOS_GONDOLA.indexOf(bloco) + 1;
+      const e = geral ? geral.etiquetas.filter((x, k) => (x.posicao || k + 1) === n)[0] : null;
+      if (!e) return;
+      porBloco[bloco] = { id: m.id + '/' + bloco, info: geral, etiquetas: [e], simbolo: simboloGeral, pontos: [topo] };
+      simboloGeral = '';
+      lista.push(porBloco[bloco]);
+    });
+    return lista;
+  }
+
+  /**
+   * Blocos vizinhos com a mesma etiqueta (texto e cor) viram uma só, no centro deles.
+   * lista: itens { id, info, etiquetas: [e], simbolo, pontos } ou null (bloco sem etiqueta,
+   * que separa os vizinhos). Devolve os itens com topo = ponto 3D médio.
+   */
+  function juntarIguais(lista) {
+    const chave = (it) => it.etiquetas[0].texto + '|' + (it.etiquetas[0].marca || it.info.marca || '');
+    const saida = [];
+    let anterior = null;
+    lista.forEach((it) => {
+      if (it && anterior && chave(it) === chave(anterior)) {
+        anterior.pontos = anterior.pontos.concat(it.pontos);
+        anterior.simbolo = anterior.simbolo || it.simbolo;
+        return;
+      }
+      anterior = it ? Object.assign({}, it) : null;
+      if (anterior) saida.push(anterior);
+    });
+    return saida.map((it) => Object.assign(it, {
+      topo: [0, 1, 2].map((k) => it.pontos.reduce((s, p) => s + p[k], 0) / it.pontos.length),
+    }));
+  }
+
+  /** Ponto 3D (topo, no centro) de cada bloco de mesa e móvel make, na ordem de espacos(). */
+  function topoDosBlocos(m) {
+    if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
+      const [L, C] = eixos(m);
+      const n = espacos(m).length;
+      return espacos(m).map((e, k) => {
+        const c = caixaLocal(m, (k + 0.5) * (L / n), (k + 0.5) * (L / n), C / 2, C / 2, 0, m.h);
+        return { espaco: e, topo: [c.x, c.y, c.z + c.h] };
+      });
+    }
+    return primitivas(m).filter((p) => p.espaco).map((p) => ({ espaco: p.espaco, topo: [p.x + p.w / 2, p.y + p.d / 2, p.z + p.h] }));
+  }
+
+  /**
+   * Balcão em L: canto onde os braços se encontram, conforme o giro
+   * (0 = canto da frente, mais perto de quem olha; cada 90° passa para o canto seguinte).
+   */
+  function cantoL(m) {
+    const g = m.giro || 0;
+    return { direita: g === 0 || g === 270, frente: g === 0 || g === 90 };
+  }
+
+  /** Móvel make: altura onde começa a testeira e fundo da testeira. */
+  const testeiraMake = (m) => ({ z: m.h * 0.8, fundo: Math.min(eixos(m)[1], 0.4) });
+
+  /** Quebra um móvel em caixas "ordenáveis" (gôndola → espaços; balcão em L → 3 blocos; make → corpo + testeiras). */
+  function primitivas(m) {
+    if (m.tipo === 'GONDOLA') return caixasGondola(m);
+    if (m.tipo === 'VITRINE_L') {
+      const t = espessuraL(m);
+      const c = cantoL(m);
+      const xBraco = c.direita ? m.x + m.w - t : m.x;
+      const yBraco = c.frente ? m.y + m.d - t : m.y;
+      // 3 blocos (braço, canto, braço), todos com a cor do balcão; bloco = posição da etiqueta.
+      return [
+        { x: xBraco, y: c.frente ? m.y : m.y + t, z: m.z, w: t, d: m.d - t, h: m.h, movel: m, bloco: 1 },
+        { x: xBraco, y: yBraco, z: m.z, w: t, d: t, h: m.h, movel: m, bloco: 2 },
+        { x: c.direita ? m.x : m.x + t, y: yBraco, z: m.z, w: m.w - t, d: t, h: m.h, movel: m, bloco: 3 },
+      ];
+    }
+    if (m.tipo === 'MAKE') {
+      const [L] = eixos(m);
+      const T = testeiraMake(m);
+      const fresta = 0.04;
+      const corpo = Object.assign(caixaLocal(m, 0, L, 0, eixos(m)[1], 0, T.z), { movel: m });
+      return [corpo].concat(espacos(m).map((e, k) => Object.assign(
+        caixaLocal(m, (k * L) / 4 + (k ? fresta / 2 : 0), ((k + 1) * L) / 4 - (k < 3 ? fresta / 2 : 0), 0, T.fundo, T.z, m.h),
+        { movel: m, espaco: e },
+      )));
+    }
+    return [{ x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h, movel: m }];
+  }
+
+  function desenharPrimitiva(pai, P, b, cores) {
+    const m = b.movel;
+    switch (m.tipo) {
+      case 'GONDOLA_PAREDE':
+        caixa(pai, P, b, { cores, prateleiras: 5, modulo: 2.2 });
+        break;
+      case 'CUBO': {
+        // Cubo de vidro sobre um rodapé escuro.
+        const r = Math.min(0.12, b.h * 0.1);
+        const m = Math.min(0.06, b.w * 0.05, b.d * 0.05);
+        caixa(pai, P, { x: b.x + m, y: b.y + m, z: b.z, w: b.w - 2 * m, d: b.d - 2 * m, h: r }, { cores: [COR.rodape] });
+        caixa(pai, P, Object.assign({}, b, { z: b.z + r, h: b.h - r }), { cores, vidro: true });
+        break;
+      }
+      case 'MESA':
+      case 'MESA_3': {
+        // Mesa destaque: estrutura com pernas, 2 (ou 3) nichos baixos lado a lado em cima e
+        // painel de vidro ao fundo com uma lâmina por nicho. Na frente, um cartaz por nicho, da
+        // largura da lâmina do fundo, que sobe do chão e termina junto com o topo do nicho.
+        const n = m.tipo === 'MESA_3' ? 3 : 2;
+        const [L, C] = eixos(b);
+        const hBase = b.h * 0.32;
+        const hNicho = b.h * 0.15;
+        const painel = Math.min(0.15, C * 0.12);
+        const fresta = Math.min(0.08, L * 0.04);
+        const perna = Math.min(0.08, L * 0.05);
+        const passo = L / n;
+        const g = 0.03;
+        const frente = C - painel; // onde começam os cartazes
+        const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
+        const corDe = (k) => (b.coresBlocos ? b.coresBlocos[k] : cores); // cada frente pode ter a cor da própria linha
+        const lamina = (k) => [k * passo + (k ? fresta / 2 : 0), (k + 1) * passo - (k < n - 1 ? fresta / 2 : 0)];
+        for (let k = 0; k < n; k++) {
+          const [u0, u1] = lamina(k);
+          caixa(pai, P, loc(u0, u1, 0, painel, hBase, b.h), { cores: corDe(k), vidro: true });
+        }
+        [[0, painel], [L - perna, painel], [0, frente - perna], [L - perna, frente - perna]].forEach(([u, v]) => {
+          caixa(pai, P, loc(u, u + perna, v, v + perna, 0, hBase - 0.06), { cores: [COR.metal] });
+        });
+        caixa(pai, P, loc(0, L, painel, frente, hBase - 0.06, hBase), { cores: [COR.metal] });
+        const v0 = painel + 0.05;
+        for (let k = 0; k < n; k++) {
+          caixa(pai, P, loc(k * passo + g, (k + 1) * passo - g, v0 + g, frente - g, hBase, hBase + hNicho), { cores: corDe(k), vidro: true });
+        }
+        for (let k = 0; k < n; k++) {
+          const [u0, u1] = lamina(k);
+          caixa(pai, P, loc(u0, u1, frente, C, 0, hBase + hNicho), { cores: corDe(k), vidro: true });
+        }
+        break;
+      }
+      case 'TOTEM': {
+        // Totem: base, montantes e travessa metálicos, tela perfurada embaixo e 3 painéis na cor da marca.
+        const [L, C] = eixos(b);
+        const t = Math.min(0.12, L * 0.1);
+        const base = 0.1;
+        const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
+        caixa(pai, P, loc(-0.1, L + 0.1, -0.1, C + 0.1, 0, base), { cores: [COR.metal] });
+        caixa(pai, P, loc(0, t, 0, C, base, b.h), { cores: [COR.metal] });
+        caixa(pai, P, loc(t, L - t, C * 0.35, C * 0.65, base, b.h * 0.3), { cores: [COR.tela] });
+        for (let k = 0; k < 3; k++) {
+          const z0 = b.h * (0.33 + 0.21 * k);
+          caixa(pai, P, loc(t, L - t, 0, C, z0, z0 + b.h * 0.15), { cores, vidro: true });
+        }
+        caixa(pai, P, loc(t, L - t, 0, C, b.h - t, b.h), { cores: [COR.metal] });
+        caixa(pai, P, loc(L - t, L, 0, C, base, b.h), { cores: [COR.metal] });
+        break;
+      }
+      case 'MAKE': {
+        if (b.espaco) { // testeira (cada uma com a cor da própria linha na planilha)
+          caixa(pai, P, b, { cores });
+          break;
+        }
+        // Corpo do móvel make (encostado na parede, v = 0): painel de fundo, montantes nas pontas,
+        // base com rodapé escuro e prateleiras finas inclinadas para a frente, cada uma com a
+        // fileira de produtos na borda. As de cima recuam só um pouco (não é escada).
+        const [L, C] = eixos(b);
+        const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
+        const fundo = Math.min(0.15, C * 0.12);
+        const rodape = Math.min(0.12, b.h * 0.05);
+        const hBase = b.h * 0.14;
+        const montante = Math.min(0.06, L * 0.02);
+        const n = 5;
+        caixa(pai, P, loc(0, L, 0, fundo, 0, b.h), { cores, modulo: 1.5 });
+        caixa(pai, P, loc(0, montante, fundo, C * 0.92, hBase, b.h), { cores: [COR.metal] });
+        caixa(pai, P, loc(montante, L - montante, fundo, C, 0, rodape), { cores: [COR.rodape] });
+        caixa(pai, P, loc(montante, L - montante, fundo, C, rodape, hBase), { cores });
+        const passo = (b.h - hBase - 0.1) / n;
+        for (let k = 0; k < n; k++) { // de baixo para cima
+          const z = hBase + passo * (k + 0.75);
+          const prof = C * (0.9 - 0.05 * k);
+          caixa(pai, P, loc(montante, L - montante, fundo, prof, z, z + 0.05), { cores });
+          caixa(pai, P, loc(montante + 0.03, L - montante - 0.03, prof - 0.14, prof - 0.02, z + 0.05, z + 0.17), { cores: ['#3A3A3A'] });
+        }
+        caixa(pai, P, loc(L - montante, L, fundo, C * 0.92, hBase, b.h), { cores: [COR.metal] });
+        break;
+      }
+      case 'ILHA_OUI': {
+        // Ilha premium O.U.i: base com prateleiras e, centralizado em cima dela, um painel alto
+        // com a marca e duas faixas verticais mais claras nas laterais da frente do painel.
+        const [L, C] = eixos(b);
+        const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
+        const hBase = b.h * 0.4;
+        const prof = C * 0.3;
+        const clara = cores ? cores.map((c) => misturar(c, '#FFFFFF', 0.35)) : null;
+        caixa(pai, P, loc(0, L, 0, C, 0, hBase), { cores, vidro: true, prateleiras: 3, modulo: L / 3 });
+        const v0 = (C - prof) / 2;
+        caixa(pai, P, loc(L * 0.04, L * 0.96, v0, v0 + prof, hBase, b.h), { cores, vidro: true });
+        [[0.1, 0.24], [0.76, 0.9]].forEach(([u0, u1]) => {
+          caixa(pai, P, loc(L * u0, L * u1, v0 + prof, v0 + prof + 0.05, hBase + b.h * 0.05, b.h * 0.95), { cores: clara, vidro: true });
+        });
+        break;
+      }
+      case 'PAINEL':
+      case 'EXPOSITOR_OUI':
+        caixa(pai, P, b, { cores, moldura: true });
+        break;
+      case 'VITRINE_L':
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2 });
+        break;
+      case 'CAIXA': {
+        // Móvel de atendimento: balcão com a tela preta em cima, no lado do fundo (acompanha o giro).
+        caixa(pai, P, b, { cores, prateleiras: 0 });
+        const [L, C] = eixos(b);
+        const tela = caixaLocal(b, L * 0.35, Math.min(L, L * 0.35 + 0.55), C * 0.15, C * 0.15 + 0.12, b.h, b.h + 0.55);
+        caixa(pai, P, tela, { cores: ['#5A5A5A'] });
+        break;
+      }
+      case 'PIRAMIDE': {
+        // 4 blocos iguais, um em cima do outro (divisões tracejadas, como as prateleiras dos outros móveis).
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4 });
+        break;
+      }
+      case 'FILA':
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3, modulo: 1.5 });
+        break;
+      default: // GONDOLA (cada espaço é uma caixa) e tipos desconhecidos
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4 });
+    }
+  }
+
+  /** Ordenação de pintura (o que está atrás é desenhado primeiro). */
+  function ordenar(prims, P) {
+    const n = prims.length;
+    const tela = prims.map((b) => {
+      const xs = [];
+      const ys = [];
+      [b.x, b.x + b.w].forEach((x) => [b.y, b.y + b.d].forEach((y) => [b.z, b.z + b.h].forEach((z) => {
+        const p = P(x, y, z);
+        xs.push(p[0]);
+        ys.push(p[1]);
+      })));
+      return { x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs), y0: Math.min.apply(null, ys), y1: Math.max.apply(null, ys) };
+    });
+    const prof = prims.map((b) => b.x + b.w / 2 + b.y + b.d / 2 + b.z * 0.5);
+    const e = 1e-6;
+    const separa = (a, b) => {
+      if (a.x + a.w <= b.x + e) return -1;
+      if (b.x + b.w <= a.x + e) return 1;
+      if (a.y + a.d <= b.y + e) return -1;
+      if (b.y + b.d <= a.y + e) return 1;
+      if (a.z + a.h <= b.z + e) return -1;
+      if (b.z + b.h <= a.z + e) return 1;
+      return 0;
+    };
+    const depois = prims.map(() => []);
+    const grau = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const A = tela[i];
+        const B = tela[j];
+        if (A.x1 <= B.x0 || B.x1 <= A.x0 || A.y1 <= B.y0 || B.y1 <= A.y0) continue;
+        let r = separa(prims[i], prims[j]);
+        if (r === 0) r = prof[i] <= prof[j] ? -1 : 1;
+        if (r < 0) { depois[i].push(j); grau[j]++; } else { depois[j].push(i); grau[i]++; }
+      }
+    }
+    const saida = [];
+    const prontos = [];
+    for (let i = 0; i < n; i++) if (!grau[i]) prontos.push(i);
+    const usados = new Array(n).fill(false);
+    while (saida.length < n) {
+      if (!prontos.length) { // ciclo (não deveria acontecer): pega o mais ao fundo
+        let melhor = -1;
+        for (let i = 0; i < n; i++) if (!usados[i] && (melhor < 0 || prof[i] < prof[melhor])) melhor = i;
+        prontos.push(melhor);
+        grau[melhor] = 0;
+      }
+      prontos.sort((a, b) => prof[b] - prof[a]);
+      const i = prontos.pop();
+      if (usados[i]) continue;
+      usados[i] = true;
+      saida.push(prims[i]);
+      depois[i].forEach((j) => { if (--grau[j] === 0 && !usados[j]) prontos.push(j); });
+    }
+    return saida;
+  }
+
+  /* ----------------------------- piso e paredes ---------------------------- */
+
+  function desenharLoja(pai, P, loja) {
+    const W = loja.largura, D = loja.profundidade, H = loja.alturaParede;
+    const t = ESPESSURA_PAREDE, b = ESPESSURA_PISO;
+    const g = el('g', { class: 'loja' }, pai);
+    // Laje do piso (bordas frontais).
+    poligono(g, [P(-t, D, 0), P(W, D, 0), P(W, D, -b), P(-t, D, -b)], { fill: '#D9D9D9', stroke: '#C4C4C4' });
+    poligono(g, [P(W, -t, 0), P(W, D, 0), P(W, D, -b), P(W, -t, -b)], { fill: '#C9C9C9', stroke: '#C4C4C4' });
+    poligono(g, [P(-t, -t, 0), P(W, -t, 0), P(W, D, 0), P(-t, D, 0)], { fill: COR.piso, stroke: COR.pisoBorda });
+    // Paredes do fundo (esquerda e direita).
+    const parede = { cores: null, corNeutra: '#F1F1F1' };
+    caixa(g, P, { x: -t, y: -t, z: 0, w: t, d: D + t, h: H }, parede);
+    caixa(g, P, { x: 0, y: -t, z: 0, w: W, d: t, h: H }, parede);
+  }
+
+  /** Grade do piso (1 unidade; linha mais forte a cada 5) com a numeração dos eixos. */
+  function desenharGrade(pai, P, loja) {
+    const g = el('g', { class: 'grade', 'pointer-events': 'none' }, pai);
+    const W = loja.largura, D = loja.profundidade;
+    for (let x = 0; x <= W + 1e-6; x += 1) {
+      const forte = Math.round(x) % 5 === 0;
+      linha(g, P(x, 0, 0), P(x, D, 0), { stroke: forte ? '#9AA3AE' : '#C9CED4', 'stroke-width': forte ? 1 : 0.6 });
+      if (forte) texto(g, P(x, D, 0)[0] + 4, P(x, D, 0)[1] + 16, 'X ' + x, { 'font-size': 11, fill: '#5B6068', 'font-weight': 700 });
+    }
+    for (let y = 0; y <= D + 1e-6; y += 1) {
+      const forte = Math.round(y) % 5 === 0;
+      linha(g, P(0, y, 0), P(W, y, 0), { stroke: forte ? '#9AA3AE' : '#C9CED4', 'stroke-width': forte ? 1 : 0.6 });
+      if (forte) texto(g, P(W, y, 0)[0] + 6, P(W, y, 0)[1] + 14, 'Y ' + y, { 'font-size': 11, fill: '#5B6068', 'font-weight': 700 });
+    }
+  }
+
+  /* ------------------------------ etiquetas ------------------------------- */
+
+  function medirGrupo(etiquetas, simbolo, corPadrao) {
+    const itens = etiquetas.map((e) => {
+      const linhas = quebrar(e.texto, ETQ.maxTexto, ETQ.fonte, 700);
+      const w = Math.max.apply(null, linhas.map((l) => largura(l, ETQ.fonte, 700))) + ETQ.padX * 2;
+      return {
+        linhas,
+        w,
+        h: linhas.length * ETQ.lh + ETQ.padY * 2,
+        cores: coresDe(e.marca, 'etiqueta', true) || corPadrao,
+      };
+    });
+    const wEtq = Math.max.apply(null, itens.map((i) => i.w));
+    const h = itens.reduce((s, i) => s + i.h, 0) + ETQ.gap * (itens.length - 1);
+    return { itens, wEtq, w: wEtq + (simbolo ? ETQ.simbolo + 4 : 0), h, simbolo };
+  }
+
+  function desenharSimbolo(pai, simbolo, cx, cy, escala) {
+    const k = escala || 1;
+    const g = el('g', { transform: 'translate(' + cx + ',' + cy + ') scale(' + k + ')' }, pai);
+    if (simbolo === 'MOVIMENTO') {
+      poligono(g, [[-6, -7.5], [8, 0], [-6, 7.5]], { fill: '#111' });
+    } else if (simbolo === 'FIXO') {
+      poligono(g, [[0, -8.5], [8.5, 0], [0, 8.5], [-8.5, 0]], { fill: '#111' });
+    } else if (simbolo === 'EXPOSICAO') {
+      el('circle', { r: 8.5, fill: '#111', stroke: '#fff', 'stroke-width': 1.2 }, g);
+      texto(g, 0, 4, 'E', { 'font-size': 11, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' });
+    } else if (simbolo === 'NOVO') {
+      const pts = [];
+      for (let i = 0; i < 24; i++) {
+        const r = i % 2 ? 8 : 11;
+        const a = (Math.PI * 2 * i) / 24;
+        pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+      }
+      poligono(g, pts, { fill: '#FFD21F', stroke: '#B88A00', 'stroke-width': 0.8 });
+      texto(g, 0, 2.4, 'NEW', { 'font-size': 6.5, 'font-weight': 700, fill: '#6B4200', 'text-anchor': 'middle' });
+    }
+    return g;
+  }
+
+  function desenharGrupo(pai, gr, attrs) {
+    const g = el('g', Object.assign({ 'data-movel': gr.id }, attrs), pai);
+    let y = gr.y;
+    gr.itens.forEach((it, i) => {
+      el('rect', { x: gr.x, y, width: gr.wEtq, height: it.h, fill: tinta(it.cores, 0), rx: 1.5 }, g);
+      it.linhas.forEach((l, k) => {
+        texto(g, gr.x + gr.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.2, l, {
+          'font-size': ETQ.fonte, 'font-weight': 700, fill: '#FFFFFF', 'text-anchor': 'middle',
+        });
+      });
+      if (i === 0 && gr.simbolo) desenharSimbolo(g, gr.simbolo, gr.x + gr.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2);
+      y += it.h + ETQ.gap;
+    });
+    return g;
+  }
+
+  const sobrepoe = (a, b, m) => a.x < b.x + b.w + m && b.x < a.x + a.w + m && a.y < b.y + b.h + m && b.y < a.y + a.h + m;
+
+  /** Candidatos de deslocamento, do mais próximo ao mais distante. */
+  const DESLOCAMENTOS = (() => {
+    const lista = [];
+    for (let dx = -220; dx <= 220; dx += 10) {
+      for (let dy = -160; dy <= 160; dy += 6) lista.push([dx, dy, dx * dx + dy * dy * 1.3]);
+    }
+    return lista.sort((a, b) => a[2] - b[2]);
+  })();
+
+  /**
+   * Posiciona os grupos sem nenhuma etiqueta sobre outra (nem sobre as caixas de destaque,
+   * notas e painéis). Os com ajuste manual ficam onde o usuário pôs, a menos que caiam em
+   * cima de outro. Primeiro tenta perto do móvel; se não houver lugar, procura na tela toda,
+   * do mais perto para o mais longe.
+   */
+  function posicionar(grupos, obstaculos) {
+    const ocupados = obstaculos.slice();
+    const dentro = (r) => r.x >= LIMITES.x0 && r.y >= LIMITES.y0 && r.x + r.w <= LIMITES.x1 && r.y + r.h <= LIMITES.y1;
+    const livre = (r) => dentro(r) && ocupados.every((o) => !sobrepoe(r, o, 3));
+    const acomodar = (g) => {
+      const base = { x: g.x, y: g.y, w: g.w, h: g.h };
+      if (livre(base)) return;
+      const tentar = (dx, dy) => {
+        const c = { x: base.x + dx, y: base.y + dy, w: g.w, h: g.h };
+        if (!livre(c)) return false;
+        g.x = c.x;
+        g.y = c.y;
+        return true;
+      };
+      if (DESLOCAMENTOS.some((d) => tentar(d[0], d[1]))) return;
+      const longe = [];
+      for (let x = LIMITES.x0; x + g.w <= LIMITES.x1; x += 8) {
+        for (let y = LIMITES.y0; y + g.h <= LIMITES.y1; y += 6) longe.push([x - base.x, y - base.y]);
+      }
+      longe.sort((a, b) => a[0] * a[0] + a[1] * a[1] * 1.3 - (b[0] * b[0] + b[1] * b[1] * 1.3));
+      longe.some((d) => tentar(d[0], d[1]));
+    };
+    grupos.filter((g) => g.manual).forEach((g) => { acomodar(g); ocupados.push(g); });
+    grupos.filter((g) => !g.manual).sort((a, b) => a.ancora[1] - b.ancora[1]).forEach((g) => { acomodar(g); ocupados.push(g); });
+  }
+
+  /** Linha-guia do grupo até o ponto do móvel (quando o grupo ficou longe). */
+  function desenharGuia(pai, rect, ancora, forcar) {
+    const px = Math.max(rect.x, Math.min(ancora[0], rect.x + rect.w));
+    const py = Math.max(rect.y, Math.min(ancora[1], rect.y + rect.h));
+    const dist = Math.hypot(px - ancora[0], py - ancora[1]);
+    if (!forcar && dist < 14) return;
+    linha(pai, [px, py], ancora, { stroke: '#3A3A3A', 'stroke-width': 1.3 });
+    el('circle', { cx: ancora[0], cy: ancora[1], r: 4, fill: '#FFFFFF', stroke: '#3A3A3A', 'stroke-width': 1.3 }, pai);
+  }
+
+  /* ----------------------------- painel lateral ---------------------------- */
+
+  function iconeTv(pai, cx, cy) {
+    const g = el('g', { fill: 'none', stroke: '#222', 'stroke-width': 2.4, 'stroke-linejoin': 'round' }, pai);
+    el('rect', { x: cx - 21, y: cy - 15, width: 42, height: 27, rx: 2 }, g);
+    linha(g, [cx - 7, cy + 17], [cx + 7, cy + 17], {});
+    linha(g, [cx, cy + 12], [cx, cy + 17], {});
+  }
+
+  function iconeRadio(pai, cx, cy) {
+    const g = el('g', { fill: 'none', stroke: '#222', 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, pai);
+    el('rect', { x: cx - 17, y: cy - 10, width: 34, height: 26, rx: 3 }, g);
+    linha(g, [cx - 13, cy - 10], [cx + 10, cy - 22], {});
+    el('circle', { cx: cx - 6, cy: cy + 7, r: 5 }, g);
+    linha(g, [cx + 4, cy + 3], [cx + 12, cy + 3], {});
+    linha(g, [cx + 4, cy + 9], [cx + 12, cy + 9], {});
+    linha(g, [cx - 13, cy - 4], [cx + 13, cy - 4], {});
+  }
+
+  function iconeLetra(pai, cx, cy, letra) {
+    el('circle', { cx, cy, r: 20, fill: 'none', stroke: '#222', 'stroke-width': 2.4 }, pai);
+    texto(pai, cx, cy + 12, letra, { 'font-size': 33, 'font-weight': 400, fill: '#222', 'text-anchor': 'middle' });
+  }
+
+  function listaLateral(pai, itens, x, y, w, alturaMin) {
+    const medidos = itens.map((it) => {
+      const linhas = quebrar(it.texto, w - 8, 11, 700);
+      return { it, linhas, h: Math.max(23, linhas.length * 13 + 10) };
+    });
+    let total = medidos.reduce((s, m) => s + m.h, 0) + 6 * (medidos.length - 1);
+    const extra = alturaMin && total < alturaMin ? (alturaMin - total) / medidos.length : 0;
+    let cy = y;
+    medidos.forEach((m) => {
+      const h = m.h + extra;
+      const cores = coresDe(m.it.marca, 'etiqueta') || [COR.etiquetaPadrao];
+      el('rect', { x, y: cy, width: w, height: h, fill: tinta(cores, 0) }, pai);
+      const y0 = cy + h / 2 - (m.linhas.length * 13) / 2 + 10;
+      m.linhas.forEach((l, k) => texto(pai, x + 4, y0 + k * 13, l, { 'font-size': 11, 'font-weight': 700, fill: '#fff' }));
+      cy += h + 6;
+    });
+    return Math.max(total + extra * medidos.length, alturaMin || 0);
+  }
+
+  function desenharLateral(pai, planta, ciclo, secoes) {
+    const g = el('g', { class: 'lateral' }, pai);
+    el('rect', { x: 22, y: 12, width: 260, height: 64, fill: '#0A0A0A', stroke: '#666', 'stroke-width': 1 }, g);
+    texto(g, 152, 58, planta.nome, { 'font-size': 38, 'font-weight': 700, fill: '#FFFFFF', 'text-anchor': 'middle' });
+    if (ciclo) {
+      texto(g, 24, 100, 'CICLO: ' + ciclo, { 'font-size': 15, 'font-weight': 700, fill: '#6B6B6B' });
+    }
+
+    let y = 117;
+    if (secoes.TV.length) {
+      iconeTv(g, 62, 135);
+      iconeRadio(g, 62, 222);
+      y += listaLateral(g, secoes.TV, 91, y, 168, 122) + 26;
+    }
+    ['A', 'C'].forEach((letra) => {
+      if (!secoes[letra].length) return;
+      const h = listaLateral(g, secoes[letra], 91, y, 168, 0);
+      iconeLetra(g, 62, y + h / 2, letra);
+      y += h + 26;
+    });
+  }
+
+  /** Notas (canto inferior esquerdo): o trecho antes de ":" fica em negrito. */
+  function medirNotas(notas) {
+    const tam = 17, lh = 23, maxW = 490;
+    const paragrafos = notas.map((n) => {
+      const i = n.texto.indexOf(':');
+      const partes = i > 0 && i < 60
+        ? [{ t: n.texto.slice(0, i + 1), b: true }, { t: n.texto.slice(i + 1), b: false }]
+        : [{ t: n.texto, b: false }];
+      const palavras = [];
+      partes.forEach((p) => p.t.split(/\s+/).filter(Boolean).forEach((w) => palavras.push({ t: w, b: p.b })));
+      const linhas = [];
+      let atual = [];
+      let w = 0;
+      palavras.forEach((p) => {
+        const lp = largura(p.t, tam, p.b ? 700 : 400);
+        const esp = atual.length ? largura(' ', tam, 400) : 0;
+        if (atual.length && w + esp + lp > maxW) { linhas.push(atual); atual = []; w = 0; }
+        atual.push(p);
+        w += (atual.length > 1 ? esp : 0) + lp;
+      });
+      if (atual.length) linhas.push(atual);
+      return linhas;
+    });
+    const nLinhas = paragrafos.reduce((s, p) => s + p.length, 0);
+    return { paragrafos, tam, lh, h: nLinhas * lh + (paragrafos.length - 1) * 14 + 44, w: 535 };
+  }
+
+  function desenharNotas(pai, medida, x, y) {
+    const g = el('g', { class: 'notas' }, pai);
+    el('rect', { x, y, width: medida.w, height: medida.h, fill: '#F7F4F0', stroke: '#E2DDD6', filter: 'url(#sombra)' }, g);
+    let cy = y + 22 + medida.lh - 6;
+    medida.paragrafos.forEach((linhas) => {
+      linhas.forEach((ln) => {
+        const t = el('text', { x: x + 22, y: cy, 'font-family': FONTE, 'font-size': medida.tam, fill: COR.textoNota }, g);
+        ln.forEach((p, i) => {
+          const s = el('tspan', { 'font-weight': p.b ? 700 : 400, fill: p.b ? COR.tituloNota : COR.textoNota }, t);
+          s.textContent = (i ? ' ' : '') + p.t;
+        });
+        cy += medida.lh;
+      });
+      cy += 14;
+    });
+  }
+
+  function desenharLegendaSimbolos(pai, usados, simbolos) {
+    const ordem = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((s) => usados.has(s));
+    let y = 1052 - (ordem.length - 1) * 44;
+    const topo = y - 22;
+    ordem.forEach((s) => {
+      desenharSimbolo(pai, s, 33, y, 1.45);
+      texto(pai, 58, y + 7, (simbolos[s] && simbolos[s].descricao) || s, { 'font-size': 19, fill: '#1A1A1A', 'font-weight': 400 });
+      y += 44;
+    });
+    return ordem.length ? topo : 1072;
+  }
+
+  /* ---------------------------- itens extras ------------------------------ */
+
+  function iconeExtra(pai, id, cx, cy) {
+    const g = el('g', { fill: 'none', stroke: '#6A6A6A', 'stroke-width': 1.6, 'stroke-linejoin': 'round' }, pai);
+    const k = id.toUpperCase();
+    if (k.indexOf('CEST') >= 0) {
+      el('path', { d: `M${cx - 24},${cy - 4} L${cx + 24},${cy - 4} L${cx + 18},${cy + 20} L${cx - 18},${cy + 20} Z` }, g);
+      el('path', { d: `M${cx - 16},${cy - 4} Q${cx},${cy - 32} ${cx + 16},${cy - 4}` }, g);
+      for (let i = -12; i <= 12; i += 8) linha(g, [cx + i, cy - 4], [cx + i * 0.75, cy + 20], {});
+      linha(g, [cx - 21, cy + 6], [cx + 21, cy + 6], {});
+    } else if (k.indexOf('CAVALETE') >= 0) {
+      el('rect', { x: cx - 16, y: cy - 26, width: 32, height: 40, fill: '#FFFFFF' }, g);
+      linha(g, [cx - 13, cy + 14], [cx - 18, cy + 28], {});
+      linha(g, [cx + 13, cy + 14], [cx + 18, cy + 28], {});
+    } else {
+      el('path', { d: `M${cx - 20},${cy - 12} L${cx},${cy - 22} L${cx + 20},${cy - 12} L${cx + 20},${cy + 18} L${cx},${cy + 28} L${cx - 20},${cy + 18} Z` }, g);
+      linha(g, [cx, cy - 2], [cx, cy + 28], {});
+      linha(g, [cx - 20, cy - 12], [cx, cy - 2], {});
+      linha(g, [cx + 20, cy - 12], [cx, cy - 2], {});
+    }
+  }
+
+  function desenharExtras(pai, extras, obterDados) {
+    if (!extras.length) return null;
+    const slot = 206;
+    const w = slot * extras.length;
+    const h = 84;
+    const x = 1904 - w;
+    const y = 1064 - h;
+    const g = el('g', { class: 'extras' }, pai);
+    el('rect', { x, y, width: w, height: h, rx: 10, fill: '#FFFFFF', stroke: '#DDD', filter: 'url(#sombra)' }, g);
+    extras.forEach((m, i) => {
+      const x0 = x + i * slot;
+      const gs = el('g', { 'data-movel': m.id }, g);
+      dica(gs, m.id + (m.descricao ? ' — ' + m.descricao : ''));
+      if (i) linha(gs, [x0, y + 14], [x0, y + h - 14], { stroke: '#BBBBBB', 'stroke-width': 1.5 });
+      iconeExtra(gs, m.id + ' ' + m.descricao, x0 + 38, y + h / 2);
+      texto(gs, x0 + 136, y + 20, m.descricao || m.id, { 'font-size': 11, 'font-style': 'italic', fill: '#666', 'text-anchor': 'middle' });
+      const info = obterDados(m);
+      const etiquetas = info && info.etiquetas.length ? info.etiquetas : [];
+      let cy = y + 28;
+      etiquetas.slice(0, 3).forEach((e) => {
+        const cores = coresDe(e.marca, 'etiqueta', true) || coresDe(info.marca, 'etiqueta', true) || corEtiquetaPadrao(true);
+        const linhas = quebrar(e.texto, 116, 10, 700).slice(0, 2);
+        const hh = linhas.length * 11 + 5;
+        el('rect', { x: x0 + 76, y: cy, width: 120, height: hh, fill: tinta(cores, 0) }, gs);
+        linhas.forEach((l, k) => texto(gs, x0 + 136, cy + 10 + k * 11, l, { 'font-size': 10, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' }));
+        cy += hh + 3;
+      });
+      if (!etiquetas.length) texto(gs, x0 + 136, y + 50, '—', { 'font-size': 14, fill: '#AAA', 'text-anchor': 'middle' });
+    });
+    return { x, y, w, h };
+  }
+
+  /* ------------------------------- callouts ------------------------------- */
+
+  function posicionarCallouts(callouts) {
+    const placed = [];
+    callouts.sort((a, b) => a.ancoraX - b.ancoraX).forEach((c) => {
+      c.x = Math.max(LIMITES.x0 + 6, Math.min(c.ancoraX - c.w / 2, LIMITES.x1 - c.w));
+      c.y = 14;
+      placed.forEach((p) => {
+        if (sobrepoe(c, p, 14)) c.x = p.x + p.w + 18;
+      });
+      placed.push(c);
+    });
+    // Se estourou a direita, empurra tudo para a esquerda; se ainda não couber, quebra linha.
+    const excesso = placed.length ? placed[placed.length - 1].x + placed[placed.length - 1].w - LIMITES.x1 : 0;
+    if (excesso > 0) {
+      for (let i = placed.length - 1; i >= 0; i--) {
+        const limite = i === placed.length - 1 ? LIMITES.x1 : placed[i + 1].x - 18;
+        placed[i].x = Math.min(placed[i].x, limite - placed[i].w);
+      }
+    }
+    placed.forEach((c, i) => {
+      if (c.x < LIMITES.x0) {
+        c.x = LIMITES.x0 + 6;
+        const acima = placed.slice(0, i).filter((p) => sobrepoe(c, p, 10));
+        if (acima.length) c.y = Math.max.apply(null, acima.map((p) => p.y + p.h)) + 14;
+      }
+    });
+  }
+
+  function desenharCallout(pai, c) {
+    const g = el('g', { class: 'callout' }, pai);
+    el('rect', { x: c.x, y: c.y, width: c.w, height: c.h, fill: tinta(c.cores, 0), stroke: misturar(c.cores[0], '#000000', 0.25), 'stroke-width': 1 }, g);
+    c.linhas.forEach((l, k) => texto(g, c.x + CALLOUT.pad, c.y + CALLOUT.pad + CALLOUT.lh * (k + 1) - 4, l, {
+      'font-size': CALLOUT.fonte, 'font-weight': 700, fill: '#FFFFFF',
+    }));
+  }
+
+  /* ------------------------------ desenho ---------------------------------- */
+
+  /**
+   * @param {SVGSVGElement} svg
+   * @param {{dados, planta, ciclo, filtro, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta}} ctx
+   *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).
+   *   As etiquetas ficam nas mesmas posições da tela (os painéis continuam contando como obstáculo).
+   * @return {{grupos: Array}} grupos de etiquetas (para arrastar no modo edição)
+   */
+  function desenhar(svg, ctx) {
+    marcas = ctx.dados.marcas;
+    filtroMarca = ctx.filtro || '';
+    gradientes = {};
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute('viewBox', '0 0 ' + TELA.w + ' ' + TELA.h);
+    defs = el('defs', null, svg);
+    const filtro = el('filter', { id: 'sombra', x: '-10%', y: '-10%', width: '120%', height: '130%' }, defs);
+    el('feDropShadow', { dx: 0, dy: 3, stdDeviation: 4, 'flood-color': '#000', 'flood-opacity': 0.18 }, filtro);
+    if (!ctx.somentePlanta) el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
+
+    const planta = ctx.planta;
+    const projecao = criarProjecao(planta.loja);
+    const { P } = projecao;
+    const camadaPlanta = el('g', { class: 'camada-planta' }, svg);
+    const camadaGuias = el('g', { class: 'camada-guias' }, svg);
+    const camadaEtiquetas = el('g', { class: 'camada-etiquetas' }, svg);
+    const camadaSobre = el('g', { class: 'camada-sobreposta' }, svg);
+
+    desenharLoja(camadaPlanta, P, planta.loja);
+    if (ctx.grade) desenharGrade(camadaPlanta, P, planta.loja);
+
+    // Gôndola: um meio também fica dividido quando o ciclo tem linha para a 2ª (ou 1ª) metade dele.
+    const temLinha = (id) => {
+      const i = ctx.obterMovimento({ id });
+      return !!(i && (i.marca || i.etiquetas.length || i.simbolo));
+    };
+    const moveis = planta.moveis.filter((m) => m.tipo !== 'EXTRA').map((m) => {
+      if (m.tipo !== 'GONDOLA') return m;
+      const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
+        || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
+      return div === (m.dividido || '') ? m : Object.assign({}, m, { dividido: div });
+    });
+    const extras = planta.moveis.filter((m) => m.tipo === 'EXTRA');
+    const simbolosUsados = new Set();
+
+    // Situação de cada móvel (e de cada espaço de gôndola) no ciclo.
+    const info = {};
+    const infoEspaco = {}; // "GON-01/MEIO-A" → linha própria do espaço
+    const anotar = (i) => { if (i && i.simbolo) simbolosUsados.add(i.simbolo); return i; };
+    moveis.concat(extras).forEach((m) => {
+      info[m.id] = anotar(ctx.obterMovimento(m));
+      espacos(m).forEach((e) => {
+        const id = m.id + '/' + e.id;
+        // Linha de espaço vazia (sem marca, etiqueta nem símbolo) não conta: vale a gôndola inteira.
+        // Metade sem linha própria usa a linha do meio inteiro (MEIO-A-1 → MEIO-A).
+        const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
+        const i = [id, meio].filter(Boolean).map((x) => ctx.obterMovimento({ id: x })).find((x) => x && (x.marca || x.etiquetas.length || x.simbolo));
+        infoEspaco[id] = i ? anotar(i) : null;
+      });
+    });
+    /** Espaço sem linha própria herda a linha da gôndola inteira. */
+    const infoDe = (b) => (b.espaco && infoEspaco[b.movel.id + '/' + b.espaco.id]) || info[b.movel.id];
+
+    // Móveis, na ordem de pintura.
+    const prims = [];
+    moveis.forEach((m) => primitivas(m).forEach((p) => prims.push(p)));
+    ordenar(prims, P).forEach((b) => {
+      const m = b.movel;
+      const i = infoDe(b);
+      const corInfo = (x) => (x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);
+      const cores = corInfo(i);
+      // Mesas: um só desenho, mas cada frente com a cor da própria linha (ou a da mesa inteira).
+      if (m.tipo === 'MESA' || m.tipo === 'MESA_3') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id] || i));
+      const g = el('g', {
+        class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
+        'data-movel': m.id,
+        'data-espaco': b.espaco ? b.espaco.id : null,
+      }, camadaPlanta);
+      desenharPrimitiva(g, P, b, cores);
+      const linhasDica = [m.id + (b.espaco ? '/' + b.espaco.id + ' (' + b.espaco.nome + ')' : '') + (m.descricao ? ' — ' + m.descricao : '')];
+      if (i) {
+        linhasDica.push('Marca: ' + (i.marca ? i.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—'));
+        i.etiquetas.forEach((e) => linhasDica.push('• ' + e.texto));
+        if (i.observacao) linhasDica.push('Obs.: ' + i.observacao);
+      } else {
+        linhasDica.push('Sem movimento neste ciclo');
+      }
+      dica(g, linhasDica.join('\n'));
+    });
+
+    // Painéis (lateral, notas, callouts, extras).
+    const pain = ctx.obterPaineis();
+    desenharLateral(el('g', null, camadaSobre), planta, ctx.ciclo, pain);
+    const topoLegenda = desenharLegendaSimbolos(camadaSobre, simbolosUsados, ctx.dados.simbolos);
+    const obstaculos = [{ x: 0, y: 0, w: 470, h: 1080 }];
+    if (pain.NOTA.length) {
+      const med = medirNotas(pain.NOTA);
+      const y = Math.min(topoLegenda, 1072) - 28 - med.h;
+      desenharNotas(camadaSobre, med, 15, y);
+      obstaculos.push({ x: 15, y, w: med.w, h: med.h });
+    }
+    const rExtras = desenharExtras(camadaSobre, extras, (m) => info[m.id]);
+    if (rExtras) obstaculos.push(rExtras);
+
+    const ancoraDe = (m) => {
+      if (m.tipo === 'VITRINE_L') {
+        const t = espessuraL(m);
+        return P(m.x + m.w / 2, cantoL(m).frente ? m.y + m.d - t / 2 : m.y + t / 2, m.z + m.h);
+      }
+      return P(m.x + m.w / 2, m.y + m.d / 2, m.z + m.h);
+    };
+    const porId = {};
+    moveis.forEach((m) => { porId[m.id] = m; });
+
+    const callouts = pain.CALLOUT.map((c) => {
+      const cores = coresDe(c.marca, 'etiqueta') || [COR.etiquetaPadrao];
+      const linhas = quebrar(c.texto, CALLOUT.maxW - CALLOUT.pad * 2, CALLOUT.fonte, 700);
+      const w = Math.max.apply(null, linhas.map((l) => largura(l, CALLOUT.fonte, 700))) + CALLOUT.pad * 2 + 2;
+      const alvo = c.movel && porId[c.movel] ? ancoraDe(porId[c.movel]) : null;
+      return { cores, linhas, w, h: linhas.length * CALLOUT.lh + CALLOUT.pad * 2, alvo, ancoraX: alvo ? alvo[0] : 1200 };
+    });
+    posicionarCallouts(callouts);
+    callouts.forEach((c) => {
+      if (c.alvo) {
+        const x = Math.max(c.x + 12, Math.min(c.alvo[0], c.x + c.w - 12));
+        desenharGuia(el('g', { class: 'guia-callout' }, camadaGuias), { x, y: c.y + c.h, w: 0, h: 0 }, c.alvo, true);
+      }
+      desenharCallout(camadaEtiquetas, c);
+      obstaculos.push(c);
+    });
+
+    // Etiquetas: uma pilha por móvel (limitada por tipo) e, na gôndola, uma por bloco.
+    // As etiquetas de uma gôndola compartilham o ajuste manual do móvel (movem juntas).
+    const limitePorTipo = ctx.dados.config.etiquetasPorTipo || {};
+    const grupos = [];
+    const novoGrupo = (id, m, i, etiquetas, simbolo, ancora, ajuste) => {
+      if (!etiquetas.length) return;
+      const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta', true)) || corEtiquetaPadrao(true);
+      const med = medirGrupo(etiquetas, simbolo, corPadrao);
+      const baseX = ancora[0] - med.w / 2;
+      const baseY = ancora[1] - med.h / 2;
+      grupos.push(Object.assign(med, {
+        id, movel: m, info: i, ancora, baseX, baseY,
+        x: baseX + ajuste.x, y: baseY + ajuste.y, manual: !!(ajuste.x || ajuste.y),
+      }));
+    };
+    moveis.forEach((m) => {
+      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
+      const grupo = (e) => novoGrupo(e.id, m, e.info, e.etiquetas, e.simbolo, P(e.topo[0], e.topo[1], e.topo[2]), ajuste);
+      if (m.tipo === 'GONDOLA') {
+        juntarIguais(etiquetasGondola(m, info[m.id], infoEspaco)).forEach(grupo);
+        return;
+      }
+      const i = info[m.id];
+      if (m.tipo === 'VITRINE_L') {
+        // Balcão: Etiqueta 1, 2 e 3 da linha do balcão vão para o bloco 1, o canto e o bloco 3.
+        if (i) {
+          juntarIguais(primitivas(m).map((p) => {
+            const e = i.etiquetas.filter((x, k) => (x.posicao || k + 1) === p.bloco)[0];
+            return e ? { id: m.id + '/' + p.bloco, info: i, etiquetas: [e], simbolo: p.bloco === 1 ? i.simbolo : '', pontos: [[p.x + p.w / 2, p.y + p.d / 2, p.z + p.h]] } : null;
+          })).forEach(grupo);
+        }
+        return;
+      }
+      if (i) novoGrupo(m.id, m, i, i.etiquetas.slice(0, limitePorTipo[m.tipo] || i.etiquetas.length), i.simbolo, ancoraDe(m), ajuste);
+      // Blocos (balcão, mesas, testeiras do make): a linha própria do bloco mostra a Etiqueta 1 em cima
+      // dele; blocos vizinhos com o mesmo texto e cor ficam com uma etiqueta só, no centro deles.
+      juntarIguais(topoDosBlocos(m).map((bl) => {
+        const id = m.id + '/' + bl.espaco.id;
+        const ie = infoEspaco[id];
+        return ie && ie.etiquetas.length ? { id, info: ie, etiquetas: ie.etiquetas.slice(0, 1), simbolo: ie.simbolo, pontos: [bl.topo] } : null;
+      })).forEach(grupo);
+    });
+    posicionar(grupos, obstaculos);
+    grupos.forEach((gr) => {
+      desenharGuia(camadaGuias, gr, gr.ancora, false);
+      gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
+        class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : ''),
+      });
+      dica(gr.elemento, gr.id + (gr.movel.descricao ? ' — ' + gr.movel.descricao : ''));
+    });
+
+    // Só a planta: tira os painéis (lateral, notas, legenda, extras e caixas de destaque).
+    if (ctx.somentePlanta) {
+      camadaSobre.remove();
+      svg.querySelectorAll('.callout, .guia-callout').forEach((n) => n.remove());
+    }
+
+    // Imagem de referência (modo construção): por cima de tudo, semitransparente.
+    if (ctx.referencia && ctx.referencia.src && !ctx.somentePlanta) {
+      el('image', {
+        href: ctx.referencia.src,
+        x: ctx.referencia.dx || 0,
+        y: ctx.referencia.dy || 0,
+        width: TELA.w * (ctx.referencia.zoom || 1),
+        height: TELA.h * (ctx.referencia.zoom || 1),
+        preserveAspectRatio: 'xMidYMid meet', opacity: ctx.referencia.opacidade, 'pointer-events': 'none',
+        class: 'referencia',
+      }, svg);
+    }
+
+    return { grupos, escala: projecao.escala, P };
+  }
+
+  return { desenhar, espacos, TELA };
+})();
+</script>
+
+    <script>
+/**
+ * ============================================================================
+ *  APLICAÇÃO (estado, controles e chamadas ao servidor)
+ * ============================================================================
+ */
+const App = (() => {
+  const estado = {
+    dados: null,
+    ciclo: '',
+    planta: '',
+    filtro: '',
+    edicao: false,
+    ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
+    grupos: [],
+  };
+  const $ = (id) => document.getElementById(id);
+  const svg = $('slide');
+
+  /**
+   * Modo "Construir loja". A versão só de visualização (pasta visualizador/) não inclui
+   * o Construtor.html: no lugar dele entra este substituto, que nunca está ativo.
+   */
+  const Editor = typeof Construtor !== 'undefined' ? Construtor : {
+    iniciar() {}, sincronizar() {}, aposDesenhar() {}, fechar() {}, abrir() {}, tecla() {},
+    contexto: () => null, ativo: () => false, podeSair: () => true,
+  };
+
+  /* ------------------------------ utilidades ------------------------------ */
+
+  const memoria = {
+    ler(k) { try { return window.localStorage.getItem('planoVarejo.' + k); } catch (e) { return null; } },
+    gravar(k, v) { try { window.localStorage.setItem('planoVarejo.' + k, v); } catch (e) { /* sem armazenamento */ } },
+  };
+
+  /** Dispara o download de um Blob. */
+  function baixarArquivo(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  /** google.script.run como Promise. */
+  function chamar(funcao) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise((ok, falha) => {
+      if (!window.google || !google.script || !google.script.run) {
+        falha(new Error('Esta página precisa ser aberta pelo Apps Script (App da Web ou menu da planilha).'));
+        return;
+      }
+      const run = google.script.run.withSuccessHandler(ok).withFailureHandler(falha);
+      run[funcao].apply(run, args);
+    });
+  }
+
+  function carregando(ativo, mensagem) {
+    $('carregando').hidden = !ativo;
+    if (mensagem) $('carregandoTexto').textContent = mensagem;
+  }
+
+  let timerToast = null;
+  function toast(msg, erro) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.toggle('erro', !!erro);
+    t.hidden = false;
+    clearTimeout(timerToast);
+    timerToast = setTimeout(() => { t.hidden = true; }, erro ? 7000 : 3500);
+  }
+
+  function erro(e) {
+    console.error(e);
+    toast((e && e.message) || String(e), true);
+  }
+
+  /* -------------------------- resolução dos dados -------------------------- */
+
+  const TODAS = () => estado.dados.config.plantaTodas;
+
+  /**
+   * Cascata: a planta e, depois, as anteriores (da mais próxima para a menor) — o que é
+   * definido na ER P vale para ER M, ER G e ER GG, a não ser que a planta tenha linha própria.
+   */
+  function cascata(planta) {
+    const ids = estado.dados.plantas.map((p) => p.id);
+    const i = ids.indexOf(planta);
+    return i < 0 ? [planta] : ids.slice(0, i + 1).reverse();
+  }
+
+  function movimentoDe(ciclo, planta, id) {
+    const c = estado.dados.movimentos[ciclo] || {};
+    const achada = cascata(planta).find((p) => c[p] && c[p][id]);
+    return (achada && c[achada][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+  }
+
+  /** Painéis de uma planta: por seção, vale a planta mais próxima na cascata que tiver a seção; senão "TODAS". */
+  function paineisDe(ciclo, planta) {
+    const c = estado.dados.paineis[ciclo] || {};
+    const todas = c[TODAS()] || [];
+    const out = {};
+    Object.keys(estado.dados.secoes).forEach((s) => {
+      const daSecao = (p) => (c[p] || []).filter((x) => x.secao === s);
+      const achada = cascata(planta).find((p) => daSecao(p).length);
+      out[s] = achada ? daSecao(achada) : todas.filter((p) => p.secao === s);
+    });
+    return out;
+  }
+
+  /** Linhas da aba Painéis para a planilha base. */
+  function linhasPaineis(ciclo, plantas) {
+    const todasAsPlantas = estado.dados.plantas.length === plantas.length;
+    const c = estado.dados.paineis[ciclo] || {};
+    if (todasAsPlantas) {
+      return Object.keys(c).reduce((acc, planta) => acc.concat(c[planta].map((p) => Object.assign({ planta }, p))), []);
+    }
+    return plantas.reduce((acc, planta) => {
+      const r = paineisDe(ciclo, planta);
+      Object.keys(r).forEach((s) => r[s].forEach((p) => acc.push(Object.assign({}, p, { planta }))));
+      return acc;
+    }, []);
+  }
+
+  const plantaAtual = () => estado.dados && estado.dados.plantas.find((p) => p.id === estado.planta);
+
+  /* ------------------------------- carga ---------------------------------- */
+
+  async function carregar(preferencias) {
+    carregando(true, 'Carregando dados da planilha…');
+    try {
+      const dados = await chamar('getDados');
+      if (dados.precisaConfigurar) {
+        mostrarConfiguracao(dados.mensagem);
+        return;
+      }
+      aplicarDados(dados, preferencias || {});
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  function aplicarDados(dados, pref) {
+    estado.dados = dados;
+    $('telaConfig').hidden = true;
+    svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden
+
+    // O app abre sem ciclo (planta limpa, sem cores nem etiquetas) até o usuário escolher um.
+    const cicloPref = 'ciclo' in pref ? pref.ciclo : estado.ciclo;
+    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 ? cicloPref : '';
+    const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
+    estado.planta = dados.plantas.some((p) => p.id === plantaPref) ? plantaPref : (dados.plantas[0] || {}).id || '';
+    estado.ajustes = {};
+
+    $('avisoLocal').hidden = !dados.modoLocal;
+    const link = $('lnkPlanilha');
+    link.hidden = !dados.planilhaUrl;
+    if (dados.planilhaUrl) link.href = dados.planilhaUrl;
+
+    montarCiclos();
+    montarAbas();
+    montarLegenda();
+    montarAvisos(dados.avisos || []);
+    Editor.sincronizar(plantaAtual());
+    desenhar();
+  }
+
+  function mostrarConfiguracao(mensagem) {
+    svg.toggleAttribute('hidden', true);
+    $('telaConfig').hidden = false;
+    $('msgConfig').textContent = mensagem || 'Crie as abas Movimentos, Painéis e Layout para começar.';
+  }
+
+  async function configurar() {
+    carregando(true, 'Criando abas na planilha…');
+    try {
+      const r = await chamar('configurarPlanilha');
+      toast(r.mensagem);
+      await carregar();
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* ------------------------------ controles ------------------------------- */
+
+  function montarCiclos() {
+    const sel = $('selCiclo');
+    sel.textContent = '';
+    if (!estado.dados.ciclos.length) {
+      sel.appendChild(new Option('(nenhum ciclo na planilha)', ''));
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    sel.appendChild(new Option('Sem ciclo (planta limpa)', '', false, !estado.ciclo));
+    estado.dados.ciclos.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.ciclo)));
+  }
+
+  function montarAbas() {
+    const box = $('abasPlanta');
+    box.textContent = '';
+    estado.dados.plantas.forEach((p) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'aba';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(p.id === estado.planta));
+      b.textContent = p.nome;
+      b.addEventListener('click', () => trocarPlanta(p.id));
+      box.appendChild(b);
+    });
+  }
+
+  function montarLegenda() {
+    const box = $('legenda');
+    box.textContent = '';
+    const rotulo = document.createElement('span');
+    rotulo.className = 'rotulo';
+    rotulo.textContent = 'Marcas';
+    box.appendChild(rotulo);
+    const marcas = estado.dados.marcas;
+    Object.keys(marcas).filter((cod) => cod !== 'NEUTRO').forEach((cod) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip' + (estado.filtro && estado.filtro !== cod ? ' inativo' : '');
+      chip.setAttribute('aria-pressed', String(estado.filtro === cod));
+      chip.title = 'Mostrar só ' + marcas[cod].nome;
+      const cor = document.createElement('span');
+      cor.className = 'cor';
+      cor.style.background = marcas[cod].etiqueta;
+      chip.appendChild(cor);
+      chip.appendChild(document.createTextNode(marcas[cod].nome));
+      chip.addEventListener('click', () => {
+        estado.filtro = estado.filtro === cod ? '' : cod;
+        montarLegenda();
+        desenhar();
+      });
+      box.appendChild(chip);
+    });
+    if (estado.filtro) {
+      const dica = document.createElement('span');
+      dica.className = 'dica';
+      dica.textContent = 'Clique de novo para ver todas as marcas.';
+      box.appendChild(dica);
+    }
+  }
+
+  function montarAvisos(avisos) {
+    const box = $('avisos');
+    box.hidden = !avisos.length;
+    if (!avisos.length) return;
+    box.querySelector('summary').textContent = avisos.length + (avisos.length === 1 ? ' aviso' : ' avisos') + ' na planilha';
+    const ul = box.querySelector('ul');
+    ul.textContent = '';
+    avisos.forEach((a) => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      ul.appendChild(li);
+    });
+  }
+
+  function trocarPlanta(id) {
+    if (id === estado.planta) return;
+    if (Object.keys(estado.ajustes).length && !window.confirm('Há ajustes de etiquetas não salvos nesta planta. Descartar?')) return;
+    if (!Editor.podeSair()) return;
+    estado.ajustes = {};
+    estado.planta = id;
+    memoria.gravar('planta', id);
+    Editor.sincronizar(plantaAtual());
+    montarAbas();
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  /* ------------------------------- desenho -------------------------------- */
+
+  /** Contexto do desenho da tela (também usado para gerar o PNG só da planta). */
+  function contextoDesenho() {
+    const construcao = Editor.contexto();
+    const planta = construcao ? construcao.planta : plantaAtual();
+    if (!planta) return null;
+    const semConteudo = !!construcao && !construcao.mostrarCiclo;
+    return {
+      dados: estado.dados,
+      planta,
+      ciclo: estado.ciclo,
+      filtro: estado.filtro,
+      ajustes: estado.ajustes,
+      edicao: estado.edicao,
+      // No modo construção os móveis ficam sem cor e sem etiqueta (a menos que se peça para mostrar o ciclo).
+      obterMovimento: (m) => (semConteudo ? null : movimentoDe(estado.ciclo, planta.id, m.id)),
+      obterPaineis: () => {
+        const p = paineisDe(estado.ciclo, planta.id);
+        if (semConteudo) p.CALLOUT = [];
+        return p;
+      },
+      selecionado: construcao ? construcao.selecionado : '',
+      grade: construcao ? construcao.grade : false,
+      referencia: construcao ? construcao.referencia : null,
+    };
+  }
+
+  function desenhar() {
+    const ctx = contextoDesenho();
+    if (!ctx) return;
+    svg.classList.toggle('construindo', !!Editor.contexto());
+    const r = Render.desenhar(svg, ctx);
+    Editor.aposDesenhar(r);
+    estado.grupos = r.grupos;
+    if (estado.edicao) ativarArraste();
+  }
+
+  /* --------------------------- ajuste de etiquetas ------------------------- */
+
+  function pontoSvg(ev) {
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX;
+    pt.y = ev.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  function ativarArraste() {
+    estado.grupos.forEach((gr) => {
+      // O ajuste é do móvel: arrastar uma etiqueta da gôndola move as etiquetas de todos os blocos dela.
+      // No toque, o arraste não rola a página.
+      gr.elemento.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });
+      gr.elemento.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        const alvo = gr.elemento;
+        alvo.setPointerCapture(ev.pointerId);
+        const inicio = pontoSvg(ev);
+        let dx = 0;
+        let dy = 0;
+        const mover = (e) => {
+          const p = pontoSvg(e);
+          dx = p.x - inicio.x;
+          dy = p.y - inicio.y;
+          alvo.setAttribute('transform', 'translate(' + dx + ',' + dy + ')');
+        };
+        const soltar = () => {
+          alvo.removeEventListener('pointermove', mover);
+          alvo.removeEventListener('pointerup', soltar);
+          alvo.removeEventListener('pointercancel', soltar);
+          if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+            alvo.removeAttribute('transform');
+            return;
+          }
+          estado.ajustes[gr.movel.id] = { x: Math.round(gr.x + dx - gr.baseX), y: Math.round(gr.y + dy - gr.baseY) };
+          atualizarBarraEdicao();
+          desenhar();
+        };
+        alvo.addEventListener('pointermove', mover);
+        alvo.addEventListener('pointerup', soltar);
+        alvo.addEventListener('pointercancel', soltar);
+      });
+    });
+  }
+
+  function atualizarBarraEdicao() {
+    $('barraEdicao').hidden = !estado.edicao;
+    $('btnEditar').setAttribute('aria-pressed', String(estado.edicao));
+    const n = Object.keys(estado.ajustes).length;
+    $('qtdAjustes').textContent = n ? '(' + n + (n === 1 ? ' alteração não salva)' : ' alterações não salvas)') : '';
+    $('btnSalvarAjustes').disabled = !n;
+    $('btnDescartar').disabled = !n;
+  }
+
+  function alternarEdicao() {
+    if (!estado.edicao && Editor.ativo()) Editor.fechar();
+    if (!estado.edicao && Editor.ativo()) return;
+    if (estado.edicao && Object.keys(estado.ajustes).length && !window.confirm('Sair sem salvar os ajustes?')) return;
+    estado.edicao = !estado.edicao;
+    estado.ajustes = {};
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  function autoOrganizar() {
+    const planta = plantaAtual();
+    planta.moveis.forEach((m) => { estado.ajustes[m.id] = { x: 0, y: 0 }; });
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  async function salvarAjustes() {
+    const planta = plantaAtual();
+    carregando(true, 'Salvando posições…');
+    try {
+      const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);
+      planta.moveis.forEach((m) => {
+        const a = estado.ajustes[m.id];
+        if (a) { m.ajusteX = a.x; m.ajusteY = a.y; }
+      });
+      estado.ajustes = {};
+      atualizarBarraEdicao();
+      desenhar();
+      toast('Posições salvas (' + r.atualizados + ' móveis).');
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* --------------------------- planilha base ------------------------------ */
+
+  function abrirDialogoModelo() {
+    const dlg = $('dlgModelo');
+    const temCiclo = !!estado.ciclo;
+    const copiar = dlg.querySelector('input[value="copiar"]');
+    copiar.disabled = !temCiclo;
+    copiar.checked = temCiclo;
+    dlg.querySelector('input[value="branco"]').checked = !temCiclo;
+    $('mdCopiarTexto').textContent = temCiclo ? 'Copiar o ciclo selecionado (' + estado.ciclo + ')' : 'Copiar ciclo (nenhum disponível)';
+    $('mdCiclo').value = '';
+    const sel = $('mdPlantas');
+    sel.textContent = '';
+    sel.appendChild(new Option('Todas as plantas', '*'));
+    estado.dados.plantas.forEach((p) => sel.appendChild(new Option('Somente ' + p.nome, p.id)));
+    dlg.returnValue = '';
+    dlg.showModal();
+    $('mdCiclo').focus();
+  }
+
+  async function baixarModelo() {
+    const dlg = $('dlgModelo');
+    if (dlg.returnValue !== 'baixar') return;
+    const copiar = dlg.querySelector('input[value="copiar"]').checked;
+    const plantaSel = $('mdPlantas').value;
+    const op = {
+      ciclo: $('mdCiclo').value.trim(),
+      origem: copiar ? estado.ciclo : '',
+      plantas: plantaSel === '*' ? estado.dados.plantas.map((p) => p.id) : [plantaSel],
+      incluirLayout: $('mdLayout').checked,
+    };
+    carregando(true, 'Gerando planilha…');
+    try {
+      const nome = await Planilha.baixarModelo(estado.dados, op, {
+        movimento: movimentoDe,
+        linhasPaineis,
+      });
+      toast('Download iniciado: ' + nome);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  async function importar(arquivo) {
+    if (!arquivo) return;
+    carregando(true, 'Lendo a planilha…');
+    try {
+      const payload = await Planilha.ler(arquivo, estado.dados);
+      carregando(true, 'Gravando na planilha…');
+      const r = await chamar('importarPlanilha', payload);
+      await carregar({ ciclo: r.ciclos.length ? r.ciclos[r.ciclos.length - 1] : '' });
+      mostrarResultado(r);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+      $('arquivo').value = '';
+    }
+  }
+
+  function mostrarResultado(r) {
+    $('resTitulo').textContent = 'Importação concluída';
+    const partes = [];
+    if (r.movimentos) partes.push(r.movimentos + ' linha(s) de movimentos');
+    if (r.paineis) partes.push(r.paineis + ' linha(s) de painéis');
+    if (r.layout) partes.push(r.layout + ' linha(s) de layout');
+    $('resTexto').textContent = (partes.join(' e ') || 'Nenhuma linha') + ' gravada(s)' +
+      (r.ciclos.length ? ' — ciclo(s): ' + r.ciclos.join(', ') + '.' : '.') +
+      (r.avisos.length ? ' Confira os avisos:' : '');
+    const ul = $('resAvisos');
+    ul.textContent = '';
+    r.avisos.forEach((a) => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      ul.appendChild(li);
+    });
+    $('dlgResultado').showModal();
+  }
+
+  /* -------------------------------- PNG ----------------------------------- */
+
+  function abrirDialogoPng() {
+    if (!plantaAtual()) return;
+    const dlg = $('dlgPng');
+    const marca = estado.filtro && estado.dados.marcas[estado.filtro];
+    $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.' : '';
+    $('pngFiltroTexto').hidden = !marca;
+    dlg.returnValue = '';
+    dlg.showModal();
+  }
+
+  /**
+   * SVG a exportar. "slide": o slide da tela inteiro. "planta": só a loja, os móveis e as
+   * etiquetas (sem painéis), sem fundo e recortada no conteúdo — com as mesmas cores da tela
+   * (inclusive o filtro de marca).
+   */
+  function svgParaPng(modo) {
+    if (modo !== 'planta') {
+      return { clone: svg.cloneNode(true), caixa: { x: 0, y: 0, w: Render.TELA.w, h: Render.TELA.h } };
+    }
+    const ns = 'http://www.w3.org/2000/svg';
+    const temp = document.createElementNS(ns, 'svg');
+    // Fora da tela, mas renderizado (getBBox não funciona com display: none).
+    temp.setAttribute('style', 'position:absolute;left:-10000px;top:0;width:' + Render.TELA.w + 'px;height:' + Render.TELA.h + 'px;visibility:hidden');
+    document.body.appendChild(temp);
+    try {
+      Render.desenhar(temp, Object.assign(contextoDesenho(), { somentePlanta: true, edicao: false, selecionado: '', grade: false, referencia: null }));
+      const bb = temp.getBBox();
+      const m = 12;
+      const x = Math.max(0, Math.floor(bb.x - m));
+      const y = Math.max(0, Math.floor(bb.y - m));
+      const caixa = {
+        x, y,
+        w: Math.min(Render.TELA.w, Math.ceil(bb.x + bb.width + m)) - x,
+        h: Math.min(Render.TELA.h, Math.ceil(bb.y + bb.height + m)) - y,
+      };
+      const clone = temp.cloneNode(true);
+      clone.removeAttribute('style');
+      clone.setAttribute('viewBox', [caixa.x, caixa.y, caixa.w, caixa.h].join(' '));
+      return { clone, caixa };
+    } finally {
+      temp.remove();
+    }
+  }
+
+  async function baixarPng() {
+    const dlg = $('dlgPng');
+    if (dlg.returnValue !== 'baixar') return;
+    const planta = plantaAtual();
+    if (!planta) return;
+    const modo = dlg.querySelector('input[name="pngModo"]:checked').value;
+    carregando(true, 'Gerando imagem…');
+    try {
+      const { clone, caixa } = svgParaPng(modo);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('width', caixa.w);
+      clone.setAttribute('height', caixa.h);
+      clone.querySelectorAll('title').forEach((t) => t.remove());
+      const xml = new XMLSerializer().serializeToString(clone);
+      const img = new Image();
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+      await img.decode();
+      const escala = 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(caixa.w * escala);
+      canvas.height = Math.round(caixa.h * escala);
+      const ctx = canvas.getContext('2d');
+      ctx.scale(escala, escala);
+      ctx.drawImage(img, 0, 0, caixa.w, caixa.h);
+      const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/png'));
+      const marca = estado.filtro && estado.dados.marcas[estado.filtro];
+      const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', marca ? marca.nome : ''].filter(Boolean);
+      const nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + '.png';
+      baixarArquivo(blob, nome);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* -------------------------------- início -------------------------------- */
+
+  function ligarEventos() {
+    // Botões que só existem em uma das versões (ex.: a de visualização não tem Construir loja
+    // nem Baixar / Importar planilha) são ignorados quando não estão na página.
+    const ao = (id, evento, fn) => { if ($(id)) $(id).addEventListener(evento, fn); };
+    ao('selCiclo', 'change', (e) => {
+      estado.ciclo = e.target.value;
+      desenhar();
+    });
+    ao('btnModelo', 'click', () => estado.dados && abrirDialogoModelo());
+    ao('dlgModelo', 'close', baixarModelo);
+    ao('btnImportar', 'click', () => estado.dados && $('arquivo').click());
+    ao('arquivo', 'change', (e) => importar(e.target.files[0]));
+    ao('btnPng', 'click', () => estado.dados && abrirDialogoPng());
+    ao('dlgPng', 'close', baixarPng);
+    ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
+    ao('btnAutoOrganizar', 'click', autoOrganizar);
+    ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
+    ao('btnSalvarAjustes', 'click', salvarAjustes);
+    ao('btnConfigurar', 'click', configurar);
+    ao('btnConstruir', 'click', () => {
+      if (!estado.dados) return;
+      if (Editor.ativo()) { Editor.fechar(); return; }
+      if (estado.edicao) alternarEdicao();
+      if (estado.edicao) return; // usuário cancelou a saída do modo ajuste
+      Editor.abrir();
+    });
+    ao('btnRestaurar', 'click', () => {
+      if (window.confirm('Apagar os dados salvos neste navegador e voltar ao ciclo de exemplo?')) configurar();
+    });
+    ao('btnAtualizar', 'click', () => {
+      if (Object.keys(estado.ajustes).length && !window.confirm('Descartar ajustes de etiquetas não salvos?')) return;
+      carregar().then(() => toast('Dados atualizados.'));
+    });
+
+    // Setas ← → trocam de planta (útil ao apresentar).
+    document.addEventListener('keydown', (e) => {
+      if (!estado.dados) return;
+      if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
+      if (Editor.ativo()) { Editor.tecla(e); return; }
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const ids = estado.dados.plantas.map((p) => p.id);
+      const i = ids.indexOf(estado.planta) + (e.key === 'ArrowRight' ? 1 : -1);
+      if (i >= 0 && i < ids.length) trocarPlanta(ids[i]);
+    });
+  }
+
+  ligarEventos();
+  Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
+  carregar();
+
+  // resolver: usado também para gerar a planilha base da versão de visualização (dev/).
+  return { estado, carregar, resolver: { movimento: movimentoDe, linhasPaineis } };
+})();
+</script>
+
+  </body>
+</html>

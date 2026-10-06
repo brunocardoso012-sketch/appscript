@@ -3,7 +3,7 @@
  * para publicar no netli.fyi / Netlify ou abrir direto no navegador.
  *
  * Usa os mesmos arquivos de src/ (nada é duplicado):
- *   - Config.gs, Code.gs e Layouts.gs rodam no navegador;
+ *   - Config.gs, Dados.gs, Code.gs e Layouts.gs rodam no navegador;
  *   - web/backend-local.js troca o google.script.run por localStorage.
  *
  * Rodar:  npm run build:web
@@ -15,7 +15,7 @@ const RAIZ = path.join(__dirname, '..');
 const SRC = path.join(RAIZ, 'src');
 const ler = (...p) => fs.readFileSync(path.join(...p), 'utf8');
 
-const gs = ['Config.gs', 'Code.gs', 'Layouts.gs']
+const gs = ['Config.gs', 'Dados.gs', 'Code.gs', 'Layouts.gs']
   .map((f) => '/* ===== src/' + f + ' ===== */\n' + ler(SRC, f))
   .join('\n');
 const backend = ler(RAIZ, 'web', 'backend-local.js');

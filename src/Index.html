@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
+    <!-- Trechos entre "so-app-completo" ficam fora da versão só de visualização (dev/build-visualizador.js). -->
     <base target="_top">
     <meta charset="utf-8">
     <title>Plano de Varejo · Plantas</title>
@@ -28,6 +29,7 @@
       </div>
 
       <div class="acoes">
+        <!-- so-app-completo -->
         <button id="btnModelo" class="btn primario" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
           Baixar planilha base
@@ -36,6 +38,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-5 5m5-5 5 5M4 19h16"/></svg>
           Importar planilha
         </button>
+        <!-- /so-app-completo -->
         <button id="btnPng" class="btn" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
           Baixar PNG
@@ -44,10 +47,12 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
           Ajustar etiquetas
         </button>
+        <!-- so-app-completo -->
         <button id="btnConstruir" class="btn" type="button" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
           Construir loja
         </button>
+        <!-- /so-app-completo -->
         <button id="btnAtualizar" class="btn fantasma" type="button" title="Ler a planilha de novo">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
           Atualizar
@@ -56,7 +61,9 @@
           Abrir planilha
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
         </a>
+        <!-- so-app-completo -->
         <input type="file" id="arquivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        <!-- /so-app-completo -->
       </div>
     </header>
 
@@ -83,6 +90,7 @@
 
     <main class="palco" id="palco">
       <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
+      <!-- so-app-completo -->
       <aside class="construtor" id="painelConstrutor" hidden aria-label="Construir loja">
         <header class="cns-topo">
           <div>
@@ -204,13 +212,17 @@
         <button type="button" data-acao="duplicar" title="Duplicar (Ctrl+D)">Duplicar</button>
         <button type="button" data-acao="excluir" title="Excluir (Delete)">Excluir</button>
       </div>
+      <!-- /so-app-completo -->
       <section class="vazio" id="telaConfig" hidden>
         <h2>Planilha ainda não configurada</h2>
         <p id="msgConfig"></p>
+        <!-- so-app-completo -->
         <button id="btnConfigurar" class="btn primario" type="button">Configurar agora</button>
+        <!-- /so-app-completo -->
       </section>
     </main>
 
+    <!-- so-app-completo -->
     <dialog id="dlgModelo" class="dialogo">
       <form method="dialog" id="formModelo">
         <h2>Baixar planilha base</h2>
@@ -235,6 +247,7 @@
         </div>
       </form>
     </dialog>
+    <!-- /so-app-completo -->
 
     <dialog id="dlgPng" class="dialogo">
       <form method="dialog">
@@ -253,6 +266,7 @@
       </form>
     </dialog>
 
+    <!-- so-app-completo -->
     <dialog id="dlgResultado" class="dialogo">
       <form method="dialog">
         <h2 id="resTitulo"></h2>
@@ -263,6 +277,7 @@
         </div>
       </form>
     </dialog>
+    <!-- /so-app-completo -->
 
     <div class="carregando" id="carregando" hidden>
       <div class="spinner" aria-hidden="true"></div>
@@ -271,8 +286,10 @@
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
     <?!= include('Render'); ?>
+    <!-- so-app-completo -->
     <?!= include('Planilha'); ?>
     <?!= include('Construtor'); ?>
+    <!-- /so-app-completo -->
     <?!= include('App'); ?>
   </body>
 </html>

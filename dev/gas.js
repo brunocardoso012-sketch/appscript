@@ -8,7 +8,7 @@ const path = require('path');
 const vm = require('vm');
 
 const SRC = path.join(__dirname, '..', 'src');
-const ARQUIVOS_GS = ['Config.gs', 'Code.gs', 'Layouts.gs'];
+const ARQUIVOS_GS = ['Config.gs', 'Dados.gs', 'Code.gs', 'Layouts.gs'];
 
 function carregarGas(globais) {
   const ctx = vm.createContext(Object.assign({ console }, globais));

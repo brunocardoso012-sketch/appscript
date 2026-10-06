@@ -17,12 +17,33 @@ const App = (() => {
   const $ = (id) => document.getElementById(id);
   const svg = $('slide');
 
+  /**
+   * Modo "Construir loja". A versão só de visualização (pasta visualizador/) não inclui
+   * o Construtor.html: no lugar dele entra este substituto, que nunca está ativo.
+   */
+  const Editor = typeof Construtor !== 'undefined' ? Construtor : {
+    iniciar() {}, sincronizar() {}, aposDesenhar() {}, fechar() {}, abrir() {}, tecla() {},
+    contexto: () => null, ativo: () => false, podeSair: () => true,
+  };
+
   /* ------------------------------ utilidades ------------------------------ */
 
   const memoria = {
     ler(k) { try { return window.localStorage.getItem('planoVarejo.' + k); } catch (e) { return null; } },
     gravar(k, v) { try { window.localStorage.setItem('planoVarejo.' + k, v); } catch (e) { /* sem armazenamento */ } },
   };
+
+  /** Dispara o download de um Blob. */
+  function baixarArquivo(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
 
   /** google.script.run como Promise. */
   function chamar(funcao) {
@@ -145,7 +166,7 @@ const App = (() => {
     montarAbas();
     montarLegenda();
     montarAvisos(dados.avisos || []);
-    Construtor.sincronizar(plantaAtual());
+    Editor.sincronizar(plantaAtual());
     desenhar();
   }
 
@@ -249,11 +270,11 @@ const App = (() => {
   function trocarPlanta(id) {
     if (id === estado.planta) return;
     if (Object.keys(estado.ajustes).length && !window.confirm('Há ajustes de etiquetas não salvos nesta planta. Descartar?')) return;
-    if (!Construtor.podeSair()) return;
+    if (!Editor.podeSair()) return;
     estado.ajustes = {};
     estado.planta = id;
     memoria.gravar('planta', id);
-    Construtor.sincronizar(plantaAtual());
+    Editor.sincronizar(plantaAtual());
     montarAbas();
     atualizarBarraEdicao();
     desenhar();
@@ -263,7 +284,7 @@ const App = (() => {
 
   /** Contexto do desenho da tela (também usado para gerar o PNG só da planta). */
   function contextoDesenho() {
-    const construcao = Construtor.contexto();
+    const construcao = Editor.contexto();
     const planta = construcao ? construcao.planta : plantaAtual();
     if (!planta) return null;
     const semConteudo = !!construcao && !construcao.mostrarCiclo;
@@ -290,9 +311,9 @@ const App = (() => {
   function desenhar() {
     const ctx = contextoDesenho();
     if (!ctx) return;
-    svg.classList.toggle('construindo', !!Construtor.contexto());
+    svg.classList.toggle('construindo', !!Editor.contexto());
     const r = Render.desenhar(svg, ctx);
-    Construtor.aposDesenhar(r);
+    Editor.aposDesenhar(r);
     estado.grupos = r.grupos;
     if (estado.edicao) ativarArraste();
   }
@@ -353,8 +374,8 @@ const App = (() => {
   }
 
   function alternarEdicao() {
-    if (!estado.edicao && Construtor.ativo()) Construtor.fechar();
-    if (!estado.edicao && Construtor.ativo()) return;
+    if (!estado.edicao && Editor.ativo()) Editor.fechar();
+    if (!estado.edicao && Editor.ativo()) return;
     if (estado.edicao && Object.keys(estado.ajustes).length && !window.confirm('Sair sem salvar os ajustes?')) return;
     estado.edicao = !estado.edicao;
     estado.ajustes = {};
@@ -544,7 +565,7 @@ const App = (() => {
       const marca = estado.filtro && estado.dados.marcas[estado.filtro];
       const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', marca ? marca.nome : ''].filter(Boolean);
       const nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + '.png';
-      Planilha.baixarBlob(blob, nome);
+      baixarArquivo(blob, nome);
     } catch (e) {
       erro(e);
     } finally {
@@ -555,32 +576,35 @@ const App = (() => {
   /* -------------------------------- início -------------------------------- */
 
   function ligarEventos() {
-    $('selCiclo').addEventListener('change', (e) => {
+    // Botões que só existem em uma das versões (ex.: a de visualização não tem Construir loja
+    // nem Baixar / Importar planilha) são ignorados quando não estão na página.
+    const ao = (id, evento, fn) => { if ($(id)) $(id).addEventListener(evento, fn); };
+    ao('selCiclo', 'change', (e) => {
       estado.ciclo = e.target.value;
       desenhar();
     });
-    $('btnModelo').addEventListener('click', () => estado.dados && abrirDialogoModelo());
-    $('dlgModelo').addEventListener('close', baixarModelo);
-    $('btnImportar').addEventListener('click', () => estado.dados && $('arquivo').click());
-    $('arquivo').addEventListener('change', (e) => importar(e.target.files[0]));
-    $('btnPng').addEventListener('click', () => estado.dados && abrirDialogoPng());
-    $('dlgPng').addEventListener('close', baixarPng);
-    $('btnEditar').addEventListener('click', () => estado.dados && alternarEdicao());
-    $('btnAutoOrganizar').addEventListener('click', autoOrganizar);
-    $('btnDescartar').addEventListener('click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
-    $('btnSalvarAjustes').addEventListener('click', salvarAjustes);
-    $('btnConfigurar').addEventListener('click', configurar);
-    $('btnConstruir').addEventListener('click', () => {
+    ao('btnModelo', 'click', () => estado.dados && abrirDialogoModelo());
+    ao('dlgModelo', 'close', baixarModelo);
+    ao('btnImportar', 'click', () => estado.dados && $('arquivo').click());
+    ao('arquivo', 'change', (e) => importar(e.target.files[0]));
+    ao('btnPng', 'click', () => estado.dados && abrirDialogoPng());
+    ao('dlgPng', 'close', baixarPng);
+    ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
+    ao('btnAutoOrganizar', 'click', autoOrganizar);
+    ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
+    ao('btnSalvarAjustes', 'click', salvarAjustes);
+    ao('btnConfigurar', 'click', configurar);
+    ao('btnConstruir', 'click', () => {
       if (!estado.dados) return;
-      if (Construtor.ativo()) { Construtor.fechar(); return; }
+      if (Editor.ativo()) { Editor.fechar(); return; }
       if (estado.edicao) alternarEdicao();
       if (estado.edicao) return; // usuário cancelou a saída do modo ajuste
-      Construtor.abrir();
+      Editor.abrir();
     });
-    $('btnRestaurar').addEventListener('click', () => {
+    ao('btnRestaurar', 'click', () => {
       if (window.confirm('Apagar os dados salvos neste navegador e voltar ao ciclo de exemplo?')) configurar();
     });
-    $('btnAtualizar').addEventListener('click', () => {
+    ao('btnAtualizar', 'click', () => {
       if (Object.keys(estado.ajustes).length && !window.confirm('Descartar ajustes de etiquetas não salvos?')) return;
       carregar().then(() => toast('Dados atualizados.'));
     });
@@ -589,7 +613,7 @@ const App = (() => {
     document.addEventListener('keydown', (e) => {
       if (!estado.dados) return;
       if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
-      if (Construtor.ativo()) { Construtor.tecla(e); return; }
+      if (Editor.ativo()) { Editor.tecla(e); return; }
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       const ids = estado.dados.plantas.map((p) => p.id);
@@ -599,9 +623,10 @@ const App = (() => {
   }
 
   ligarEventos();
-  Construtor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
+  Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
   carregar();
 
-  return { estado, carregar };
+  // resolver: usado também para gerar a planilha base da versão de visualização (dev/).
+  return { estado, carregar, resolver: { movimento: movimentoDe, linhasPaineis } };
 })();
 </script>

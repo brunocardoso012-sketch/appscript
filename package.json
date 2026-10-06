@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node --test dev/*.test.js",
     "build:web": "node dev/build-web.js",
-    "push": "clasp push"
+    "push": "clasp push",
+    "build:visualizador": "node dev/build-visualizador.js"
   }
 }

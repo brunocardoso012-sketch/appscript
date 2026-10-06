@@ -70,6 +70,16 @@ Seções recolhidas no painel:
 
 **Baixar código da loja** gera `layout-plantas-AAAA-MM-DD.json` com o layout de todas as plantas, no mesmo formato de [`src/Layouts.gs`](src/Layouts.gs). Mande esse arquivo para virar o layout padrão do projeto. **Carregar código…** aplica um arquivo desses de volta.
 
+## Versão só de visualização (Apps Script)
+
+A pasta [`visualizador/`](visualizador/) tem uma versão do app **só para visualizar** a estratégia, que é montada direto numa planilha do Google Sheets. Todos os ciclos ficam numa única planilha (abas *Movimentos* e *Painéis*), conectada ao script. Não tem *Construir loja*, *Baixar planilha base* nem *Importar planilha*. O layout das lojas fica no código.
+
+- [`visualizador/Planilha base - Visualizador.xlsx`](visualizador/) é a planilha que alimenta o app.
+- [`visualizador/apps-script/`](visualizador/apps-script/) tem o projeto pronto para colar no Apps Script: `Codigo.gs`, `Index.html` e o manifesto.
+- O passo a passo de instalação está em [`visualizador/LEIAME.md`](visualizador/LEIAME.md).
+
+Os arquivos de `visualizador/apps-script/` são gerados a partir de `src/` com `npm run build:visualizador`. A planilha base é gerada com `node dev/gerar-planilha-visualizador.js`.
+
 ## Versão web para testes (netli.fyi / Netlify)
 
 Para ver e ajustar o visualizador **sem o Apps Script**, use [`index.html`](index.html) (na raiz do projeto): é um arquivo único, com o mesmo código, que guarda os dados no próprio navegador.
@@ -221,6 +231,7 @@ As quatro plantas (**ER P, ER M, ER G e ER GG**) vêm com os layouts montados no
 src/
   appsscript.json   manifesto (fuso, V8, App da Web)
   Config.gs         marcas/cores, símbolos, seções, tipos, colunas das abas
+  Dados.gs          leitura das abas e normalizações (sem I/O; usado também pelo visualizador)
   Code.gs           doGet, menu, getDados, importarPlanilha, salvarLayout, salvarAjustesEtiquetas…
   Layouts.gs        layout padrão das 4 plantas + ciclo de exemplo
   Index.html        página (inclui os arquivos abaixo)
@@ -233,10 +244,17 @@ index.html          versão web gerada (netli.fyi / Netlify)
 netlify.toml        publicação estática a partir da raiz
 web/
   backend-local.js  troca o google.script.run por localStorage (versão web)
+visualizador/
+  fonte/Visualizador.gs   backend da versão só de visualização (lê a planilha, sem gravar nela)
+  apps-script/            projeto gerado para o Apps Script (Codigo.gs, Index.html, manifesto)
+  Planilha base - Visualizador.xlsx
 dev/
   gas.js            carrega os .gs no Node + planilha em memória (SpreadsheetApp simulado)
   testes.test.js    testes do backend
+  visualizador.test.js  testes da versão só de visualização
   build-web.js      gera index.html (raiz) a partir de src/ + web/
+  build-visualizador.js         gera visualizador/apps-script/ a partir de src/
+  gerar-planilha-visualizador.js  gera a planilha base do visualizador (Playwright)
 ```
 
 Para desenvolver (Node 18+):
@@ -244,6 +262,7 @@ Para desenvolver (Node 18+):
 ```bash
 npm test            # testes do backend (sem Apps Script)
 npm run build:web   # gera index.html na raiz (versão web)
+npm run build:visualizador   # gera visualizador/apps-script/ (versão só de visualização)
 ```
 
 ## Observações
