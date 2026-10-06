@@ -18,6 +18,12 @@ const FONTE = path.join(RAIZ, 'visualizador', 'fonte');
 const DESTINO = path.join(RAIZ, 'visualizador', 'apps-script');
 const ler = (...p) => fs.readFileSync(path.join(...p), 'utf8');
 
+/**
+ * Versão mostrada no topo do app (ao lado de "Visualizador de plantas por ciclo"). Aumente a cada
+ * entrega: assim dá para conferir, no App da Web, se a implantação já está com os arquivos novos.
+ */
+const VERSAO = '2026.10.06-3';
+
 /** Tira os trechos entre "// <so-app-completo>" e "// </so-app-completo>" (o ciclo de exemplo). */
 function semCicloExemplo(codigo) {
   const limpo = codigo.replace(/^\/\/ <so-app-completo>[^\n]*\n[\s\S]*?^\/\/ <\/so-app-completo>\n\n?/gm, '');
@@ -32,7 +38,9 @@ function gerarCodigo() {
     ['src/Layouts.gs', semCicloExemplo(ler(SRC, 'Layouts.gs'))],
     ['src/Dados.gs', ler(SRC, 'Dados.gs')],
   ];
-  return partes.map(([nome, codigo]) => '/* ===== ' + nome + ' ===== */\n' + codigo.trim() + '\n').join('\n');
+  const codigo = partes.map(([nome, codigo]) => '/* ===== ' + nome + ' ===== */\n' + codigo.trim() + '\n').join('\n');
+  if (codigo.indexOf("'{{VERSAO}}'") < 0) throw new Error('Faltou VERSAO: {{VERSAO}} em Visualizador.gs.');
+  return '/* Plano de Varejo · Visualizador — versão ' + VERSAO + ' */\n' + codigo.replace("'{{VERSAO}}'", "'" + VERSAO + "'");
 }
 
 function gerarIndex() {
@@ -40,6 +48,9 @@ function gerarIndex() {
   html = html.replace(/[ \t]*<!-- so-app-completo -->[\s\S]*?<!-- \/so-app-completo -->[ \t]*\n/g, '');
   html = html.replace(/[ \t]*<!-- Trechos entre "so-app-completo"[^\n]*\n/, '');
   html = html.replace(/<\?!=\s*include\('(\w+)'\);?\s*\?>/g, (_, nome) => ler(SRC, nome + '.html'));
+  html = html.replace('<p>Visualizador de plantas por ciclo</p>', '<p>Visualizador de plantas por ciclo · versão ' + VERSAO + '</p>');
+  html = html.replace('</head>', '  <script>const VERSAO_PAGINA = ' + JSON.stringify(VERSAO) + ';</script>\n</head>');
+  if (html.indexOf('VERSAO_PAGINA = ') < 0 || html.indexOf('versão ' + VERSAO) < 0) throw new Error('Não consegui marcar a versão em Index.html.');
   if (/<\?/.test(html)) throw new Error('Sobrou alguma tag de template do Apps Script em Index.html.');
   if (/so-app-completo/.test(html)) throw new Error('Marcador so-app-completo sem fechamento em Index.html.');
   return html;
@@ -63,4 +74,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { gerar, gerarCodigo, gerarIndex, DESTINO };
+module.exports = { gerar, gerarCodigo, gerarIndex, DESTINO, VERSAO };

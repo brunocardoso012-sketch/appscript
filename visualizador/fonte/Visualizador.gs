@@ -21,6 +21,8 @@ const VISUALIZADOR = {
   PLANILHA: '',
   /** Prefixo das propriedades do script que guardam as posições das etiquetas (uma por planta). */
   PROPRIEDADE_AJUSTES: 'AJUSTES_ETIQUETAS_',
+  /** Versão deste arquivo (preenchida por dev/build-visualizador.js); aparece no topo do app. */
+  VERSAO: '{{VERSAO}}',
 };
 
 /* =============================== ENTRADA ================================== */
@@ -70,6 +72,7 @@ function getDados() {
   aplicarAjustesSalvos_(dados.plantas);
   dados.planilhaUrl = ss.getUrl();
   dados.precisaConfigurar = false;
+  dados.versaoCodigo = VISUALIZADOR.VERSAO;
   return dados;
 }
 

@@ -5172,6 +5172,11 @@ const App = (() => {
     estado.planta = dados.plantas.some((p) => p.id === plantaPref) ? plantaPref : (dados.plantas[0] || {}).id || '';
     estado.ajustes = {};
 
+    // Visualizador (Apps Script): avisa se o Código.gs e o Index são de versões diferentes.
+    if (dados.versaoCodigo && typeof VERSAO_PAGINA !== 'undefined' && dados.versaoCodigo !== VERSAO_PAGINA) {
+      toast('O Código.gs está na versão ' + dados.versaoCodigo + ' e o Index na ' + VERSAO_PAGINA +
+        '. Cole os dois arquivos da mesma versão e crie uma nova versão da implantação.', true);
+    }
     $('avisoLocal').hidden = !dados.modoLocal;
     const link = $('lnkPlanilha');
     link.hidden = !dados.planilhaUrl;
