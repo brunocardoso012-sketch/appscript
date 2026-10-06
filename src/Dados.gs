@@ -57,7 +57,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
       const ciclo = texto_(l.ciclo);
       const planta = normPlanta_(l.planta);
       // Nomes antigos dos lados da gôndola: Ponta 2 era o lado da frente (A), Ponta 1 o de trás (B).
-      const id = normId_(l.movel).replace(/\/PONTA-2$/, '/LADO-A').replace(/\/PONTA-1$/, '/LADO-B');
+      const id = normIdEspaco_(l.movel);
       const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
       if (!ciclo || !planta || !id) {
         aviso(onde + ': Ciclo, Planta e ID Móvel são obrigatórios — linha ignorada.');
@@ -315,6 +315,23 @@ function normDivisao_(v) {
 /** ID do móvel: maiúsculas, sem acento e com espaços simples ("Gôndola 1" → "GONDOLA 1"). */
 function normId_(v) {
   return texto_(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * ID da aba Movimentos, que pode ter um espaço depois da "/": aceita variações de digitação
+ * ("Totem 1 / painel 1", "TOTEM 1/PAINEL1", "GONDOLA 1/LADO A", "MEIO_A_2") → "TOTEM 1/PAINEL-1",
+ * "GONDOLA 1/LADO-A", ".../MEIO-A-2". Nomes antigos dos lados da gôndola: Ponta 2 era o lado da
+ * frente (A), Ponta 1 o de trás (B).
+ */
+function normIdEspaco_(v) {
+  const id = normId_(v);
+  const i = id.indexOf('/');
+  if (i < 0) return id;
+  const espaco = id.slice(i + 1).trim()
+    .replace(/[\s_.\-]+/g, '-')
+    .replace(/([A-Z])(\d)/g, '$1-$2')
+    .replace(/^-|-$/g, '');
+  return (id.slice(0, i).trim() + '/' + espaco).replace(/\/PONTA-2$/, '/LADO-A').replace(/\/PONTA-1$/, '/LADO-B');
 }
 
 let indiceMarcasCache_ = null;

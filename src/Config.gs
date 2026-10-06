@@ -38,8 +38,10 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
  * e 4 = Lado B (uma por bloco); a linha de um espaço (GONDOLA 1/MEIO-A…) substitui
  * as etiquetas daquele bloco (veja ETIQUETAS_POR_BLOCO).
  * Balcão recepção: uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.
+ * Totem: Etiqueta 1, 2 e 3 vão para o painel 1 (o de cima), 2 e 3, e a "Marca Etiqueta N"
+ * pinta o painel N; a linha de um painel (TOTEM 1/PAINEL-2…) tem prioridade.
  */
-const ETIQUETAS_POR_TIPO = { GONDOLA: 4, VITRINE_L: 3 };
+const ETIQUETAS_POR_TIPO = { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 };
 
 /**
  * Quantas etiquetas a linha de um bloco mostra em cima dele (GONDOLA 1/LADO-A,
@@ -136,7 +138,7 @@ const TIPOS_MOVEL = {
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
   MESA: 'Mesa destaque: 2 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
   MESA_3: 'Mesa destaque 3 frentes: 3 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
-  TOTEM: 'Totem: estrutura metálica com 3 painéis, cada um com cor e etiqueta próprias (Painel 1 = o de cima)',
+  TOTEM: 'Totem: estrutura metálica com 3 painéis, cada um com cor e etiqueta próprias (Etiqueta 1–3 = painel 1, o de cima, 2 e 3)',
   PAINEL: 'Parede O.U.i: painel alto com moldura',
   EXPOSITOR_OUI: 'Totem O.U.i: expositor estreito com moldura, na altura da gôndola',
   ILHA_OUI: 'Ilha premium O.U.i: base com prateleiras e painel alto atrás, com faixas claras nas laterais',

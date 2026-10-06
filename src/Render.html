@@ -1064,6 +1064,9 @@ const Render = (() => {
     /** Espaço sem linha própria herda a linha da gôndola inteira. */
     const infoDe = (b) => (b.espaco && infoEspaco[b.movel.id + '/' + b.espaco.id]) || info[b.movel.id];
 
+    /** Etiqueta da coluna N da linha (posicao = número da coluna "Etiqueta N"). */
+    const etiquetaNaPosicao = (x, n) => (x ? x.etiquetas.filter((e, k) => (e.posicao || k + 1) === n)[0] : null);
+
     // Móveis, na ordem de pintura.
     const prims = [];
     moveis.forEach((m) => primitivas(m).forEach((p) => prims.push(p)));
@@ -1073,7 +1076,17 @@ const Render = (() => {
       const corInfo = (x) => (x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);
       const cores = corInfo(i);
       // Mesas: um só desenho, mas cada frente com a cor da própria linha (ou a da mesa inteira).
-      if (m.tipo === 'MESA' || m.tipo === 'MESA_3' || m.tipo === 'TOTEM') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id] || i));
+      if (m.tipo === 'MESA' || m.tipo === 'MESA_3') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id] || i));
+      // Totem: painel com linha própria (TOTEM 1/PAINEL-N) usa a cor dela; senão, a "Marca Etiqueta N"
+      // da linha do totem inteiro (a etiqueta N vai para o painel N); senão, a cor do totem.
+      if (m.tipo === 'TOTEM') {
+        b.coresBlocos = espacos(m).map((e, k) => {
+          const proprio = infoEspaco[m.id + '/' + e.id];
+          if (proprio) return corInfo(proprio);
+          const et = etiquetaNaPosicao(i, k + 1);
+          return (et && !ehNeutro(et.marca) && coresDe(et.marca, 'movel', true)) || corInfo(i);
+        });
+      }
       const g = el('g', {
         class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
         'data-movel': m.id,
@@ -1159,6 +1172,24 @@ const Render = (() => {
         return;
       }
       const i = info[m.id];
+      if (m.tipo === 'TOTEM') {
+        // Totem: uma etiqueta por painel, ao lado do totem com linha-guia. Vale a linha do painel
+        // (TOTEM 1/PAINEL-N); sem ela, a Etiqueta N da linha do totem inteiro (1 = painel de cima).
+        let simbolo = i ? i.simbolo : '';
+        juntarIguais(topoDosBlocos(m).map((bl, k) => {
+          const id = m.id + '/' + bl.espaco.id;
+          const ie = infoEspaco[id];
+          if (ie && ie.etiquetas.length) {
+            return { id, info: ie, etiquetas: ie.etiquetas.slice(0, limitePorBloco.TOTEM || 1), simbolo: ie.simbolo, pontos: [bl.topo], aoLado: true };
+          }
+          const e = etiquetaNaPosicao(i, k + 1);
+          if (!e) return null;
+          const s = simbolo;
+          simbolo = '';
+          return { id, info: i, etiquetas: [e], simbolo: s, pontos: [bl.topo], aoLado: true };
+        })).forEach(grupo);
+        return;
+      }
       if (m.tipo === 'VITRINE_L') {
         // Balcão: Etiqueta 1, 2 e 3 da linha do balcão vão para o bloco 1, o canto e o bloco 3.
         if (i) {

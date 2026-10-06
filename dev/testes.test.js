@@ -175,7 +175,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
     movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
     movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
-    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 11, '03': 7, '04': 8, _exemplo: 5 }); // só a 02 pendente
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 11, '03': 7, '04': 8, _exemplo: 6 }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
   assert.equal(r.versoes['02'], 10);
@@ -199,7 +199,7 @@ test('etiquetas guardam a coluna de origem; planta aceita o nome', () => {
   assert.deepEqual(d.avisos, []);
   const gon = d.movimentos.C1['01']['GONDOLA 1'];
   assert.deepEqual(gon.etiquetas.map((e) => [e.texto, e.posicao]), [['MEIO A', 2], ['PONTA 2', 4]]);
-  assert.deepEqual(d.config.etiquetasPorTipo, { GONDOLA: 4, VITRINE_L: 3 }, 'pirâmide e mesas mostram até 4');
+  assert.deepEqual(d.config.etiquetasPorTipo, { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 }, 'pirâmide e mesas mostram até 4');
   assert.deepEqual(d.config.etiquetasPorBloco, { GONDOLA: 4, MESA: 4, MESA_3: 4 });
 });
 
@@ -271,4 +271,19 @@ test('painéis do totem aceitam cor e etiqueta próprias na planilha', () => {
   assert.deepEqual(d.avisos, ['Movimentos, linha 3: móvel "TOTEM 1/PAINEL-4" não existe no Layout da planta 01.']);
   assert.equal(d.movimentos.C1['01']['TOTEM 1/PAINEL-3'].marca, 'EUD');
   assert.equal(d.movimentos.C1['01']['GONDOLA 1/MEIO-A'].etiquetas.length, 4);
+});
+
+test('IDs de espaço aceitam variações de digitação', () => {
+  const { run } = carregarGas();
+  const d = run(`montarDados_(valoresLayoutPadrao_(), [
+    ['Ciclo', 'Planta', 'ID Móvel', 'Marca do Móvel'],
+    ['C1', 'ER P', 'Totem 1 / painel 1', 'OUI'],
+    ['C1', 'ER P', 'TOTEM 1/PAINEL2', 'EUD'],
+    ['C1', 'ER P', 'gôndola 1/lado a', 'QDB'],
+    ['C1', 'ER P', 'GONDOLA 1/MEIO_A_2', 'BOT'],
+    ['C1', 'ER P', 'MESA DESTAQUE 1/FRENTE 2', 'BOT'],
+  ], null)`);
+  assert.deepEqual(d.avisos, []);
+  assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(),
+    ['GONDOLA 1/LADO-A', 'GONDOLA 1/MEIO-A-2', 'MESA DESTAQUE 1/FRENTE-2', 'TOTEM 1/PAINEL-1', 'TOTEM 1/PAINEL-2']);
 });

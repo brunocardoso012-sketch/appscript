@@ -195,8 +195,10 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
  * e 4 = Lado B (uma por bloco); a linha de um espaço (GONDOLA 1/MEIO-A…) substitui
  * as etiquetas daquele bloco (veja ETIQUETAS_POR_BLOCO).
  * Balcão recepção: uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.
+ * Totem: Etiqueta 1, 2 e 3 vão para o painel 1 (o de cima), 2 e 3, e a "Marca Etiqueta N"
+ * pinta o painel N; a linha de um painel (TOTEM 1/PAINEL-2…) tem prioridade.
  */
-const ETIQUETAS_POR_TIPO = { GONDOLA: 4, VITRINE_L: 3 };
+const ETIQUETAS_POR_TIPO = { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 };
 
 /**
  * Quantas etiquetas a linha de um bloco mostra em cima dele (GONDOLA 1/LADO-A,
@@ -293,7 +295,7 @@ const TIPOS_MOVEL = {
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
   MESA: 'Mesa destaque: 2 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
   MESA_3: 'Mesa destaque 3 frentes: 3 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
-  TOTEM: 'Totem: estrutura metálica com 3 painéis, cada um com cor e etiqueta próprias (Painel 1 = o de cima)',
+  TOTEM: 'Totem: estrutura metálica com 3 painéis, cada um com cor e etiqueta próprias (Etiqueta 1–3 = painel 1, o de cima, 2 e 3)',
   PAINEL: 'Parede O.U.i: painel alto com moldura',
   EXPOSITOR_OUI: 'Totem O.U.i: expositor estreito com moldura, na altura da gôndola',
   ILHA_OUI: 'Ilha premium O.U.i: base com prateleiras e painel alto atrás, com faixas claras nas laterais',
@@ -447,7 +449,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 5;
+const VERSAO_EXEMPLO = 6;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -620,10 +622,7 @@ const EXEMPLO_MOVIMENTOS = {
     'BALCAO RECEPCAO 1': ['BOT', [['LÇTO EGEO', 'BOT+QDB'], ['JUICY MOOD', 'QDB'], ['SIÀGE ULTIMATE', 'EUD']]],
     'MOVEL DE FILA 1': ['EUD', [['OUTLET EUD', 'EUD']]],
     'MOVEL DE FILA 2': ['BOT', [['BOTIPROMO', 'BOT']]],
-    'TOTEM 1': ['BOT'],
-    'TOTEM 1/PAINEL-1': ['BOT', [['LÇTO UOMINI', 'BOT']]],
-    'TOTEM 1/PAINEL-2': ['BOT', [['BOTIPROMO', 'BOT']]],
-    'TOTEM 1/PAINEL-3': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'TOTEM 1': ['BOT', [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT'], ['LIQUIDA QDB', 'QDB']]],
     'MOVEL MAKE 1': ['NEUTRO', [['TESTEIRA MAKE MULTIPROMO', 'MULTI']]],
     'MOVEL MAKE 1/TESTEIRA-1': ['#1F1F1F'],
     'MOVEL MAKE 1/TESTEIRA-2': ['BOT', [['BOTIPROMO MAKE B.', 'BOT']]],
@@ -809,7 +808,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
       const ciclo = texto_(l.ciclo);
       const planta = normPlanta_(l.planta);
       // Nomes antigos dos lados da gôndola: Ponta 2 era o lado da frente (A), Ponta 1 o de trás (B).
-      const id = normId_(l.movel).replace(/\/PONTA-2$/, '/LADO-A').replace(/\/PONTA-1$/, '/LADO-B');
+      const id = normIdEspaco_(l.movel);
       const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
       if (!ciclo || !planta || !id) {
         aviso(onde + ': Ciclo, Planta e ID Móvel são obrigatórios — linha ignorada.');
@@ -1067,6 +1066,23 @@ function normDivisao_(v) {
 /** ID do móvel: maiúsculas, sem acento e com espaços simples ("Gôndola 1" → "GONDOLA 1"). */
 function normId_(v) {
   return texto_(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * ID da aba Movimentos, que pode ter um espaço depois da "/": aceita variações de digitação
+ * ("Totem 1 / painel 1", "TOTEM 1/PAINEL1", "GONDOLA 1/LADO A", "MEIO_A_2") → "TOTEM 1/PAINEL-1",
+ * "GONDOLA 1/LADO-A", ".../MEIO-A-2". Nomes antigos dos lados da gôndola: Ponta 2 era o lado da
+ * frente (A), Ponta 1 o de trás (B).
+ */
+function normIdEspaco_(v) {
+  const id = normId_(v);
+  const i = id.indexOf('/');
+  if (i < 0) return id;
+  const espaco = id.slice(i + 1).trim()
+    .replace(/[\s_.\-]+/g, '-')
+    .replace(/([A-Z])(\d)/g, '$1-$2')
+    .replace(/^-|-$/g, '');
+  return (id.slice(0, i).trim() + '/' + espaco).replace(/\/PONTA-2$/, '/LADO-A').replace(/\/PONTA-1$/, '/LADO-B');
 }
 
 let indiceMarcasCache_ = null;

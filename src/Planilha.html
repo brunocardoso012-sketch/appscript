@@ -62,6 +62,9 @@ const Planilha = (() => {
    * passa a valer para a 1ª metade). Meio já dividido no Layout: as duas metades.
    */
   function espacosNaPlanilha(m) {
+    // Totem: a linha do totem inteiro já tem uma etiqueta e uma cor por painel (Etiqueta / Marca
+    // Etiqueta 1–3); as linhas TOTEM 1/PAINEL-N continuam aceitas, mas não entram na planilha base.
+    if (m.tipo === 'TOTEM') return [];
     if (m.tipo !== 'GONDOLA') return Render.espacos(m);
     const div = String(m.dividido || '').toUpperCase();
     const meio = (l) => (div.indexOf(l) >= 0
@@ -165,7 +168,8 @@ const Planilha = (() => {
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
       '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
       '6.2 Etiquetas da gôndola. Na linha da gôndola inteira: Etiqueta 1 = Lado A, Etiqueta 2 = Meio A, Etiqueta 3 = Meio B, Etiqueta 4 = Lado B ("A" é sempre o lado virado para quem olha a planta). A linha de um espaço mostra até 4 etiquetas empilhadas em cima daquele bloco (Etiqueta 1 a 4) e substitui a etiqueta que viria da gôndola inteira.',
-      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3), totem (PAINEL-1 a 3, o 1 é o painel de cima) e móvel make (TESTEIRA-1 a 4) têm uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada painel do totem e cada testeira, 1. Bloco sem linha própria usa a cor do móvel inteiro. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só, no centro. O balcão recepção tem uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.',
+      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3) e móvel make (TESTEIRA-1 a 4) têm uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada testeira, 1. Bloco sem linha própria usa a cor do móvel inteiro. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só, no centro. O balcão recepção tem uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.',
+      '6.4 Totem: na linha do totem, Etiqueta 1, 2 e 3 vão para o painel de cima, o do meio e o de baixo (cada uma ao lado do seu painel), e a "Marca Etiqueta N" pinta o painel N. Painel sem etiqueta usa a "Marca do Móvel". Se preferir, uma linha TOTEM 1/PAINEL-1 (a 3) define cor e etiqueta de um painel e tem prioridade.',
       '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
     ].concat(op.visualizador ? [
       // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.
@@ -241,6 +245,7 @@ const Planilha = (() => {
       const POR_POSICAO = {
         GONDOLA: ' (gôndola inteira; Etiqueta 1–4 = Lado A, Meio A, Meio B, Lado B)',
         VITRINE_L: ' (Etiqueta 1–3 = bloco 1, canto, bloco 3)',
+        TOTEM: ' (Etiqueta 1–3 = painel de cima, do meio e de baixo; Marca Etiqueta N = cor do painel N)',
       };
       const linhasDoMovel = (m) => [{
         id: m.id,
