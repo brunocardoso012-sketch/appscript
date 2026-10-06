@@ -86,7 +86,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.equal(ilha.simbolo, 'MOVIMENTO');
   assert.deepEqual(Object.keys(d2.movimentos['Ciclo exemplo']['01']), ['PIRAMIDE 1'], 'par (ciclo, planta) substituído; ID sem acento');
   assert.equal(d2.movimentos['Ciclo exemplo']['01']['PIRAMIDE 1'].etiquetas[0].texto, '10/2026');
-  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 7, 'outras plantas intactas');
+  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 8, 'outras plantas intactas');
   assert.equal(d2.paineis['C15/2026'].TODAS[0].secao, 'TV');
 
   const aj = run("salvarAjustesEtiquetas('2', { 'PIRAMIDE 1': { x: 40.4, y: -12 } })");
@@ -157,8 +157,7 @@ test('gôndola: espaços, divisão dos meios e IDs de espaço na planilha', () =
     ['C1', '01', 'GON-01/MEIO-A', 'EUD'],
   ], null)`);
   assert.equal(d.plantas[0].moveis[0].dividido, 'A');
-  assert.equal(d.avisos.length, 1, 'só MEIO-A (inexistente com o meio dividido) gera aviso: ' + d.avisos);
-  assert.match(d.avisos[0], /GON-01\/MEIO-A"/);
+  assert.deepEqual(d.avisos, [], 'meio inteiro e metades são sempre aceitos na gôndola');
   const linhas = run(`objetosLayoutDaPlanta_('01', { loja: { largura: 10, profundidade: 10, alturaParede: 4 }, moveis: [
     { id: 'gon-02', tipo: 'GONDOLA', x: 1, y: 1, w: 4, d: 1.6, h: 3, dividido: 'b' },
     { id: 'PIR-01', tipo: 'PIRAMIDE', x: 1, y: 4, w: 1.7, d: 1.7, h: 3.6, dividido: 'AB' },
@@ -176,7 +175,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
     movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
     movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
-    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 10, '03': 6, '04': 7, _exemplo: 3 }); // só a 02 pendente
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 10, '03': 6, '04': 7, _exemplo: 4 }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
   assert.equal(r.versoes['02'], 9);
@@ -200,7 +199,7 @@ test('etiquetas guardam a coluna de origem; planta aceita o nome', () => {
   assert.deepEqual(d.avisos, []);
   const gon = d.movimentos.C1['01']['GONDOLA 1'];
   assert.deepEqual(gon.etiquetas.map((e) => [e.texto, e.posicao]), [['MEIO A', 2], ['PONTA 2', 4]]);
-  assert.deepEqual(d.config.etiquetasPorTipo, { PIRAMIDE: 1, MESA: 1, GONDOLA: 4 });
+  assert.deepEqual(d.config.etiquetasPorTipo, { PIRAMIDE: 1, MESA: 1, GONDOLA: 4, VITRINE_L: 3 });
 });
 
 test('giro do balcão e testeiras do móvel make', () => {
@@ -246,15 +245,15 @@ test('ciclo de exemplo novo troca todas as linhas dele (e só dele)', () => {
 
 test('blocos do balcão e das mesas; nomes antigos dos lados da gôndola', () => {
   const { run } = carregarGas();
-  assert.deepEqual(run("espacosDoMovel_({ tipo: 'VITRINE_L' })").map((e) => e.id), ['BLOCO-1', 'BLOCO-2', 'BLOCO-3']);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'VITRINE_L' })"), [], 'balcão: uma cor só');
   assert.deepEqual(run("espacosDoMovel_({ tipo: 'MESA' })").map((e) => e.id), ['FRENTE-1', 'FRENTE-2']);
   assert.deepEqual(run("espacosDoMovel_({ tipo: 'MESA_3' })").map((e) => e.id), ['FRENTE-1', 'FRENTE-2', 'FRENTE-3']);
   const d = run(`montarDados_(valoresLayoutPadrao_(), [
     ['Ciclo', 'Planta', 'ID Móvel', 'Marca do Móvel'],
     ['C1', 'ER P', 'GONDOLA 1/PONTA-2', 'QDB'],
-    ['C1', 'ER P', 'BALCAO RECEPCAO 1/BLOCO-2', 'EUD'],
+    ['C1', 'ER P', 'GONDOLA 1/MEIO-B-2', 'EUD'],
     ['C1', 'ER P', 'MESA DESTAQUE 1/FRENTE-2', 'BOT'],
   ], null)`);
   assert.deepEqual(d.avisos, []);
-  assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(), ['BALCAO RECEPCAO 1/BLOCO-2', 'GONDOLA 1/LADO-A', 'MESA DESTAQUE 1/FRENTE-2']);
+  assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(), ['GONDOLA 1/LADO-A', 'GONDOLA 1/MEIO-B-2', 'MESA DESTAQUE 1/FRENTE-2']);
 });

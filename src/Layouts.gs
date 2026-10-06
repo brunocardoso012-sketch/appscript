@@ -29,7 +29,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 10, '02': 9, '03': 6, '04': 7 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 3;
+const VERSAO_EXEMPLO = 4;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -195,10 +195,7 @@ const EXEMPLO_MOVIMENTOS = {
     'MESA DESTAQUE 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
     'MESA DESTAQUE 1/FRENTE-2': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
     'PDV MOVEL 1': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
-    'BALCAO RECEPCAO 1': ['BOT'],
-    'BALCAO RECEPCAO 1/BLOCO-1': ['BOT', [['LÇTO EGEO', 'BOT']]],
-    'BALCAO RECEPCAO 1/BLOCO-2': ['QDB', [['JUICY MOOD', 'QDB']]],
-    'BALCAO RECEPCAO 1/BLOCO-3': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
+    'BALCAO RECEPCAO 1': ['BOT', [['LÇTO EGEO', 'BOT+QDB'], ['JUICY MOOD', 'QDB'], ['SIÀGE ULTIMATE', 'EUD']]],
     'MOVEL DE FILA 1': ['EUD', [['OUTLET EUD', 'EUD']]],
     'MOVEL DE FILA 2': ['BOT', [['BOTIPROMO', 'BOT']]],
     'TOTEM 1': ['BOT', [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT']]],
@@ -211,6 +208,7 @@ const EXEMPLO_MOVIMENTOS = {
   '02': {
     'GONDOLA 2': ['EUD', [['', ''], ['PERFUMARIA', 'EUD'], ['CUIDADOS', 'EUD'], ['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
     'GONDOLA 2/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
     'PIRAMIDE 3': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'MOVEL DE FILA 3': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 4': ['QDB', [['LIQUIDA QDB', 'QDB']]],

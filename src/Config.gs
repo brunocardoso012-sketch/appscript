@@ -36,11 +36,12 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
  * Gôndola: uma etiqueta por bloco. Na linha da gôndola inteira, Etiqueta 1 =
  * Lado A, 2 = Meio A, 3 = Meio B e 4 = Lado B; a linha de um espaço
  * (GONDOLA 1/MEIO-A…) usa só a Etiqueta 1 e substitui a do bloco.
- * Nos outros móveis com blocos (balcão, mesas, make), a linha de cada bloco mostra
+ * Balcão recepção: uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.
+ * Nos outros móveis com blocos (mesas, make), a linha de cada bloco mostra
  * a Etiqueta 1 em cima dele; blocos vizinhos com o mesmo texto e cor viram uma
  * etiqueta só, centralizada.
  */
-const ETIQUETAS_POR_TIPO = { PIRAMIDE: 1, MESA: 1, GONDOLA: 4 };
+const ETIQUETAS_POR_TIPO = { PIRAMIDE: 1, MESA: 1, GONDOLA: 4, VITRINE_L: 3 };
 
 /**
  * Marcas e cores.
@@ -134,7 +135,7 @@ const TIPOS_MOVEL = {
   EXPOSITOR_OUI: 'Totem O.U.i: expositor estreito com moldura, na altura da gôndola',
   ILHA_OUI: 'Ilha premium O.U.i: base com prateleiras e painel alto atrás, com faixas claras nas laterais',
   MAKE: 'Móvel make: estante de parede com prateleiras e 4 testeiras no alto (cada uma pode ter cor própria)',
-  VITRINE_L: 'Balcão recepção: em "L", com os dois lados do mesmo tamanho; 3 blocos, cada um com cor e etiqueta próprias',
+  VITRINE_L: 'Balcão recepção: em "L", com os dois lados do mesmo tamanho; uma cor só e uma etiqueta por bloco (Etiqueta 1–3)',
   CAIXA: 'Móvel de atendimento (caixa): balcão com tela preta em cima',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
 };
@@ -148,7 +149,6 @@ const TIPOS_CONSTRUCAO = [
  * Espaços (blocos) de um móvel, cada um com cor e etiqueta próprias na planilha:
  *  - gôndola: Lado A, Meio A, Meio B e Lado B (o "A" é sempre o lado virado para
  *    quem olha a planta; cada meio pode ser dividido em dois);
- *  - balcão recepção: Bloco 1, Bloco 2 (canto) e Bloco 3;
  *  - mesa destaque: Frente 1 e 2 (3 frentes: Frente 1, 2 e 3);
  *  - móvel make: Testeira 1 a 4.
  * Na planilha, cada espaço é endereçado como "<ID do móvel>/<espaço>", ex.:
@@ -168,9 +168,6 @@ function espacosDoMovel_(m) {
   if (m.tipo === 'MAKE') return numerados('TESTEIRA', 'Testeira', 4);
   if (m.tipo === 'MESA') return numerados('FRENTE', 'Frente', 2);
   if (m.tipo === 'MESA_3') return numerados('FRENTE', 'Frente', 3);
-  if (m.tipo === 'VITRINE_L') {
-    return [{ id: 'BLOCO-1', nome: 'Bloco 1' }, { id: 'BLOCO-2', nome: 'Bloco 2 (canto)' }, { id: 'BLOCO-3', nome: 'Bloco 3' }];
-  }
   if (m.tipo !== 'GONDOLA') return [];
   const div = String(m.dividido || '').toUpperCase();
   const lista = [{ id: 'LADO-A', nome: 'Lado A' }];
@@ -183,6 +180,21 @@ function espacosDoMovel_(m) {
     }
   });
   lista.push({ id: 'LADO-B', nome: 'Lado B' });
+  return lista;
+}
+
+/**
+ * IDs de espaço aceitos na planilha. Além dos de espacosDoMovel_, a gôndola sempre
+ * aceita o meio inteiro e as duas metades (MEIO-A, MEIO-A-1, MEIO-A-2…): preencher
+ * a 2ª metade (MEIO-A-2) na planilha divide aquele meio em dois movimentos.
+ */
+function espacosAceitos_(m) {
+  const lista = espacosDoMovel_(m).map(function (e) { return e.id; });
+  if (m && m.tipo === 'GONDOLA') {
+    ['A', 'B'].forEach(function (l) {
+      ['MEIO-' + l, 'MEIO-' + l + '-1', 'MEIO-' + l + '-2'].forEach(function (id) { if (lista.indexOf(id) < 0) lista.push(id); });
+    });
+  }
   return lista;
 }
 
