@@ -169,7 +169,7 @@ const Construtor = (() => {
   /** Chamado pelo App depois de recarregar os dados ou trocar de planta. */
   function sincronizar(planta) {
     if (!c.ativo || !planta) return;
-    if (c.planta.id !== planta.id) carregarPlanta(planta, true); // trocou de planta: começa vazia
+    if (c.planta.id !== planta.id) carregarPlanta(planta, false); // trocou de planta: abre o modelo dela
     else if (!sujo()) carregarPlanta(planta, c.vazia);
   }
 
@@ -193,7 +193,7 @@ const Construtor = (() => {
     if (!planta) return;
     c.ativo = true;
     c.selecionado = '';
-    carregarPlanta(planta, true);
+    carregarPlanta(planta, false); // abre com o modelo atual da planta, pronto para editar
     document.body.classList.add('construindo');
     $('painelConstrutor').hidden = false;
     $('btnConstruir').setAttribute('aria-pressed', 'true');

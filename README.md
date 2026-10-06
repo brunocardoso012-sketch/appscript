@@ -25,7 +25,7 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 
 ## Construir loja (editor do layout)
 
-Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **abre vazia**, só com piso e paredes. Para continuar um layout já salvo, clique em **Carregar móveis salvos**. Fechar sem salvar não apaga nada; ao clicar em **Salvar planta**, o layout passa a ser o que está na tela.
+Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **abre com o modelo atual** (os móveis salvos dela), pronta para editar; trocar de planta no editor também abre o modelo daquela planta. Fechar sem salvar não apaga nada; ao clicar em **Salvar planta**, o layout passa a ser o que está na tela.
 
 | Para… | Faça |
 |---|---|
@@ -47,8 +47,8 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 | **Móvel de parede** (`PAR-…`) | Estante encostada na parede, com prateleiras (padrão 4 × 1,1 × 3,2). | Uma linha. |
 | **Totem** (`TOTEM-…`) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
 | **PDV móvel** (`PDV-…`) | Cubo de vidro sobre rodapé escuro. | Uma linha. |
-| **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 cartazes na frente, embaixo do tampo, com a mesma largura e espessura das lâminas do fundo. | Uma linha, **1 etiqueta**. |
-| **Mesa destaque 3 frentes** (`MESA3-…`) | Estrutura com pernas, 3 nichos em cima, painel de 3 lâminas ao fundo e 3 cartazes na frente, embaixo do tampo (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
+| **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 cartazes na frente, do mesmo tamanho das lâminas do fundo, subindo do chão na frente dos nichos. | Uma linha, **1 etiqueta**. |
+| **Mesa destaque 3 frentes** (`MESA3-…`) | Estrutura com pernas, 3 nichos baixos em cima (mesma altura dos da mesa destaque), painel de 3 lâminas ao fundo e 3 cartazes na frente, iguais aos da mesa destaque (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
 | **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); padrão 2,4 × 2,4 × 1,92. *Girar* muda o canto do L. | Uma linha. |
 | **Móvel de atendimento** (`CX-…`) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | Uma linha. |
 | **Parede O.U.i** (`OUI-…`) | Painel alto com moldura, para a parede (padrão 3,6 × 0,9 × 5). | Uma linha. |
