@@ -129,7 +129,8 @@
   }
   .chip .cor { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .15); }
   .chip[aria-pressed="true"] { border-color: var(--texto); box-shadow: inset 0 0 0 1px var(--texto); }
-  .chip.inativo { opacity: .45; }
+  .chip.inativo { opacity: .6; }
+  .chip.inativo .cor { filter: grayscale(1); }
   .legenda .dica { font-size: 12px; color: var(--texto-2); }
 
   .avisos { font-size: 12px; color: #7a4b00; background: #fff8e6; border: 1px solid #f1d58a; border-radius: var(--raio); padding: 4px 10px; max-width: 640px; }
@@ -2275,6 +2276,23 @@ function valoresPaineisExemplo_() {
       </form>
     </dialog>
 
+    <dialog id="dlgPng" class="dialogo">
+      <form method="dialog">
+        <h2>Baixar PNG</h2>
+        <p class="sub">Imagem em alta resolução da planta selecionada.</p>
+        <fieldset class="campo bloco">
+          <legend>Conteúdo</legend>
+          <label class="opcao"><input type="radio" name="pngModo" value="slide" checked> <span>Slide completo (com painéis, notas e fundo)</span></label>
+          <label class="opcao"><input type="radio" name="pngModo" value="planta"> <span>Só a planta com as etiquetas (sem painéis e sem fundo)</span></label>
+        </fieldset>
+        <p class="sub" id="pngFiltroTexto" hidden></p>
+        <div class="rodape-dialogo">
+          <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
+          <button class="btn primario" value="baixar" type="submit">Baixar PNG</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="dlgResultado" class="dialogo">
       <form method="dialog">
         <h2 id="resTitulo"></h2>
@@ -2328,11 +2346,15 @@ const Render = (() => {
     metal: '#A7ABB1',
     tela: '#C9CCD1',
     rodape: '#4B4F56',
+    // Filtro por marca: as outras marcas ficam em cinza (etiquetas mais escuras, móveis mais claros).
+    cinzaEtiqueta: '#8C8C8C',
+    cinzaMovel: '#D2D2D2',
   };
   const ESPESSURA_PAREDE = 0.35;
   const ESPESSURA_PISO = 0.35;
 
   let marcas = {};
+  let filtroMarca = ''; // marca destacada pelo filtro ('' = todas coloridas)
   let defs = null;
   let gradientes = {};
 
@@ -2418,16 +2440,26 @@ const Render = (() => {
     return misturar(cor, paraHex([cinza, cinza, cinza]), 0.3);
   }
 
-  /** "BOT+QDB" → ['#..', '#..'] ; tipo = 'movel' (cores foscas) | 'etiqueta' (cores da marca). */
-  function coresDe(valor, tipo) {
+  /**
+   * "BOT+QDB" → ['#..', '#..'] ; tipo = 'movel' (cores foscas) | 'etiqueta' (cores da marca).
+   * filtrar: com uma marca no filtro, as outras viram cinza (cinzaMovel / cinzaEtiqueta).
+   */
+  function coresDe(valor, tipo, filtrar) {
     if (!valor) return null;
+    const cinza = tipo === 'movel' ? COR.cinzaMovel : COR.cinzaEtiqueta;
     const cores = String(valor).split('+').map((p) => p.trim()).map((p) => {
-      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(p)) return p;
-      return marcas[p] ? marcas[p][tipo] : null;
+      const cor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(p) ? p : marcas[p] ? marcas[p][tipo] : null;
+      if (!cor) return null;
+      if (filtrar && filtroMarca && p !== filtroMarca) return cinza;
+      return tipo === 'movel' ? fosco(cor) : cor;
     }).filter(Boolean);
     if (!cores.length) return null;
-    return tipo === 'movel' ? cores.map(fosco) : cores;
+    // Combinação toda em cinza vira uma cor só (sem degradê cinza-cinza).
+    return cores.every((c) => c === cinza) ? [cinza] : cores;
   }
+
+  /** Cor da etiqueta sem marca: cinza escuro padrão (ou o cinza do filtro, quando há marca filtrada). */
+  const corEtiquetaPadrao = (filtrar) => [filtrar && filtroMarca ? COR.cinzaEtiqueta : COR.etiquetaPadrao];
 
   function ehNeutro(valor) {
     return !valor || valor === 'NEUTRO';
@@ -2952,7 +2984,7 @@ const Render = (() => {
         linhas,
         w,
         h: linhas.length * ETQ.lh + ETQ.padY * 2,
-        cores: coresDe(e.marca, 'etiqueta') || corPadrao,
+        cores: coresDe(e.marca, 'etiqueta', true) || corPadrao,
       };
     });
     const wEtq = Math.max.apply(null, itens.map((i) => i.w));
@@ -3215,7 +3247,7 @@ const Render = (() => {
       const etiquetas = info && info.etiquetas.length ? info.etiquetas : [];
       let cy = y + 28;
       etiquetas.slice(0, 3).forEach((e) => {
-        const cores = coresDe(e.marca, 'etiqueta') || coresDe(info.marca, 'etiqueta') || [COR.etiquetaPadrao];
+        const cores = coresDe(e.marca, 'etiqueta', true) || coresDe(info.marca, 'etiqueta', true) || corEtiquetaPadrao(true);
         const linhas = quebrar(e.texto, 116, 10, 700).slice(0, 2);
         const hh = linhas.length * 11 + 5;
         el('rect', { x: x0 + 76, y: cy, width: 120, height: hh, fill: tinta(cores, 0) }, gs);
@@ -3268,18 +3300,21 @@ const Render = (() => {
 
   /**
    * @param {SVGSVGElement} svg
-   * @param {{dados, planta, ciclo, filtro, ajustes, obterMovimento, obterPaineis, edicao}} ctx
+   * @param {{dados, planta, ciclo, filtro, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta}} ctx
+   *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).
+   *   As etiquetas ficam nas mesmas posições da tela (os painéis continuam contando como obstáculo).
    * @return {{grupos: Array}} grupos de etiquetas (para arrastar no modo edição)
    */
   function desenhar(svg, ctx) {
     marcas = ctx.dados.marcas;
+    filtroMarca = ctx.filtro || '';
     gradientes = {};
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     svg.setAttribute('viewBox', '0 0 ' + TELA.w + ' ' + TELA.h);
     defs = el('defs', null, svg);
     const filtro = el('filter', { id: 'sombra', x: '-10%', y: '-10%', width: '120%', height: '130%' }, defs);
     el('feDropShadow', { dx: 0, dy: 3, stdDeviation: 4, 'flood-color': '#000', 'flood-opacity': 0.18 }, filtro);
-    el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
+    if (!ctx.somentePlanta) el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
 
     const planta = ctx.planta;
     const projecao = criarProjecao(planta.loja);
@@ -3323,13 +3358,6 @@ const Render = (() => {
     });
     /** Espaço sem linha própria herda a linha da gôndola inteira. */
     const infoDe = (b) => (b.espaco && infoEspaco[b.movel.id + '/' + b.espaco.id]) || info[b.movel.id];
-    const marcasDe = (i) => {
-      if (!i) return new Set();
-      const s = new Set(String(i.marca || '').split('+'));
-      i.etiquetas.forEach((e) => String(e.marca || '').split('+').forEach((x) => s.add(x)));
-      return s;
-    };
-    const apagadoInfo = (i) => ctx.filtro && !marcasDe(i).has(ctx.filtro);
 
     // Móveis, na ordem de pintura.
     const prims = [];
@@ -3337,7 +3365,7 @@ const Render = (() => {
     ordenar(prims, P).forEach((b) => {
       const m = b.movel;
       const i = infoDe(b);
-      const corInfo = (x) => (x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel') : null);
+      const corInfo = (x) => (x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);
       const cores = corInfo(i);
       // Mesas: um só desenho, mas cada frente com a cor da própria linha (ou a da mesa inteira).
       if (m.tipo === 'MESA' || m.tipo === 'MESA_3') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id] || i));
@@ -3345,7 +3373,6 @@ const Render = (() => {
         class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
         'data-movel': m.id,
         'data-espaco': b.espaco ? b.espaco.id : null,
-        opacity: apagadoInfo(i) ? 0.18 : 1,
       }, camadaPlanta);
       desenharPrimitiva(g, P, b, cores);
       const linhasDica = [m.id + (b.espaco ? '/' + b.espaco.id + ' (' + b.espaco.nome + ')' : '') + (m.descricao ? ' — ' + m.descricao : '')];
@@ -3394,7 +3421,7 @@ const Render = (() => {
     callouts.forEach((c) => {
       if (c.alvo) {
         const x = Math.max(c.x + 12, Math.min(c.alvo[0], c.x + c.w - 12));
-        desenharGuia(camadaGuias, { x, y: c.y + c.h, w: 0, h: 0 }, c.alvo, true);
+        desenharGuia(el('g', { class: 'guia-callout' }, camadaGuias), { x, y: c.y + c.h, w: 0, h: 0 }, c.alvo, true);
       }
       desenharCallout(camadaEtiquetas, c);
       obstaculos.push(c);
@@ -3406,7 +3433,7 @@ const Render = (() => {
     const grupos = [];
     const novoGrupo = (id, m, i, etiquetas, simbolo, ancora, ajuste) => {
       if (!etiquetas.length) return;
-      const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta')) || [COR.etiquetaPadrao];
+      const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta', true)) || corEtiquetaPadrao(true);
       const med = medirGrupo(etiquetas, simbolo, corPadrao);
       const baseX = ancora[0] - med.w / 2;
       const baseY = ancora[1] - med.h / 2;
@@ -3444,18 +3471,21 @@ const Render = (() => {
     });
     posicionar(grupos, obstaculos);
     grupos.forEach((gr) => {
-      const esmaecer = apagadoInfo(gr.info) ? 0.15 : 1;
-      const guia = el('g', { opacity: esmaecer }, camadaGuias);
-      desenharGuia(guia, gr, gr.ancora, false);
+      desenharGuia(camadaGuias, gr, gr.ancora, false);
       gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
         class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : ''),
-        opacity: esmaecer,
       });
       dica(gr.elemento, gr.id + (gr.movel.descricao ? ' — ' + gr.movel.descricao : ''));
     });
 
+    // Só a planta: tira os painéis (lateral, notas, legenda, extras e caixas de destaque).
+    if (ctx.somentePlanta) {
+      camadaSobre.remove();
+      svg.querySelectorAll('.callout, .guia-callout').forEach((n) => n.remove());
+    }
+
     // Imagem de referência (modo construção): por cima de tudo, semitransparente.
-    if (ctx.referencia && ctx.referencia.src) {
+    if (ctx.referencia && ctx.referencia.src && !ctx.somentePlanta) {
       el('image', {
         href: ctx.referencia.src,
         x: ctx.referencia.dx || 0,
@@ -4913,28 +4943,22 @@ const App = (() => {
     rotulo.textContent = 'Marcas';
     box.appendChild(rotulo);
     const marcas = estado.dados.marcas;
-    Object.keys(marcas).forEach((cod) => {
-      const neutro = cod === 'NEUTRO';
+    Object.keys(marcas).filter((cod) => cod !== 'NEUTRO').forEach((cod) => {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'chip' + (estado.filtro && estado.filtro !== cod ? ' inativo' : '');
       chip.setAttribute('aria-pressed', String(estado.filtro === cod));
-      chip.title = neutro ? 'Móveis sem marca / sem movimento' : 'Mostrar só ' + marcas[cod].nome;
+      chip.title = 'Mostrar só ' + marcas[cod].nome;
       const cor = document.createElement('span');
       cor.className = 'cor';
-      cor.style.background = neutro ? marcas[cod].movel : marcas[cod].etiqueta;
+      cor.style.background = marcas[cod].etiqueta;
       chip.appendChild(cor);
-      chip.appendChild(document.createTextNode(neutro ? 'Sem marca' : marcas[cod].nome));
-      if (neutro) {
-        chip.disabled = true;
-        chip.style.cursor = 'default';
-      } else {
-        chip.addEventListener('click', () => {
-          estado.filtro = estado.filtro === cod ? '' : cod;
-          montarLegenda();
-          desenhar();
-        });
-      }
+      chip.appendChild(document.createTextNode(marcas[cod].nome));
+      chip.addEventListener('click', () => {
+        estado.filtro = estado.filtro === cod ? '' : cod;
+        montarLegenda();
+        desenhar();
+      });
       box.appendChild(chip);
     });
     if (estado.filtro) {
@@ -4974,13 +4998,13 @@ const App = (() => {
 
   /* ------------------------------- desenho -------------------------------- */
 
-  function desenhar() {
+  /** Contexto do desenho da tela (também usado para gerar o PNG só da planta). */
+  function contextoDesenho() {
     const construcao = Construtor.contexto();
     const planta = construcao ? construcao.planta : plantaAtual();
-    if (!planta) return;
-    svg.classList.toggle('construindo', !!construcao);
+    if (!planta) return null;
     const semConteudo = !!construcao && !construcao.mostrarCiclo;
-    const r = Render.desenhar(svg, {
+    return {
       dados: estado.dados,
       planta,
       ciclo: estado.ciclo,
@@ -4997,7 +5021,14 @@ const App = (() => {
       selecionado: construcao ? construcao.selecionado : '',
       grade: construcao ? construcao.grade : false,
       referencia: construcao ? construcao.referencia : null,
-    });
+    };
+  }
+
+  function desenhar() {
+    const ctx = contextoDesenho();
+    if (!ctx) return;
+    svg.classList.toggle('construindo', !!Construtor.contexto());
+    const r = Render.desenhar(svg, ctx);
     Construtor.aposDesenhar(r);
     estado.grupos = r.grupos;
     if (estado.edicao) ativarArraste();
@@ -5178,15 +5209,62 @@ const App = (() => {
 
   /* -------------------------------- PNG ----------------------------------- */
 
+  function abrirDialogoPng() {
+    if (!plantaAtual()) return;
+    const dlg = $('dlgPng');
+    const marca = estado.filtro && estado.dados.marcas[estado.filtro];
+    $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.' : '';
+    $('pngFiltroTexto').hidden = !marca;
+    dlg.returnValue = '';
+    dlg.showModal();
+  }
+
+  /**
+   * SVG a exportar. "slide": o slide da tela inteiro. "planta": só a loja, os móveis e as
+   * etiquetas (sem painéis), sem fundo e recortada no conteúdo — com as mesmas cores da tela
+   * (inclusive o filtro de marca).
+   */
+  function svgParaPng(modo) {
+    if (modo !== 'planta') {
+      return { clone: svg.cloneNode(true), caixa: { x: 0, y: 0, w: Render.TELA.w, h: Render.TELA.h } };
+    }
+    const ns = 'http://www.w3.org/2000/svg';
+    const temp = document.createElementNS(ns, 'svg');
+    // Fora da tela, mas renderizado (getBBox não funciona com display: none).
+    temp.setAttribute('style', 'position:absolute;left:-10000px;top:0;width:' + Render.TELA.w + 'px;height:' + Render.TELA.h + 'px;visibility:hidden');
+    document.body.appendChild(temp);
+    try {
+      Render.desenhar(temp, Object.assign(contextoDesenho(), { somentePlanta: true, edicao: false, selecionado: '', grade: false, referencia: null }));
+      const bb = temp.getBBox();
+      const m = 12;
+      const x = Math.max(0, Math.floor(bb.x - m));
+      const y = Math.max(0, Math.floor(bb.y - m));
+      const caixa = {
+        x, y,
+        w: Math.min(Render.TELA.w, Math.ceil(bb.x + bb.width + m)) - x,
+        h: Math.min(Render.TELA.h, Math.ceil(bb.y + bb.height + m)) - y,
+      };
+      const clone = temp.cloneNode(true);
+      clone.removeAttribute('style');
+      clone.setAttribute('viewBox', [caixa.x, caixa.y, caixa.w, caixa.h].join(' '));
+      return { clone, caixa };
+    } finally {
+      temp.remove();
+    }
+  }
+
   async function baixarPng() {
+    const dlg = $('dlgPng');
+    if (dlg.returnValue !== 'baixar') return;
     const planta = plantaAtual();
     if (!planta) return;
+    const modo = dlg.querySelector('input[name="pngModo"]:checked').value;
     carregando(true, 'Gerando imagem…');
     try {
-      const clone = svg.cloneNode(true);
+      const { clone, caixa } = svgParaPng(modo);
       clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-      clone.setAttribute('width', Render.TELA.w);
-      clone.setAttribute('height', Render.TELA.h);
+      clone.setAttribute('width', caixa.w);
+      clone.setAttribute('height', caixa.h);
       clone.querySelectorAll('title').forEach((t) => t.remove());
       const xml = new XMLSerializer().serializeToString(clone);
       const img = new Image();
@@ -5194,13 +5272,15 @@ const App = (() => {
       await img.decode();
       const escala = 2;
       const canvas = document.createElement('canvas');
-      canvas.width = Render.TELA.w * escala;
-      canvas.height = Render.TELA.h * escala;
+      canvas.width = Math.round(caixa.w * escala);
+      canvas.height = Math.round(caixa.h * escala);
       const ctx = canvas.getContext('2d');
       ctx.scale(escala, escala);
-      ctx.drawImage(img, 0, 0, Render.TELA.w, Render.TELA.h);
+      ctx.drawImage(img, 0, 0, caixa.w, caixa.h);
       const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/png'));
-      const nome = (planta.nome + (estado.ciclo ? ' - ' + estado.ciclo : '')).replace(/[\\/:*?"<>|]+/g, '-') + '.png';
+      const marca = estado.filtro && estado.dados.marcas[estado.filtro];
+      const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', marca ? marca.nome : ''].filter(Boolean);
+      const nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + '.png';
       Planilha.baixarBlob(blob, nome);
     } catch (e) {
       erro(e);
@@ -5220,7 +5300,8 @@ const App = (() => {
     $('dlgModelo').addEventListener('close', baixarModelo);
     $('btnImportar').addEventListener('click', () => estado.dados && $('arquivo').click());
     $('arquivo').addEventListener('change', (e) => importar(e.target.files[0]));
-    $('btnPng').addEventListener('click', baixarPng);
+    $('btnPng').addEventListener('click', () => estado.dados && abrirDialogoPng());
+    $('dlgPng').addEventListener('close', baixarPng);
     $('btnEditar').addEventListener('click', () => estado.dados && alternarEdicao());
     $('btnAutoOrganizar').addEventListener('click', autoOrganizar);
     $('btnDescartar').addEventListener('click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });

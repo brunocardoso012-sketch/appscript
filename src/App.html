@@ -206,28 +206,22 @@ const App = (() => {
     rotulo.textContent = 'Marcas';
     box.appendChild(rotulo);
     const marcas = estado.dados.marcas;
-    Object.keys(marcas).forEach((cod) => {
-      const neutro = cod === 'NEUTRO';
+    Object.keys(marcas).filter((cod) => cod !== 'NEUTRO').forEach((cod) => {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'chip' + (estado.filtro && estado.filtro !== cod ? ' inativo' : '');
       chip.setAttribute('aria-pressed', String(estado.filtro === cod));
-      chip.title = neutro ? 'Móveis sem marca / sem movimento' : 'Mostrar só ' + marcas[cod].nome;
+      chip.title = 'Mostrar só ' + marcas[cod].nome;
       const cor = document.createElement('span');
       cor.className = 'cor';
-      cor.style.background = neutro ? marcas[cod].movel : marcas[cod].etiqueta;
+      cor.style.background = marcas[cod].etiqueta;
       chip.appendChild(cor);
-      chip.appendChild(document.createTextNode(neutro ? 'Sem marca' : marcas[cod].nome));
-      if (neutro) {
-        chip.disabled = true;
-        chip.style.cursor = 'default';
-      } else {
-        chip.addEventListener('click', () => {
-          estado.filtro = estado.filtro === cod ? '' : cod;
-          montarLegenda();
-          desenhar();
-        });
-      }
+      chip.appendChild(document.createTextNode(marcas[cod].nome));
+      chip.addEventListener('click', () => {
+        estado.filtro = estado.filtro === cod ? '' : cod;
+        montarLegenda();
+        desenhar();
+      });
       box.appendChild(chip);
     });
     if (estado.filtro) {
@@ -267,13 +261,13 @@ const App = (() => {
 
   /* ------------------------------- desenho -------------------------------- */
 
-  function desenhar() {
+  /** Contexto do desenho da tela (também usado para gerar o PNG só da planta). */
+  function contextoDesenho() {
     const construcao = Construtor.contexto();
     const planta = construcao ? construcao.planta : plantaAtual();
-    if (!planta) return;
-    svg.classList.toggle('construindo', !!construcao);
+    if (!planta) return null;
     const semConteudo = !!construcao && !construcao.mostrarCiclo;
-    const r = Render.desenhar(svg, {
+    return {
       dados: estado.dados,
       planta,
       ciclo: estado.ciclo,
@@ -290,7 +284,14 @@ const App = (() => {
       selecionado: construcao ? construcao.selecionado : '',
       grade: construcao ? construcao.grade : false,
       referencia: construcao ? construcao.referencia : null,
-    });
+    };
+  }
+
+  function desenhar() {
+    const ctx = contextoDesenho();
+    if (!ctx) return;
+    svg.classList.toggle('construindo', !!Construtor.contexto());
+    const r = Render.desenhar(svg, ctx);
     Construtor.aposDesenhar(r);
     estado.grupos = r.grupos;
     if (estado.edicao) ativarArraste();
@@ -471,15 +472,62 @@ const App = (() => {
 
   /* -------------------------------- PNG ----------------------------------- */
 
+  function abrirDialogoPng() {
+    if (!plantaAtual()) return;
+    const dlg = $('dlgPng');
+    const marca = estado.filtro && estado.dados.marcas[estado.filtro];
+    $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.' : '';
+    $('pngFiltroTexto').hidden = !marca;
+    dlg.returnValue = '';
+    dlg.showModal();
+  }
+
+  /**
+   * SVG a exportar. "slide": o slide da tela inteiro. "planta": só a loja, os móveis e as
+   * etiquetas (sem painéis), sem fundo e recortada no conteúdo — com as mesmas cores da tela
+   * (inclusive o filtro de marca).
+   */
+  function svgParaPng(modo) {
+    if (modo !== 'planta') {
+      return { clone: svg.cloneNode(true), caixa: { x: 0, y: 0, w: Render.TELA.w, h: Render.TELA.h } };
+    }
+    const ns = 'http://www.w3.org/2000/svg';
+    const temp = document.createElementNS(ns, 'svg');
+    // Fora da tela, mas renderizado (getBBox não funciona com display: none).
+    temp.setAttribute('style', 'position:absolute;left:-10000px;top:0;width:' + Render.TELA.w + 'px;height:' + Render.TELA.h + 'px;visibility:hidden');
+    document.body.appendChild(temp);
+    try {
+      Render.desenhar(temp, Object.assign(contextoDesenho(), { somentePlanta: true, edicao: false, selecionado: '', grade: false, referencia: null }));
+      const bb = temp.getBBox();
+      const m = 12;
+      const x = Math.max(0, Math.floor(bb.x - m));
+      const y = Math.max(0, Math.floor(bb.y - m));
+      const caixa = {
+        x, y,
+        w: Math.min(Render.TELA.w, Math.ceil(bb.x + bb.width + m)) - x,
+        h: Math.min(Render.TELA.h, Math.ceil(bb.y + bb.height + m)) - y,
+      };
+      const clone = temp.cloneNode(true);
+      clone.removeAttribute('style');
+      clone.setAttribute('viewBox', [caixa.x, caixa.y, caixa.w, caixa.h].join(' '));
+      return { clone, caixa };
+    } finally {
+      temp.remove();
+    }
+  }
+
   async function baixarPng() {
+    const dlg = $('dlgPng');
+    if (dlg.returnValue !== 'baixar') return;
     const planta = plantaAtual();
     if (!planta) return;
+    const modo = dlg.querySelector('input[name="pngModo"]:checked').value;
     carregando(true, 'Gerando imagem…');
     try {
-      const clone = svg.cloneNode(true);
+      const { clone, caixa } = svgParaPng(modo);
       clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-      clone.setAttribute('width', Render.TELA.w);
-      clone.setAttribute('height', Render.TELA.h);
+      clone.setAttribute('width', caixa.w);
+      clone.setAttribute('height', caixa.h);
       clone.querySelectorAll('title').forEach((t) => t.remove());
       const xml = new XMLSerializer().serializeToString(clone);
       const img = new Image();
@@ -487,13 +535,15 @@ const App = (() => {
       await img.decode();
       const escala = 2;
       const canvas = document.createElement('canvas');
-      canvas.width = Render.TELA.w * escala;
-      canvas.height = Render.TELA.h * escala;
+      canvas.width = Math.round(caixa.w * escala);
+      canvas.height = Math.round(caixa.h * escala);
       const ctx = canvas.getContext('2d');
       ctx.scale(escala, escala);
-      ctx.drawImage(img, 0, 0, Render.TELA.w, Render.TELA.h);
+      ctx.drawImage(img, 0, 0, caixa.w, caixa.h);
       const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/png'));
-      const nome = (planta.nome + (estado.ciclo ? ' - ' + estado.ciclo : '')).replace(/[\\/:*?"<>|]+/g, '-') + '.png';
+      const marca = estado.filtro && estado.dados.marcas[estado.filtro];
+      const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', marca ? marca.nome : ''].filter(Boolean);
+      const nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + '.png';
       Planilha.baixarBlob(blob, nome);
     } catch (e) {
       erro(e);
@@ -513,7 +563,8 @@ const App = (() => {
     $('dlgModelo').addEventListener('close', baixarModelo);
     $('btnImportar').addEventListener('click', () => estado.dados && $('arquivo').click());
     $('arquivo').addEventListener('change', (e) => importar(e.target.files[0]));
-    $('btnPng').addEventListener('click', baixarPng);
+    $('btnPng').addEventListener('click', () => estado.dados && abrirDialogoPng());
+    $('dlgPng').addEventListener('close', baixarPng);
     $('btnEditar').addEventListener('click', () => estado.dados && alternarEdicao());
     $('btnAutoOrganizar').addEventListener('click', autoOrganizar);
     $('btnDescartar').addEventListener('click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
