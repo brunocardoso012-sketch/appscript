@@ -22,26 +22,27 @@
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 2, '02': 2 };
+const VERSAO_MODELO_PLANTAS = { '01': 3, '02': 2 };
 
 const LAYOUT_PADRAO = {
-  // PLANTA 01: layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06.json),
-  // com gôndolas na altura da pirâmide e móveis de fila pela metade.
+  // PLANTA 01: layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06_2.json).
   '01': {
-    loja: [16, 14, 4.4],
+    loja: [12, 10, 4.4],
     moveis: [
-      ['GON-01', 'Gôndola 1', 'GONDOLA', 3, 2.5, 1.6, 4, 2.16],
-      ['GON-02', 'Gôndola 2', 'GONDOLA', 6.5, 3, 1.6, 4, 2.16],
-      ['PIR-01', 'Pirâmide 1', 'PIRAMIDE', 10, 3, 1.02, 1.02, 2.16],
-      ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 13, 3, 1.02, 1.02, 2.16],
-      ['PIR-03', 'Pirâmide 3', 'PIRAMIDE', 10, 6, 1.02, 1.02, 2.16],
-      ['PIR-04', 'Pirâmide 4', 'PIRAMIDE', 13, 6, 1.02, 1.02, 2.16],
-      ['MESA-01', 'Mesa destaque', 'MESA', 10, 8.5, 2.6, 1.4, 2.6],
-      ['FILA-02', 'Móvel de fila 2', 'FILA', 2.25, 8.2, 1.5, 0.4, 0.9],
-      ['FILA-01', 'Móvel de fila 1', 'FILA', 2.25, 10.7, 1.5, 0.4, 0.9],
-      ['PDV-01', 'PDV móvel', 'CUBO', 8, 10.5, 1.3, 1.3, 1.6],
-      ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 12.5, 10.5, 3, 3, 2.4],
-      ['TOTEM-01', 'Totem', 'TOTEM', 8.5, 12.5, 0.35, 1.5, 3.4],
+      ['PAR-04', 'Parede do fundo 1', 'GONDOLA_PAREDE', 0, 0, 4, 1.1, 3.2],
+      ['PAR-01', 'Parede do fundo 2', 'GONDOLA_PAREDE', 4, 0, 4, 1.1, 3.2],
+      ['PAR-05', 'Parede do fundo 3', 'GONDOLA_PAREDE', 8, 0, 4, 1.1, 3.2],
+      ['PAR-03', 'Parede esquerda 1', 'GONDOLA_PAREDE', 0, 1, 1.1, 4, 3.2],
+      ['PAR-02', 'Parede esquerda 2', 'GONDOLA_PAREDE', 0, 5, 1.1, 4, 3.2],
+      ['GON-01', 'Gôndola', 'GONDOLA', 3, 2, 1.6, 4, 2.16],
+      ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 6.5, 3, 1.02, 1.02, 2.16],
+      ['PIR-01', 'Pirâmide 1', 'PIRAMIDE', 6.5, 5, 1.02, 1.02, 2.16],
+      ['MESA-01', 'Mesa destaque', 'MESA', 9, 3.5, 2.6, 1.4, 2.6],
+      ['PDV-01', 'PDV móvel', 'CUBO', 6, 7, 1.3, 1.3, 1.6],
+      ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 9.5, 7, 3, 3, 2.4],
+      ['FILA-01', 'Móvel de fila 1', 'FILA', 2, 7.5, 0.4, 1.5, 0.9],
+      ['FILA-02', 'Móvel de fila 2', 'FILA', 3.5, 7.5, 0.4, 1.5, 0.9],
+      ['TOTEM-01', 'Totem', 'TOTEM', 6.5, 8.5, 0.35, 1.5, 3.4],
       ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
@@ -217,20 +218,20 @@ const EXEMPLO_MOVIMENTOS = {
     'EXTRA-CAVALETE': ['NEUTRO', [['SIÀGE ULTIMATE', 'EUD']]],
   },
   '01': {
-    'GON-01': ['MULTI', [['ITENS FIXOS', 'MULTI']], 'FIXO'],
-    'GON-01/PONTA-2': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
-    'GON-02': ['EUD', [['OUTLET EUD', 'EUD'], ['PERFUMARIA', 'EUD']], 'MOVIMENTO'],
-    'GON-02/PONTA-2': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'PIR-03': ['BOT', [['BOTI PROMO', 'BOT'], ['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
-    'PIR-04': ['MULTI', [['CURTO PRAZO', 'MULTI'], ['+PEC REGIONAL', 'MULTI']], 'FIXO'],
+    'PAR-03': ['NEUTRO', [['CUIDADOS (NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    'PAR-02': ['NEUTRO', [['PERF FEM', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    'PAR-04': ['NEUTRO', [['PERF MASC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    'PAR-01': ['NEUTRO', [['CUIDADOS (CBEM)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    'GON-01': ['BOT', [['BOTIK', 'BOT']], 'FIXO'],
+    'GON-01/PONTA-2': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'MESA-01': ['MULTI', [
       ['VM PERMANENTE MULTI PROMO', 'MULTI'], ['UOMINI GLORIFICADO', 'BOT'],
       ['SIÀGE GLORIFICADO', 'EUD'], ['VERSO: LÇTO EGEO', 'BOT+QDB'],
     ]],
+    'BALCAO-01': ['BOT', [['LÇTO EGEO', 'BOT+QDB']]],
+    'PDV-01': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
     'FILA-01': ['BOT', [['BOTIPROMO', 'BOT']]],
     'FILA-02': ['EUD', [['OUTLET EUD', 'EUD']]],
-    'PDV-01': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
-    'BALCAO-01': ['BOT', [['LÇTO EGEO', 'BOT+QDB']]],
   },
   '02': {
     'GON-01': ['MULTI', [['ITENS FIXOS', 'MULTI']], 'FIXO'],
