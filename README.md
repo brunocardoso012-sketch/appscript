@@ -196,7 +196,7 @@ Cada linha é um móvel de uma planta. **Para criar uma planta nova, basta acres
 | Largura (eixo X), Profundidade (eixo Y), Altura | Tamanho. |
 | Ajuste Etiqueta X / Y (px) | Preenchidos pelo botão *Salvar posições*. Zere para voltar ao posicionamento automático. |
 
-O layout que vem pronto é uma **aproximação** das plantas de referência; as plantas **ER P (01) e ER M (02)** já usam layouts montados no modo Construir loja. Ajuste as coordenadas na aba Layout e clique em **Atualizar** para ver o resultado.
+O layout que vem pronto é uma **aproximação** das plantas de referência; as plantas **ER P (01), ER M (02) e ER GG (04)** já usam layouts montados no modo Construir loja. Ajuste as coordenadas na aba Layout e clique em **Atualizar** para ver o resultado.
 
 ## Personalização
 
