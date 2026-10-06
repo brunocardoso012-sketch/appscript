@@ -58,7 +58,11 @@
 
     <div class="faixa">
       <div class="legenda" id="legenda" aria-label="Marcas"></div>
-      <details class="avisos" id="avisos" hidden>
+      <div class="aviso-local" id="avisoLocal" hidden>
+        <span>Modo local: os dados ficam salvos só neste navegador.</span>
+        <button id="btnRestaurar" class="btn pequeno fantasma" type="button">Restaurar exemplo</button>
+      </div>
+            <details class="avisos" id="avisos" hidden>
         <summary></summary>
         <ul></ul>
       </details>
@@ -99,6 +103,7 @@
           <span>Plantas</span>
           <select id="mdPlantas"></select>
         </label>
+        <label class="opcao bloco-opcao"><input type="checkbox" id="mdLayout"> <span>Incluir aba <b>Layout</b> (posição e tamanho dos móveis, para ajustar a planta)</span></label>
         <div class="rodape-dialogo">
           <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
           <button class="btn primario" value="baixar" type="submit">Baixar .xlsx</button>

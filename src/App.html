@@ -124,6 +124,7 @@ const App = (() => {
     estado.planta = dados.plantas.some((p) => p.id === plantaPref) ? plantaPref : (dados.plantas[0] || {}).id || '';
     estado.ajustes = {};
 
+    $('avisoLocal').hidden = !dados.modoLocal;
     const link = $('lnkPlanilha');
     link.hidden = !dados.planilhaUrl;
     if (dados.planilhaUrl) link.href = dados.planilhaUrl;
@@ -383,6 +384,7 @@ const App = (() => {
       ciclo: $('mdCiclo').value.trim(),
       origem: copiar ? estado.ciclo : '',
       plantas: plantaSel === '*' ? estado.dados.plantas.map((p) => p.id) : [plantaSel],
+      incluirLayout: $('mdLayout').checked,
     };
     carregando(true, 'Gerando planilha…');
     try {
@@ -405,7 +407,7 @@ const App = (() => {
       const payload = await Planilha.ler(arquivo, estado.dados);
       carregando(true, 'Gravando na planilha…');
       const r = await chamar('importarPlanilha', payload);
-      await carregar({ ciclo: r.ciclos[r.ciclos.length - 1] });
+      await carregar({ ciclo: r.ciclos.length ? r.ciclos[r.ciclos.length - 1] : '' });
       mostrarResultado(r);
     } catch (e) {
       erro(e);
@@ -420,6 +422,7 @@ const App = (() => {
     const partes = [];
     if (r.movimentos) partes.push(r.movimentos + ' linha(s) de movimentos');
     if (r.paineis) partes.push(r.paineis + ' linha(s) de painéis');
+    if (r.layout) partes.push(r.layout + ' linha(s) de layout');
     $('resTexto').textContent = (partes.join(' e ') || 'Nenhuma linha') + ' gravada(s)' +
       (r.ciclos.length ? ' — ciclo(s): ' + r.ciclos.join(', ') + '.' : '.') +
       (r.avisos.length ? ' Confira os avisos:' : '');
@@ -484,6 +487,9 @@ const App = (() => {
     $('btnDescartar').addEventListener('click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
     $('btnSalvarAjustes').addEventListener('click', salvarAjustes);
     $('btnConfigurar').addEventListener('click', configurar);
+    $('btnRestaurar').addEventListener('click', () => {
+      if (window.confirm('Apagar os dados salvos neste navegador e voltar ao ciclo de exemplo?')) configurar();
+    });
     $('btnAtualizar').addEventListener('click', () => {
       if (Object.keys(estado.ajustes).length && !window.confirm('Descartar ajustes de etiquetas não salvos?')) return;
       carregar().then(() => toast('Dados atualizados.'));

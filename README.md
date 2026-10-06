@@ -23,7 +23,24 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 - **Baixar PNG** em 3840×2160, pronto para colar na apresentação.
 - **Ajustar etiquetas**: as etiquetas se afastam sozinhas para não se sobrepor. Se quiser outra posição, arraste e clique em *Salvar posições*.
 
-## Instalação
+## Versão web para testes (netli.fyi / Netlify)
+
+Para ver e ajustar o visualizador **sem o Apps Script**, use [`site/index.html`](site/index.html): é um arquivo único, com o mesmo código, que guarda os dados no próprio navegador.
+
+1. Baixe `site/index.html` e coloque numa pasta. O nome precisa continuar `index.html`.
+2. Arraste a pasta para o [netli.fyi](https://netli.fyi) (ou para o Netlify Drop). Também abre com duplo clique, direto no navegador.
+3. Use normalmente: trocar ciclo, baixar a planilha base, importar, PNG e ajustar etiquetas.
+
+Para **ajustar a planta** (posição e tamanho dos móveis):
+
+1. Em *Baixar planilha base*, marque **Incluir aba Layout**.
+2. Mude X, Y, Largura, Profundidade e Altura no Excel e importe. As plantas presentes na aba são substituídas por inteiro.
+3. Quando estiver tudo certo, baixe a planilha com a aba Layout e importe na versão Apps Script. O Apps Script aceita o mesmo arquivo.
+
+Na versão web os dados ficam só naquele navegador. Para levar a outro computador, baixe a planilha (com Layout) e importe lá. O botão **Restaurar exemplo** volta ao ciclo de exemplo.
+
+Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`.
+
 
 ### Opção A — copiar e colar (não precisa instalar nada)
 
@@ -150,17 +167,21 @@ src/
   Render.html       desenho isométrico em SVG (slide 1920×1080)
   Planilha.html     gerar/ler .xlsx no navegador (ExcelJS via cdnjs, com SRI)
   App.html          estado da tela, botões e chamadas ao servidor
+web/
+  backend-local.js  troca o google.script.run por localStorage (versão web)
+site/
+  index.html        versão web gerada (arquivo único, para netli.fyi / Netlify)
 dev/
   gas.js            carrega os .gs no Node + planilha em memória (SpreadsheetApp simulado)
   testes.test.js    testes do backend
-  preview.js        gera dev/preview.html para ver a página localmente
+  build-web.js      gera site/index.html a partir de src/ + web/
 ```
 
 Para desenvolver (Node 18+):
 
 ```bash
-npm test          # testes do backend (sem Apps Script)
-npm run preview   # gera dev/preview.html com o ciclo de exemplo
+npm test            # testes do backend (sem Apps Script)
+npm run build:web   # gera site/index.html (versão web)
 ```
 
 ## Observações

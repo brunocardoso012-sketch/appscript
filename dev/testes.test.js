@@ -110,3 +110,25 @@ test('modo standalone cria a planilha e guarda o ID', () => {
   assert.deepEqual(f.planilha.getSheets().map((s) => s.getName()), ['Layout', 'Movimentos', 'Painéis']);
   assert.equal(run('getDados()').plantas.length, 4);
 });
+
+test('importar aba Layout substitui só as plantas presentes e mantém números', () => {
+  const f = servicosFalsos();
+  const { ctx, run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  ctx.__layout = {
+    layout: [
+      ['Planta', 'ID Móvel', 'Tipo', 'X', 'Y', 'Largura (eixo X)', 'Profundidade (eixo Y)', 'Altura'],
+      ['02', 'LOJA', 'LOJA', 0, 0, 30, 25, 5],
+      ['02', 'PIR-01', 'PIRAMIDE', 3, 15, 1.7, 1.7, 3.6],
+    ],
+  };
+  const r = run('importarPlanilha(__layout)');
+  assert.equal(r.layout, 2);
+  const d = run('getDados()');
+  const p2 = d.plantas.find((p) => p.id === '02');
+  assert.deepEqual(p2.loja, { largura: 30, profundidade: 25, alturaParede: 5 });
+  assert.equal(p2.moveis.length, 1);
+  assert.equal(p2.moveis[0].x, 3);
+  assert.equal(d.plantas.find((p) => p.id === '03').moveis.length, 39, 'outras plantas intactas');
+  assert.ok(r.avisos.some((a) => /não existe no Layout/.test(a)) === false, 'sem avisos de movimentos (não importados)');
+});

@@ -1,0 +1,3585 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+        <meta charset="utf-8">
+    <title>Plano de Varejo · Plantas</title>
+    <style>
+  :root {
+    --fundo: #f3f4f6;
+    --superficie: #ffffff;
+    --borda: #dfe2e6;
+    --borda-forte: #c9cdd3;
+    --texto: #16181b;
+    --texto-2: #5b6068;
+    --primario: #16181b;
+    --primario-texto: #ffffff;
+    --destaque: #fff7d6;
+    --raio: 8px;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .06), 0 4px 16px rgba(0, 0, 0, .06);
+    --fonte: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--fundo);
+    color: var(--texto);
+    font: 14px/1.4 var(--fonte);
+    display: flex;
+    flex-direction: column;
+  }
+  [hidden] { display: none !important; }
+
+  /* ---------- topo ---------- */
+  .topo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+    padding: 10px 16px;
+    background: var(--superficie);
+    border-bottom: 1px solid var(--borda);
+  }
+  .identidade { display: flex; align-items: center; gap: 10px; min-width: 190px; }
+  .identidade h1 { margin: 0; font-size: 15px; letter-spacing: .2px; }
+  .identidade p { margin: 0; font-size: 12px; color: var(--texto-2); }
+  .logo { width: 26px; height: 26px; color: var(--texto); }
+
+  .seletores { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; flex: 1 1 auto; }
+  .acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .campo { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--texto-2); }
+  .campo > span, .campo > legend { font-weight: 600; text-transform: uppercase; letter-spacing: .4px; font-size: 11px; }
+  .campo.bloco { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin: 0 0 14px; border: 0; padding: 0; }
+
+  select, input[type="text"] {
+    font: inherit;
+    color: var(--texto);
+    background: var(--superficie);
+    border: 1px solid var(--borda-forte);
+    border-radius: var(--raio);
+    padding: 7px 10px;
+    min-width: 170px;
+  }
+  select:focus-visible, input:focus-visible, .btn:focus-visible, .aba:focus-visible, .chip:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 1px;
+  }
+
+  .abas { display: inline-flex; background: #eceef1; border-radius: 10px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+  .aba {
+    border: 0;
+    background: transparent;
+    font: 600 12px var(--fonte);
+    letter-spacing: .4px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    color: var(--texto-2);
+    cursor: pointer;
+  }
+  .aba:hover { color: var(--texto); }
+  .aba[aria-selected="true"] { background: var(--primario); color: var(--primario-texto); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 600 13px var(--fonte);
+    padding: 7px 12px;
+    border-radius: var(--raio);
+    border: 1px solid var(--borda-forte);
+    background: var(--superficie);
+    color: var(--texto);
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #f5f6f8; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .btn.primario { background: var(--primario); border-color: var(--primario); color: var(--primario-texto); }
+  .btn.primario:hover { background: #2b2f35; }
+  .btn.fantasma { border-color: transparent; background: transparent; color: var(--texto-2); }
+  .btn.fantasma:hover { color: var(--texto); background: #f0f1f3; }
+  .btn.pequeno { padding: 5px 10px; font-size: 12px; }
+  .btn[aria-pressed="true"] { background: var(--destaque); border-color: #e2c64a; }
+
+  /* ---------- legenda e avisos ---------- */
+  .faixa {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 8px 16px 0;
+  }
+  .legenda { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .legenda .rotulo { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); margin-right: 4px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--borda);
+    background: var(--superficie);
+    border-radius: 999px;
+    padding: 3px 10px 3px 4px;
+    font: 600 12px var(--fonte);
+    color: var(--texto);
+    cursor: pointer;
+  }
+  .chip .cor { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .15); }
+  .chip[aria-pressed="true"] { border-color: var(--texto); box-shadow: inset 0 0 0 1px var(--texto); }
+  .chip.inativo { opacity: .45; }
+  .legenda .dica { font-size: 12px; color: var(--texto-2); }
+
+  .avisos { font-size: 12px; color: #7a4b00; background: #fff8e6; border: 1px solid #f1d58a; border-radius: var(--raio); padding: 4px 10px; max-width: 640px; }
+  .avisos summary { cursor: pointer; font-weight: 600; }
+  .avisos ul { margin: 6px 0 4px; padding-left: 18px; max-height: 180px; overflow: auto; }
+
+  .aviso-local { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--texto-2); background: #eef2ff; border: 1px solid #c7d2fe; border-radius: var(--raio); padding: 2px 4px 2px 10px; }
+  .bloco-opcao { margin: 0 0 14px; }
+
+  .barra-edicao {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 16px 0;
+    padding: 8px 12px;
+    background: var(--destaque);
+    border: 1px solid #e2c64a;
+    border-radius: var(--raio);
+    font-size: 13px;
+  }
+  .grupo-botoes { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ---------- palco (slide) ---------- */
+  .palco {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 10px 16px 16px;
+  }
+  #slide {
+    width: min(100%, calc((100vh - 150px) * 16 / 9));
+    min-width: 320px;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    background: #f3efea;
+    border-radius: 6px;
+    box-shadow: var(--sombra);
+    user-select: none;
+  }
+  #slide .movel:hover polygon { stroke-width: 2.2; }
+  #slide .arrastavel { cursor: grab; }
+  #slide .arrastavel:hover rect { stroke: #111; stroke-width: 1.5; }
+  #slide .arrastavel:active { cursor: grabbing; }
+
+  .vazio {
+    max-width: 520px;
+    margin: 40px auto;
+    background: var(--superficie);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: var(--sombra);
+    text-align: center;
+  }
+  .vazio h2 { margin: 0 0 8px; font-size: 18px; }
+  .vazio p { color: var(--texto-2); }
+
+  /* ---------- diálogos ---------- */
+  .dialogo {
+    border: 0;
+    border-radius: 12px;
+    padding: 22px 22px 16px;
+    width: min(460px, calc(100vw - 32px));
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+    color: var(--texto);
+  }
+  .dialogo::backdrop { background: rgba(15, 17, 20, .45); }
+  .dialogo h2 { margin: 0 0 4px; font-size: 17px; }
+  .dialogo .sub { margin: 0 0 16px; color: var(--texto-2); font-size: 13px; }
+  .dialogo input[type="text"], .dialogo select { width: 100%; }
+  .opcao { display: flex; align-items: center; gap: 8px; color: var(--texto); font-size: 13px; padding: 3px 0; cursor: pointer; }
+  .rodape-dialogo { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  .lista-avisos { max-height: 240px; overflow: auto; font-size: 12px; color: #7a4b00; padding-left: 18px; }
+  .lista-avisos:empty { display: none; }
+
+  /* ---------- carregando / toast ---------- */
+  .carregando {
+    position: fixed;
+    inset: 0;
+    background: rgba(243, 244, 246, .72);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-weight: 600;
+    z-index: 20;
+  }
+  .spinner {
+    width: 34px;
+    height: 34px;
+    border: 3px solid #cfd3d8;
+    border-top-color: var(--texto);
+    border-radius: 50%;
+    animation: girar .8s linear infinite;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    background: #16181b;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    box-shadow: var(--sombra);
+    z-index: 30;
+    max-width: calc(100vw - 32px);
+  }
+  .toast.erro { background: #b42318; }
+
+  @media (max-width: 720px) {
+    .topo { padding: 10px 12px; }
+    .faixa, .palco { padding-left: 12px; padding-right: 12px; }
+    .acoes .btn { flex: 1 1 auto; justify-content: center; }
+    #slide { width: 100%; }
+  }
+</style>
+
+  <script>
+/* ===== src/Config.gs ===== */
+/**
+ * ============================================================================
+ *  CONFIGURAÇÕES DO VISUALIZADOR DE PLANTAS
+ * ============================================================================
+ *  Tudo o que costuma mudar (cores das marcas, nomes das abas, quantidade de
+ *  etiquetas por móvel) fica neste arquivo.
+ */
+
+const CONFIG = {
+  TITULO: 'Plano de Varejo · Visualizador de Plantas',
+  ABAS: {
+    MOVIMENTOS: 'Movimentos',
+    PAINEIS: 'Painéis',
+    LAYOUT: 'Layout',
+  },
+  /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
+  MAX_ETIQUETAS: 4,
+  /** Limite de linhas aceitas em uma importação. */
+  MAX_LINHAS_IMPORTACAO: 10000,
+  /** Usado quando o script NÃO está vinculado a uma planilha (projeto standalone). */
+  PROPRIEDADE_PLANILHA: 'SPREADSHEET_ID',
+  /** Planta coringa: linhas com esse valor valem para todas as plantas. */
+  PLANTA_TODAS: 'TODAS',
+};
+
+/**
+ * Marcas e cores.
+ *  - etiqueta: cor da caixa de texto (fundo) — texto sempre branco.
+ *  - movel:    cor de preenchimento do móvel na planta.
+ *  - apelidos: outras formas aceitas na planilha (comparação ignora acentos,
+ *              maiúsculas, espaços e pontuação).
+ *
+ * Na planilha também é possível:
+ *  - combinar marcas com "+" (ex.: BOT+QDB) → gera um degradê;
+ *  - usar uma cor livre em hexadecimal (ex.: #FF8800).
+ */
+const MARCAS = {
+  BOT: {
+    nome: 'Boticário',
+    etiqueta: '#3E9D6B',
+    movel: '#7CC9A0',
+    apelidos: ['BOTICARIO', 'OBOTICARIO', 'BOTI', 'VERDE'],
+  },
+  QDB: {
+    nome: 'Quem disse, berenice?',
+    etiqueta: '#E23FB4',
+    movel: '#F07ACD',
+    apelidos: ['QUEMDISSEBERENICE', 'BERENICE', 'ROSA'],
+  },
+  EUD: {
+    nome: 'Eudora',
+    etiqueta: '#A11FC9',
+    movel: '#B666D8',
+    apelidos: ['EUDORA', 'ROXO'],
+  },
+  OUI: {
+    nome: 'O.U.i',
+    etiqueta: '#E1262F',
+    movel: '#C9343F',
+    apelidos: ['OUIPARIS', 'VERMELHO'],
+  },
+  MULTI: {
+    nome: 'Multimarca',
+    etiqueta: '#2B4DE3',
+    movel: '#7D90EC',
+    apelidos: ['MULTIMARCA', 'MM', 'AZUL'],
+  },
+  NEUTRO: {
+    nome: 'Neutro (sem marca)',
+    etiqueta: '#4A4A4A',
+    movel: '#F4F4F4',
+    apelidos: ['SEMMARCA', 'BRANCO', 'CINZA', 'NENHUMA', 'NENHUM'],
+  },
+};
+
+/** Símbolos exibidos ao lado da primeira etiqueta do móvel. */
+const SIMBOLOS = {
+  MOVIMENTO: { descricao: 'Movimento definido nesta planta', apelidos: ['MOV', 'SETA', '▶', '>'] },
+  FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', '◆', 'LOSANGO'] },
+  EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
+  NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
+};
+
+/** Seções da aba "Painéis" (textos fora dos móveis). */
+const SECOES_PAINEL = {
+  TV: { descricao: 'Lista ao lado dos ícones de TV / rádio', apelidos: ['TVRADIO', 'RADIO', 'GRADE', 'MIDIA'] },
+  A: { descricao: 'Lista ao lado do ícone (A)', apelidos: [] },
+  C: { descricao: 'Lista ao lado do ícone (C)', apelidos: [] },
+  CALLOUT: {
+    descricao: 'Caixa de destaque sobre a planta (pode apontar para um móvel)',
+    apelidos: ['BALAO', 'DESTAQUE', 'CAIXA', 'CAIXADETEXTO'],
+  },
+  NOTA: {
+    descricao: 'Nota no canto inferior esquerdo (texto antes de ":" fica em negrito)',
+    apelidos: ['NOTAS', 'OBS', 'OBSERVACAO', 'RODAPE'],
+  },
+};
+
+/** Tipos de móvel aceitos na aba "Layout" (definem o desenho 3D). */
+const TIPOS_MOVEL = {
+  LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
+  GONDOLA_PAREDE: 'Gôndola de parede (prateleiras brancas)',
+  GONDOLA: 'Gôndola / expositor de vidro com prateleiras',
+  PIRAMIDE: 'Pirâmide (3 blocos empilhados)',
+  CUBO: 'Cubo expositor',
+  MESA: 'Mesa / expositor baixo com nichos',
+  TOTEM: 'Totem / display vertical',
+  PAINEL: 'Painel alto e fino (ex.: parede O.U.i)',
+  VITRINE_L: 'Vitrine em "L"',
+  CAIXA: 'Caixa / balcão de atendimento',
+  EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
+};
+
+/* --------------------------------------------------------------------------
+ *  Colunas das abas. "titulo" é o cabeçalho na planilha; "apelidos" são
+ *  cabeçalhos alternativos aceitos na leitura/importação.
+ * ------------------------------------------------------------------------ */
+
+function colunasMovimentos_() {
+  const cols = [
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true },
+    { chave: 'planta', titulo: 'Planta', obrigatoria: true, texto: true },
+    { chave: 'movel', titulo: 'ID Móvel', obrigatoria: true, texto: true, apelidos: ['ID', 'Código Móvel', 'Móvel ID'] },
+    { chave: 'descricao', titulo: 'Móvel (referência)', apelidos: ['Móvel', 'Descrição'] },
+    { chave: 'marca', titulo: 'Marca do Móvel', apelidos: ['Marca', 'Cor do Móvel', 'Cor'] },
+  ];
+  for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
+    cols.push({ chave: 'etiqueta' + i, titulo: 'Etiqueta ' + i, texto: true, apelidos: ['Texto ' + i] });
+    cols.push({ chave: 'marcaEtiqueta' + i, titulo: 'Marca Etiqueta ' + i, apelidos: ['Cor Etiqueta ' + i] });
+  }
+  cols.push({ chave: 'simbolo', titulo: 'Símbolo' });
+  cols.push({ chave: 'observacao', titulo: 'Observação', texto: true, apelidos: ['Obs'] });
+  return cols;
+}
+
+function colunasPaineis_() {
+  return [
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true },
+    { chave: 'planta', titulo: 'Planta', obrigatoria: true, texto: true },
+    { chave: 'secao', titulo: 'Seção', obrigatoria: true },
+    { chave: 'texto', titulo: 'Texto', obrigatoria: true, texto: true },
+    { chave: 'marca', titulo: 'Marca', apelidos: ['Cor'] },
+    { chave: 'movel', titulo: 'Aponta para (ID Móvel)', texto: true, apelidos: ['ID Móvel', 'Móvel'] },
+  ];
+}
+
+function colunasLayout_() {
+  return [
+    { chave: 'planta', titulo: 'Planta', obrigatoria: true, texto: true },
+    { chave: 'movel', titulo: 'ID Móvel', obrigatoria: true, texto: true, apelidos: ['ID'] },
+    { chave: 'descricao', titulo: 'Móvel (descrição)', apelidos: ['Móvel', 'Descrição'] },
+    { chave: 'tipo', titulo: 'Tipo', obrigatoria: true },
+    { chave: 'x', titulo: 'X' },
+    { chave: 'y', titulo: 'Y' },
+    { chave: 'z', titulo: 'Elevação (Z)', apelidos: ['Z', 'Elevação'] },
+    { chave: 'largura', titulo: 'Largura (eixo X)', apelidos: ['Largura'] },
+    { chave: 'profundidade', titulo: 'Profundidade (eixo Y)', apelidos: ['Profundidade'] },
+    { chave: 'altura', titulo: 'Altura', apelidos: ['Altura (Z)'] },
+    { chave: 'ajusteX', titulo: 'Ajuste Etiqueta X (px)', apelidos: ['Ajuste X'] },
+    { chave: 'ajusteY', titulo: 'Ajuste Etiqueta Y (px)', apelidos: ['Ajuste Y'] },
+  ];
+}
+
+/* ===== src/Code.gs ===== */
+/**
+ * ============================================================================
+ *  VISUALIZADOR DE PLANTAS — BACKEND (Google Apps Script)
+ * ============================================================================
+ *  Abas da planilha:
+ *   - Movimentos: o que muda a cada ciclo (cor do móvel + etiquetas).
+ *   - Painéis:    textos fora dos móveis (TV/rádio, A, C, caixas de destaque, notas).
+ *   - Layout:     posição/tamanho de cada móvel em cada planta (muda raramente).
+ *
+ *  Funções sem "_" no final podem ser chamadas pela página (google.script.run).
+ */
+
+/* =============================== ENTRADA ================================== */
+
+/** Publicação como App da Web. */
+function doGet() {
+  return HtmlService.createTemplateFromFile('Index')
+    .evaluate()
+    .setTitle(CONFIG.TITULO)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/** Permite <?!= include('Arquivo'); ?> dentro dos HTML. */
+function include(nome) {
+  return HtmlService.createHtmlOutputFromFile(nome).getContent();
+}
+
+/** Menu na planilha (quando o script está vinculado a ela). */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Plano de Varejo')
+    .addItem('Abrir visualizador', 'abrirVisualizador')
+    .addSeparator()
+    .addItem('Configurar planilha (criar abas que faltam)', 'menuConfigurarPlanilha')
+    .addItem('Restaurar layout padrão das plantas…', 'menuRestaurarLayout')
+    .addToUi();
+}
+
+function abrirVisualizador() {
+  const html = HtmlService.createTemplateFromFile('Index').evaluate().setWidth(1480).setHeight(880);
+  SpreadsheetApp.getUi().showModalDialog(html, CONFIG.TITULO);
+}
+
+function menuConfigurarPlanilha() {
+  SpreadsheetApp.getUi().alert(configurarPlanilha().mensagem);
+}
+
+function menuRestaurarLayout() {
+  const ui = SpreadsheetApp.getUi();
+  const resposta = ui.alert(
+    'Restaurar layout padrão',
+    'A aba "' + CONFIG.ABAS.LAYOUT + '" será substituída pelo layout padrão (posições e ajustes de ' +
+      'etiquetas serão perdidos). Deseja continuar?',
+    ui.ButtonSet.YES_NO
+  );
+  if (resposta !== ui.Button.YES) return;
+  const ss = planilha_();
+  comTrava_(function () {
+    escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), valoresLayoutPadrao_());
+  });
+  ui.alert('Layout padrão restaurado.');
+}
+
+/* ============================ API DA PÁGINA =============================== */
+
+/**
+ * Retorna tudo o que a página precisa: plantas (layout), ciclos, movimentos,
+ * painéis, cores das marcas e avisos de validação.
+ */
+function getDados() {
+  let ss;
+  try {
+    ss = planilha_();
+  } catch (e) {
+    return { precisaConfigurar: true, mensagem: e.message };
+  }
+  const dados = montarDados_(
+    lerAba_(ss, CONFIG.ABAS.LAYOUT, false),
+    lerAba_(ss, CONFIG.ABAS.MOVIMENTOS, true),
+    lerAba_(ss, CONFIG.ABAS.PAINEIS, true)
+  );
+  dados.planilhaUrl = ss.getUrl();
+  dados.precisaConfigurar = !ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS);
+  return dados;
+}
+
+/**
+ * Cria as abas que faltam (com layout padrão e um ciclo de exemplo).
+ * Nunca sobrescreve abas que já têm dados.
+ */
+function configurarPlanilha() {
+  let ss;
+  let criouPlanilha = false;
+  try {
+    ss = planilha_();
+  } catch (e) {
+    ss = SpreadsheetApp.create('Plano de Varejo – Plantas');
+    PropertiesService.getScriptProperties().setProperty(CONFIG.PROPRIEDADE_PLANILHA, ss.getId());
+    criouPlanilha = true;
+  }
+
+  const criadas = comTrava_(function () {
+    const lista = [];
+    if (criarSeVazia_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), valoresLayoutPadrao_())) {
+      lista.push(CONFIG.ABAS.LAYOUT);
+    }
+    if (criarSeVazia_(ss, CONFIG.ABAS.MOVIMENTOS, colunasMovimentos_(), valoresMovimentosExemplo_())) {
+      lista.push(CONFIG.ABAS.MOVIMENTOS);
+    }
+    if (criarSeVazia_(ss, CONFIG.ABAS.PAINEIS, colunasPaineis_(), valoresPaineisExemplo_())) {
+      lista.push(CONFIG.ABAS.PAINEIS);
+    }
+    if (criouPlanilha) removerAbaPadraoVazia_(ss);
+    return lista;
+  });
+
+  return {
+    url: ss.getUrl(),
+    criadas: criadas,
+    mensagem: criadas.length
+      ? 'Abas criadas: ' + criadas.join(', ') + '.'
+      : 'Todas as abas já existiam — nada foi alterado.',
+  };
+}
+
+/**
+ * Recebe o conteúdo de uma planilha preenchida (lida no navegador) e grava
+ * nas abas. Para cada par (Ciclo, Planta) presente no arquivo, as linhas
+ * antigas desse par são substituídas pelas novas; o restante é mantido.
+ * Se o arquivo tiver a aba Layout, as plantas presentes nela são substituídas.
+ *
+ * @param {{movimentos?: Array<Array<*>>, paineis?: Array<Array<*>>, layout?: Array<Array<*>>}} payload
+ *        Cada item é uma matriz [cabeçalho, ...linhas] com os valores das células.
+ */
+function importarPlanilha(payload) {
+  const ss = planilha_();
+  const prep = prepararImportacao_(payload); // valida tudo antes de gravar
+
+  const resultado = { movimentos: 0, paineis: 0, layout: 0 };
+  comTrava_(function () {
+    prep.preparados.forEach(function (p) {
+      const sh = ss.getSheetByName(p.bloco.aba);
+      const existentes = sh ? sh.getDataRange().getValues() : [];
+      escreverAba_(ss, p.bloco.aba, p.bloco.colunas, mesclarLinhas_(existentes, p.linhas, p.bloco.colunas));
+      resultado[p.bloco.campo] = p.linhas.length;
+    });
+  });
+
+  const verificacao = verificarImportacao_(lerAba_(ss, CONFIG.ABAS.LAYOUT, false), prep);
+  resultado.ciclos = verificacao.ciclos;
+  resultado.avisos = verificacao.avisos;
+  return resultado;
+}
+
+/** Blocos aceitos na importação. */
+function blocosImportacao_() {
+  return [
+    { campo: 'movimentos', aba: CONFIG.ABAS.MOVIMENTOS, colunas: colunasMovimentos_() },
+    { campo: 'paineis', aba: CONFIG.ABAS.PAINEIS, colunas: colunasPaineis_() },
+    { campo: 'layout', aba: CONFIG.ABAS.LAYOUT, colunas: colunasLayout_() },
+  ];
+}
+
+/**
+ * Valida o conteúdo importado (função pura).
+ * @return {{preparados: Array<{bloco, linhas, matriz}>, avisosLeitura: string[]}}
+ */
+function prepararImportacao_(payload) {
+  if (!payload || typeof payload !== 'object') throw new Error('Arquivo vazio ou inválido.');
+  const preparados = [];
+  const avisosLeitura = [];
+  blocosImportacao_().forEach(function (b) {
+    const valores = payload[b.campo];
+    if (!Array.isArray(valores) || !valores.length) return;
+    if (valores.length - 1 > CONFIG.MAX_LINHAS_IMPORTACAO) {
+      throw new Error('Aba "' + b.aba + '" tem linhas demais (máx. ' + CONFIG.MAX_LINHAS_IMPORTACAO + ').');
+    }
+    const matriz = sanitizarMatriz_(valores);
+    const lido = objetosDeValores_(matriz, b.colunas);
+    if (lido.faltando.length) {
+      throw new Error('Aba "' + b.aba + '" do arquivo: coluna(s) obrigatória(s) não encontrada(s): ' +
+        lido.faltando.join(', ') + '.');
+    }
+    const validas = lido.linhas.filter(function (o) {
+      let ok;
+      if (b.campo === 'layout') ok = normPlanta_(o.planta) && normId_(o.movel) && texto_(o.tipo);
+      else if (b.campo === 'paineis') ok = texto_(o.ciclo) && normPlanta_(o.planta) && texto_(o.texto) && texto_(o.secao);
+      else ok = texto_(o.ciclo) && normPlanta_(o.planta) && normId_(o.movel);
+      if (!ok && avisosLeitura.length < 30) {
+        avisosLeitura.push(b.aba + ', linha ' + o._linha + ': faltam campos obrigatórios — linha ignorada.');
+      }
+      return ok;
+    });
+    preparados.push({ bloco: b, linhas: validas, matriz: matriz });
+  });
+  if (!preparados.length) {
+    throw new Error('Não encontrei as abas "' + CONFIG.ABAS.MOVIMENTOS + '", "' + CONFIG.ABAS.PAINEIS +
+      '" ou "' + CONFIG.ABAS.LAYOUT + '" no arquivo.');
+  }
+  return { preparados: preparados, avisosLeitura: avisosLeitura };
+}
+
+/** Avisos de conteúdo (IDs inexistentes, marcas desconhecidas…) só do que foi importado. */
+function verificarImportacao_(valoresLayout, prep) {
+  const matriz = function (campo) {
+    const p = prep.preparados.filter(function (x) { return x.bloco.campo === campo; })[0];
+    return p ? p.matriz : null;
+  };
+  const verificacao = montarDados_(valoresLayout, matriz('movimentos'), matriz('paineis'));
+  return {
+    ciclos: verificacao.ciclos,
+    avisos: prep.avisosLeitura.concat(verificacao.avisos.filter(function (a) {
+      return a.indexOf('Aba "' + CONFIG.ABAS.LAYOUT + '"') !== 0 || !!matriz('layout');
+    })),
+  };
+}
+
+/**
+ * Grava a posição manual das etiquetas (arrastadas na tela) na aba Layout.
+ * @param {string} planta
+ * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel → deslocamento em px.
+ */
+function salvarAjustesEtiquetas(planta, ajustes) {
+  planta = normPlanta_(planta);
+  if (!planta || !ajustes || typeof ajustes !== 'object') throw new Error('Dados inválidos.');
+  const ss = planilha_();
+  return comTrava_(function () {
+    if (!ss.getSheetByName(CONFIG.ABAS.LAYOUT)) {
+      escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), valoresLayoutPadrao_());
+    }
+    const sh = ss.getSheetByName(CONFIG.ABAS.LAYOUT);
+    const valores = sh.getDataRange().getValues();
+    const cab = valores[0].map(chave_);
+    const cols = colunasLayout_();
+    const col = function (chave) {
+      return acharColuna_(cab, cols.filter(function (c) { return c.chave === chave; })[0]);
+    };
+    const iPlanta = col('planta');
+    const iId = col('movel');
+    let iX = col('ajusteX');
+    let iY = col('ajusteY');
+    if (iPlanta < 0 || iId < 0) throw new Error('Aba Layout sem as colunas Planta / ID Móvel.');
+    if (iX < 0) { iX = valores[0].length; sh.getRange(1, iX + 1).setValue('Ajuste Etiqueta X (px)'); }
+    if (iY < 0) { iY = Math.max(valores[0].length, iX + 1); sh.getRange(1, iY + 1).setValue('Ajuste Etiqueta Y (px)'); }
+
+    const n = valores.length - 1;
+    if (n < 1) return { atualizados: 0 };
+    const colX = sh.getRange(2, iX + 1, n, 1).getValues();
+    const colY = sh.getRange(2, iY + 1, n, 1).getValues();
+    let atualizados = 0;
+    for (let r = 1; r <= n; r++) {
+      if (normPlanta_(valores[r][iPlanta]) !== planta) continue;
+      const a = ajustes[normId_(valores[r][iId])];
+      if (!a) continue;
+      colX[r - 1][0] = Math.round(Number(a.x) || 0);
+      colY[r - 1][0] = Math.round(Number(a.y) || 0);
+      atualizados++;
+    }
+    sh.getRange(2, iX + 1, n, 1).setValues(colX);
+    sh.getRange(2, iY + 1, n, 1).setValues(colY);
+    return { atualizados: atualizados };
+  });
+}
+
+/* ======================= TRANSFORMAÇÃO (sem I/O) ========================== */
+
+/**
+ * Converte as matrizes das abas no objeto usado pela página.
+ * Função pura (não acessa a planilha) — facilita testes.
+ */
+function montarDados_(valoresLayout, valoresMov, valoresPain) {
+  const avisos = [];
+  const aviso = function (msg) { if (avisos.length < 60) avisos.push(msg); };
+
+  // ---------- Layout ----------
+  let linhasLayout;
+  if (valoresLayout && valoresLayout.length) {
+    const lido = objetosDeValores_(valoresLayout, colunasLayout_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.LAYOUT + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    }
+    linhasLayout = lido.linhas;
+  } else {
+    aviso('Aba "' + CONFIG.ABAS.LAYOUT + '" não encontrada ou vazia — usando o layout padrão.');
+    linhasLayout = objetosDeValores_(valoresLayoutPadrao_(), colunasLayout_()).linhas;
+  }
+  const plantas = montarPlantas_(linhasLayout, aviso);
+  const idsPorPlanta = {};
+  plantas.forEach(function (p) {
+    idsPorPlanta[p.id] = {};
+    p.moveis.forEach(function (m) { idsPorPlanta[p.id][m.id] = true; });
+  });
+  const existeMovel = function (planta, id) {
+    if (planta === CONFIG.PLANTA_TODAS) {
+      return plantas.some(function (p) { return idsPorPlanta[p.id][id]; });
+    }
+    return !!(idsPorPlanta[planta] && idsPorPlanta[planta][id]);
+  };
+
+  const ciclos = [];
+  const registrarCiclo = function (c) { if (ciclos.indexOf(c) < 0) ciclos.push(c); };
+
+  // ---------- Movimentos ----------
+  const movimentos = {};
+  if (valoresMov && valoresMov.length) {
+    const lido = objetosDeValores_(valoresMov, colunasMovimentos_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.MOVIMENTOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    }
+    lido.linhas.forEach(function (l) {
+      const ciclo = texto_(l.ciclo);
+      const planta = normPlanta_(l.planta);
+      const id = normId_(l.movel);
+      const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
+      if (!ciclo || !planta || !id) {
+        aviso(onde + ': Ciclo, Planta e ID Móvel são obrigatórios — linha ignorada.');
+        return;
+      }
+      if (!idsPorPlanta[planta] && planta !== CONFIG.PLANTA_TODAS) {
+        aviso(onde + ': planta "' + planta + '" não existe no Layout.');
+      } else if (!existeMovel(planta, id)) {
+        aviso(onde + ': móvel "' + id + '" não existe no Layout da planta ' + planta + '.');
+      }
+      const etiquetas = [];
+      for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
+        const t = texto_(l['etiqueta' + i]);
+        if (t) etiquetas.push({ texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde) });
+      }
+      registrarCiclo(ciclo);
+      movimentos[ciclo] = movimentos[ciclo] || {};
+      movimentos[ciclo][planta] = movimentos[ciclo][planta] || {};
+      movimentos[ciclo][planta][id] = {
+        marca: normMarca_(l.marca, aviso, onde),
+        etiquetas: etiquetas,
+        simbolo: normSimbolo_(l.simbolo, aviso, onde),
+        observacao: texto_(l.observacao),
+      };
+    });
+  }
+
+  // ---------- Painéis ----------
+  const paineis = {};
+  if (valoresPain && valoresPain.length) {
+    const lido = objetosDeValores_(valoresPain, colunasPaineis_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.PAINEIS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    }
+    lido.linhas.forEach(function (l) {
+      const ciclo = texto_(l.ciclo);
+      const planta = normPlanta_(l.planta);
+      const texto = texto_(l.texto);
+      const onde = CONFIG.ABAS.PAINEIS + ', linha ' + l._linha;
+      const secao = normSecao_(l.secao);
+      if (!ciclo || !planta || !texto) {
+        aviso(onde + ': Ciclo, Planta e Texto são obrigatórios — linha ignorada.');
+        return;
+      }
+      if (!secao) {
+        aviso(onde + ': seção "' + texto_(l.secao) + '" inválida (use ' + Object.keys(SECOES_PAINEL).join(', ') + ').');
+        return;
+      }
+      const movel = normId_(l.movel);
+      if (movel && !existeMovel(planta, movel)) {
+        aviso(onde + ': móvel "' + movel + '" não existe no Layout da planta ' + planta + '.');
+      }
+      registrarCiclo(ciclo);
+      paineis[ciclo] = paineis[ciclo] || {};
+      paineis[ciclo][planta] = paineis[ciclo][planta] || [];
+      paineis[ciclo][planta].push({ secao: secao, texto: texto, marca: normMarca_(l.marca, aviso, onde), movel: movel });
+    });
+  }
+
+  return {
+    versao: 1,
+    plantas: plantas,
+    ciclos: ciclos,
+    movimentos: movimentos,
+    paineis: paineis,
+    avisos: avisos,
+    marcas: MARCAS,
+    simbolos: SIMBOLOS,
+    secoes: SECOES_PAINEL,
+    tipos: TIPOS_MOVEL,
+    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), layout: colunasLayout_() },
+    config: { maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS },
+  };
+}
+
+function montarPlantas_(linhas, aviso) {
+  const mapa = {};
+  const ordem = [];
+  const tipos = {};
+  Object.keys(TIPOS_MOVEL).forEach(function (t) { tipos[chave_(t)] = t; });
+
+  linhas.forEach(function (l) {
+    const planta = normPlanta_(l.planta);
+    const id = normId_(l.movel);
+    if (!planta && !id) return;
+    const onde = CONFIG.ABAS.LAYOUT + ', linha ' + l._linha;
+    if (!planta || !id || planta === CONFIG.PLANTA_TODAS) {
+      aviso(onde + ': Planta e ID Móvel são obrigatórios (e a planta não pode ser "TODAS").');
+      return;
+    }
+    let tipo = tipos[chave_(l.tipo)];
+    if (!tipo) {
+      aviso(onde + ': tipo "' + texto_(l.tipo) + '" desconhecido — desenhado como GONDOLA.');
+      tipo = 'GONDOLA';
+    }
+    if (!mapa[planta]) {
+      mapa[planta] = { id: planta, nome: 'PLANTA ' + planta, loja: null, moveis: [] };
+      ordem.push(planta);
+    }
+    const p = mapa[planta];
+    if (tipo === 'LOJA') {
+      p.loja = {
+        largura: Math.max(1, numero_(l.largura, 20)),
+        profundidade: Math.max(1, numero_(l.profundidade, 20)),
+        alturaParede: Math.max(0, numero_(l.altura, 4.5)),
+      };
+      return;
+    }
+    if (p.moveis.some(function (m) { return m.id === id; })) {
+      aviso(onde + ': ID "' + id + '" repetido na planta ' + planta + ' — ignorado.');
+      return;
+    }
+    p.moveis.push({
+      id: id,
+      descricao: texto_(l.descricao),
+      tipo: tipo,
+      x: numero_(l.x, 0),
+      y: numero_(l.y, 0),
+      z: numero_(l.z, 0),
+      w: Math.max(0.1, numero_(l.largura, 1)),
+      d: Math.max(0.1, numero_(l.profundidade, 1)),
+      h: Math.max(0.1, numero_(l.altura, 1)),
+      ajusteX: numero_(l.ajusteX, 0),
+      ajusteY: numero_(l.ajusteY, 0),
+    });
+  });
+
+  ordem.forEach(function (id) {
+    const p = mapa[id];
+    if (p.loja) return;
+    let maxX = 1;
+    let maxY = 1;
+    p.moveis.forEach(function (m) {
+      if (m.tipo === 'EXTRA') return;
+      maxX = Math.max(maxX, m.x + m.w);
+      maxY = Math.max(maxY, m.y + m.d);
+    });
+    p.loja = { largura: Math.ceil(maxX + 1), profundidade: Math.ceil(maxY + 1), alturaParede: 4.5 };
+    aviso('Planta ' + id + ': sem linha do tipo LOJA no Layout — tamanho calculado automaticamente.');
+  });
+
+  ordem.sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
+  return ordem.map(function (id) { return mapa[id]; });
+}
+
+/**
+ * Junta linhas existentes de uma aba com linhas importadas: remove as antigas
+ * cujo (Ciclo, Planta) aparece na importação e acrescenta as novas (no Layout,
+ * que não tem Ciclo, a chave é só a Planta).
+ * @return {Array<Array<string>>} matriz completa (com cabeçalho) para gravar.
+ */
+function mesclarLinhas_(existentes, novos, colunas) {
+  const cab = existentes.length ? existentes[0].map(texto_) : colunas.map(function (c) { return c.titulo; });
+  while (cab.length && !cab[cab.length - 1]) cab.pop();
+  const cabChaves = cab.map(chave_);
+  const idx = {};
+  colunas.forEach(function (c) {
+    let i = acharColuna_(cabChaves, c);
+    if (i < 0) {
+      cab.push(c.titulo);
+      cabChaves.push(chave_(c.titulo));
+      i = cab.length - 1;
+    }
+    idx[c.chave] = i;
+  });
+  const largura = cab.length;
+  const par = function (ciclo, planta) { return texto_(ciclo) + '||' + normPlanta_(planta); };
+  const substituir = {};
+  novos.forEach(function (o) { substituir[par(o.ciclo, o.planta)] = true; });
+
+  // Colunas numéricas (ex.: coordenadas do Layout) mantêm números; o resto vira texto.
+  const ehTexto = {};
+  colunas.forEach(function (c) { if (c.texto || /^(marca|simbolo|secao|tipo|descricao)/.test(c.chave)) ehTexto[idx[c.chave]] = true; });
+  const valorCelula = function (v, i) {
+    return typeof v === 'number' && !ehTexto[i] ? v : texto_(v);
+  };
+  const linhaTexto = function (row) {
+    const out = [];
+    for (let i = 0; i < largura; i++) out.push(valorCelula(row[i], i));
+    return out;
+  };
+  const mantidas = existentes.slice(1).filter(function (row) {
+    if (row.every(function (v) { return texto_(v) === ''; })) return false;
+    return !substituir[par(row[idx.ciclo], row[idx.planta])];
+  }).map(linhaTexto);
+
+  const adicionadas = novos.map(function (o) {
+    const row = [];
+    for (let i = 0; i < largura; i++) row.push('');
+    colunas.forEach(function (c) {
+      let v = valorCelula(o[c.chave], idx[c.chave]);
+      if (c.chave === 'planta') v = normPlanta_(v);
+      if (c.chave === 'movel') v = normId_(v);
+      row[idx[c.chave]] = v;
+    });
+    return row;
+  });
+  return [cab].concat(mantidas, adicionadas);
+}
+
+/**
+ * Transforma uma matriz [cabeçalho, ...linhas] em objetos {chave: valor},
+ * localizando as colunas pelo título (ignorando acentos/maiúsculas/ordem).
+ */
+function objetosDeValores_(valores, colunas) {
+  if (!valores || !valores.length) {
+    return { linhas: [], faltando: colunas.filter(function (c) { return c.obrigatoria; }).map(function (c) { return c.titulo; }) };
+  }
+  const cab = valores[0].map(chave_);
+  const idx = {};
+  colunas.forEach(function (c) {
+    const i = acharColuna_(cab, c);
+    if (i >= 0) idx[c.chave] = i;
+  });
+  const faltando = colunas
+    .filter(function (c) { return c.obrigatoria && !(c.chave in idx); })
+    .map(function (c) { return c.titulo; });
+  const linhas = [];
+  for (let r = 1; r < valores.length; r++) {
+    const row = valores[r] || [];
+    if (row.every(function (v) { return texto_(v) === ''; })) continue;
+    const o = { _linha: r + 1 };
+    colunas.forEach(function (c) { o[c.chave] = c.chave in idx ? row[idx[c.chave]] : ''; });
+    linhas.push(o);
+  }
+  return { linhas: linhas, faltando: faltando };
+}
+
+function acharColuna_(cabecalhoNormalizado, coluna) {
+  if (!coluna) return -1;
+  const nomes = [coluna.titulo].concat(coluna.apelidos || []).map(chave_);
+  for (let n = 0; n < nomes.length; n++) {
+    const i = cabecalhoNormalizado.indexOf(nomes[n]);
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+
+/* ---------------------------- Normalização -------------------------------- */
+
+/** "Móvel (referência)" → "MOVELREFERENCIA" */
+function chave_(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+function texto_(v) {
+  if (v === null || v === undefined) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    if (isNaN(v.getTime())) return '';
+    const p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    return p2(v.getDate()) + '/' + p2(v.getMonth() + 1) + '/' + v.getFullYear();
+  }
+  return String(v).replace(/\r\n?/g, '\n').trim();
+}
+
+/** Aceita número, "1.5" ou "1,5". */
+function numero_(v, padrao) {
+  if (typeof v === 'number' && isFinite(v)) return v;
+  const s = texto_(v).replace(/\s/g, '');
+  if (!s) return padrao;
+  const n = Number(s.indexOf(',') >= 0 ? s.replace(/\./g, '').replace(',', '.') : s);
+  return isFinite(n) ? n : padrao;
+}
+
+/** "1", "01", "Planta 1" → "01"; "todas" / "*" → "TODAS". */
+function normPlanta_(v) {
+  const s = texto_(v).toUpperCase().replace(/^PLANTA\s*/, '').trim();
+  if (!s) return '';
+  const k = chave_(s);
+  if (s === '*' || k === 'TODAS' || k === 'TODOS' || k === 'GERAL') return CONFIG.PLANTA_TODAS;
+  if (/^\d+([.,]0+)?$/.test(s)) {
+    const n = parseInt(s, 10);
+    return (n < 10 ? '0' : '') + n;
+  }
+  return s;
+}
+
+function normId_(v) {
+  return texto_(v).toUpperCase().replace(/\s+/g, ' ');
+}
+
+let indiceMarcasCache_ = null;
+function indiceMarcas_() {
+  if (indiceMarcasCache_) return indiceMarcasCache_;
+  const idx = {};
+  Object.keys(MARCAS).forEach(function (cod) {
+    [cod, MARCAS[cod].nome].concat(MARCAS[cod].apelidos || []).forEach(function (a) {
+      const k = chave_(a);
+      if (k) idx[k] = cod;
+    });
+  });
+  indiceMarcasCache_ = idx;
+  return idx;
+}
+
+/**
+ * "Boticário" → "BOT"; "bot + qdb" → "BOT+QDB"; "#ff8800" → "#FF8800"; "" → "".
+ */
+function normMarca_(v, aviso, onde) {
+  const s = texto_(v);
+  if (!s) return '';
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+  const idx = indiceMarcas_();
+  const codigos = [];
+  s.split('+').map(function (p) { return p.trim(); }).filter(String).forEach(function (p) {
+    if (hex.test(p)) {
+      codigos.push(p.toUpperCase());
+      return;
+    }
+    const cod = idx[chave_(p)];
+    if (cod) codigos.push(cod);
+    else if (aviso) aviso(onde + ': marca "' + p + '" não reconhecida (use ' + Object.keys(MARCAS).join(', ') + ' ou #RRGGBB).');
+  });
+  return codigos.join('+');
+}
+
+function normSimbolo_(v, aviso, onde) {
+  const s = texto_(v);
+  if (!s) return '';
+  const bruto = s.toUpperCase();
+  const k = chave_(s);
+  const codigos = Object.keys(SIMBOLOS);
+  for (let i = 0; i < codigos.length; i++) {
+    const nomes = [codigos[i]].concat(SIMBOLOS[codigos[i]].apelidos || []);
+    for (let j = 0; j < nomes.length; j++) {
+      const n = nomes[j].toUpperCase();
+      if (n === bruto || (k && chave_(n) === k)) return codigos[i];
+    }
+  }
+  if (aviso) aviso(onde + ': símbolo "' + s + '" não reconhecido (use ' + codigos.join(', ') + ').');
+  return '';
+}
+
+function normSecao_(v) {
+  const k = chave_(v);
+  if (!k) return '';
+  const codigos = Object.keys(SECOES_PAINEL);
+  for (let i = 0; i < codigos.length; i++) {
+    const nomes = [codigos[i]].concat(SECOES_PAINEL[codigos[i]].apelidos || []);
+    if (nomes.some(function (n) { return chave_(n) === k; })) return codigos[i];
+  }
+  return '';
+}
+
+/** Garante matriz de valores simples (string/number/boolean) vinda do navegador. */
+function sanitizarMatriz_(valores) {
+  return valores.map(function (row) {
+    return (Array.isArray(row) ? row : []).map(function (v) {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'number' || typeof v === 'boolean') return v;
+      return String(v).slice(0, 2000);
+    });
+  });
+}
+
+/* ================================ I/O ===================================== */
+
+function planilha_() {
+  const ativa = SpreadsheetApp.getActiveSpreadsheet();
+  if (ativa) return ativa;
+  const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA);
+  if (id) return SpreadsheetApp.openById(id);
+  throw new Error(
+    'Nenhuma planilha vinculada ao script. Clique em "Configurar planilha" para criar uma, ' +
+      'ou defina a propriedade de script ' + CONFIG.PROPRIEDADE_PLANILHA + ' com o ID da planilha.'
+  );
+}
+
+/**
+ * Lê uma aba inteira. Para abas de texto usa os valores exibidos (evita que
+ * "10/2026" vire data ou "01" vire 1). Retorna null se a aba não existe.
+ */
+function lerAba_(ss, nome, comoTexto) {
+  const sh = ss.getSheetByName(nome);
+  if (!sh || sh.getLastRow() < 1) return sh ? [] : null;
+  const range = sh.getDataRange();
+  return comoTexto ? range.getDisplayValues() : range.getValues();
+}
+
+function comTrava_(fn) {
+  const trava = LockService.getScriptLock();
+  trava.waitLock(30000);
+  try {
+    return fn();
+  } finally {
+    trava.releaseLock();
+  }
+}
+
+/** Cria/preenche a aba apenas se ela não existir ou estiver vazia. */
+function criarSeVazia_(ss, nome, colunas, valores) {
+  const sh = ss.getSheetByName(nome);
+  if (sh && sh.getLastRow() > 1) return false;
+  escreverAba_(ss, nome, colunas, valores);
+  return true;
+}
+
+/** Substitui todo o conteúdo da aba por "valores" (com cabeçalho) e formata. */
+function escreverAba_(ss, nome, colunas, valores) {
+  const sh = ss.getSheetByName(nome) || ss.insertSheet(nome);
+  const largura = valores[0].length;
+  const linhas = valores.map(function (row) {
+    const r = row.slice(0, largura);
+    while (r.length < largura) r.push('');
+    return r;
+  });
+  sh.clearContents();
+  const maxLinhas = Math.max(linhas.length + 500, sh.getMaxRows());
+  if (sh.getMaxRows() < maxLinhas) sh.insertRowsAfter(sh.getMaxRows(), maxLinhas - sh.getMaxRows());
+  if (sh.getMaxColumns() < largura) sh.insertColumnsAfter(sh.getMaxColumns(), largura - sh.getMaxColumns());
+
+  // Colunas de texto em formato "texto simples" ANTES de gravar (evita conversões automáticas).
+  const cab = linhas[0].map(chave_);
+  colunas.forEach(function (c) {
+    const i = acharColuna_(cab, c);
+    if (i >= 0 && c.texto) sh.getRange(1, i + 1, maxLinhas, 1).setNumberFormat('@');
+  });
+  sh.getRange(1, 1, linhas.length, largura).setValues(linhas);
+  formatarAba_(sh, colunas, cab, maxLinhas);
+  return sh;
+}
+
+function formatarAba_(sh, colunas, cab, maxLinhas) {
+  const largura = cab.length;
+  sh.setFrozenRows(1);
+  // Na aba Movimentos, congela até a coluna "ID Móvel" (Ciclo, Planta, ID sempre visíveis).
+  if (sh.getName() === CONFIG.ABAS.MOVIMENTOS) {
+    const iMovel = acharColuna_(cab, colunas.filter(function (c) { return c.chave === 'movel'; })[0]);
+    if (iMovel >= 0) sh.setFrozenColumns(iMovel + 1);
+  }
+  sh.getRange(1, 1, 1, largura)
+    .setFontWeight('bold')
+    .setFontColor('#FFFFFF')
+    .setBackground('#202124')
+    .setWrap(true)
+    .setVerticalAlignment('middle');
+  sh.setRowHeight(1, 36);
+
+  const larguras = { ciclo: 110, planta: 70, movel: 110, descricao: 260, secao: 100, texto: 420, tipo: 150, observacao: 260 };
+  const regrasCor = [];
+  colunas.forEach(function (c) {
+    const i = acharColuna_(cab, c);
+    if (i < 0) return;
+    const coluna = sh.getRange(2, i + 1, maxLinhas - 1, 1);
+    let px = larguras[c.chave];
+    if (!px) px = /^etiqueta/.test(c.chave) ? 190 : /marca/i.test(c.chave) ? 120 : 110;
+    sh.setColumnWidth(i + 1, px);
+
+    let lista = null;
+    let ajuda = '';
+    if (/^marca/i.test(c.chave)) {
+      lista = Object.keys(MARCAS);
+      ajuda = 'Use ' + lista.join(', ') + '. Também aceita combinação (BOT+QDB) ou cor livre (#RRGGBB).';
+      Object.keys(MARCAS).forEach(function (cod) {
+        regrasCor.push(
+          SpreadsheetApp.newConditionalFormatRule()
+            .whenTextContains(cod)
+            .setBackground(cod === 'NEUTRO' ? '#E8E8E8' : MARCAS[cod].etiqueta)
+            .setFontColor(cod === 'NEUTRO' ? '#333333' : '#FFFFFF')
+            .setRanges([coluna])
+            .build()
+        );
+      });
+    } else if (c.chave === 'simbolo') {
+      lista = Object.keys(SIMBOLOS);
+      ajuda = Object.keys(SIMBOLOS).map(function (k) { return k + ' = ' + SIMBOLOS[k].descricao; }).join(' | ');
+    } else if (c.chave === 'secao') {
+      lista = Object.keys(SECOES_PAINEL);
+      ajuda = Object.keys(SECOES_PAINEL).map(function (k) { return k + ' = ' + SECOES_PAINEL[k].descricao; }).join(' | ');
+    } else if (c.chave === 'tipo') {
+      lista = Object.keys(TIPOS_MOVEL);
+      ajuda = 'Tipo de desenho do móvel.';
+    }
+    if (lista) {
+      coluna.setDataValidation(
+        SpreadsheetApp.newDataValidation().requireValueInList(lista, true).setAllowInvalid(true).setHelpText(ajuda).build()
+      );
+    }
+    if (c.chave === 'descricao') coluna.setFontColor('#666666').setFontStyle('italic');
+  });
+  if (regrasCor.length) sh.setConditionalFormatRules(regrasCor);
+  // Filtro cobrindo todas as linhas (recriado para incluir linhas novas).
+  const filtro = sh.getFilter();
+  if (filtro) filtro.remove();
+  sh.getRange(1, 1, maxLinhas, largura).createFilter();
+}
+
+function removerAbaPadraoVazia_(ss) {
+  const nossas = [CONFIG.ABAS.MOVIMENTOS, CONFIG.ABAS.PAINEIS, CONFIG.ABAS.LAYOUT];
+  ss.getSheets().forEach(function (sh) {
+    if (nossas.indexOf(sh.getName()) < 0 && sh.getLastRow() === 0 && ss.getSheets().length > 1) {
+      ss.deleteSheet(sh);
+    }
+  });
+}
+
+/* ===== src/Layouts.gs ===== */
+/**
+ * ============================================================================
+ *  LAYOUT PADRÃO DAS PLANTAS + CICLO DE EXEMPLO
+ * ============================================================================
+ *  Usado apenas para criar as abas "Layout", "Movimentos" e "Painéis" na
+ *  primeira configuração. Depois disso, a fonte da verdade é a planilha.
+ *
+ *  Sistema de coordenadas (unidades livres, ~0,5 m cada):
+ *   - Canto do fundo da loja (topo do desenho) = (0, 0).
+ *   - X cresce ao longo da parede do fundo à DIREITA (em direção ao canto direito).
+ *   - Y cresce ao longo da parede do fundo à ESQUERDA (em direção à frente/caixas).
+ *   - Z é a elevação (0 = chão). Largura = eixo X, Profundidade = eixo Y.
+ *
+ *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação)]
+ */
+
+const LAYOUT_PADRAO = {
+  '01': {
+    loja: [16, 14, 4.4], // largura (X), profundidade (Y), altura das paredes
+    moveis: [
+      ['PE-01', 'Parede esquerda – Cuidados (NSPA)', 'GONDOLA_PAREDE', 0, 0.2, 1.1, 3.3, 3.8],
+      ['PE-02', 'Parede esquerda – Perfumaria masculina', 'GONDOLA_PAREDE', 0, 3.5, 1.1, 3.3, 3.8],
+      ['PE-03', 'Parede esquerda – Perfumaria feminina', 'GONDOLA_PAREDE', 0, 6.8, 1.1, 3.3, 3.8],
+      ['PE-04', 'Parede esquerda – Maquiagem (testeira Make)', 'GONDOLA_PAREDE', 0, 10.1, 1.1, 3.7, 3.8],
+      ['PF-01', 'Parede fundo – Cuidados (CBEM)', 'GONDOLA_PAREDE', 1.2, 0, 3.6, 1.1, 3.8],
+      ['PF-02', 'Parede fundo – Outlet', 'GONDOLA_PAREDE', 4.8, 0, 3.8, 1.1, 3.8],
+      ['PF-03', 'Parede fundo – módulo 3', 'GONDOLA_PAREDE', 8.6, 0, 3.8, 1.1, 3.8],
+      ['PF-05', 'Parede fundo – módulo 4', 'GONDOLA_PAREDE', 12.4, 0, 3.5, 1.1, 3.8],
+      ['ILHA-06', 'Ilha central – cabeceira do fundo', 'GONDOLA', 5.2, 5, 0.6, 3, 3.2],
+      ['ILHA-01', 'Ilha central – Botik', 'GONDOLA', 5.8, 6.5, 2.4, 1.5, 3.2],
+      ['ILHA-02', 'Ilha central – Uomini', 'GONDOLA', 8.2, 6.5, 2.2, 1.5, 3.2],
+      ['ILHA-03', 'Ilha central – lado do fundo (QDB)', 'GONDOLA', 5.8, 5, 4.6, 1.5, 3.2],
+      ['ILHA-05', 'Ilha central – cabeceira frente (O.U.i)', 'GONDOLA', 10.4, 5, 0.7, 3, 3.2],
+      ['ILHA-04', 'Ilha central – topo multimarca', 'GONDOLA', 5.8, 5, 4.6, 3, 0.4, 3.2],
+      ['GON-01', 'Gôndola esquerda – lado A (Itens fixos)', 'GONDOLA', 2.6, 7.6, 3, 1, 2.6],
+      ['GON-02', 'Gôndola esquerda – lado B (Curto prazo)', 'GONDOLA', 2.6, 8.6, 3, 1, 2.6],
+      ['CX-01', 'Caixa 1', 'CAIXA', 2.4, 12.2, 1.8, 1.2, 1.7],
+      ['CX-02', 'Caixa 2', 'CAIXA', 4.5, 12.2, 1.8, 1.2, 1.7],
+      ['TOTEM-01', 'Totem próximo aos caixas', 'TOTEM', 7.2, 12.4, 1.5, 0.35, 3.4],
+      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 8.4, 10.2, 1.3, 1.3, 1.9],
+      ['MESA-VM', 'Mesa VM permanente', 'MESA', 10.6, 8.6, 2.4, 2.2, 1.5],
+      ['VITRINE', 'Vitrine em L (entrada)', 'VITRINE_L', 10.8, 11.2, 3.4, 2.6, 2.4],
+      ['PIR-01', 'Pirâmide 1 (principais oportunidades)', 'PIRAMIDE', 12.8, 3.4, 1.6, 1.6, 3.6],
+      ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 13.6, 6.8, 1.6, 1.6, 3.6],
+      ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
+      ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
+      ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
+    ],
+  },
+
+  '02': {
+    loja: [22, 19, 4.6],
+    moveis: [
+      ['PE-01', 'Parede esquerda – Cuidados (NSPA)', 'GONDOLA_PAREDE', 0, 0.2, 1.1, 3.8, 3.8],
+      ['PE-02', 'Parede esquerda – Perfumaria masculina', 'GONDOLA_PAREDE', 0, 4, 1.1, 3.8, 3.8],
+      ['PE-03', 'Parede esquerda – Perfumaria feminina', 'GONDOLA_PAREDE', 0, 7.8, 1.1, 3.8, 3.8],
+      ['PE-04', 'Parede esquerda – Maquiagem (testeira Make)', 'GONDOLA_PAREDE', 0, 11.6, 1.1, 7, 3.8],
+      ['PF-01', 'Parede fundo – Cuidados (CBEM)', 'GONDOLA_PAREDE', 1.2, 0, 4.2, 1.1, 3.8],
+      ['PF-02', 'Parede fundo – Outlet', 'GONDOLA_PAREDE', 5.4, 0, 4.4, 1.1, 3.8],
+      ['PF-03', 'Parede fundo – módulo 3', 'GONDOLA_PAREDE', 9.8, 0, 4.4, 1.1, 3.8],
+      ['PF-05', 'Parede fundo – módulo 4', 'GONDOLA_PAREDE', 14.2, 0, 4, 1.1, 3.8],
+      ['PF-04', 'Painel O.U.i (parede do fundo)', 'PAINEL', 18.4, 0, 3.4, 0.6, 5],
+      ['ILHA-06', 'Ilha central – cabeceira do fundo', 'GONDOLA', 5.4, 4.6, 0.6, 3, 3.2],
+      ['ILHA-01', 'Ilha central – Botik', 'GONDOLA', 6, 6.1, 2.4, 1.5, 3.2],
+      ['ILHA-02', 'Ilha central – Uomini', 'GONDOLA', 8.4, 6.1, 2.4, 1.5, 3.2],
+      ['ILHA-03', 'Ilha central – lado do fundo (QDB)', 'GONDOLA', 6, 4.6, 4.8, 1.5, 3.2],
+      ['ILHA-04', 'Ilha central – topo multimarca', 'GONDOLA', 6, 4.6, 4.8, 3, 0.4, 3.2],
+      ['ILHA-07', 'Ilha central – lado do fundo (Eudora)', 'GONDOLA', 10.8, 4.6, 2.6, 1.5, 3.2],
+      ['ILHA-09', 'Ilha central – frente (perfumaria)', 'GONDOLA', 10.8, 6.1, 2.6, 1.5, 3.2],
+      ['ILHA-08', 'Ilha central – cabeceira frente', 'GONDOLA', 13.4, 4.6, 0.7, 3, 3.2],
+      ['ILHA-10', 'Ilha frontal – Make', 'GONDOLA', 8.2, 9.2, 3.2, 1.4, 3],
+      ['GON-01', 'Gôndola esquerda – lado A (Itens fixos)', 'GONDOLA', 2.8, 9.4, 3, 1, 2.8],
+      ['GON-02', 'Gôndola esquerda – lado B (Curto prazo)', 'GONDOLA', 2.8, 10.4, 3, 1, 2.8],
+      ['PONTA-01', 'Ponta da gôndola esquerda', 'GONDOLA', 5.8, 9.4, 0.7, 2, 2.8],
+      ['PONTA-02', 'Gôndola baixa esquerda', 'GONDOLA', 4.6, 12.6, 2.2, 1.2, 2.4],
+      ['CX-01', 'Caixa 1', 'CAIXA', 2.4, 17, 1.8, 1.2, 1.7],
+      ['CX-02', 'Caixa 2', 'CAIXA', 4.5, 17, 1.8, 1.2, 1.7],
+      ['CX-03', 'Caixa 3', 'CAIXA', 6.6, 17, 1.8, 1.2, 1.7],
+      ['TOTEM-01', 'Totem próximo aos caixas', 'TOTEM', 9.4, 16.2, 1.5, 0.35, 3.4],
+      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 10.6, 14.2, 1.3, 1.3, 1.9],
+      ['OUI-01', 'Expositor O.U.i (frente)', 'PAINEL', 12, 12.6, 0.8, 1.6, 3.8],
+      ['MESA-VM', 'Mesa VM permanente', 'MESA', 14, 9.8, 2.6, 2.4, 1.5],
+      ['VITRINE', 'Vitrine em L (entrada)', 'VITRINE_L', 14.6, 14.6, 3.6, 3, 2.4],
+      ['PIR-01', 'Pirâmide 1 (principais oportunidades)', 'PIRAMIDE', 16.4, 4, 1.7, 1.7, 3.6],
+      ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 19.2, 6.6, 1.7, 1.7, 3.6],
+      ['PIR-03', 'Pirâmide 3 (PEC regional)', 'PIRAMIDE', 17.6, 10.4, 1.7, 1.7, 3.6],
+      ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
+      ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
+      ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
+    ],
+  },
+
+  '03': {
+    loja: [24, 20, 4.6],
+    moveis: [
+      ['PE-01', 'Parede esquerda – Cuidados (NSPA)', 'GONDOLA_PAREDE', 0, 0.2, 1.1, 4, 3.8],
+      ['PE-02', 'Parede esquerda – Perfumaria masculina', 'GONDOLA_PAREDE', 0, 4.2, 1.1, 4, 3.8],
+      ['PE-03', 'Parede esquerda – Perfumaria feminina', 'GONDOLA_PAREDE', 0, 8.2, 1.1, 4, 3.8],
+      ['PE-04', 'Parede esquerda – Maquiagem (testeira Make)', 'GONDOLA_PAREDE', 0, 12.2, 1.1, 7.4, 3.8],
+      ['PF-01', 'Parede fundo – Cuidados (CBEM)', 'GONDOLA_PAREDE', 1.2, 0, 4.6, 1.1, 3.8],
+      ['PF-02', 'Parede fundo – Outlet', 'GONDOLA_PAREDE', 5.8, 0, 4.8, 1.1, 3.8],
+      ['PF-03', 'Parede fundo – módulo 3', 'GONDOLA_PAREDE', 10.6, 0, 4.8, 1.1, 3.8],
+      ['PF-05', 'Parede fundo – módulo 4', 'GONDOLA_PAREDE', 15.4, 0, 4.6, 1.1, 3.8],
+      ['PF-04', 'Painel O.U.i (parede do fundo)', 'PAINEL', 20.2, 0, 3.6, 0.6, 5],
+      ['ILHA-06', 'Ilha central – cabeceira do fundo', 'GONDOLA', 5.4, 4.6, 0.6, 3, 3.2],
+      ['ILHA-01', 'Ilha central – Botik', 'GONDOLA', 6, 6.1, 2.4, 1.5, 3.2],
+      ['ILHA-02', 'Ilha central – Uomini', 'GONDOLA', 8.4, 6.1, 2.4, 1.5, 3.2],
+      ['ILHA-03', 'Ilha central – lado do fundo (QDB)', 'GONDOLA', 6, 4.6, 4.8, 1.5, 3.2],
+      ['ILHA-04', 'Ilha central – topo multimarca', 'GONDOLA', 6, 4.6, 4.8, 3, 0.4, 3.2],
+      ['ILHA-11', 'Ilha central – lado do fundo (NSPA)', 'GONDOLA', 10.8, 4.6, 3, 1.5, 3.2],
+      ['ILHA-09', 'Ilha central – frente (perfumaria)', 'GONDOLA', 10.8, 6.1, 3, 1.5, 3.2],
+      ['ILHA-10', 'Ilha frontal – Make', 'GONDOLA', 8.2, 9.2, 3.4, 1.4, 3],
+      ['ILHA-15', 'Ilha Eudora – cabeceira', 'GONDOLA', 15.2, 6.4, 0.7, 3, 3.2],
+      ['ILHA-12', 'Ilha Eudora – cuidados', 'GONDOLA', 15.9, 6.4, 2.6, 1.5, 3.2],
+      ['ILHA-13', 'Ilha Eudora – make', 'GONDOLA', 18.5, 6.4, 2.6, 1.5, 3.2],
+      ['ILHA-14', 'Ilha Eudora – perfumaria', 'GONDOLA', 15.9, 7.9, 5.2, 1.5, 3.2],
+      ['GON-01', 'Gôndola esquerda – lado A (Itens fixos)', 'GONDOLA', 2.8, 9.6, 3, 1, 2.8],
+      ['GON-02', 'Gôndola esquerda – lado B (Curto prazo)', 'GONDOLA', 2.8, 10.6, 3, 1, 2.8],
+      ['PONTA-01', 'Ponta da gôndola esquerda', 'GONDOLA', 5.8, 9.6, 0.7, 2, 2.8],
+      ['PONTA-02', 'Gôndola baixa esquerda', 'GONDOLA', 4.6, 12.8, 2.2, 1.2, 2.4],
+      ['CX-01', 'Caixa 1', 'CAIXA', 2.4, 18, 1.8, 1.2, 1.7],
+      ['CX-02', 'Caixa 2', 'CAIXA', 4.5, 18, 1.8, 1.2, 1.7],
+      ['CX-03', 'Caixa 3', 'CAIXA', 6.6, 18, 1.8, 1.2, 1.7],
+      ['TOTEM-01', 'Totem próximo aos caixas', 'TOTEM', 9.6, 17.2, 1.5, 0.35, 3.4],
+      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 10.8, 15.2, 1.3, 1.3, 1.9],
+      ['OUI-01', 'Expositor O.U.i (frente)', 'PAINEL', 12.2, 13.4, 0.8, 1.6, 3.8],
+      ['MESA-VM', 'Mesa VM permanente', 'MESA', 14.4, 12.6, 2.6, 2.4, 1.5],
+      ['VITRINE', 'Vitrine em L (entrada)', 'VITRINE_L', 15.6, 15.8, 3.6, 3, 2.4],
+      ['PIR-01', 'Pirâmide 1 (principais oportunidades)', 'PIRAMIDE', 21.4, 8.4, 1.7, 1.7, 3.6],
+      ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 19.4, 13.2, 1.7, 1.7, 3.6],
+      ['PIR-03', 'Pirâmide 3 (PEC regional)', 'PIRAMIDE', 19.8, 10.6, 1.7, 1.7, 3.6],
+      ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
+      ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
+      ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
+    ],
+  },
+
+  '04': {
+    loja: [28, 22, 4.6],
+    moveis: [
+      ['PE-01', 'Parede esquerda – Cuidados (NSPA)', 'GONDOLA_PAREDE', 0, 0.2, 1.1, 4.2, 3.8],
+      ['PE-02', 'Parede esquerda – Perfumaria masculina', 'GONDOLA_PAREDE', 0, 4.4, 1.1, 4.2, 3.8],
+      ['PE-03', 'Parede esquerda – Perfumaria feminina', 'GONDOLA_PAREDE', 0, 8.6, 1.1, 4.2, 3.8],
+      ['PE-04', 'Parede esquerda – Maquiagem (testeira Make)', 'GONDOLA_PAREDE', 0, 12.8, 1.1, 8.8, 3.8],
+      ['PF-01', 'Parede fundo – Cuidados (CBEM)', 'GONDOLA_PAREDE', 1.2, 0, 5.2, 1.1, 3.8],
+      ['PF-02', 'Parede fundo – Outlet', 'GONDOLA_PAREDE', 6.4, 0, 5.4, 1.1, 3.8],
+      ['PF-03', 'Parede fundo – módulo 3', 'GONDOLA_PAREDE', 11.8, 0, 5.4, 1.1, 3.8],
+      ['PF-05', 'Parede fundo – módulo 4', 'GONDOLA_PAREDE', 17.2, 0, 5.4, 1.1, 3.8],
+      ['PF-06', 'Parede fundo – módulo 5', 'GONDOLA_PAREDE', 22.6, 0, 5.2, 1.1, 3.8],
+      ['ILHA-06', 'Ilha central – cabeceira do fundo', 'GONDOLA', 5.4, 4.4, 0.6, 3, 3.2],
+      ['ILHA-03', 'Ilha central – lado do fundo (QDB)', 'GONDOLA', 6, 4.4, 2.4, 1.5, 3.2],
+      ['ILHA-16', 'Ilha central – lado do fundo (recompra)', 'GONDOLA', 8.4, 4.4, 2.4, 1.5, 3.2],
+      ['ILHA-01', 'Ilha central – Botik', 'GONDOLA', 6, 5.9, 2.4, 1.5, 3.2],
+      ['ILHA-02', 'Ilha central – Uomini', 'GONDOLA', 8.4, 5.9, 2.4, 1.5, 3.2],
+      ['ILHA-04', 'Ilha central – topo multimarca', 'GONDOLA', 6, 4.4, 4.8, 3, 0.4, 3.2],
+      ['ILHA-17', 'Ilha central – multimarca (fundo)', 'GONDOLA', 10.8, 4.4, 2.4, 1.5, 3.2],
+      ['ILHA-18', 'Ilha central – multimarca (frente)', 'GONDOLA', 10.8, 5.9, 2.4, 1.5, 3.2],
+      ['ILHA-11', 'Ilha central – lado do fundo (NSPA)', 'GONDOLA', 13.2, 4.4, 2.8, 1.5, 3.2],
+      ['ILHA-20', 'Ilha central – Uomini hero', 'GONDOLA', 13.2, 5.9, 2.8, 1.5, 3.2],
+      ['ILHA-19', 'Ilha frontal – multimarca', 'GONDOLA', 6.4, 8.8, 2.2, 1.4, 3],
+      ['ILHA-10', 'Ilha frontal – Make', 'GONDOLA', 8.6, 8.8, 2.6, 1.4, 3],
+      ['ILHA-09', 'Ilha frontal – perfumaria', 'GONDOLA', 11.2, 8.8, 2.6, 1.4, 3],
+      ['ILHA-21', 'Ilha frontal – Boti promo', 'GONDOLA', 13.8, 8.8, 2.4, 1.4, 3],
+      ['HEROS', 'Espaço Heros', 'GONDOLA', 11.6, 11.2, 2.4, 1.4, 3],
+      ['PRESENTEAR', 'Espaço Presentear', 'GONDOLA', 14, 11.2, 2.4, 1.4, 3],
+      ['ILHA-15', 'Ilha Eudora – cabeceira', 'GONDOLA', 17.4, 5.6, 0.7, 3, 3.2],
+      ['ILHA-12', 'Ilha Eudora – cuidados', 'GONDOLA', 18.1, 5.6, 2.8, 1.5, 3.2],
+      ['ILHA-13', 'Ilha Eudora – make', 'GONDOLA', 20.9, 5.6, 2.8, 1.5, 3.2],
+      ['ILHA-14', 'Ilha Eudora – perfumaria', 'GONDOLA', 18.1, 7.1, 2.8, 1.5, 3.2],
+      ['ILHA-23', 'Ilha Eudora – outlet', 'GONDOLA', 20.9, 7.1, 2.8, 1.5, 3.2],
+      ['ILHA-22', 'Ilha Eudora – cabeceira Siàge', 'GONDOLA', 23.7, 5.6, 0.7, 3, 3.2],
+      ['ILHA-24', 'Gôndola curto prazo (direita)', 'GONDOLA', 18.6, 10.2, 3.4, 1.4, 3],
+      ['GON-01', 'Gôndola esquerda – Itens fixos', 'GONDOLA', 3, 10.2, 3, 1.1, 2.8],
+      ['GON-02', 'Gôndola esquerda – Curto prazo', 'GONDOLA', 6, 10.2, 3, 1.1, 2.8],
+      ['PONTA-01', 'Ponta da gôndola esquerda', 'GONDOLA', 9, 10.2, 0.7, 1.1, 2.8],
+      ['PONTA-02', 'Gôndola baixa esquerda', 'GONDOLA', 7, 12.4, 2.4, 1.2, 2.4],
+      ['GON-03', 'Gôndola frente – multimarca', 'GONDOLA', 2.8, 14, 2, 1.3, 2.6],
+      ['GON-04', 'Gôndola frente – exaustão O.U.i', 'GONDOLA', 4.8, 14, 2, 1.3, 2.6],
+      ['GON-05', 'Gôndola frente – QDB', 'GONDOLA', 6.8, 14, 2, 1.3, 2.6],
+      ['GON-06', 'Gôndola frente – exaustão Eudora', 'GONDOLA', 8.8, 14, 2, 1.3, 2.6],
+      ['OUI-01', 'Módulo O.U.i central', 'GONDOLA', 12, 13.6, 3.4, 2.4, 4],
+      ['OUI-02', 'Módulo O.U.i central – lateral', 'PAINEL', 11.2, 13.6, 0.8, 2.4, 4],
+      ['CX-01', 'Caixa 1', 'CAIXA', 2.4, 19.8, 1.8, 1.2, 1.7],
+      ['CX-02', 'Caixa 2', 'CAIXA', 4.5, 19.8, 1.8, 1.2, 1.7],
+      ['CX-03', 'Caixa 3', 'CAIXA', 6.6, 19.8, 1.8, 1.2, 1.7],
+      ['TOTEM-01', 'Totem próximo aos caixas', 'TOTEM', 9.6, 19, 1.5, 0.35, 3.4],
+      ['CUBO-SIAGE', 'Cubo expositor Siàge', 'CUBO', 10.6, 17.4, 1.3, 1.3, 1.9],
+      ['MESA-VM', 'Mesa VM permanente', 'MESA', 14.4, 17.4, 2.8, 2.4, 1.5],
+      ['VITRINE', 'Vitrine em L (entrada)', 'VITRINE_L', 18, 18.2, 3.8, 3, 2.4],
+      ['PIR-04', 'Pirâmide 4 (iscas exaustão)', 'PIRAMIDE', 17.8, 13.6, 1.7, 1.7, 3.6],
+      ['PIR-03', 'Pirâmide 3 (PEC regional)', 'PIRAMIDE', 21, 15.4, 1.7, 1.7, 3.6],
+      ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 23.2, 12.4, 1.7, 1.7, 3.6],
+      ['PIR-05', 'Pirâmide 5 (iscas exaustão)', 'PIRAMIDE', 24.4, 9.2, 1.7, 1.7, 3.6],
+      ['PIR-01', 'Pirâmide 1 (principais oportunidades)', 'PIRAMIDE', 25.8, 5.4, 1.7, 1.7, 3.6],
+      ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
+      ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
+      ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
+    ],
+  },
+};
+
+/* --------------------------------------------------------------------------
+ *  CICLO DE EXEMPLO (transcrito das telas de referência)
+ *  Móvel: ID → [marca do móvel, [[etiqueta, marca da etiqueta], ...], símbolo]
+ *  Planta "TODAS" vale para todas as plantas que tiverem aquele ID
+ *  (uma linha da planta específica tem prioridade).
+ * ------------------------------------------------------------------------ */
+
+const EXEMPLO_CICLO = 'Ciclo exemplo';
+
+const EXEMPLO_MOVIMENTOS = {
+  TODAS: {
+    'PE-01': ['NEUTRO', [['CUIDADOS (NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    'PE-02': ['NEUTRO', [['PERF MASC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    'PE-03': ['NEUTRO', [['PERF FEM', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    'PF-01': ['NEUTRO', [['CUIDADOS (CBEM)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    'TOTEM-01': ['BOT', [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT']]],
+    'CUBO-SIAGE': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
+    'MESA-VM': ['MULTI', [
+      ['VM PERMANENTE MULTI PROMO', 'MULTI'], ['UOMINI GLORIFICADO', 'BOT'],
+      ['SIÀGE GLORIFICADO', 'EUD'], ['VERSO: LÇTO EGEO', 'BOT+QDB'],
+    ]],
+    'VITRINE': ['BOT', [['LÇTO EGEO', 'BOT+QDB']]],
+    'ILHA-06': ['BOT', [['EGEO + QDB JUICY MOOD', 'BOT+QDB']]],
+    'ILHA-01': ['BOT', [['BOTIK', 'BOT']], 'FIXO'],
+    'ILHA-04': ['MULTI', [['MULTI PROMO', 'MULTI'], ['BOT + EUD + OUI', 'MULTI']]],
+    'ILHA-03': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GON-01': ['MULTI', [['ITENS FIXOS', 'MULTI']], 'FIXO'],
+    'GON-02': ['MULTI', [['CURTO PRAZO', 'MULTI']], 'FIXO'],
+    'PIR-01': ['BOT', [['BOTI PROMO', 'BOT'], ['OUTLET EUD', 'EUD'], ['PRINCIPAIS OPORTUNIDADES', 'EUD']]],
+    'PIR-02': ['EUD', [['MULTI PROMO', 'MULTI'], ['BOT + EUD + OUI', 'MULTI']]],
+    'PIR-03': ['MULTI', [['CURTO PRAZO', 'MULTI'], ['+PEC REGIONAL', 'MULTI']], 'FIXO'],
+    'PF-04': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
+    'EXTRA-CESTINHAS': ['NEUTRO', [['LÇTO EGEO', 'BOT+QDB']]],
+    'EXTRA-BELEZA': ['NEUTRO', [['BOTIPROMO MAKE B.', 'BOT'], ['LIQUIDA MAKE', 'QDB']]],
+    'EXTRA-CAVALETE': ['NEUTRO', [['SIÀGE ULTIMATE', 'EUD']]],
+  },
+  '01': {
+    'ILHA-02': ['BOT', [['UOMINI', 'BOT']]],
+    'ILHA-05': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
+    'CX-01': ['NEUTRO', []],
+    'CX-02': ['NEUTRO', []],
+  },
+  '02': {
+    'ILHA-02': ['BOT', [['UOMINI HERO', 'BOT']]],
+    'ILHA-07': ['EUD', [['OUTLET EUD', 'EUD'], ['PERFUMARIA', 'EUD']], 'MOVIMENTO'],
+    'ILHA-08': ['EUD', [['SIÀGE ULTIMATE', 'EUD'], ['+OUTLET CABELO', 'EUD']], 'MOVIMENTO'],
+    'ILHA-09': ['BOT', [['BOTI PROMO', 'BOT'], ['PERFUMARIA', 'BOT']], 'MOVIMENTO'],
+    'ILHA-10': ['BOT', [['BOTI PROMO', 'BOT'], ['MAKE', 'BOT']], 'MOVIMENTO'],
+    'PONTA-01': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
+    'PONTA-02': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
+    'OUI-01': ['OUI', [['Hôtel de Ville 193', 'OUI'], ['MON AMIE + LOÇÃO', 'OUI']], 'EXPOSICAO'],
+  },
+  '03': {
+    'ILHA-02': ['BOT', [['UOMINI HERO', 'BOT']]],
+    'ILHA-11': ['BOT', [['BOTI PROMO', 'BOT'], ['NSPA LOÇÕES E REFIS', 'BOT'], ['UOMINI', 'BOT']], 'MOVIMENTO'],
+    'ILHA-09': ['BOT', [['BOTI PROMO', 'BOT'], ['PERFUMARIA', 'BOT']]],
+    'ILHA-10': ['BOT', [['BOTI PROMO', 'BOT'], ['MAKE', 'BOT']]],
+    'ILHA-15': ['EUD', [['SIÀGE ULTIMATE', 'EUD'], ['+OUTLET CABELO', 'EUD']]],
+    'ILHA-12': ['EUD', [['OUTLET EUD', 'EUD'], ['CUIDADOS', 'EUD']], 'MOVIMENTO'],
+    'ILHA-13': ['EUD', [['OUTLET EUD', 'EUD'], ['MAKE', 'EUD']], 'MOVIMENTO'],
+    'ILHA-14': ['EUD', [['OUTLET EUD', 'EUD'], ['PERFUMARIA', 'EUD']]],
+    'PONTA-01': ['EUD', [['OUTLET EUD', 'EUD']]],
+    'PONTA-02': ['BOT', [['BOTI PROMO', 'BOT']]],
+    'OUI-01': ['OUI', [['Hôtel de Ville 193', 'OUI'], ['MON AMIE + LOÇÃO', 'OUI']], 'EXPOSICAO'],
+  },
+  '04': {
+    'ILHA-02': ['BOT', [['UOMINI HERO', 'BOT']]],
+    'ILHA-16': ['MULTI', [['QUEM COMPRA, RECOMPRA', 'MULTI']], 'FIXO'],
+    'ILHA-17': ['MULTI', [['MULTI PROMO', 'MULTI'], ['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
+    'ILHA-18': ['MULTI', [['MULTI PROMO', 'MULTI']], 'MOVIMENTO'],
+    'ILHA-11': ['BOT', [['BOTI PROMO', 'BOT'], ['NSPA LOÇÕES E REFIS', 'BOT']]],
+    'ILHA-20': ['BOT', [['UOMINI HERO', 'BOT']]],
+    'ILHA-19': ['MULTI', [['MULTI PROMO', 'MULTI']], 'MOVIMENTO'],
+    'ILHA-10': ['BOT', [['BOTI PROMO', 'BOT'], ['MAKE', 'BOT']]],
+    'ILHA-09': ['BOT', [['BOTI PROMO', 'BOT'], ['PERFUMARIA', 'BOT']]],
+    'ILHA-21': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
+    'HEROS': ['MULTI', [['HEROS', 'MULTI']], 'NOVO'],
+    'PRESENTEAR': ['MULTI', [['PRESENTEAR', 'MULTI']], 'FIXO'],
+    'ILHA-15': ['EUD', [['SIÀGE ULTIMATE', 'EUD'], ['+OUTLET CABELO', 'EUD']]],
+    'ILHA-12': ['EUD', [['OUTLET EUD | CUIDADOS', 'EUD']]],
+    'ILHA-13': ['EUD', [['OUTLET EUD | MAKE', 'EUD']]],
+    'ILHA-14': ['EUD', [['OUTLET EUD', 'EUD'], ['PERFUMARIA', 'EUD']]],
+    'ILHA-23': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
+    'ILHA-22': ['EUD', [['SIÀGE BASELINE', 'EUD']], 'FIXO'],
+    'ILHA-24': ['MULTI', [['CURTO PRAZO', 'MULTI']], 'FIXO'],
+    'GON-01': ['MULTI', [['ITENS FIXOS', 'MULTI']], 'FIXO'],
+    'GON-02': ['MULTI', [['CURTO PRAZO', 'MULTI']], 'FIXO'],
+    'PONTA-01': ['EUD', [['OUTLET EUD', 'EUD']]],
+    'PONTA-02': ['BOT', [['BOTI PROMO', 'BOT']]],
+    'GON-03': ['MULTI', [['MULTI PROMO', 'MULTI']], 'MOVIMENTO'],
+    'GON-04': ['OUI', [['EXAUSTÃO OUI', 'OUI']], 'MOVIMENTO'],
+    'GON-05': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GON-06': ['EUD', [['EXAUSTÃO EUD', 'EUD']], 'MOVIMENTO'],
+    'OUI-01': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
+    'OUI-02': ['OUI', [['Hôtel de Ville 193', 'OUI'], ['MON AMIE + LOÇÃO', 'OUI']], 'EXPOSICAO'],
+    'PIR-04': ['MULTI', [['OUTLET EUD', 'EUD'], ['ISCAS EXAUSTÃO', 'EUD']], 'MOVIMENTO'],
+    'PIR-05': ['BOT', [['BOTI PROMO', 'BOT'], ['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
+  },
+};
+
+const TEXTO_CALLOUT_BOTIPROMO =
+  '- MATERIAIS COMPLEMENTARES PARA BOTIPROMO DESTACANDO AS ISCAS COMERCIAIS: “ATÉ 52% DE DD” / “ITENS A PARTIR DE”.\n\n' +
+  'VM COMPLEMENTAR PARA TOP SKUS:\n- FLORATTA ROM/VER\n- ARBO PURO\n- NSPA LOC AMEI/NEG 400\n- MATCH SHAMP NUTR PROFUNDA\n\n' +
+  '- STOPPER LÇTO EGEO';
+
+/** [planta, seção, texto, marca, aponta para (ID móvel)] */
+const EXEMPLO_PAINEIS = [
+  ['TODAS', 'TV', 'GRADE CURTO PRAZO', 'MULTI', ''],
+  ['TODAS', 'A', 'BOTIPROMO', 'BOT', ''],
+  ['TODAS', 'A', 'OUTLET EUDORA', 'EUD', ''],
+  ['TODAS', 'C', 'LÇTO UOMINI', 'BOT', ''],
+  ['TODAS', 'C', 'LÇTO EGEO', 'BOT', ''],
+  ['TODAS', 'C', 'LÇTO SIÀGE', 'EUD', ''],
+  ['TODAS', 'C', 'LÇTO MON AMIE', 'OUI', ''],
+  ['TODAS', 'C', 'COMUNICAÇÃO INSTITUCIONAL PERMANENTE (3)', 'MULTI', ''],
+  ['TODAS', 'CALLOUT', 'TESTEIRA MAKE MULTIPROMO - BOTI COM BOTIPROMO MAKE.B EUDORA COM OUTLET E QDB COM LIQUIDA', 'MULTI', 'PE-04'],
+  ['TODAS', 'CALLOUT', TEXTO_CALLOUT_BOTIPROMO, 'BOT', 'PE-02'],
+  ['TODAS', 'CALLOUT', 'VMS COMPLEMENTARES DIRECIONADOS PARA O OUTLET. USAR ESSA LISTA DE PRIORIDADE COMO DIRECIONAL.', 'EUD', 'PF-02'],
+  ['01', 'NOTA', 'Destaque PN: Comunicar promo como movimento MM nos espaços destaque', '', ''],
+  ['01', 'NOTA', 'Pirâmide principais oportunidades: Itens de alta frequência na promo', '', ''],
+  ['02', 'NOTA', 'PEC REGIONAL: Regionalização de exposição SP e NE.', '', ''],
+  ['02', 'NOTA', 'Pirâmide: NE exposição de masculino e SP Masculino + Lily', '', ''],
+  ['03', 'NOTA', 'PEC REGIONAL: Regionalização de exposição SP e NE.', '', ''],
+  ['03', 'NOTA', 'Pirâmide: NE exposição de masculino e SP Masculino + Lily', '', ''],
+  ['04', 'NOTA', 'PEC REGIONAL: Regionalização de exposição SP e NE.', '', ''],
+  ['04', 'NOTA', 'Meio de gôndola: exclusivo NE, exposição de Lily.', '', ''],
+  ['04', 'NOTA', 'Pirâmide: NE exposição de masculino e SP Masculino + Lily', '', ''],
+  ['04', 'NOTA', 'Heros: Espaço para trabalhar exposição de itens hero considerando as categorias/marcas que precisem de reação no período. Trabalhar combos cross marca', '', ''],
+];
+
+/* ------------------------- Conversão em matrizes ------------------------- */
+
+/** Matriz [cabeçalho, ...linhas] da aba Layout padrão. */
+function valoresLayoutPadrao_() {
+  const cols = colunasLayout_();
+  const linhas = [cols.map(function (c) { return c.titulo; })];
+  const linha = function (o) { return cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }); };
+  Object.keys(LAYOUT_PADRAO).forEach(function (planta) {
+    const p = LAYOUT_PADRAO[planta];
+    linhas.push(linha({
+      planta: planta, movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA',
+      x: 0, y: 0, z: 0, largura: p.loja[0], profundidade: p.loja[1], altura: p.loja[2], ajusteX: 0, ajusteY: 0,
+    }));
+    p.moveis.forEach(function (m) {
+      linhas.push(linha({
+        planta: planta, movel: m[0], descricao: m[1], tipo: m[2], x: m[3], y: m[4], z: m[8] || 0,
+        largura: m[5], profundidade: m[6], altura: m[7], ajusteX: 0, ajusteY: 0,
+      }));
+    });
+  });
+  return linhas;
+}
+
+/** Matriz [cabeçalho, ...linhas] da aba Movimentos com o ciclo de exemplo. */
+function valoresMovimentosExemplo_() {
+  const cols = colunasMovimentos_();
+  const linhas = [cols.map(function (c) { return c.titulo; })];
+  const descricoes = {};
+  Object.keys(LAYOUT_PADRAO).forEach(function (planta) {
+    LAYOUT_PADRAO[planta].moveis.forEach(function (m) { descricoes[m[0]] = descricoes[m[0]] || m[1]; });
+  });
+  Object.keys(EXEMPLO_MOVIMENTOS).forEach(function (planta) {
+    const moveis = EXEMPLO_MOVIMENTOS[planta];
+    Object.keys(moveis).forEach(function (id) {
+      const m = moveis[id];
+      const o = {
+        ciclo: EXEMPLO_CICLO, planta: planta, movel: id, descricao: descricoes[id] || '',
+        marca: m[0], simbolo: m[2] || '', observacao: '',
+      };
+      (m[1] || []).slice(0, CONFIG.MAX_ETIQUETAS).forEach(function (e, i) {
+        o['etiqueta' + (i + 1)] = e[0];
+        o['marcaEtiqueta' + (i + 1)] = e[1];
+      });
+      linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
+    });
+  });
+  return linhas;
+}
+
+/** Matriz [cabeçalho, ...linhas] da aba Painéis com o ciclo de exemplo. */
+function valoresPaineisExemplo_() {
+  const cols = colunasPaineis_();
+  const linhas = [cols.map(function (c) { return c.titulo; })];
+  EXEMPLO_PAINEIS.forEach(function (p) {
+    const o = { ciclo: EXEMPLO_CICLO, planta: p[0], secao: p[1], texto: p[2], marca: p[3], movel: p[4] };
+    linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
+  });
+  return linhas;
+}
+
+/**
+ * ============================================================================
+ *  BACKEND LOCAL (versão estática, ex.: netli.fyi / Netlify)
+ * ============================================================================
+ *  Substitui o google.script.run: usa as MESMAS funções do Code.gs
+ *  (montarDados_, prepararImportacao_, mesclarLinhas_…), carregadas antes
+ *  deste arquivo, mas guarda as "abas" (matrizes) no localStorage do navegador
+ *  em vez do Google Sheets.
+ */
+(function () {
+  const CHAVE = 'planoVarejo.planilhaLocal.v1';
+
+  function exemplo() {
+    return {
+      layout: valoresLayoutPadrao_(),
+      movimentos: valoresMovimentosExemplo_(),
+      paineis: valoresPaineisExemplo_(),
+    };
+  }
+
+  function ler() {
+    try {
+      const salvo = JSON.parse(window.localStorage.getItem(CHAVE));
+      if (salvo && salvo.layout && salvo.movimentos && salvo.paineis) return salvo;
+    } catch (e) { /* sem armazenamento ou dado corrompido */ }
+    return exemplo();
+  }
+
+  function gravar(abas) {
+    try {
+      window.localStorage.setItem(CHAVE, JSON.stringify(abas));
+    } catch (e) {
+      throw new Error('Não foi possível salvar no navegador (armazenamento bloqueado ou cheio).');
+    }
+  }
+
+  const api = {
+    getDados() {
+      const abas = ler();
+      const dados = montarDados_(abas.layout, abas.movimentos, abas.paineis);
+      dados.planilhaUrl = '';
+      dados.precisaConfigurar = false;
+      dados.modoLocal = true;
+      return dados;
+    },
+
+    configurarPlanilha() {
+      try { window.localStorage.removeItem(CHAVE); } catch (e) { /* ignora */ }
+      return { mensagem: 'Dados de exemplo restaurados.' };
+    },
+
+    importarPlanilha(payload) {
+      const prep = prepararImportacao_(payload);
+      const abas = ler();
+      const resultado = { movimentos: 0, paineis: 0, layout: 0 };
+      prep.preparados.forEach((p) => {
+        abas[p.bloco.campo] = mesclarLinhas_(abas[p.bloco.campo], p.linhas, p.bloco.colunas);
+        resultado[p.bloco.campo] = p.linhas.length;
+      });
+      gravar(abas);
+      const verificacao = verificarImportacao_(abas.layout, prep);
+      resultado.ciclos = verificacao.ciclos;
+      resultado.avisos = verificacao.avisos;
+      return resultado;
+    },
+
+    salvarAjustesEtiquetas(planta, ajustes) {
+      planta = normPlanta_(planta);
+      if (!planta || !ajustes || typeof ajustes !== 'object') throw new Error('Dados inválidos.');
+      const abas = ler();
+      const cab = abas.layout[0].map(chave_);
+      const col = (chave) => acharColuna_(cab, colunasLayout_().filter((c) => c.chave === chave)[0]);
+      const [iPlanta, iId, iX, iY] = ['planta', 'movel', 'ajusteX', 'ajusteY'].map(col);
+      let atualizados = 0;
+      abas.layout.slice(1).forEach((row) => {
+        if (normPlanta_(row[iPlanta]) !== planta) return;
+        const a = ajustes[normId_(row[iId])];
+        if (!a) return;
+        row[iX] = Math.round(Number(a.x) || 0);
+        row[iY] = Math.round(Number(a.y) || 0);
+        atualizados++;
+      });
+      gravar(abas);
+      return { atualizados };
+    },
+  };
+
+  /** Mesma interface do google.script.run (assíncrona, com handlers). */
+  window.google = {
+    script: {
+      get run() {
+        let ok = () => {};
+        let falha = () => {};
+        const corredor = {
+          withSuccessHandler(f) { ok = f; return corredor; },
+          withFailureHandler(f) { falha = f; return corredor; },
+        };
+        Object.keys(api).forEach((nome) => {
+          corredor[nome] = (...args) => {
+            setTimeout(() => {
+              let resposta;
+              try {
+                // Cópia via JSON, como o Apps Script faz entre servidor e página.
+                resposta = JSON.parse(JSON.stringify(api[nome](...JSON.parse(JSON.stringify(args)))));
+              } catch (e) {
+                falha(e);
+                return;
+              }
+              ok(resposta);
+            }, 0);
+          };
+        });
+        return corredor;
+      },
+    },
+  };
+})();
+
+</script>
+  </head>
+  <body>
+    <header class="topo">
+      <div class="identidade">
+        <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2 22 7.5v9L12 22 2 16.5v-9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M2 7.5 12 13l10-5.5M12 13v9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+        <div>
+          <h1>Plano de Varejo</h1>
+          <p>Visualizador de plantas por ciclo</p>
+        </div>
+      </div>
+
+      <div class="seletores">
+        <label class="campo">
+          <span>Ciclo</span>
+          <select id="selCiclo" aria-label="Ciclo"></select>
+        </label>
+        <div class="abas" id="abasPlanta" role="tablist" aria-label="Plantas"></div>
+      </div>
+
+      <div class="acoes">
+        <button id="btnModelo" class="btn primario" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
+          Baixar planilha base
+        </button>
+        <button id="btnImportar" class="btn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-5 5m5-5 5 5M4 19h16"/></svg>
+          Importar planilha
+        </button>
+        <button id="btnPng" class="btn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
+          Baixar PNG
+        </button>
+        <button id="btnEditar" class="btn" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
+          Ajustar etiquetas
+        </button>
+        <button id="btnAtualizar" class="btn fantasma" type="button" title="Ler a planilha de novo">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
+          Atualizar
+        </button>
+        <a id="lnkPlanilha" class="btn fantasma" target="_blank" rel="noopener" hidden>
+          Abrir planilha
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+        </a>
+        <input type="file" id="arquivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+      </div>
+    </header>
+
+    <div class="faixa">
+      <div class="legenda" id="legenda" aria-label="Marcas"></div>
+      <div class="aviso-local" id="avisoLocal" hidden>
+        <span>Modo local: os dados ficam salvos só neste navegador.</span>
+        <button id="btnRestaurar" class="btn pequeno fantasma" type="button">Restaurar exemplo</button>
+      </div>
+            <details class="avisos" id="avisos" hidden>
+        <summary></summary>
+        <ul></ul>
+      </details>
+    </div>
+
+    <div class="barra-edicao" id="barraEdicao" hidden>
+      <span><strong>Modo ajuste:</strong> arraste as etiquetas para reposicionar. <span id="qtdAjustes"></span></span>
+      <span class="grupo-botoes">
+        <button id="btnAutoOrganizar" class="btn pequeno" type="button">Organizar automaticamente</button>
+        <button id="btnDescartar" class="btn pequeno" type="button">Descartar</button>
+        <button id="btnSalvarAjustes" class="btn pequeno primario" type="button">Salvar posições</button>
+      </span>
+    </div>
+
+    <main class="palco" id="palco">
+      <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
+      <section class="vazio" id="telaConfig" hidden>
+        <h2>Planilha ainda não configurada</h2>
+        <p id="msgConfig"></p>
+        <button id="btnConfigurar" class="btn primario" type="button">Configurar agora</button>
+      </section>
+    </main>
+
+    <dialog id="dlgModelo" class="dialogo">
+      <form method="dialog" id="formModelo">
+        <h2>Baixar planilha base</h2>
+        <p class="sub">Uma linha por móvel de cada planta. Preencha e depois use <b>Importar planilha</b>.</p>
+        <label class="campo bloco">
+          <span>Nome do ciclo na planilha</span>
+          <input id="mdCiclo" type="text" placeholder="Ex.: C15/2026 (ou preencha depois)" autocomplete="off">
+        </label>
+        <fieldset class="campo bloco">
+          <legend>Conteúdo</legend>
+          <label class="opcao"><input type="radio" name="mdConteudo" value="copiar" checked> <span id="mdCopiarTexto">Copiar o ciclo selecionado</span></label>
+          <label class="opcao"><input type="radio" name="mdConteudo" value="branco"> <span>Em branco (só a lista de móveis)</span></label>
+        </fieldset>
+        <label class="campo bloco">
+          <span>Plantas</span>
+          <select id="mdPlantas"></select>
+        </label>
+        <label class="opcao bloco-opcao"><input type="checkbox" id="mdLayout"> <span>Incluir aba <b>Layout</b> (posição e tamanho dos móveis, para ajustar a planta)</span></label>
+        <div class="rodape-dialogo">
+          <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
+          <button class="btn primario" value="baixar" type="submit">Baixar .xlsx</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="dlgResultado" class="dialogo">
+      <form method="dialog">
+        <h2 id="resTitulo"></h2>
+        <p id="resTexto"></p>
+        <ul id="resAvisos" class="lista-avisos"></ul>
+        <div class="rodape-dialogo">
+          <button class="btn primario" value="ok" type="submit">OK</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="carregando" id="carregando" hidden>
+      <div class="spinner" aria-hidden="true"></div>
+      <span id="carregandoTexto">Carregando…</span>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script>
+/**
+ * ============================================================================
+ *  RENDERIZADOR DA PLANTA (SVG isométrico, 1920×1080 — formato de slide)
+ * ============================================================================
+ *  Render.desenhar(svg, contexto) redesenha o slide inteiro:
+ *   - planta isométrica (piso, paredes e móveis coloridos pela marca);
+ *   - etiquetas de cada móvel (com desvio automático de sobreposição);
+ *   - caixas de destaque (CALLOUT), painel lateral (TV / A / C), notas,
+ *     legenda de símbolos e faixa de itens extras.
+ *  Todo o estilo vai em atributos SVG (não em CSS) para o PNG exportado
+ *  ficar idêntico ao que aparece na tela.
+ */
+const Render = (() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const FONTE = 'Arial, Helvetica, sans-serif';
+  const COS30 = Math.cos(Math.PI / 6);
+
+  const TELA = { w: 1920, h: 1080, fundo: '#F3EFEA' };
+  const REGIAO_PLANTA = { x: 500, y: 70, w: 1400, h: 950 };
+  const LIMITES = { x0: 470, y0: 8, x1: 1912, y1: 1072 };
+  const ETQ = { fonte: 12, lh: 14, padX: 7, padY: 4, gap: 3, maxTexto: 190, simbolo: 20 };
+  const CALLOUT = { fonte: 12.5, lh: 16, pad: 9, maxW: 360 };
+  const COR = {
+    contorno: '#1C1C1C',
+    contornoNeutro: '#B5B5B5',
+    prateleiraNeutra: '#D0D0D0',
+    neutro: '#F7F7F7',
+    piso: '#EAEAEA',
+    pisoBorda: '#D7D7D7',
+    textoNota: '#1F3B73',
+    tituloNota: '#0B2A5B',
+    etiquetaPadrao: '#4A4A4A',
+  };
+  const ESPESSURA_PAREDE = 0.35;
+  const ESPESSURA_PISO = 0.35;
+
+  let marcas = {};
+  let defs = null;
+  let gradientes = {};
+
+  /* ------------------------------ utilidades ------------------------------ */
+
+  function el(tag, attrs, pai) {
+    const e = document.createElementNS(NS, tag);
+    if (attrs) {
+      Object.keys(attrs).forEach((k) => {
+        if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]);
+      });
+    }
+    if (pai) pai.appendChild(e);
+    return e;
+  }
+
+  function texto(pai, x, y, conteudo, attrs) {
+    const t = el('text', Object.assign({ x, y, 'font-family': FONTE }, attrs), pai);
+    t.textContent = conteudo;
+    return t;
+  }
+
+  /** Dica ao passar o mouse (<title> precisa ser o primeiro filho). */
+  function dica(alvo, conteudo) {
+    const t = document.createElementNS(NS, 'title');
+    t.textContent = conteudo;
+    alvo.insertBefore(t, alvo.firstChild);
+  }
+
+  const pontos = (lista) => lista.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+
+  function poligono(pai, lista, attrs) {
+    return el('polygon', Object.assign({ points: pontos(lista) }, attrs), pai);
+  }
+
+  function linha(pai, a, b, attrs) {
+    return el('line', Object.assign({ x1: a[0].toFixed(1), y1: a[1].toFixed(1), x2: b[0].toFixed(1), y2: b[1].toFixed(1) }, attrs), pai);
+  }
+
+  const medidor = document.createElement('canvas').getContext('2d');
+  function largura(txt, tam, peso, estilo) {
+    medidor.font = (estilo || 'normal') + ' ' + (peso || 700) + ' ' + tam + 'px ' + FONTE;
+    return medidor.measureText(txt).width;
+  }
+
+  /** Quebra o texto em linhas que caibam em maxW (respeita quebras de linha). */
+  function quebrar(txt, maxW, tam, peso) {
+    const linhas = [];
+    String(txt).split('\n').forEach((par) => {
+      if (!par.trim()) { linhas.push(''); return; }
+      let atual = '';
+      par.trim().split(/\s+/).forEach((palavra) => {
+        const tentativa = atual ? atual + ' ' + palavra : palavra;
+        if (!atual || largura(tentativa, tam, peso) <= maxW) atual = tentativa;
+        else { linhas.push(atual); atual = palavra; }
+      });
+      linhas.push(atual);
+    });
+    while (linhas.length > 1 && linhas[linhas.length - 1] === '') linhas.pop();
+    return linhas;
+  }
+
+  /* -------------------------------- cores --------------------------------- */
+
+  function rgb(hex) {
+    let h = hex.replace('#', '');
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    return [0, 2, 4].map((i) => parseInt(h.substr(i, 2), 16));
+  }
+  function paraHex(v) {
+    return '#' + v.map((c) => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0')).join('');
+  }
+  function misturar(cor, alvo, t) {
+    const a = rgb(cor);
+    const b = rgb(alvo);
+    return paraHex(a.map((v, i) => v + (b[i] - v) * t));
+  }
+
+  /** "BOT+QDB" → ['#..', '#..'] ; tipo = 'movel' | 'etiqueta'. */
+  function coresDe(valor, tipo) {
+    if (!valor) return null;
+    const cores = String(valor).split('+').map((p) => p.trim()).map((p) => {
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(p)) return p;
+      return marcas[p] ? marcas[p][tipo] : null;
+    }).filter(Boolean);
+    return cores.length ? cores : null;
+  }
+
+  function ehNeutro(valor) {
+    return !valor || valor === 'NEUTRO';
+  }
+
+  /** Cor sólida ou degradê (para combinações de marcas). sombra < 0 clareia, > 0 escurece. */
+  function tinta(cores, sombra) {
+    const aplicar = (c) => (sombra < 0 ? misturar(c, '#FFFFFF', -sombra) : sombra > 0 ? misturar(c, '#000000', sombra) : c);
+    if (cores.length === 1) return aplicar(cores[0]);
+    const chave = cores.join('-') + '|' + sombra;
+    if (!gradientes[chave]) {
+      const id = 'grad' + Object.keys(gradientes).length;
+      const g = el('linearGradient', { id, x1: 0, y1: 0, x2: 1, y2: 0 }, defs);
+      cores.forEach((c, i) => el('stop', { offset: i / (cores.length - 1), 'stop-color': aplicar(c) }, g));
+      gradientes[chave] = 'url(#' + id + ')';
+    }
+    return gradientes[chave];
+  }
+
+  /* ------------------------------ projeção -------------------------------- */
+
+  function criarProjecao(loja) {
+    const W = loja.largura;
+    const D = loja.profundidade;
+    const H = loja.alturaParede;
+    const t = ESPESSURA_PAREDE;
+    const cantos = [
+      [-t, -t, H], [W, -t, H], [-t, D, H],
+      [W, -t, -ESPESSURA_PISO], [W, D, -ESPESSURA_PISO], [-t, D, -ESPESSURA_PISO],
+    ];
+    const bruto = (p) => [(p[0] - p[1]) * COS30, (p[0] + p[1]) * 0.5 - p[2]];
+    const bx = cantos.map((p) => bruto(p)[0]);
+    const by = cantos.map((p) => bruto(p)[1]);
+    const minX = Math.min.apply(null, bx);
+    const minY = Math.min.apply(null, by);
+    const larg = Math.max.apply(null, bx) - minX;
+    const alt = Math.max.apply(null, by) - minY;
+    const s = Math.min(REGIAO_PLANTA.w / larg, REGIAO_PLANTA.h / alt);
+    const ox = REGIAO_PLANTA.x + (REGIAO_PLANTA.w - larg * s) / 2 - minX * s;
+    const oy = REGIAO_PLANTA.y + (REGIAO_PLANTA.h - alt * s) / 2 - minY * s;
+    return {
+      escala: s,
+      P: (x, y, z) => [ox + (x - y) * COS30 * s, oy + ((x + y) * 0.5 - (z || 0)) * s],
+    };
+  }
+
+  /* --------------------------- caixas (móveis) ---------------------------- */
+
+  /**
+   * Desenha uma caixa isométrica.
+   * est: { cores, vidro, prateleiras, modulo, gradeTopo, moldura }
+   */
+  function caixa(pai, P, b, est) {
+    const x0 = b.x, x1 = b.x + b.w, y0 = b.y, y1 = b.y + b.d, z0 = b.z, z1 = b.z + b.h;
+    const neutro = !est.cores;
+    const base = est.cores || [est.corNeutra || COR.neutro];
+    const contorno = neutro ? COR.contornoNeutro : COR.contorno;
+    const opacidade = !neutro && est.vidro ? 0.84 : 1;
+    const comum = { stroke: contorno, 'stroke-width': neutro ? 1 : 1.3, 'stroke-linejoin': 'round', 'fill-opacity': opacidade };
+
+    const esq = [P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)]; // face y = y1
+    const dir = [P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)]; // face x = x1
+    const topo = [P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)];
+    poligono(pai, esq, Object.assign({ fill: tinta(base, neutro ? 0.03 : 0) }, comum));
+    poligono(pai, dir, Object.assign({ fill: tinta(base, neutro ? 0.1 : 0.16) }, comum));
+    poligono(pai, topo, Object.assign({ fill: tinta(base, neutro ? 0 : -0.3) }, comum));
+
+    const detalhe = neutro
+      ? { stroke: COR.prateleiraNeutra, 'stroke-width': 1 }
+      : est.vidro
+        ? { stroke: contorno, 'stroke-width': 1.1, 'stroke-dasharray': '5 4', opacity: 0.85 }
+        : { stroke: misturar(base[0], '#000000', 0.35), 'stroke-width': 1 };
+
+    // Arestas escondidas (efeito vidro).
+    if (!neutro && est.vidro) {
+      const oculto = { stroke: contorno, 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: 0.45 };
+      linha(pai, P(x0, y0, z0), P(x0, y0, z1), oculto);
+      linha(pai, P(x0, y0, z0), P(x1, y0, z0), oculto);
+      linha(pai, P(x0, y0, z0), P(x0, y1, z0), oculto);
+    }
+
+    // Prateleiras.
+    const n = est.prateleiras || 0;
+    for (let k = 1; k < n; k++) {
+      const z = z0 + (b.h * k) / n;
+      if (b.w > 0.3) linha(pai, P(x0, y1, z), P(x1, y1, z), detalhe);
+      if (b.d > 0.3) linha(pai, P(x1, y0, z), P(x1, y1, z), detalhe);
+    }
+    // Divisórias verticais (módulos).
+    if (est.modulo) {
+      const nx = Math.round(b.w / est.modulo);
+      for (let k = 1; k < nx; k++) {
+        const x = x0 + (b.w * k) / nx;
+        linha(pai, P(x, y1, z0), P(x, y1, z1), detalhe);
+      }
+      const ny = Math.round(b.d / est.modulo);
+      for (let k = 1; k < ny; k++) {
+        const y = y0 + (b.d * k) / ny;
+        linha(pai, P(x1, y, z0), P(x1, y, z1), detalhe);
+      }
+    }
+    if (est.gradeTopo) {
+      const xm = (x0 + x1) / 2;
+      const ym = (y0 + y1) / 2;
+      linha(pai, P(xm, y0, z1), P(xm, y1, z1), detalhe);
+      linha(pai, P(x0, ym, z1), P(x1, ym, z1), detalhe);
+    }
+    if (est.moldura) {
+      const m = 0.12;
+      const face = b.d >= b.w
+        ? [P(x1, y0 + b.d * m, z0 + b.h * m), P(x1, y1 - b.d * m, z0 + b.h * m), P(x1, y1 - b.d * m, z1 - b.h * m), P(x1, y0 + b.d * m, z1 - b.h * m)]
+        : [P(x0 + b.w * m, y1, z0 + b.h * m), P(x1 - b.w * m, y1, z0 + b.h * m), P(x1 - b.w * m, y1, z1 - b.h * m), P(x0 + b.w * m, y1, z1 - b.h * m)];
+      poligono(pai, face, Object.assign({ fill: 'none' }, detalhe, { 'stroke-dasharray': '6 4' }));
+    }
+  }
+
+  const espessuraL = (m) => Math.min(0.6, m.w / 2, m.d / 2);
+
+  /** Quebra um móvel em caixas "ordenáveis" (a vitrine em L vira duas). */
+  function primitivas(m) {
+    if (m.tipo === 'VITRINE_L') {
+      const t = espessuraL(m);
+      return [
+        { x: m.x + m.w - t, y: m.y, z: m.z, w: t, d: m.d - t, h: m.h, movel: m },
+        { x: m.x, y: m.y + m.d - t, z: m.z, w: m.w, d: t, h: m.h, movel: m },
+      ];
+    }
+    return [{ x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h, movel: m }];
+  }
+
+  function desenharPrimitiva(pai, P, b, cores) {
+    const m = b.movel;
+    switch (m.tipo) {
+      case 'GONDOLA_PAREDE':
+        caixa(pai, P, b, { cores, prateleiras: 5, modulo: 2.2 });
+        break;
+      case 'CUBO':
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2 });
+        break;
+      case 'MESA':
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 1, modulo: 1.3, gradeTopo: true });
+        break;
+      case 'TOTEM':
+        caixa(pai, P, Object.assign({}, b, { h: 0.25 }), { corNeutra: '#9A9A9A' });
+        caixa(pai, P, Object.assign({}, b, { z: b.z + 0.25, h: b.h - 0.25 }), { cores, prateleiras: 5 });
+        break;
+      case 'PAINEL':
+        caixa(pai, P, b, { cores, moldura: true });
+        break;
+      case 'VITRINE_L':
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2, modulo: 1.8 });
+        break;
+      case 'CAIXA': {
+        caixa(pai, P, b, { cores, prateleiras: 0 });
+        const mon = { x: b.x + b.w * 0.35, y: b.y + b.d * 0.15, z: b.z + b.h, w: 0.55, d: 0.12, h: 0.55 };
+        caixa(pai, P, mon, { cores: ['#5A5A5A'] });
+        break;
+      }
+      case 'PIRAMIDE': {
+        const niveis = [[1, 0.38], [0.88, 0.36], [0.6, 0.26]];
+        let z = b.z;
+        niveis.forEach((n) => {
+          const w = b.w * n[0];
+          const d = b.d * n[0];
+          const h = b.h * n[1];
+          caixa(pai, P, { x: b.x + (b.w - w) / 2, y: b.y + (b.d - d) / 2, z, w, d, h }, { cores, vidro: true, prateleiras: 2 });
+          z += h;
+        });
+        break;
+      }
+      default: // GONDOLA
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3, modulo: 2.4 });
+    }
+  }
+
+  /** Ordenação de pintura (o que está atrás é desenhado primeiro). */
+  function ordenar(prims, P) {
+    const n = prims.length;
+    const tela = prims.map((b) => {
+      const xs = [];
+      const ys = [];
+      [b.x, b.x + b.w].forEach((x) => [b.y, b.y + b.d].forEach((y) => [b.z, b.z + b.h].forEach((z) => {
+        const p = P(x, y, z);
+        xs.push(p[0]);
+        ys.push(p[1]);
+      })));
+      return { x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs), y0: Math.min.apply(null, ys), y1: Math.max.apply(null, ys) };
+    });
+    const prof = prims.map((b) => b.x + b.w / 2 + b.y + b.d / 2 + b.z * 0.5);
+    const e = 1e-6;
+    const separa = (a, b) => {
+      if (a.x + a.w <= b.x + e) return -1;
+      if (b.x + b.w <= a.x + e) return 1;
+      if (a.y + a.d <= b.y + e) return -1;
+      if (b.y + b.d <= a.y + e) return 1;
+      if (a.z + a.h <= b.z + e) return -1;
+      if (b.z + b.h <= a.z + e) return 1;
+      return 0;
+    };
+    const depois = prims.map(() => []);
+    const grau = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const A = tela[i];
+        const B = tela[j];
+        if (A.x1 <= B.x0 || B.x1 <= A.x0 || A.y1 <= B.y0 || B.y1 <= A.y0) continue;
+        let r = separa(prims[i], prims[j]);
+        if (r === 0) r = prof[i] <= prof[j] ? -1 : 1;
+        if (r < 0) { depois[i].push(j); grau[j]++; } else { depois[j].push(i); grau[i]++; }
+      }
+    }
+    const saida = [];
+    const prontos = [];
+    for (let i = 0; i < n; i++) if (!grau[i]) prontos.push(i);
+    const usados = new Array(n).fill(false);
+    while (saida.length < n) {
+      if (!prontos.length) { // ciclo (não deveria acontecer): pega o mais ao fundo
+        let melhor = -1;
+        for (let i = 0; i < n; i++) if (!usados[i] && (melhor < 0 || prof[i] < prof[melhor])) melhor = i;
+        prontos.push(melhor);
+        grau[melhor] = 0;
+      }
+      prontos.sort((a, b) => prof[b] - prof[a]);
+      const i = prontos.pop();
+      if (usados[i]) continue;
+      usados[i] = true;
+      saida.push(prims[i]);
+      depois[i].forEach((j) => { if (--grau[j] === 0 && !usados[j]) prontos.push(j); });
+    }
+    return saida;
+  }
+
+  /* ----------------------------- piso e paredes ---------------------------- */
+
+  function desenharLoja(pai, P, loja) {
+    const W = loja.largura, D = loja.profundidade, H = loja.alturaParede;
+    const t = ESPESSURA_PAREDE, b = ESPESSURA_PISO;
+    const g = el('g', { class: 'loja' }, pai);
+    // Laje do piso (bordas frontais).
+    poligono(g, [P(-t, D, 0), P(W, D, 0), P(W, D, -b), P(-t, D, -b)], { fill: '#D9D9D9', stroke: '#C4C4C4' });
+    poligono(g, [P(W, -t, 0), P(W, D, 0), P(W, D, -b), P(W, -t, -b)], { fill: '#C9C9C9', stroke: '#C4C4C4' });
+    poligono(g, [P(-t, -t, 0), P(W, -t, 0), P(W, D, 0), P(-t, D, 0)], { fill: COR.piso, stroke: COR.pisoBorda });
+    // Paredes do fundo (esquerda e direita).
+    const parede = { cores: null, corNeutra: '#F1F1F1' };
+    caixa(g, P, { x: -t, y: -t, z: 0, w: t, d: D + t, h: H }, parede);
+    caixa(g, P, { x: 0, y: -t, z: 0, w: W, d: t, h: H }, parede);
+  }
+
+  /* ------------------------------ etiquetas ------------------------------- */
+
+  function medirGrupo(etiquetas, simbolo, corPadrao) {
+    const itens = etiquetas.map((e) => {
+      const linhas = quebrar(e.texto, ETQ.maxTexto, ETQ.fonte, 700);
+      const w = Math.max.apply(null, linhas.map((l) => largura(l, ETQ.fonte, 700))) + ETQ.padX * 2;
+      return {
+        linhas,
+        w,
+        h: linhas.length * ETQ.lh + ETQ.padY * 2,
+        cores: coresDe(e.marca, 'etiqueta') || corPadrao,
+      };
+    });
+    const wEtq = Math.max.apply(null, itens.map((i) => i.w));
+    const h = itens.reduce((s, i) => s + i.h, 0) + ETQ.gap * (itens.length - 1);
+    return { itens, wEtq, w: wEtq + (simbolo ? ETQ.simbolo + 4 : 0), h, simbolo };
+  }
+
+  function desenharSimbolo(pai, simbolo, cx, cy, escala) {
+    const k = escala || 1;
+    const g = el('g', { transform: 'translate(' + cx + ',' + cy + ') scale(' + k + ')' }, pai);
+    if (simbolo === 'MOVIMENTO') {
+      poligono(g, [[-6, -7.5], [8, 0], [-6, 7.5]], { fill: '#111' });
+    } else if (simbolo === 'FIXO') {
+      poligono(g, [[0, -8.5], [8.5, 0], [0, 8.5], [-8.5, 0]], { fill: '#111' });
+    } else if (simbolo === 'EXPOSICAO') {
+      el('circle', { r: 8.5, fill: '#111', stroke: '#fff', 'stroke-width': 1.2 }, g);
+      texto(g, 0, 4, 'E', { 'font-size': 11, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' });
+    } else if (simbolo === 'NOVO') {
+      const pts = [];
+      for (let i = 0; i < 24; i++) {
+        const r = i % 2 ? 8 : 11;
+        const a = (Math.PI * 2 * i) / 24;
+        pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+      }
+      poligono(g, pts, { fill: '#FFD21F', stroke: '#B88A00', 'stroke-width': 0.8 });
+      texto(g, 0, 2.4, 'NEW', { 'font-size': 6.5, 'font-weight': 700, fill: '#6B4200', 'text-anchor': 'middle' });
+    }
+    return g;
+  }
+
+  function desenharGrupo(pai, gr, attrs) {
+    const g = el('g', Object.assign({ 'data-movel': gr.id }, attrs), pai);
+    let y = gr.y;
+    gr.itens.forEach((it, i) => {
+      el('rect', { x: gr.x, y, width: gr.wEtq, height: it.h, fill: tinta(it.cores, 0), rx: 1.5 }, g);
+      it.linhas.forEach((l, k) => {
+        texto(g, gr.x + gr.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.2, l, {
+          'font-size': ETQ.fonte, 'font-weight': 700, fill: '#FFFFFF', 'text-anchor': 'middle',
+        });
+      });
+      if (i === 0 && gr.simbolo) desenharSimbolo(g, gr.simbolo, gr.x + gr.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2);
+      y += it.h + ETQ.gap;
+    });
+    return g;
+  }
+
+  const sobrepoe = (a, b, m) => a.x < b.x + b.w + m && b.x < a.x + a.w + m && a.y < b.y + b.h + m && b.y < a.y + a.h + m;
+
+  /** Candidatos de deslocamento, do mais próximo ao mais distante. */
+  const DESLOCAMENTOS = (() => {
+    const lista = [];
+    for (let dx = -220; dx <= 220; dx += 10) {
+      for (let dy = -160; dy <= 160; dy += 6) lista.push([dx, dy, dx * dx + dy * dy * 1.3]);
+    }
+    return lista.sort((a, b) => a[2] - b[2]);
+  })();
+
+  /** Posiciona os grupos evitando sobreposição (grupos com ajuste manual ficam onde estão). */
+  function posicionar(grupos, obstaculos) {
+    const ocupados = obstaculos.slice();
+    const dentro = (r) => r.x >= LIMITES.x0 && r.y >= LIMITES.y0 && r.x + r.w <= LIMITES.x1 && r.y + r.h <= LIMITES.y1;
+    grupos.filter((g) => g.manual).forEach((g) => ocupados.push(g));
+    grupos.filter((g) => !g.manual).sort((a, b) => a.ancora[1] - b.ancora[1]).forEach((g) => {
+      const base = { x: g.x, y: g.y, w: g.w, h: g.h };
+      for (let i = 0; i < DESLOCAMENTOS.length; i++) {
+        const c = { x: base.x + DESLOCAMENTOS[i][0], y: base.y + DESLOCAMENTOS[i][1], w: g.w, h: g.h };
+        if (!dentro(c)) continue;
+        if (ocupados.every((o) => !sobrepoe(c, o, 3))) {
+          g.x = c.x;
+          g.y = c.y;
+          break;
+        }
+      }
+      ocupados.push(g);
+    });
+  }
+
+  /** Linha-guia do grupo até o ponto do móvel (quando o grupo ficou longe). */
+  function desenharGuia(pai, rect, ancora, forcar) {
+    const px = Math.max(rect.x, Math.min(ancora[0], rect.x + rect.w));
+    const py = Math.max(rect.y, Math.min(ancora[1], rect.y + rect.h));
+    const dist = Math.hypot(px - ancora[0], py - ancora[1]);
+    if (!forcar && dist < 14) return;
+    linha(pai, [px, py], ancora, { stroke: '#3A3A3A', 'stroke-width': 1.3 });
+    el('circle', { cx: ancora[0], cy: ancora[1], r: 4, fill: '#FFFFFF', stroke: '#3A3A3A', 'stroke-width': 1.3 }, pai);
+  }
+
+  /* ----------------------------- painel lateral ---------------------------- */
+
+  function iconeTv(pai, cx, cy) {
+    const g = el('g', { fill: 'none', stroke: '#222', 'stroke-width': 2.4, 'stroke-linejoin': 'round' }, pai);
+    el('rect', { x: cx - 21, y: cy - 15, width: 42, height: 27, rx: 2 }, g);
+    linha(g, [cx - 7, cy + 17], [cx + 7, cy + 17], {});
+    linha(g, [cx, cy + 12], [cx, cy + 17], {});
+  }
+
+  function iconeRadio(pai, cx, cy) {
+    const g = el('g', { fill: 'none', stroke: '#222', 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, pai);
+    el('rect', { x: cx - 17, y: cy - 10, width: 34, height: 26, rx: 3 }, g);
+    linha(g, [cx - 13, cy - 10], [cx + 10, cy - 22], {});
+    el('circle', { cx: cx - 6, cy: cy + 7, r: 5 }, g);
+    linha(g, [cx + 4, cy + 3], [cx + 12, cy + 3], {});
+    linha(g, [cx + 4, cy + 9], [cx + 12, cy + 9], {});
+    linha(g, [cx - 13, cy - 4], [cx + 13, cy - 4], {});
+  }
+
+  function iconeLetra(pai, cx, cy, letra) {
+    el('circle', { cx, cy, r: 20, fill: 'none', stroke: '#222', 'stroke-width': 2.4 }, pai);
+    texto(pai, cx, cy + 12, letra, { 'font-size': 33, 'font-weight': 400, fill: '#222', 'text-anchor': 'middle' });
+  }
+
+  function listaLateral(pai, itens, x, y, w, alturaMin) {
+    const medidos = itens.map((it) => {
+      const linhas = quebrar(it.texto, w - 8, 11, 700);
+      return { it, linhas, h: Math.max(23, linhas.length * 13 + 10) };
+    });
+    let total = medidos.reduce((s, m) => s + m.h, 0) + 6 * (medidos.length - 1);
+    const extra = alturaMin && total < alturaMin ? (alturaMin - total) / medidos.length : 0;
+    let cy = y;
+    medidos.forEach((m) => {
+      const h = m.h + extra;
+      const cores = coresDe(m.it.marca, 'etiqueta') || [COR.etiquetaPadrao];
+      el('rect', { x, y: cy, width: w, height: h, fill: tinta(cores, 0) }, pai);
+      const y0 = cy + h / 2 - (m.linhas.length * 13) / 2 + 10;
+      m.linhas.forEach((l, k) => texto(pai, x + 4, y0 + k * 13, l, { 'font-size': 11, 'font-weight': 700, fill: '#fff' }));
+      cy += h + 6;
+    });
+    return Math.max(total + extra * medidos.length, alturaMin || 0);
+  }
+
+  function desenharLateral(pai, planta, ciclo, secoes) {
+    const g = el('g', { class: 'lateral' }, pai);
+    el('rect', { x: 22, y: 12, width: 260, height: 64, fill: '#0A0A0A', stroke: '#666', 'stroke-width': 1 }, g);
+    texto(g, 152, 58, planta.nome, { 'font-size': 38, 'font-weight': 700, fill: '#FFFFFF', 'text-anchor': 'middle' });
+    if (ciclo) {
+      texto(g, 24, 100, 'CICLO: ' + ciclo, { 'font-size': 15, 'font-weight': 700, fill: '#6B6B6B' });
+    }
+
+    let y = 117;
+    if (secoes.TV.length) {
+      iconeTv(g, 62, 135);
+      iconeRadio(g, 62, 222);
+      y += listaLateral(g, secoes.TV, 91, y, 168, 122) + 26;
+    }
+    ['A', 'C'].forEach((letra) => {
+      if (!secoes[letra].length) return;
+      const h = listaLateral(g, secoes[letra], 91, y, 168, 0);
+      iconeLetra(g, 62, y + h / 2, letra);
+      y += h + 26;
+    });
+  }
+
+  /** Notas (canto inferior esquerdo): o trecho antes de ":" fica em negrito. */
+  function medirNotas(notas) {
+    const tam = 17, lh = 23, maxW = 490;
+    const paragrafos = notas.map((n) => {
+      const i = n.texto.indexOf(':');
+      const partes = i > 0 && i < 60
+        ? [{ t: n.texto.slice(0, i + 1), b: true }, { t: n.texto.slice(i + 1), b: false }]
+        : [{ t: n.texto, b: false }];
+      const palavras = [];
+      partes.forEach((p) => p.t.split(/\s+/).filter(Boolean).forEach((w) => palavras.push({ t: w, b: p.b })));
+      const linhas = [];
+      let atual = [];
+      let w = 0;
+      palavras.forEach((p) => {
+        const lp = largura(p.t, tam, p.b ? 700 : 400);
+        const esp = atual.length ? largura(' ', tam, 400) : 0;
+        if (atual.length && w + esp + lp > maxW) { linhas.push(atual); atual = []; w = 0; }
+        atual.push(p);
+        w += (atual.length > 1 ? esp : 0) + lp;
+      });
+      if (atual.length) linhas.push(atual);
+      return linhas;
+    });
+    const nLinhas = paragrafos.reduce((s, p) => s + p.length, 0);
+    return { paragrafos, tam, lh, h: nLinhas * lh + (paragrafos.length - 1) * 14 + 44, w: 535 };
+  }
+
+  function desenharNotas(pai, medida, x, y) {
+    const g = el('g', { class: 'notas' }, pai);
+    el('rect', { x, y, width: medida.w, height: medida.h, fill: '#F7F4F0', stroke: '#E2DDD6', filter: 'url(#sombra)' }, g);
+    let cy = y + 22 + medida.lh - 6;
+    medida.paragrafos.forEach((linhas) => {
+      linhas.forEach((ln) => {
+        const t = el('text', { x: x + 22, y: cy, 'font-family': FONTE, 'font-size': medida.tam, fill: COR.textoNota }, g);
+        ln.forEach((p, i) => {
+          const s = el('tspan', { 'font-weight': p.b ? 700 : 400, fill: p.b ? COR.tituloNota : COR.textoNota }, t);
+          s.textContent = (i ? ' ' : '') + p.t;
+        });
+        cy += medida.lh;
+      });
+      cy += 14;
+    });
+  }
+
+  function desenharLegendaSimbolos(pai, usados, simbolos) {
+    const ordem = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((s) => usados.has(s));
+    let y = 1052 - (ordem.length - 1) * 44;
+    const topo = y - 22;
+    ordem.forEach((s) => {
+      desenharSimbolo(pai, s, 33, y, 1.45);
+      texto(pai, 58, y + 7, (simbolos[s] && simbolos[s].descricao) || s, { 'font-size': 19, fill: '#1A1A1A', 'font-weight': 400 });
+      y += 44;
+    });
+    return ordem.length ? topo : 1072;
+  }
+
+  /* ---------------------------- itens extras ------------------------------ */
+
+  function iconeExtra(pai, id, cx, cy) {
+    const g = el('g', { fill: 'none', stroke: '#6A6A6A', 'stroke-width': 1.6, 'stroke-linejoin': 'round' }, pai);
+    const k = id.toUpperCase();
+    if (k.indexOf('CEST') >= 0) {
+      el('path', { d: `M${cx - 24},${cy - 4} L${cx + 24},${cy - 4} L${cx + 18},${cy + 20} L${cx - 18},${cy + 20} Z` }, g);
+      el('path', { d: `M${cx - 16},${cy - 4} Q${cx},${cy - 32} ${cx + 16},${cy - 4}` }, g);
+      for (let i = -12; i <= 12; i += 8) linha(g, [cx + i, cy - 4], [cx + i * 0.75, cy + 20], {});
+      linha(g, [cx - 21, cy + 6], [cx + 21, cy + 6], {});
+    } else if (k.indexOf('CAVALETE') >= 0) {
+      el('rect', { x: cx - 16, y: cy - 26, width: 32, height: 40, fill: '#FFFFFF' }, g);
+      linha(g, [cx - 13, cy + 14], [cx - 18, cy + 28], {});
+      linha(g, [cx + 13, cy + 14], [cx + 18, cy + 28], {});
+    } else {
+      el('path', { d: `M${cx - 20},${cy - 12} L${cx},${cy - 22} L${cx + 20},${cy - 12} L${cx + 20},${cy + 18} L${cx},${cy + 28} L${cx - 20},${cy + 18} Z` }, g);
+      linha(g, [cx, cy - 2], [cx, cy + 28], {});
+      linha(g, [cx - 20, cy - 12], [cx, cy - 2], {});
+      linha(g, [cx + 20, cy - 12], [cx, cy - 2], {});
+    }
+  }
+
+  function desenharExtras(pai, extras, obterDados) {
+    if (!extras.length) return null;
+    const slot = 206;
+    const w = slot * extras.length;
+    const h = 84;
+    const x = 1904 - w;
+    const y = 1064 - h;
+    const g = el('g', { class: 'extras' }, pai);
+    el('rect', { x, y, width: w, height: h, rx: 10, fill: '#FFFFFF', stroke: '#DDD', filter: 'url(#sombra)' }, g);
+    extras.forEach((m, i) => {
+      const x0 = x + i * slot;
+      const gs = el('g', { 'data-movel': m.id }, g);
+      dica(gs, m.id + (m.descricao ? ' — ' + m.descricao : ''));
+      if (i) linha(gs, [x0, y + 14], [x0, y + h - 14], { stroke: '#BBBBBB', 'stroke-width': 1.5 });
+      iconeExtra(gs, m.id + ' ' + m.descricao, x0 + 38, y + h / 2);
+      texto(gs, x0 + 136, y + 20, m.descricao || m.id, { 'font-size': 11, 'font-style': 'italic', fill: '#666', 'text-anchor': 'middle' });
+      const info = obterDados(m);
+      const etiquetas = info && info.etiquetas.length ? info.etiquetas : [];
+      let cy = y + 28;
+      etiquetas.slice(0, 3).forEach((e) => {
+        const cores = coresDe(e.marca, 'etiqueta') || coresDe(info.marca, 'etiqueta') || [COR.etiquetaPadrao];
+        const linhas = quebrar(e.texto, 116, 10, 700).slice(0, 2);
+        const hh = linhas.length * 11 + 5;
+        el('rect', { x: x0 + 76, y: cy, width: 120, height: hh, fill: tinta(cores, 0) }, gs);
+        linhas.forEach((l, k) => texto(gs, x0 + 136, cy + 10 + k * 11, l, { 'font-size': 10, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' }));
+        cy += hh + 3;
+      });
+      if (!etiquetas.length) texto(gs, x0 + 136, y + 50, '—', { 'font-size': 14, fill: '#AAA', 'text-anchor': 'middle' });
+    });
+    return { x, y, w, h };
+  }
+
+  /* ------------------------------- callouts ------------------------------- */
+
+  function posicionarCallouts(callouts) {
+    const placed = [];
+    callouts.sort((a, b) => a.ancoraX - b.ancoraX).forEach((c) => {
+      c.x = Math.max(LIMITES.x0 + 6, Math.min(c.ancoraX - c.w / 2, LIMITES.x1 - c.w));
+      c.y = 14;
+      placed.forEach((p) => {
+        if (sobrepoe(c, p, 14)) c.x = p.x + p.w + 18;
+      });
+      placed.push(c);
+    });
+    // Se estourou a direita, empurra tudo para a esquerda; se ainda não couber, quebra linha.
+    const excesso = placed.length ? placed[placed.length - 1].x + placed[placed.length - 1].w - LIMITES.x1 : 0;
+    if (excesso > 0) {
+      for (let i = placed.length - 1; i >= 0; i--) {
+        const limite = i === placed.length - 1 ? LIMITES.x1 : placed[i + 1].x - 18;
+        placed[i].x = Math.min(placed[i].x, limite - placed[i].w);
+      }
+    }
+    placed.forEach((c, i) => {
+      if (c.x < LIMITES.x0) {
+        c.x = LIMITES.x0 + 6;
+        const acima = placed.slice(0, i).filter((p) => sobrepoe(c, p, 10));
+        if (acima.length) c.y = Math.max.apply(null, acima.map((p) => p.y + p.h)) + 14;
+      }
+    });
+  }
+
+  function desenharCallout(pai, c) {
+    const g = el('g', { class: 'callout' }, pai);
+    el('rect', { x: c.x, y: c.y, width: c.w, height: c.h, fill: tinta(c.cores, 0), stroke: misturar(c.cores[0], '#000000', 0.25), 'stroke-width': 1 }, g);
+    c.linhas.forEach((l, k) => texto(g, c.x + CALLOUT.pad, c.y + CALLOUT.pad + CALLOUT.lh * (k + 1) - 4, l, {
+      'font-size': CALLOUT.fonte, 'font-weight': 700, fill: '#FFFFFF',
+    }));
+  }
+
+  /* ------------------------------ desenho ---------------------------------- */
+
+  /**
+   * @param {SVGSVGElement} svg
+   * @param {{dados, planta, ciclo, filtro, ajustes, obterMovimento, obterPaineis, edicao}} ctx
+   * @return {{grupos: Array}} grupos de etiquetas (para arrastar no modo edição)
+   */
+  function desenhar(svg, ctx) {
+    marcas = ctx.dados.marcas;
+    gradientes = {};
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute('viewBox', '0 0 ' + TELA.w + ' ' + TELA.h);
+    defs = el('defs', null, svg);
+    const filtro = el('filter', { id: 'sombra', x: '-10%', y: '-10%', width: '120%', height: '130%' }, defs);
+    el('feDropShadow', { dx: 0, dy: 3, stdDeviation: 4, 'flood-color': '#000', 'flood-opacity': 0.18 }, filtro);
+    el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
+
+    const planta = ctx.planta;
+    const { P } = criarProjecao(planta.loja);
+    const camadaPlanta = el('g', { class: 'camada-planta' }, svg);
+    const camadaGuias = el('g', { class: 'camada-guias' }, svg);
+    const camadaEtiquetas = el('g', { class: 'camada-etiquetas' }, svg);
+    const camadaSobre = el('g', { class: 'camada-sobreposta' }, svg);
+
+    desenharLoja(camadaPlanta, P, planta.loja);
+
+    const moveis = planta.moveis.filter((m) => m.tipo !== 'EXTRA');
+    const extras = planta.moveis.filter((m) => m.tipo === 'EXTRA');
+    const simbolosUsados = new Set();
+
+    // Situação de cada móvel no ciclo.
+    const info = {};
+    moveis.concat(extras).forEach((m) => {
+      info[m.id] = ctx.obterMovimento(m);
+      if (info[m.id] && info[m.id].simbolo) simbolosUsados.add(info[m.id].simbolo);
+    });
+    const marcasDoMovel = (m) => {
+      const i = info[m.id];
+      if (!i) return new Set();
+      const s = new Set(String(i.marca || '').split('+'));
+      i.etiquetas.forEach((e) => String(e.marca || '').split('+').forEach((x) => s.add(x)));
+      return s;
+    };
+    const apagado = (m) => ctx.filtro && !marcasDoMovel(m).has(ctx.filtro);
+
+    // Móveis, na ordem de pintura.
+    const prims = [];
+    moveis.forEach((m) => primitivas(m).forEach((p) => prims.push(p)));
+    ordenar(prims, P).forEach((b) => {
+      const m = b.movel;
+      const i = info[m.id];
+      const cores = i && !ehNeutro(i.marca) ? coresDe(i.marca, 'movel') : null;
+      const g = el('g', { class: 'movel', 'data-movel': m.id, opacity: apagado(m) ? 0.18 : 1 }, camadaPlanta);
+      desenharPrimitiva(g, P, b, cores);
+      const linhasDica = [m.id + (m.descricao ? ' — ' + m.descricao : '')];
+      if (i) {
+        linhasDica.push('Marca: ' + (i.marca ? i.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—'));
+        i.etiquetas.forEach((e) => linhasDica.push('• ' + e.texto));
+        if (i.observacao) linhasDica.push('Obs.: ' + i.observacao);
+      } else {
+        linhasDica.push('Sem movimento neste ciclo');
+      }
+      dica(g, linhasDica.join('\n'));
+    });
+
+    // Painéis (lateral, notas, callouts, extras).
+    const pain = ctx.obterPaineis();
+    desenharLateral(el('g', null, camadaSobre), planta, ctx.ciclo, pain);
+    const topoLegenda = desenharLegendaSimbolos(camadaSobre, simbolosUsados, ctx.dados.simbolos);
+    const obstaculos = [{ x: 0, y: 0, w: 470, h: 1080 }];
+    if (pain.NOTA.length) {
+      const med = medirNotas(pain.NOTA);
+      const y = Math.min(topoLegenda, 1072) - 28 - med.h;
+      desenharNotas(camadaSobre, med, 15, y);
+      obstaculos.push({ x: 15, y, w: med.w, h: med.h });
+    }
+    const rExtras = desenharExtras(camadaSobre, extras, (m) => info[m.id]);
+    if (rExtras) obstaculos.push(rExtras);
+
+    const ancoraDe = (m) => {
+      if (m.tipo === 'VITRINE_L') {
+        const t = espessuraL(m);
+        return P(m.x + m.w / 2, m.y + m.d - t / 2, m.z + m.h);
+      }
+      return P(m.x + m.w / 2, m.y + m.d / 2, m.z + m.h);
+    };
+    const porId = {};
+    moveis.forEach((m) => { porId[m.id] = m; });
+
+    const callouts = pain.CALLOUT.map((c) => {
+      const cores = coresDe(c.marca, 'etiqueta') || [COR.etiquetaPadrao];
+      const linhas = quebrar(c.texto, CALLOUT.maxW - CALLOUT.pad * 2, CALLOUT.fonte, 700);
+      const w = Math.max.apply(null, linhas.map((l) => largura(l, CALLOUT.fonte, 700))) + CALLOUT.pad * 2 + 2;
+      const alvo = c.movel && porId[c.movel] ? ancoraDe(porId[c.movel]) : null;
+      return { cores, linhas, w, h: linhas.length * CALLOUT.lh + CALLOUT.pad * 2, alvo, ancoraX: alvo ? alvo[0] : 1200 };
+    });
+    posicionarCallouts(callouts);
+    callouts.forEach((c) => {
+      if (c.alvo) {
+        const x = Math.max(c.x + 12, Math.min(c.alvo[0], c.x + c.w - 12));
+        desenharGuia(camadaGuias, { x, y: c.y + c.h, w: 0, h: 0 }, c.alvo, true);
+      }
+      desenharCallout(camadaEtiquetas, c);
+      obstaculos.push(c);
+    });
+
+    // Etiquetas dos móveis.
+    const grupos = [];
+    moveis.forEach((m) => {
+      const i = info[m.id];
+      if (!i || !i.etiquetas.length) return;
+      const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta')) || [COR.etiquetaPadrao];
+      const med = medirGrupo(i.etiquetas, i.simbolo, corPadrao);
+      const ancora = ancoraDe(m);
+      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
+      const baseX = ancora[0] - med.w / 2;
+      const baseY = ancora[1] - med.h / 2;
+      grupos.push(Object.assign(med, {
+        id: m.id,
+        movel: m,
+        ancora,
+        baseX,
+        baseY,
+        x: baseX + ajuste.x,
+        y: baseY + ajuste.y,
+        manual: !!(ajuste.x || ajuste.y),
+      }));
+    });
+    posicionar(grupos, obstaculos);
+    grupos.forEach((gr) => {
+      const esmaecer = apagado(gr.movel) ? 0.15 : 1;
+      const guia = el('g', { opacity: esmaecer }, camadaGuias);
+      desenharGuia(guia, gr, gr.ancora, false);
+      gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
+        class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : ''),
+        opacity: esmaecer,
+      });
+      dica(gr.elemento, gr.id + (gr.movel.descricao ? ' — ' + gr.movel.descricao : ''));
+    });
+
+    return { grupos };
+  }
+
+  return { desenhar, TELA };
+})();
+</script>
+
+    <script>
+/**
+ * ============================================================================
+ *  PLANILHA BASE (.xlsx): gerar para download e ler o arquivo preenchido
+ * ============================================================================
+ *  Usa a biblioteca ExcelJS (carregada sob demanda do cdnjs), tudo no
+ *  navegador — o servidor só recebe os valores das células já lidos.
+ */
+const Planilha = (() => {
+  const EXCELJS = {
+    src: 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',
+    integrity: 'sha512-dlPw+ytv/6JyepmelABrgeYgHI0O+frEwgfnPdXDTOIZz+eDgfW07QXG02/O8COfivBdGNINy+Vex+lYmJ5rxw==',
+  };
+  const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const LINHAS_EXTRAS = 300; // linhas vazias com validação, para o usuário acrescentar
+  const COR_CABECALHO = 'FF202124';
+  const FAIXAS_PLANTA = ['FFFFFFFF', 'FFF3F4F6'];
+
+  let promessaExcel = null;
+
+  function carregarExcelJS() {
+    if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+    if (!promessaExcel) {
+      promessaExcel = new Promise((ok, falha) => {
+        const s = document.createElement('script');
+        s.src = EXCELJS.src;
+        s.integrity = EXCELJS.integrity;
+        s.crossOrigin = 'anonymous';
+        s.referrerPolicy = 'no-referrer';
+        s.onload = () => ok(window.ExcelJS);
+        s.onerror = () => {
+          promessaExcel = null;
+          falha(new Error('Não foi possível carregar a biblioteca de planilhas (ExcelJS). Verifique a conexão.'));
+        };
+        document.head.appendChild(s);
+      });
+    }
+    return promessaExcel;
+  }
+
+  /** Dispara o download de um Blob. */
+  function baixarBlob(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  const chave = (v) => String(v == null ? '' : v).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const argb = (hex) => 'FF' + String(hex).replace('#', '').toUpperCase();
+  const letra = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+  const nomeArquivo = (s) => String(s).replace(/[\\/:*?"<>|]+/g, '-').trim();
+
+  function estilizarCabecalho(row) {
+    row.height = 30;
+    row.eachCell((c) => {
+      c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COR_CABECALHO } };
+      c.alignment = { vertical: 'middle', wrapText: true };
+    });
+  }
+
+  function larguraColuna(k) {
+    if (k === 'descricao' || k === 'observacao') return 36;
+    if (k === 'texto') return 70;
+    if (/^etiqueta/.test(k)) return 26;
+    if (/marca/i.test(k)) return 15;
+    return 13;
+  }
+
+  /** Lista suspensa + cores por marca numa coluna. */
+  function validarColuna(ws, col, ultima, lista, titulo, ajuda) {
+    for (let r = 2; r <= ultima; r++) {
+      ws.getCell(r, col).dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['"' + lista.join(',') + '"'],
+        showErrorMessage: true,
+        errorStyle: 'warning',
+        errorTitle: titulo,
+        error: ajuda,
+        showInputMessage: true,
+        promptTitle: titulo,
+        prompt: ajuda.slice(0, 250),
+      };
+    }
+  }
+
+  function colorirMarcas(ws, col, ultima, marcas) {
+    const ref = letra(col) + '2:' + letra(col) + ultima;
+    ws.addConditionalFormatting({
+      ref,
+      rules: Object.keys(marcas).map((cod, i) => ({
+        type: 'containsText',
+        operator: 'containsText',
+        text: cod,
+        priority: i + 1,
+        style: {
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: argb(cod === 'NEUTRO' ? '#E8E8E8' : marcas[cod].etiqueta) } },
+          font: { bold: true, color: { argb: cod === 'NEUTRO' ? 'FF333333' : 'FFFFFFFF' } },
+        },
+      })),
+    });
+  }
+
+  function textoAjudaMarca(marcas) {
+    return 'Use ' + Object.keys(marcas).join(', ') + '. Combinações com "+" (ex.: BOT+QDB) geram degradê; também aceita cor #RRGGBB.';
+  }
+
+  /* ------------------------------ abas ------------------------------------ */
+
+  function abaInstrucoes(wb, dados, op) {
+    const ws = wb.addWorksheet('Instruções', { views: [{ showGridLines: false }] });
+    ws.columns = [{ width: 4 }, { width: 22 }, { width: 34 }, { width: 70 }];
+    const abas = dados.config.abas;
+    let r = 1;
+    const titulo = (t, tam) => {
+      const c = ws.getCell(r, 2);
+      c.value = t;
+      c.font = { bold: true, size: tam || 12 };
+      r++;
+    };
+    const paragrafo = (t) => {
+      ws.mergeCells(r, 2, r, 4);
+      const c = ws.getCell(r, 2);
+      c.value = t;
+      c.alignment = { wrapText: true, vertical: 'top' };
+      ws.getRow(r).height = Math.max(16, Math.ceil(t.length / 110) * 15);
+      r++;
+    };
+
+    titulo('Planilha base — Plano de Varejo', 16);
+    paragrafo('Gerada em ' + new Date().toLocaleString('pt-BR') + (op.origem ? ' a partir do ciclo "' + op.origem + '".' : ' (em branco).'));
+    r++;
+    titulo('Como preencher');
+    [
+      '1. Na aba "' + abas.MOVIMENTOS + '", cada linha é um móvel de uma planta. NÃO altere "Planta" nem "ID Móvel": eles ligam a linha ao desenho.',
+      '2. Preencha "Ciclo" em todas as linhas com o nome do ciclo (ex.: C15/2026). É esse nome que aparece no seletor de ciclos.',
+      '3. "Marca do Móvel" define a cor do móvel na planta. Deixe vazio (ou NEUTRO) para o móvel aparecer branco.',
+      '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto do móvel; "Marca Etiqueta N" define a cor de cada uma (vazio = cor do móvel).',
+      '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
+      '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
+      '7. Planta = TODAS faz a linha valer para todas as plantas; uma linha da planta específica tem prioridade.',
+      '8. Salve o arquivo e use o botão "Importar planilha" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',
+      '9. Aba "' + abas.LAYOUT + '" (opcional): posição e tamanho dos móveis (X, Y, Largura, Profundidade, Altura). Ao importar, as plantas presentes nela são substituídas por inteiro.',
+    ].forEach(paragrafo);
+    r++;
+
+    titulo('Marcas (cores)');
+    Object.keys(dados.marcas).forEach((cod) => {
+      const m = dados.marcas[cod];
+      ws.getCell(r, 2).value = cod;
+      ws.getCell(r, 2).font = { bold: true };
+      ws.getCell(r, 3).value = m.nome;
+      const cor = ws.getCell(r, 4);
+      cor.value = 'Etiqueta ' + m.etiqueta + '  ·  Móvel ' + m.movel;
+      cor.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(cod === 'NEUTRO' ? '#E8E8E8' : m.etiqueta) } };
+      cor.font = { color: { argb: cod === 'NEUTRO' ? 'FF333333' : 'FFFFFFFF' }, bold: true };
+      r++;
+    });
+    r++;
+    titulo('Símbolos');
+    const desenho = { MOVIMENTO: '▶', FIXO: '◆', EXPOSICAO: 'Ⓔ', NOVO: 'NEW' };
+    Object.keys(dados.simbolos).forEach((s) => {
+      ws.getCell(r, 2).value = s;
+      ws.getCell(r, 2).font = { bold: true };
+      ws.getCell(r, 3).value = desenho[s] || '';
+      ws.getCell(r, 4).value = dados.simbolos[s].descricao;
+      r++;
+    });
+    r++;
+    titulo('Seções da aba ' + abas.PAINEIS);
+    Object.keys(dados.secoes).forEach((s) => {
+      ws.getCell(r, 2).value = s;
+      ws.getCell(r, 2).font = { bold: true };
+      ws.mergeCells(r, 3, r, 4);
+      ws.getCell(r, 3).value = dados.secoes[s].descricao;
+      r++;
+    });
+  }
+
+  function abaMovimentos(wb, dados, op, resolver) {
+    const cols = dados.colunas.movimentos;
+    const ws = wb.addWorksheet(dados.config.abas.MOVIMENTOS, { views: [{ state: 'frozen', xSplit: 4, ySplit: 1 }] });
+    ws.columns = cols.map((c) => ({ header: c.titulo, key: c.chave, width: larguraColuna(c.chave), style: { numFmt: '@' } }));
+    estilizarCabecalho(ws.getRow(1));
+
+    let faixa = 0;
+    dados.plantas.filter((p) => op.plantas.indexOf(p.id) >= 0).forEach((p) => {
+      const fundo = { type: 'pattern', pattern: 'solid', fgColor: { argb: FAIXAS_PLANTA[faixa++ % FAIXAS_PLANTA.length] } };
+      p.moveis.forEach((m) => {
+        const linha = { ciclo: op.ciclo, planta: p.id, movel: m.id, descricao: m.descricao };
+        const info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;
+        if (info) {
+          linha.marca = info.marca;
+          info.etiquetas.forEach((e, i) => {
+            linha['etiqueta' + (i + 1)] = e.texto;
+            linha['marcaEtiqueta' + (i + 1)] = e.marca;
+          });
+          linha.simbolo = info.simbolo;
+          linha.observacao = info.observacao;
+        }
+        const row = ws.addRow(linha);
+        for (let c = 1; c <= 4; c++) row.getCell(c).fill = fundo;
+        row.getCell(4).font = { italic: true, color: { argb: 'FF666666' } };
+      });
+    });
+
+    const ultima = ws.rowCount + LINHAS_EXTRAS;
+    const ajudaMarca = textoAjudaMarca(dados.marcas);
+    cols.forEach((c, i) => {
+      if (/^marca/i.test(c.chave)) {
+        validarColuna(ws, i + 1, ultima, Object.keys(dados.marcas), c.titulo, ajudaMarca);
+        colorirMarcas(ws, i + 1, ultima, dados.marcas);
+      } else if (c.chave === 'simbolo') {
+        validarColuna(ws, i + 1, ultima, Object.keys(dados.simbolos), 'Símbolo',
+          Object.keys(dados.simbolos).map((s) => s + ' = ' + dados.simbolos[s].descricao).join('; '));
+      }
+    });
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
+  }
+
+  function abaPaineis(wb, dados, op, resolver) {
+    const cols = dados.colunas.paineis;
+    const ws = wb.addWorksheet(dados.config.abas.PAINEIS, { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.columns = cols.map((c) => ({ header: c.titulo, key: c.chave, width: larguraColuna(c.chave), style: { numFmt: '@' } }));
+    estilizarCabecalho(ws.getRow(1));
+
+    if (op.origem) {
+      resolver.linhasPaineis(op.origem, op.plantas).forEach((p) => {
+        const row = ws.addRow({ ciclo: op.ciclo, planta: p.planta, secao: p.secao, texto: p.texto, marca: p.marca, movel: p.movel });
+        row.getCell(4).alignment = { wrapText: true, vertical: 'top' };
+      });
+    }
+    const ultima = ws.rowCount + LINHAS_EXTRAS;
+    cols.forEach((c, i) => {
+      if (c.chave === 'secao') {
+        validarColuna(ws, i + 1, ultima, Object.keys(dados.secoes), 'Seção',
+          Object.keys(dados.secoes).map((s) => s + ' = ' + dados.secoes[s].descricao).join('; '));
+      } else if (c.chave === 'marca') {
+        validarColuna(ws, i + 1, ultima, Object.keys(dados.marcas), 'Marca', textoAjudaMarca(dados.marcas));
+        colorirMarcas(ws, i + 1, ultima, dados.marcas);
+      }
+    });
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
+  }
+
+  /** Aba Layout com a posição atual dos móveis (para ajustar coordenadas). */
+  function abaLayout(wb, dados, op) {
+    const cols = dados.colunas.layout;
+    const ws = wb.addWorksheet(dados.config.abas.LAYOUT, { views: [{ state: 'frozen', xSplit: 2, ySplit: 1 }] });
+    ws.columns = cols.map((c) => ({
+      header: c.titulo, key: c.chave, width: c.chave === 'descricao' ? 36 : c.chave === 'tipo' ? 17 : 12,
+      style: c.texto ? { numFmt: '@' } : {},
+    }));
+    estilizarCabecalho(ws.getRow(1));
+    let faixa = 0;
+    dados.plantas.filter((p) => op.plantas.indexOf(p.id) >= 0).forEach((p) => {
+      const fundo = { type: 'pattern', pattern: 'solid', fgColor: { argb: FAIXAS_PLANTA[faixa++ % FAIXAS_PLANTA.length] } };
+      const linhas = [{
+        planta: p.id, movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA', x: 0, y: 0, z: 0,
+        largura: p.loja.largura, profundidade: p.loja.profundidade, altura: p.loja.alturaParede, ajusteX: 0, ajusteY: 0,
+      }].concat(p.moveis.map((m) => ({
+        planta: p.id, movel: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z,
+        largura: m.w, profundidade: m.d, altura: m.h, ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0,
+      })));
+      linhas.forEach((l) => {
+        const row = ws.addRow(l);
+        for (let c = 1; c <= 3; c++) row.getCell(c).fill = fundo;
+      });
+    });
+    const ultima = ws.rowCount + LINHAS_EXTRAS;
+    cols.forEach((c, i) => {
+      if (c.chave === 'tipo') {
+        validarColuna(ws, i + 1, ultima, Object.keys(dados.tipos), 'Tipo',
+          Object.keys(dados.tipos).map((t) => t + ' = ' + dados.tipos[t]).join('; '));
+      }
+    });
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
+  }
+
+  /**
+   * Gera e baixa a planilha base.
+   * @param {Object} dados    retorno de getDados()
+   * @param {{ciclo: string, origem: string, plantas: string[], incluirLayout: boolean}} op
+   * @param {{movimento: Function, linhasPaineis: Function}} resolver
+   */
+  async function baixarModelo(dados, op, resolver) {
+    const ExcelJS = await carregarExcelJS();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Plano de Varejo';
+    wb.created = new Date();
+    abaMovimentos(wb, dados, op, resolver);
+    abaPaineis(wb, dados, op, resolver);
+    if (op.incluirLayout) abaLayout(wb, dados, op);
+    abaInstrucoes(wb, dados, op);
+    const buffer = await wb.xlsx.writeBuffer();
+    const nome = 'Planilha base - ' + nomeArquivo(op.ciclo || 'novo ciclo') + '.xlsx';
+    baixarBlob(new Blob([buffer], { type: MIME_XLSX }), nome);
+    return nome;
+  }
+
+  /* ------------------------------ leitura --------------------------------- */
+
+  function valorCelula(v) {
+    if (v === null || v === undefined) return '';
+    if (v instanceof Date) {
+      const p = (n) => String(n).padStart(2, '0');
+      return p(v.getUTCDate()) + '/' + p(v.getUTCMonth() + 1) + '/' + v.getUTCFullYear();
+    }
+    if (typeof v === 'object') {
+      if (Array.isArray(v.richText)) return v.richText.map((r) => r.text).join('');
+      if ('result' in v) return valorCelula(v.result);
+      if ('text' in v) return valorCelula(v.text);
+      if ('error' in v) return '';
+      return '';
+    }
+    return v;
+  }
+
+  function matrizDaAba(ws) {
+    const linhas = [];
+    const nCols = ws.columnCount;
+    for (let r = 1; r <= ws.rowCount; r++) {
+      const row = ws.getRow(r);
+      const valores = [];
+      for (let c = 1; c <= nCols; c++) valores.push(valorCelula(row.getCell(c).value));
+      linhas.push(valores);
+    }
+    while (linhas.length && linhas[linhas.length - 1].every((v) => v === '' || v === null)) linhas.pop();
+    return linhas;
+  }
+
+  /**
+   * Lê o .xlsx preenchido e devolve { movimentos, paineis, layout } (matrizes [[...]])
+   * (matrizes com cabeçalho) para enviar ao servidor.
+   */
+  async function ler(arquivo, dados) {
+    if (!/\.xlsx$/i.test(arquivo.name)) {
+      throw new Error('Envie um arquivo .xlsx (no Google Sheets: Arquivo › Fazer download › Microsoft Excel).');
+    }
+    const ExcelJS = await carregarExcelJS();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(await arquivo.arrayBuffer());
+    const achar = (nome) => wb.worksheets.find((ws) => chave(ws.name) === chave(nome));
+    const out = {};
+    const abas = dados.config.abas;
+    const mov = achar(abas.MOVIMENTOS);
+    const pai = achar(abas.PAINEIS);
+    const lay = achar(abas.LAYOUT);
+    if (mov) out.movimentos = matrizDaAba(mov);
+    if (pai) out.paineis = matrizDaAba(pai);
+    if (lay) out.layout = matrizDaAba(lay);
+    if (!out.movimentos && !out.paineis && !out.layout) {
+      throw new Error('O arquivo não tem as abas "' + abas.MOVIMENTOS + '", "' + abas.PAINEIS + '" ou "' + abas.LAYOUT +
+        '". Use a planilha gerada pelo botão "Baixar planilha base".');
+    }
+    return out;
+  }
+
+  return { baixarModelo, ler, baixarBlob };
+})();
+</script>
+
+    <script>
+/**
+ * ============================================================================
+ *  APLICAÇÃO (estado, controles e chamadas ao servidor)
+ * ============================================================================
+ */
+const App = (() => {
+  const estado = {
+    dados: null,
+    ciclo: '',
+    planta: '',
+    filtro: '',
+    edicao: false,
+    ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
+    grupos: [],
+  };
+  const $ = (id) => document.getElementById(id);
+  const svg = $('slide');
+
+  /* ------------------------------ utilidades ------------------------------ */
+
+  const memoria = {
+    ler(k) { try { return window.localStorage.getItem('planoVarejo.' + k); } catch (e) { return null; } },
+    gravar(k, v) { try { window.localStorage.setItem('planoVarejo.' + k, v); } catch (e) { /* sem armazenamento */ } },
+  };
+
+  /** google.script.run como Promise. */
+  function chamar(funcao) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise((ok, falha) => {
+      if (!window.google || !google.script || !google.script.run) {
+        falha(new Error('Esta página precisa ser aberta pelo Apps Script (App da Web ou menu da planilha).'));
+        return;
+      }
+      const run = google.script.run.withSuccessHandler(ok).withFailureHandler(falha);
+      run[funcao].apply(run, args);
+    });
+  }
+
+  function carregando(ativo, mensagem) {
+    $('carregando').hidden = !ativo;
+    if (mensagem) $('carregandoTexto').textContent = mensagem;
+  }
+
+  let timerToast = null;
+  function toast(msg, erro) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.toggle('erro', !!erro);
+    t.hidden = false;
+    clearTimeout(timerToast);
+    timerToast = setTimeout(() => { t.hidden = true; }, erro ? 7000 : 3500);
+  }
+
+  function erro(e) {
+    console.error(e);
+    toast((e && e.message) || String(e), true);
+  }
+
+  /* -------------------------- resolução dos dados -------------------------- */
+
+  const TODAS = () => estado.dados.config.plantaTodas;
+
+  function movimentoDe(ciclo, planta, id) {
+    const c = estado.dados.movimentos[ciclo] || {};
+    return (c[planta] && c[planta][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+  }
+
+  /** Painéis de uma planta: por seção, a planta específica substitui "TODAS". */
+  function paineisDe(ciclo, planta) {
+    const c = estado.dados.paineis[ciclo] || {};
+    const todas = c[TODAS()] || [];
+    const especificos = c[planta] || [];
+    const out = {};
+    Object.keys(estado.dados.secoes).forEach((s) => {
+      const daPlanta = especificos.filter((p) => p.secao === s);
+      out[s] = daPlanta.length ? daPlanta : todas.filter((p) => p.secao === s);
+    });
+    return out;
+  }
+
+  /** Linhas da aba Painéis para a planilha base. */
+  function linhasPaineis(ciclo, plantas) {
+    const todasAsPlantas = estado.dados.plantas.length === plantas.length;
+    const c = estado.dados.paineis[ciclo] || {};
+    if (todasAsPlantas) {
+      return Object.keys(c).reduce((acc, planta) => acc.concat(c[planta].map((p) => Object.assign({ planta }, p))), []);
+    }
+    return plantas.reduce((acc, planta) => {
+      const r = paineisDe(ciclo, planta);
+      Object.keys(r).forEach((s) => r[s].forEach((p) => acc.push(Object.assign({}, p, { planta }))));
+      return acc;
+    }, []);
+  }
+
+  const plantaAtual = () => estado.dados && estado.dados.plantas.find((p) => p.id === estado.planta);
+
+  /* ------------------------------- carga ---------------------------------- */
+
+  async function carregar(preferencias) {
+    carregando(true, 'Carregando dados da planilha…');
+    try {
+      const dados = await chamar('getDados');
+      if (dados.precisaConfigurar) {
+        mostrarConfiguracao(dados.mensagem);
+        return;
+      }
+      aplicarDados(dados, preferencias || {});
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  function aplicarDados(dados, pref) {
+    estado.dados = dados;
+    $('telaConfig').hidden = true;
+    svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden
+
+    const cicloPref = pref.ciclo || estado.ciclo || memoria.ler('ciclo');
+    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 ? cicloPref : dados.ciclos[dados.ciclos.length - 1] || '';
+    const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
+    estado.planta = dados.plantas.some((p) => p.id === plantaPref) ? plantaPref : (dados.plantas[0] || {}).id || '';
+    estado.ajustes = {};
+
+    $('avisoLocal').hidden = !dados.modoLocal;
+    const link = $('lnkPlanilha');
+    link.hidden = !dados.planilhaUrl;
+    if (dados.planilhaUrl) link.href = dados.planilhaUrl;
+
+    montarCiclos();
+    montarAbas();
+    montarLegenda();
+    montarAvisos(dados.avisos || []);
+    desenhar();
+  }
+
+  function mostrarConfiguracao(mensagem) {
+    svg.toggleAttribute('hidden', true);
+    $('telaConfig').hidden = false;
+    $('msgConfig').textContent = mensagem || 'Crie as abas Movimentos, Painéis e Layout para começar.';
+  }
+
+  async function configurar() {
+    carregando(true, 'Criando abas na planilha…');
+    try {
+      const r = await chamar('configurarPlanilha');
+      toast(r.mensagem);
+      await carregar();
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* ------------------------------ controles ------------------------------- */
+
+  function montarCiclos() {
+    const sel = $('selCiclo');
+    sel.textContent = '';
+    if (!estado.dados.ciclos.length) {
+      sel.appendChild(new Option('(nenhum ciclo na planilha)', ''));
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    estado.dados.ciclos.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.ciclo)));
+  }
+
+  function montarAbas() {
+    const box = $('abasPlanta');
+    box.textContent = '';
+    estado.dados.plantas.forEach((p) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'aba';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(p.id === estado.planta));
+      b.textContent = p.nome;
+      b.addEventListener('click', () => trocarPlanta(p.id));
+      box.appendChild(b);
+    });
+  }
+
+  function montarLegenda() {
+    const box = $('legenda');
+    box.textContent = '';
+    const rotulo = document.createElement('span');
+    rotulo.className = 'rotulo';
+    rotulo.textContent = 'Marcas';
+    box.appendChild(rotulo);
+    const marcas = estado.dados.marcas;
+    Object.keys(marcas).forEach((cod) => {
+      const neutro = cod === 'NEUTRO';
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip' + (estado.filtro && estado.filtro !== cod ? ' inativo' : '');
+      chip.setAttribute('aria-pressed', String(estado.filtro === cod));
+      chip.title = neutro ? 'Móveis sem marca / sem movimento' : 'Mostrar só ' + marcas[cod].nome;
+      const cor = document.createElement('span');
+      cor.className = 'cor';
+      cor.style.background = neutro ? marcas[cod].movel : marcas[cod].etiqueta;
+      chip.appendChild(cor);
+      chip.appendChild(document.createTextNode(neutro ? 'Sem marca' : marcas[cod].nome));
+      if (neutro) {
+        chip.disabled = true;
+        chip.style.cursor = 'default';
+      } else {
+        chip.addEventListener('click', () => {
+          estado.filtro = estado.filtro === cod ? '' : cod;
+          montarLegenda();
+          desenhar();
+        });
+      }
+      box.appendChild(chip);
+    });
+    if (estado.filtro) {
+      const dica = document.createElement('span');
+      dica.className = 'dica';
+      dica.textContent = 'Clique de novo para ver todas as marcas.';
+      box.appendChild(dica);
+    }
+  }
+
+  function montarAvisos(avisos) {
+    const box = $('avisos');
+    box.hidden = !avisos.length;
+    if (!avisos.length) return;
+    box.querySelector('summary').textContent = avisos.length + (avisos.length === 1 ? ' aviso' : ' avisos') + ' na planilha';
+    const ul = box.querySelector('ul');
+    ul.textContent = '';
+    avisos.forEach((a) => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      ul.appendChild(li);
+    });
+  }
+
+  function trocarPlanta(id) {
+    if (id === estado.planta) return;
+    if (Object.keys(estado.ajustes).length && !window.confirm('Há ajustes de etiquetas não salvos nesta planta. Descartar?')) return;
+    estado.ajustes = {};
+    estado.planta = id;
+    memoria.gravar('planta', id);
+    montarAbas();
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  /* ------------------------------- desenho -------------------------------- */
+
+  function desenhar() {
+    const planta = plantaAtual();
+    if (!planta) return;
+    const r = Render.desenhar(svg, {
+      dados: estado.dados,
+      planta,
+      ciclo: estado.ciclo,
+      filtro: estado.filtro,
+      ajustes: estado.ajustes,
+      edicao: estado.edicao,
+      obterMovimento: (m) => movimentoDe(estado.ciclo, planta.id, m.id),
+      obterPaineis: () => paineisDe(estado.ciclo, planta.id),
+    });
+    estado.grupos = r.grupos;
+    if (estado.edicao) ativarArraste();
+  }
+
+  /* --------------------------- ajuste de etiquetas ------------------------- */
+
+  function pontoSvg(ev) {
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX;
+    pt.y = ev.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  function ativarArraste() {
+    estado.grupos.forEach((gr) => {
+      gr.elemento.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        const alvo = gr.elemento;
+        alvo.setPointerCapture(ev.pointerId);
+        const inicio = pontoSvg(ev);
+        let dx = 0;
+        let dy = 0;
+        const mover = (e) => {
+          const p = pontoSvg(e);
+          dx = p.x - inicio.x;
+          dy = p.y - inicio.y;
+          alvo.setAttribute('transform', 'translate(' + dx + ',' + dy + ')');
+        };
+        const soltar = () => {
+          alvo.removeEventListener('pointermove', mover);
+          alvo.removeEventListener('pointerup', soltar);
+          alvo.removeEventListener('pointercancel', soltar);
+          if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+            alvo.removeAttribute('transform');
+            return;
+          }
+          estado.ajustes[gr.id] = { x: Math.round(gr.x + dx - gr.baseX), y: Math.round(gr.y + dy - gr.baseY) };
+          atualizarBarraEdicao();
+          desenhar();
+        };
+        alvo.addEventListener('pointermove', mover);
+        alvo.addEventListener('pointerup', soltar);
+        alvo.addEventListener('pointercancel', soltar);
+      });
+    });
+  }
+
+  function atualizarBarraEdicao() {
+    $('barraEdicao').hidden = !estado.edicao;
+    $('btnEditar').setAttribute('aria-pressed', String(estado.edicao));
+    const n = Object.keys(estado.ajustes).length;
+    $('qtdAjustes').textContent = n ? '(' + n + (n === 1 ? ' alteração não salva)' : ' alterações não salvas)') : '';
+    $('btnSalvarAjustes').disabled = !n;
+    $('btnDescartar').disabled = !n;
+  }
+
+  function alternarEdicao() {
+    if (estado.edicao && Object.keys(estado.ajustes).length && !window.confirm('Sair sem salvar os ajustes?')) return;
+    estado.edicao = !estado.edicao;
+    estado.ajustes = {};
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  function autoOrganizar() {
+    const planta = plantaAtual();
+    planta.moveis.forEach((m) => { estado.ajustes[m.id] = { x: 0, y: 0 }; });
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  async function salvarAjustes() {
+    const planta = plantaAtual();
+    carregando(true, 'Salvando posições…');
+    try {
+      const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);
+      planta.moveis.forEach((m) => {
+        const a = estado.ajustes[m.id];
+        if (a) { m.ajusteX = a.x; m.ajusteY = a.y; }
+      });
+      estado.ajustes = {};
+      atualizarBarraEdicao();
+      desenhar();
+      toast('Posições salvas (' + r.atualizados + ' móveis).');
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* --------------------------- planilha base ------------------------------ */
+
+  function abrirDialogoModelo() {
+    const dlg = $('dlgModelo');
+    const temCiclo = !!estado.ciclo;
+    const copiar = dlg.querySelector('input[value="copiar"]');
+    copiar.disabled = !temCiclo;
+    copiar.checked = temCiclo;
+    dlg.querySelector('input[value="branco"]').checked = !temCiclo;
+    $('mdCopiarTexto').textContent = temCiclo ? 'Copiar o ciclo selecionado (' + estado.ciclo + ')' : 'Copiar ciclo (nenhum disponível)';
+    $('mdCiclo').value = '';
+    const sel = $('mdPlantas');
+    sel.textContent = '';
+    sel.appendChild(new Option('Todas as plantas', '*'));
+    estado.dados.plantas.forEach((p) => sel.appendChild(new Option('Somente ' + p.nome, p.id)));
+    dlg.returnValue = '';
+    dlg.showModal();
+    $('mdCiclo').focus();
+  }
+
+  async function baixarModelo() {
+    const dlg = $('dlgModelo');
+    if (dlg.returnValue !== 'baixar') return;
+    const copiar = dlg.querySelector('input[value="copiar"]').checked;
+    const plantaSel = $('mdPlantas').value;
+    const op = {
+      ciclo: $('mdCiclo').value.trim(),
+      origem: copiar ? estado.ciclo : '',
+      plantas: plantaSel === '*' ? estado.dados.plantas.map((p) => p.id) : [plantaSel],
+      incluirLayout: $('mdLayout').checked,
+    };
+    carregando(true, 'Gerando planilha…');
+    try {
+      const nome = await Planilha.baixarModelo(estado.dados, op, {
+        movimento: movimentoDe,
+        linhasPaineis,
+      });
+      toast('Download iniciado: ' + nome);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  async function importar(arquivo) {
+    if (!arquivo) return;
+    carregando(true, 'Lendo a planilha…');
+    try {
+      const payload = await Planilha.ler(arquivo, estado.dados);
+      carregando(true, 'Gravando na planilha…');
+      const r = await chamar('importarPlanilha', payload);
+      await carregar({ ciclo: r.ciclos.length ? r.ciclos[r.ciclos.length - 1] : '' });
+      mostrarResultado(r);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+      $('arquivo').value = '';
+    }
+  }
+
+  function mostrarResultado(r) {
+    $('resTitulo').textContent = 'Importação concluída';
+    const partes = [];
+    if (r.movimentos) partes.push(r.movimentos + ' linha(s) de movimentos');
+    if (r.paineis) partes.push(r.paineis + ' linha(s) de painéis');
+    if (r.layout) partes.push(r.layout + ' linha(s) de layout');
+    $('resTexto').textContent = (partes.join(' e ') || 'Nenhuma linha') + ' gravada(s)' +
+      (r.ciclos.length ? ' — ciclo(s): ' + r.ciclos.join(', ') + '.' : '.') +
+      (r.avisos.length ? ' Confira os avisos:' : '');
+    const ul = $('resAvisos');
+    ul.textContent = '';
+    r.avisos.forEach((a) => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      ul.appendChild(li);
+    });
+    $('dlgResultado').showModal();
+  }
+
+  /* -------------------------------- PNG ----------------------------------- */
+
+  async function baixarPng() {
+    const planta = plantaAtual();
+    if (!planta) return;
+    carregando(true, 'Gerando imagem…');
+    try {
+      const clone = svg.cloneNode(true);
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('width', Render.TELA.w);
+      clone.setAttribute('height', Render.TELA.h);
+      clone.querySelectorAll('title').forEach((t) => t.remove());
+      const xml = new XMLSerializer().serializeToString(clone);
+      const img = new Image();
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+      await img.decode();
+      const escala = 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = Render.TELA.w * escala;
+      canvas.height = Render.TELA.h * escala;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(escala, escala);
+      ctx.drawImage(img, 0, 0, Render.TELA.w, Render.TELA.h);
+      const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/png'));
+      const nome = (planta.nome + (estado.ciclo ? ' - ' + estado.ciclo : '')).replace(/[\\/:*?"<>|]+/g, '-') + '.png';
+      Planilha.baixarBlob(blob, nome);
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* -------------------------------- início -------------------------------- */
+
+  function ligarEventos() {
+    $('selCiclo').addEventListener('change', (e) => {
+      estado.ciclo = e.target.value;
+      memoria.gravar('ciclo', estado.ciclo);
+      desenhar();
+    });
+    $('btnModelo').addEventListener('click', () => estado.dados && abrirDialogoModelo());
+    $('dlgModelo').addEventListener('close', baixarModelo);
+    $('btnImportar').addEventListener('click', () => estado.dados && $('arquivo').click());
+    $('arquivo').addEventListener('change', (e) => importar(e.target.files[0]));
+    $('btnPng').addEventListener('click', baixarPng);
+    $('btnEditar').addEventListener('click', () => estado.dados && alternarEdicao());
+    $('btnAutoOrganizar').addEventListener('click', autoOrganizar);
+    $('btnDescartar').addEventListener('click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
+    $('btnSalvarAjustes').addEventListener('click', salvarAjustes);
+    $('btnConfigurar').addEventListener('click', configurar);
+    $('btnRestaurar').addEventListener('click', () => {
+      if (window.confirm('Apagar os dados salvos neste navegador e voltar ao ciclo de exemplo?')) configurar();
+    });
+    $('btnAtualizar').addEventListener('click', () => {
+      if (Object.keys(estado.ajustes).length && !window.confirm('Descartar ajustes de etiquetas não salvos?')) return;
+      carregar().then(() => toast('Dados atualizados.'));
+    });
+
+    // Setas ← → trocam de planta (útil ao apresentar).
+    document.addEventListener('keydown', (e) => {
+      if (!estado.dados || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const ids = estado.dados.plantas.map((p) => p.id);
+      const i = ids.indexOf(estado.planta) + (e.key === 'ArrowRight' ? 1 : -1);
+      if (i >= 0 && i < ids.length) trocarPlanta(ids[i]);
+    });
+  }
+
+  ligarEventos();
+  carregar();
+
+  return { estado, carregar };
+})();
+</script>
+
+  </body>
+</html>

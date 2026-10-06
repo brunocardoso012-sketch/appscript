@@ -146,6 +146,7 @@ const Planilha = (() => {
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
       '7. Planta = TODAS faz a linha valer para todas as plantas; uma linha da planta específica tem prioridade.',
       '8. Salve o arquivo e use o botão "Importar planilha" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',
+      '9. Aba "' + abas.LAYOUT + '" (opcional): posição e tamanho dos móveis (X, Y, Largura, Profundidade, Altura). Ao importar, as plantas presentes nela são substituídas por inteiro.',
     ].forEach(paragrafo);
     r++;
 
@@ -248,10 +249,44 @@ const Planilha = (() => {
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
   }
 
+  /** Aba Layout com a posição atual dos móveis (para ajustar coordenadas). */
+  function abaLayout(wb, dados, op) {
+    const cols = dados.colunas.layout;
+    const ws = wb.addWorksheet(dados.config.abas.LAYOUT, { views: [{ state: 'frozen', xSplit: 2, ySplit: 1 }] });
+    ws.columns = cols.map((c) => ({
+      header: c.titulo, key: c.chave, width: c.chave === 'descricao' ? 36 : c.chave === 'tipo' ? 17 : 12,
+      style: c.texto ? { numFmt: '@' } : {},
+    }));
+    estilizarCabecalho(ws.getRow(1));
+    let faixa = 0;
+    dados.plantas.filter((p) => op.plantas.indexOf(p.id) >= 0).forEach((p) => {
+      const fundo = { type: 'pattern', pattern: 'solid', fgColor: { argb: FAIXAS_PLANTA[faixa++ % FAIXAS_PLANTA.length] } };
+      const linhas = [{
+        planta: p.id, movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA', x: 0, y: 0, z: 0,
+        largura: p.loja.largura, profundidade: p.loja.profundidade, altura: p.loja.alturaParede, ajusteX: 0, ajusteY: 0,
+      }].concat(p.moveis.map((m) => ({
+        planta: p.id, movel: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z,
+        largura: m.w, profundidade: m.d, altura: m.h, ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0,
+      })));
+      linhas.forEach((l) => {
+        const row = ws.addRow(l);
+        for (let c = 1; c <= 3; c++) row.getCell(c).fill = fundo;
+      });
+    });
+    const ultima = ws.rowCount + LINHAS_EXTRAS;
+    cols.forEach((c, i) => {
+      if (c.chave === 'tipo') {
+        validarColuna(ws, i + 1, ultima, Object.keys(dados.tipos), 'Tipo',
+          Object.keys(dados.tipos).map((t) => t + ' = ' + dados.tipos[t]).join('; '));
+      }
+    });
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
+  }
+
   /**
    * Gera e baixa a planilha base.
    * @param {Object} dados    retorno de getDados()
-   * @param {{ciclo: string, origem: string, plantas: string[]}} op
+   * @param {{ciclo: string, origem: string, plantas: string[], incluirLayout: boolean}} op
    * @param {{movimento: Function, linhasPaineis: Function}} resolver
    */
   async function baixarModelo(dados, op, resolver) {
@@ -261,6 +296,7 @@ const Planilha = (() => {
     wb.created = new Date();
     abaMovimentos(wb, dados, op, resolver);
     abaPaineis(wb, dados, op, resolver);
+    if (op.incluirLayout) abaLayout(wb, dados, op);
     abaInstrucoes(wb, dados, op);
     const buffer = await wb.xlsx.writeBuffer();
     const nome = 'Planilha base - ' + nomeArquivo(op.ciclo || 'novo ciclo') + '.xlsx';
@@ -300,7 +336,7 @@ const Planilha = (() => {
   }
 
   /**
-   * Lê o .xlsx preenchido e devolve { movimentos: [[...]], paineis: [[...]] }
+   * Lê o .xlsx preenchido e devolve { movimentos, paineis, layout } (matrizes [[...]])
    * (matrizes com cabeçalho) para enviar ao servidor.
    */
   async function ler(arquivo, dados) {
@@ -312,12 +348,15 @@ const Planilha = (() => {
     await wb.xlsx.load(await arquivo.arrayBuffer());
     const achar = (nome) => wb.worksheets.find((ws) => chave(ws.name) === chave(nome));
     const out = {};
-    const mov = achar(dados.config.abas.MOVIMENTOS);
-    const pai = achar(dados.config.abas.PAINEIS);
+    const abas = dados.config.abas;
+    const mov = achar(abas.MOVIMENTOS);
+    const pai = achar(abas.PAINEIS);
+    const lay = achar(abas.LAYOUT);
     if (mov) out.movimentos = matrizDaAba(mov);
     if (pai) out.paineis = matrizDaAba(pai);
-    if (!out.movimentos && !out.paineis) {
-      throw new Error('O arquivo não tem as abas "' + dados.config.abas.MOVIMENTOS + '" ou "' + dados.config.abas.PAINEIS +
+    if (lay) out.layout = matrizDaAba(lay);
+    if (!out.movimentos && !out.paineis && !out.layout) {
+      throw new Error('O arquivo não tem as abas "' + abas.MOVIMENTOS + '", "' + abas.PAINEIS + '" ou "' + abas.LAYOUT +
         '". Use a planilha gerada pelo botão "Baixar planilha base".');
     }
     return out;

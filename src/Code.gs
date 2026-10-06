@@ -127,69 +127,92 @@ function configurarPlanilha() {
  * Recebe o conteúdo de uma planilha preenchida (lida no navegador) e grava
  * nas abas. Para cada par (Ciclo, Planta) presente no arquivo, as linhas
  * antigas desse par são substituídas pelas novas; o restante é mantido.
+ * Se o arquivo tiver a aba Layout, as plantas presentes nela são substituídas.
  *
- * @param {{movimentos?: Array<Array<*>>, paineis?: Array<Array<*>>}} payload
+ * @param {{movimentos?: Array<Array<*>>, paineis?: Array<Array<*>>, layout?: Array<Array<*>>}} payload
  *        Cada item é uma matriz [cabeçalho, ...linhas] com os valores das células.
  */
 function importarPlanilha(payload) {
-  if (!payload || typeof payload !== 'object') throw new Error('Arquivo vazio ou inválido.');
   const ss = planilha_();
-  const blocos = [
+  const prep = prepararImportacao_(payload); // valida tudo antes de gravar
+
+  const resultado = { movimentos: 0, paineis: 0, layout: 0 };
+  comTrava_(function () {
+    prep.preparados.forEach(function (p) {
+      const sh = ss.getSheetByName(p.bloco.aba);
+      const existentes = sh ? sh.getDataRange().getValues() : [];
+      escreverAba_(ss, p.bloco.aba, p.bloco.colunas, mesclarLinhas_(existentes, p.linhas, p.bloco.colunas));
+      resultado[p.bloco.campo] = p.linhas.length;
+    });
+  });
+
+  const verificacao = verificarImportacao_(lerAba_(ss, CONFIG.ABAS.LAYOUT, false), prep);
+  resultado.ciclos = verificacao.ciclos;
+  resultado.avisos = verificacao.avisos;
+  return resultado;
+}
+
+/** Blocos aceitos na importação. */
+function blocosImportacao_() {
+  return [
     { campo: 'movimentos', aba: CONFIG.ABAS.MOVIMENTOS, colunas: colunasMovimentos_() },
     { campo: 'paineis', aba: CONFIG.ABAS.PAINEIS, colunas: colunasPaineis_() },
+    { campo: 'layout', aba: CONFIG.ABAS.LAYOUT, colunas: colunasLayout_() },
   ];
+}
 
-  // 1) Valida tudo antes de gravar qualquer coisa.
+/**
+ * Valida o conteúdo importado (função pura).
+ * @return {{preparados: Array<{bloco, linhas, matriz}>, avisosLeitura: string[]}}
+ */
+function prepararImportacao_(payload) {
+  if (!payload || typeof payload !== 'object') throw new Error('Arquivo vazio ou inválido.');
   const preparados = [];
   const avisosLeitura = [];
-  blocos.forEach(function (b) {
+  blocosImportacao_().forEach(function (b) {
     const valores = payload[b.campo];
     if (!Array.isArray(valores) || !valores.length) return;
     if (valores.length - 1 > CONFIG.MAX_LINHAS_IMPORTACAO) {
       throw new Error('Aba "' + b.aba + '" tem linhas demais (máx. ' + CONFIG.MAX_LINHAS_IMPORTACAO + ').');
     }
-    const lido = objetosDeValores_(sanitizarMatriz_(valores), b.colunas);
+    const matriz = sanitizarMatriz_(valores);
+    const lido = objetosDeValores_(matriz, b.colunas);
     if (lido.faltando.length) {
       throw new Error('Aba "' + b.aba + '" do arquivo: coluna(s) obrigatória(s) não encontrada(s): ' +
         lido.faltando.join(', ') + '.');
     }
     const validas = lido.linhas.filter(function (o) {
-      const ok = texto_(o.ciclo) && normPlanta_(o.planta) &&
-        (b.campo === 'paineis' ? texto_(o.texto) && texto_(o.secao) : normId_(o.movel));
+      let ok;
+      if (b.campo === 'layout') ok = normPlanta_(o.planta) && normId_(o.movel) && texto_(o.tipo);
+      else if (b.campo === 'paineis') ok = texto_(o.ciclo) && normPlanta_(o.planta) && texto_(o.texto) && texto_(o.secao);
+      else ok = texto_(o.ciclo) && normPlanta_(o.planta) && normId_(o.movel);
       if (!ok && avisosLeitura.length < 30) {
         avisosLeitura.push(b.aba + ', linha ' + o._linha + ': faltam campos obrigatórios — linha ignorada.');
       }
       return ok;
     });
-    preparados.push({ bloco: b, linhas: validas, matriz: valores });
+    preparados.push({ bloco: b, linhas: validas, matriz: matriz });
   });
   if (!preparados.length) {
-    throw new Error('Não encontrei as abas "' + CONFIG.ABAS.MOVIMENTOS + '" ou "' + CONFIG.ABAS.PAINEIS + '" no arquivo.');
+    throw new Error('Não encontrei as abas "' + CONFIG.ABAS.MOVIMENTOS + '", "' + CONFIG.ABAS.PAINEIS +
+      '" ou "' + CONFIG.ABAS.LAYOUT + '" no arquivo.');
   }
+  return { preparados: preparados, avisosLeitura: avisosLeitura };
+}
 
-  // 2) Grava.
-  const resultado = { movimentos: 0, paineis: 0 };
-  comTrava_(function () {
-    preparados.forEach(function (p) {
-      const sh = ss.getSheetByName(p.bloco.aba);
-      const existentes = sh ? sh.getDataRange().getValues() : [];
-      const novos = mesclarLinhas_(existentes, p.linhas, p.bloco.colunas);
-      escreverAba_(ss, p.bloco.aba, p.bloco.colunas, novos);
-      resultado[p.bloco.campo] = p.linhas.length;
-    });
-  });
-
-  // 3) Avisos de conteúdo (IDs inexistentes, marcas desconhecidas…) só do que foi importado.
+/** Avisos de conteúdo (IDs inexistentes, marcas desconhecidas…) só do que foi importado. */
+function verificarImportacao_(valoresLayout, prep) {
   const matriz = function (campo) {
-    const p = preparados.filter(function (x) { return x.bloco.campo === campo; })[0];
-    return p ? sanitizarMatriz_(p.matriz) : null;
+    const p = prep.preparados.filter(function (x) { return x.bloco.campo === campo; })[0];
+    return p ? p.matriz : null;
   };
-  const verificacao = montarDados_(lerAba_(ss, CONFIG.ABAS.LAYOUT, false), matriz('movimentos'), matriz('paineis'));
-  resultado.ciclos = verificacao.ciclos;
-  resultado.avisos = avisosLeitura.concat(verificacao.avisos.filter(function (a) {
-    return a.indexOf('Aba "' + CONFIG.ABAS.LAYOUT + '"') !== 0;
-  }));
-  return resultado;
+  const verificacao = montarDados_(valoresLayout, matriz('movimentos'), matriz('paineis'));
+  return {
+    ciclos: verificacao.ciclos,
+    avisos: prep.avisosLeitura.concat(verificacao.avisos.filter(function (a) {
+      return a.indexOf('Aba "' + CONFIG.ABAS.LAYOUT + '"') !== 0 || !!matriz('layout');
+    })),
+  };
 }
 
 /**
@@ -358,7 +381,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
     simbolos: SIMBOLOS,
     secoes: SECOES_PAINEL,
     tipos: TIPOS_MOVEL,
-    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_() },
+    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), layout: colunasLayout_() },
     config: { maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS },
   };
 }
@@ -435,7 +458,8 @@ function montarPlantas_(linhas, aviso) {
 
 /**
  * Junta linhas existentes de uma aba com linhas importadas: remove as antigas
- * cujo (Ciclo, Planta) aparece na importação e acrescenta as novas.
+ * cujo (Ciclo, Planta) aparece na importação e acrescenta as novas (no Layout,
+ * que não tem Ciclo, a chave é só a Planta).
  * @return {Array<Array<string>>} matriz completa (com cabeçalho) para gravar.
  */
 function mesclarLinhas_(existentes, novos, colunas) {
@@ -457,9 +481,15 @@ function mesclarLinhas_(existentes, novos, colunas) {
   const substituir = {};
   novos.forEach(function (o) { substituir[par(o.ciclo, o.planta)] = true; });
 
+  // Colunas numéricas (ex.: coordenadas do Layout) mantêm números; o resto vira texto.
+  const ehTexto = {};
+  colunas.forEach(function (c) { if (c.texto || /^(marca|simbolo|secao|tipo|descricao)/.test(c.chave)) ehTexto[idx[c.chave]] = true; });
+  const valorCelula = function (v, i) {
+    return typeof v === 'number' && !ehTexto[i] ? v : texto_(v);
+  };
   const linhaTexto = function (row) {
     const out = [];
-    for (let i = 0; i < largura; i++) out.push(texto_(row[i]));
+    for (let i = 0; i < largura; i++) out.push(valorCelula(row[i], i));
     return out;
   };
   const mantidas = existentes.slice(1).filter(function (row) {
@@ -471,7 +501,7 @@ function mesclarLinhas_(existentes, novos, colunas) {
     const row = [];
     for (let i = 0; i < largura; i++) row.push('');
     colunas.forEach(function (c) {
-      let v = texto_(o[c.chave]);
+      let v = valorCelula(o[c.chave], idx[c.chave]);
       if (c.chave === 'planta') v = normPlanta_(v);
       if (c.chave === 'movel') v = normId_(v);
       row[idx[c.chave]] = v;
