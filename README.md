@@ -25,10 +25,10 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 
 ## Versão web para testes (netli.fyi / Netlify)
 
-Para ver e ajustar o visualizador **sem o Apps Script**, use [`site/index.html`](site/index.html): é um arquivo único, com o mesmo código, que guarda os dados no próprio navegador.
+Para ver e ajustar o visualizador **sem o Apps Script**, use [`index.html`](index.html) (na raiz do projeto): é um arquivo único, com o mesmo código, que guarda os dados no próprio navegador.
 
-1. Baixe `site/index.html` e coloque numa pasta. O nome precisa continuar `index.html`.
-2. Arraste a pasta para o [netli.fyi](https://netli.fyi) (ou para o Netlify Drop). Também abre com duplo clique, direto no navegador.
+1. Baixe o `index.html` da raiz (ou o projeto inteiro). O nome precisa continuar `index.html`.
+2. Arraste a pasta (ou o projeto inteiro) para o [netli.fyi](https://netli.fyi) (ou para o Netlify Drop). Também abre com duplo clique, direto no navegador.
 3. Use normalmente: trocar ciclo, baixar a planilha base, importar, PNG e ajustar etiquetas.
 
 Para **ajustar a planta** (posição e tamanho dos móveis):
@@ -167,21 +167,21 @@ src/
   Render.html       desenho isométrico em SVG (slide 1920×1080)
   Planilha.html     gerar/ler .xlsx no navegador (ExcelJS via cdnjs, com SRI)
   App.html          estado da tela, botões e chamadas ao servidor
+index.html          versão web gerada (netli.fyi / Netlify)
+netlify.toml        publicação estática a partir da raiz
 web/
   backend-local.js  troca o google.script.run por localStorage (versão web)
-site/
-  index.html        versão web gerada (arquivo único, para netli.fyi / Netlify)
 dev/
   gas.js            carrega os .gs no Node + planilha em memória (SpreadsheetApp simulado)
   testes.test.js    testes do backend
-  build-web.js      gera site/index.html a partir de src/ + web/
+  build-web.js      gera index.html (raiz) a partir de src/ + web/
 ```
 
 Para desenvolver (Node 18+):
 
 ```bash
 npm test            # testes do backend (sem Apps Script)
-npm run build:web   # gera site/index.html (versão web)
+npm run build:web   # gera index.html na raiz (versão web)
 ```
 
 ## Observações

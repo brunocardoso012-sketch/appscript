@@ -1,0 +1,4 @@
+# Publicação estática (netli.fyi / Netlify): serve o index.html da raiz.
+[build]
+  publish = "."
+  command = ""
