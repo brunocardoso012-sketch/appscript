@@ -3,7 +3,8 @@
  * ============================================================================
  *  CONSTRUIR LOJA (editor visual do layout das plantas)
  * ============================================================================
- *  - Paleta "Adicionar móvel": um clique cria o móvel no centro da loja.
+ *  - Paleta "Adicionar móvel" (Gôndola, Pirâmide, Móvel de fila): um clique
+ *    cria o móvel no centro da loja.
  *  - Clicar num móvel seleciona; arrastar move (Alt = movimento fino);
  *    clicar no piso vazio desmarca.
  *  - Barra flutuante sobre o selecionado: Girar · Duplicar · Excluir.
@@ -16,18 +17,20 @@ const Construtor = (() => {
   const COS30 = Math.cos(Math.PI / 6);
   const MAX_HISTORICO = 80;
 
-  /** Tipos na paleta: nome amigável, prefixo do ID, tamanho padrão [largura, fundo, altura] e ícone. */
+  /** Móveis oferecidos: nome, prefixo do ID, tamanho padrão [largura, fundo, altura] e ícone. */
   const TIPOS = {
-    GONDOLA: { nome: 'Gôndola', prefixo: 'GON', tam: [2.4, 1.4, 3], icone: 'M4 19V8l8-4 8 4v11M4 8l8 4 8-4M12 12v8M4 13l8 4 8-4' },
-    GONDOLA_PAREDE: { nome: 'Parede', prefixo: 'PAR', tam: [4, 1.1, 3.8], icone: 'M2 19V6h20v13zM2 10h20M2 14h20M9 6v13M16 6v13' },
-    PIRAMIDE: { nome: 'Pirâmide', prefixo: 'PIR', tam: [1.7, 1.7, 3.6], icone: 'M5 20v-6h14v6zM6.5 14v-5h11v5zM9 9V4h6v5z' },
-    CUBO: { nome: 'Cubo', prefixo: 'CUBO', tam: [1.3, 1.3, 1.9], icone: 'M5 9l7-4 7 4v8l-7 4-7-4zM5 9l7 4 7-4M12 13v8' },
-    MESA: { nome: 'Mesa', prefixo: 'MESA', tam: [2.6, 2.4, 1.5], icone: 'M2 12l10-5 10 5-10 5zM2 12v4l10 5 10-5v-4M7 9.5l10 5M17 9.5l-10 5' },
-    TOTEM: { nome: 'Totem', prefixo: 'TOTEM', tam: [1.5, 0.35, 3.4], icone: 'M8 21V3h8v18zM8 8h8M8 13h8M6 21h12' },
-    PAINEL: { nome: 'Painel', prefixo: 'PAINEL', tam: [0.8, 1.6, 3.8], icone: 'M7 21V3l10 3v18zM9.5 8l5 1.5v9l-5-1.5z' },
-    VITRINE_L: { nome: 'Vitrine L', prefixo: 'VIT', tam: [3.6, 3, 2.4], icone: 'M3 20V9h5v6h13v5zM3 9l3-2h5' },
-    CAIXA: { nome: 'Caixa', prefixo: 'CX', tam: [1.8, 1.2, 1.7], icone: 'M3 21v-9h18v9zM3 12l3-3h12l3 3M10 9V4h5v5' },
-    EXTRA: { nome: 'Extra', prefixo: 'EXTRA', tam: [1, 1, 1], icone: 'M5 8h14l-2 12H7zM9 8a3 3 0 0 1 6 0' },
+    GONDOLA: {
+      nome: 'Gôndola', prefixo: 'GON', tam: [4, 1.6, 3],
+      icone: 'M2 8h20v9H2zM5 8v9M19 8v9M5 12.5h14M2 20h20',
+    },
+    PIRAMIDE: {
+      nome: 'Pirâmide', prefixo: 'PIR', tam: [1.7, 1.7, 3.6],
+      icone: 'M7 21V3h10v18zM7 7.5h10M7 12h10M7 16.5h10',
+    },
+    FILA: {
+      nome: 'Móvel de fila', prefixo: 'FILA', tam: [3, 0.8, 1.8],
+      icone: 'M2 8h20v12H2zM2 11h20M2 14h20M2 17h20',
+    },
   };
 
   const c = {
@@ -46,7 +49,7 @@ const Construtor = (() => {
   const $ = (id) => document.getElementById(id);
   const clonar = (o) => JSON.parse(JSON.stringify(o));
   const arred = (v) => Math.round(v * 100) / 100;
-  const nomeTipo = (t) => (TIPOS[t] ? TIPOS[t].nome : t);
+  const nomeTipo = (t) => (TIPOS[t] ? TIPOS[t].nome : t.charAt(0) + t.slice(1).toLowerCase().replace(/_/g, ' '));
   const sujo = () => c.nova || c.historico.length > 0;
 
   /* ------------------------------ estado ---------------------------------- */
@@ -166,7 +169,20 @@ const Construtor = (() => {
     if (!m) return;
     $('cnsId').value = m.id;
     $('cnsDescricao').value = m.descricao || '';
-    $('cnsTipo').value = m.tipo;
+    // Tipos antigos (layout padrão) continuam aparecendo só para o móvel que os usa.
+    const selTipo = $('cnsTipo');
+    selTipo.textContent = '';
+    Object.keys(TIPOS).forEach((t) => selTipo.appendChild(new Option(TIPOS[t].nome, t)));
+    if (!TIPOS[m.tipo]) selTipo.appendChild(new Option('Antigo: ' + nomeTipo(m.tipo), m.tipo));
+    selTipo.value = m.tipo;
+    const gondola = m.tipo === 'GONDOLA';
+    $('cnsDivisao').hidden = !gondola;
+    if (gondola) {
+      const div = m.dividido || '';
+      $('cnsDividirA').checked = div.indexOf('A') >= 0;
+      $('cnsDividirB').checked = div.indexOf('B') >= 0;
+      $('cnsEspacos').textContent = Render.espacos(m).map((e) => m.id + '/' + e.id).join('  ·  ');
+    }
     ['x', 'y', 'z', 'w', 'd', 'h'].forEach((k) => { $('cnsForm').querySelector('[data-campo="' + k + '"]').value = m[k]; });
   }
 
@@ -217,14 +233,13 @@ const Construtor = (() => {
     const L = c.planta.loja;
     registrar();
     const m = {
-      id: idLivre(t.prefixo), descricao: '', tipo,
+      id: idLivre(t.prefixo), descricao: '', tipo, dividido: '',
       x: arred(Math.round((L.largura - t.tam[0]) / 2)), y: arred(Math.round((L.profundidade - t.tam[1]) / 2)), z: 0,
       w: t.tam[0], d: t.tam[1], h: t.tam[2], ajusteX: 0, ajusteY: 0,
     };
     c.planta.moveis.push(m);
     preencherLista();
     selecionar(m.id);
-    if (tipo === 'EXTRA') app.toast('Itens "Extra" aparecem na faixa do canto inferior direito.');
   }
 
   function duplicar() {
@@ -304,7 +319,7 @@ const Construtor = (() => {
         loja: p.loja,
         moveis: p.moveis.map((m) => ({
           id: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h,
-          ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0,
+          ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '',
         })),
       };
       const r = await app.chamar('salvarLayout', p.id, layout);
@@ -337,7 +352,7 @@ const Construtor = (() => {
       '  "formato": "plano-varejo-layout",',
       '  "versao": 1,',
       '  "geradoEm": ' + JSON.stringify(new Date().toISOString()) + ',',
-      '  "legenda": "móvel = [ID, descrição, tipo, x, y, largura, profundidade, altura, elevação, ajuste etiqueta X, ajuste etiqueta Y]",',
+      '  "legenda": "móvel = [ID, descrição, tipo, x, y, largura, profundidade, altura, elevação, ajuste etiqueta X, ajuste etiqueta Y, meios divididos]",',
       '  "plantas": {',
     ];
     plantas.forEach((p, i) => {
@@ -345,7 +360,7 @@ const Construtor = (() => {
       L.push('      "loja": ' + JSON.stringify([p.loja.largura, p.loja.profundidade, p.loja.alturaParede]) + ',');
       L.push('      "moveis": [');
       p.moveis.forEach((m, j) => {
-        const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0];
+        const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0, m.dividido || ''];
         L.push('        ' + JSON.stringify(t) + (j < p.moveis.length - 1 ? ',' : ''));
       });
       L.push('      ]');
@@ -375,7 +390,8 @@ const Construtor = (() => {
         await app.chamar('salvarLayout', id, {
           loja: { largura: p.loja[0], profundidade: p.loja[1], alturaParede: p.loja[2] },
           moveis: p.moveis.map((t) => ({
-            id: t[0], descricao: t[1], tipo: t[2], x: t[3], y: t[4], w: t[5], d: t[6], h: t[7], z: t[8] || 0, ajusteX: t[9] || 0, ajusteY: t[10] || 0,
+            id: t[0], descricao: t[1], tipo: t[2], x: t[3], y: t[4], w: t[5], d: t[6], h: t[7], z: t[8] || 0,
+            ajusteX: t[9] || 0, ajusteY: t[10] || 0, dividido: t[11] || '',
           })),
         });
       }
@@ -536,8 +552,16 @@ const Construtor = (() => {
       b.addEventListener('click', () => adicionar(t));
       paleta.appendChild(b);
     });
-    const selTipo = $('cnsTipo');
-    Object.keys(TIPOS).forEach((t) => selTipo.appendChild(new Option(TIPOS[t].nome, t)));
+    ['cnsDividirA', 'cnsDividirB'].forEach((id) => {
+      $(id).addEventListener('change', () => {
+        const m = movelSelecionado();
+        if (!m) return;
+        registrar();
+        m.dividido = ($('cnsDividirA').checked ? 'A' : '') + ($('cnsDividirB').checked ? 'B' : '');
+        preencherFormulario();
+        redesenhar();
+      });
+    });
 
     // Campos numéricos (loja e móvel).
     const numero = (v) => parseFloat(String(v).replace(',', '.'));

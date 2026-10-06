@@ -29,13 +29,23 @@ Clique em **Construir loja** para abrir o editor ao lado da planta.
 
 | Para… | Faça |
 |---|---|
-| Adicionar um móvel | Clique no tipo em **Adicionar móvel** (Gôndola, Parede, Pirâmide…). Ele aparece no centro da loja, já selecionado, com ID automático. |
+| Adicionar um móvel | Clique em **Gôndola**, **Pirâmide** ou **Móvel de fila**. Ele aparece no centro da loja, já selecionado, com ID automático. |
 | Selecionar | Clique no móvel: ele fica com contorno laranja. Clique no piso vazio ou aperte <kbd>Esc</kbd> para desmarcar. |
 | Mover | Arraste o móvel (segure <kbd>Alt</kbd> para mover fino) ou use as setas (→ +X, ↓ +Y; <kbd>Shift</kbd> = 5×). |
 | Girar / duplicar / excluir | Use a barra preta que aparece sobre o móvel, ou <kbd>R</kbd>, <kbd>Ctrl</kbd>+<kbd>D</kbd> e <kbd>Delete</kbd>. |
 | Mudar nome, tipo, tamanho | Edite no painel, em **Móvel selecionado**. ID e elevação ficam em *Mais opções*. |
 | Voltar atrás | **Desfazer** ou <kbd>Ctrl</kbd>+<kbd>Z</kbd>. Desfaz uma ação por vez, inclusive exclusões. |
 | Guardar | **Salvar planta** (aba Layout no Apps Script; navegador na versão web). O rodapé mostra se há alterações não salvas. |
+
+### Os três móveis
+
+| Móvel | Como é desenhado | Na planilha |
+|---|---|---|
+| **Gôndola** (`GON-…`) | 4 espaços: **Ponta 1**, **Meio A**, **Meio B** e **Ponta 2**, com 4 níveis de prateleira. Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GON-01`) e uma por espaço: `GON-01/PONTA-1`, `GON-01/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GON-01/MEIO-B`, `GON-01/PONTA-2`. O espaço preenchido tem cor e etiquetas próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. |
+| **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro. | Uma linha. |
+| **Móvel de fila** (`FILA-…`) | Bloco único retangular com 4 níveis. | Uma linha. |
+
+O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. Os tipos antigos do layout de exemplo (parede, caixa, mesa…) continuam aparecendo, mas não são mais oferecidos na paleta.
 
 Seções recolhidas no painel:
 
@@ -164,7 +174,8 @@ Cada linha é um móvel de uma planta. **Para criar uma planta nova, basta acres
 | Coluna | O que é |
 |---|---|
 | Planta, ID Móvel, Móvel (descrição) | Identificação. |
-| **Tipo** | `LOJA` (piso + paredes: Largura × Profundidade × altura da parede), `GONDOLA_PAREDE`, `GONDOLA`, `PIRAMIDE`, `CUBO`, `MESA`, `TOTEM`, `PAINEL`, `VITRINE_L`, `CAIXA`, `EXTRA` (item da faixa inferior direita, sem posição). |
+| **Tipo** | `LOJA` (piso + paredes: Largura × Profundidade × altura da parede), `GONDOLA`, `PIRAMIDE`, `FILA`, `EXTRA` (item da faixa inferior direita, sem posição). Os tipos antigos `GONDOLA_PAREDE`, `CUBO`, `MESA`, `TOTEM`, `PAINEL`, `VITRINE_L` e `CAIXA` continuam aceitos. |
+| Meios divididos | Só para gôndola: vazio, `A`, `B` ou `AB`. |
 | X, Y, Elevação (Z) | Posição do canto do móvel mais próximo do fundo da loja (1 unidade ≈ 0,5 m). |
 | Largura (eixo X), Profundidade (eixo Y), Altura | Tamanho. |
 | Ajuste Etiqueta X / Y (px) | Preenchidos pelo botão *Salvar posições*. Zere para voltar ao posicionamento automático. |

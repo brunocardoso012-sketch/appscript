@@ -305,7 +305,10 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
   const idsPorPlanta = {};
   plantas.forEach(function (p) {
     idsPorPlanta[p.id] = {};
-    p.moveis.forEach(function (m) { idsPorPlanta[p.id][m.id] = true; });
+    p.moveis.forEach(function (m) {
+      idsPorPlanta[p.id][m.id] = true;
+      espacosDoMovel_(m).forEach(function (e) { idsPorPlanta[p.id][m.id + '/' + e.id] = true; });
+    });
   });
   const existeMovel = function (planta, id) {
     if (planta === CONFIG.PLANTA_TODAS) {
@@ -398,6 +401,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
     simbolos: SIMBOLOS,
     secoes: SECOES_PAINEL,
     tipos: TIPOS_MOVEL,
+    tiposConstrucao: TIPOS_CONSTRUCAO,
     colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), layout: colunasLayout_() },
     config: { maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS },
   };
@@ -452,6 +456,7 @@ function montarPlantas_(linhas, aviso) {
       h: Math.max(0.1, numero_(l.altura, 1)),
       ajusteX: numero_(l.ajusteX, 0),
       ajusteY: numero_(l.ajusteY, 0),
+      dividido: normDivisao_(l.dividido),
     });
   });
 
@@ -500,6 +505,7 @@ function objetosLayoutDaPlanta_(planta, layout) {
       x: n(m.x, 0), y: n(m.y, 0), z: n(m.z, 0),
       largura: Math.max(0.1, n(m.w, 1)), profundidade: Math.max(0.1, n(m.d, 1)), altura: Math.max(0.1, n(m.h, 1)),
       ajusteX: Math.round(numero_(m.ajusteX, 0)), ajusteY: Math.round(numero_(m.ajusteY, 0)),
+      dividido: m.tipo === 'GONDOLA' ? normDivisao_(m.dividido) : '',
     });
   });
   return linhas;
@@ -639,6 +645,14 @@ function normPlanta_(v) {
     return (n < 10 ? '0' : '') + n;
   }
   return s;
+}
+
+/** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */
+function normDivisao_(v) {
+  const k = chave_(v);
+  if (!k || k === 'NAO' || k === 'N') return '';
+  if (k === 'SIM' || k === 'S' || k === 'AMBOS' || k === 'TODOS') return 'AB';
+  return (k.indexOf('A') >= 0 ? 'A' : '') + (k.indexOf('B') >= 0 ? 'B' : '');
 }
 
 function normId_(v) {

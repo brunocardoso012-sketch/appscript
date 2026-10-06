@@ -132,3 +132,32 @@ test('importar aba Layout substitui só as plantas presentes e mantém números'
   assert.equal(d.plantas.find((p) => p.id === '03').moveis.length, 39, 'outras plantas intactas');
   assert.ok(r.avisos.some((a) => /não existe no Layout/.test(a)) === false, 'sem avisos de movimentos (não importados)');
 });
+
+test('gôndola: espaços, divisão dos meios e IDs de espaço na planilha', () => {
+  const { run } = carregarGas();
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'GONDOLA', dividido: '' })").map((e) => e.id), ['PONTA-1', 'MEIO-A', 'MEIO-B', 'PONTA-2']);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'GONDOLA', dividido: 'A' })").map((e) => e.id), ['PONTA-1', 'MEIO-A-1', 'MEIO-A-2', 'MEIO-B', 'PONTA-2']);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'PIRAMIDE' })"), []);
+  assert.equal(run("normDivisao_('a e b')"), 'AB');
+  assert.equal(run("normDivisao_('sim')"), 'AB');
+  assert.equal(run("normDivisao_('não')"), '');
+  const d = run(`montarDados_([
+    ['Planta', 'ID Móvel', 'Tipo', 'X', 'Y', 'Largura (eixo X)', 'Profundidade (eixo Y)', 'Altura', 'Meios divididos'],
+    ['01', 'LOJA', 'LOJA', 0, 0, 20, 20, 4],
+    ['01', 'GON-01', 'GONDOLA', 5, 5, 4, 1.6, 3, 'A'],
+  ], [
+    ['Ciclo', 'Planta', 'ID Móvel', 'Marca do Móvel'],
+    ['C1', '01', 'GON-01', 'BOT'],
+    ['C1', '01', 'GON-01/MEIO-A-2', 'EUD'],
+    ['C1', '01', 'GON-01/MEIO-A', 'EUD'],
+  ], null)`);
+  assert.equal(d.plantas[0].moveis[0].dividido, 'A');
+  assert.equal(d.avisos.length, 1, 'só MEIO-A (inexistente com o meio dividido) gera aviso: ' + d.avisos);
+  assert.match(d.avisos[0], /GON-01\/MEIO-A"/);
+  const linhas = run(`objetosLayoutDaPlanta_('01', { loja: { largura: 10, profundidade: 10, alturaParede: 4 }, moveis: [
+    { id: 'gon-02', tipo: 'GONDOLA', x: 1, y: 1, w: 4, d: 1.6, h: 3, dividido: 'b' },
+    { id: 'PIR-01', tipo: 'PIRAMIDE', x: 1, y: 4, w: 1.7, d: 1.7, h: 3.6, dividido: 'AB' },
+  ] })`);
+  assert.equal(linhas[1].dividido, 'B');
+  assert.equal(linhas[2].dividido, '', 'divisão só vale para gôndola');
+});

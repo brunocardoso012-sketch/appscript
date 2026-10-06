@@ -96,20 +96,52 @@ const SECOES_PAINEL = {
   },
 };
 
-/** Tipos de móvel aceitos na aba "Layout" (definem o desenho 3D). */
+/**
+ * Tipos de móvel aceitos na aba "Layout" (definem o desenho 3D).
+ * O modo "Construir loja" oferece só PIRAMIDE, GONDOLA e FILA; os demais
+ * continuam sendo desenhados para não quebrar layouts antigos.
+ */
 const TIPOS_MOVEL = {
   LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
-  GONDOLA_PAREDE: 'Gôndola de parede (prateleiras brancas)',
-  GONDOLA: 'Gôndola / expositor de vidro com prateleiras',
-  PIRAMIDE: 'Pirâmide (3 blocos empilhados)',
-  CUBO: 'Cubo expositor',
-  MESA: 'Mesa / expositor baixo com nichos',
-  TOTEM: 'Totem / display vertical',
-  PAINEL: 'Painel alto e fino (ex.: parede O.U.i)',
-  VITRINE_L: 'Vitrine em "L"',
-  CAIXA: 'Caixa / balcão de atendimento',
+  PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados',
+  GONDOLA: 'Gôndola: 2 pontas + 2 meios (cada meio pode ser dividido em dois), 4 níveis de prateleira',
+  FILA: 'Móvel de fila: bloco único retangular com 4 níveis',
+  GONDOLA_PAREDE: '(antigo) Gôndola de parede',
+  CUBO: '(antigo) Cubo expositor',
+  MESA: '(antigo) Mesa / expositor baixo',
+  TOTEM: '(antigo) Totem / display vertical',
+  PAINEL: '(antigo) Painel alto e fino',
+  VITRINE_L: '(antigo) Vitrine em "L"',
+  CAIXA: '(antigo) Caixa / balcão de atendimento',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
 };
+
+/** Tipos oferecidos no modo "Construir loja". */
+const TIPOS_CONSTRUCAO = ['PIRAMIDE', 'GONDOLA', 'FILA'];
+
+/**
+ * Espaços de uma gôndola. Na planilha, cada espaço é endereçado como
+ * "<ID da gôndola>/<espaço>", ex.: GON-01/MEIO-A ou GON-01/MEIO-A-2.
+ * Uma linha só com o ID da gôndola vale para todos os espaços sem linha própria.
+ * (A página tem uma cópia desta regra em Render.espacos.)
+ * @param {{tipo: string, dividido: string}} m  dividido = '', 'A', 'B' ou 'AB'
+ * @return {Array<{id: string, nome: string}>}
+ */
+function espacosDoMovel_(m) {
+  if (!m || m.tipo !== 'GONDOLA') return [];
+  const div = String(m.dividido || '').toUpperCase();
+  const lista = [{ id: 'PONTA-1', nome: 'Ponta 1' }];
+  ['A', 'B'].forEach(function (lado) {
+    if (div.indexOf(lado) >= 0) {
+      lista.push({ id: 'MEIO-' + lado + '-1', nome: 'Meio ' + lado + ' (metade 1)' });
+      lista.push({ id: 'MEIO-' + lado + '-2', nome: 'Meio ' + lado + ' (metade 2)' });
+    } else {
+      lista.push({ id: 'MEIO-' + lado, nome: 'Meio ' + lado });
+    }
+  });
+  lista.push({ id: 'PONTA-2', nome: 'Ponta 2' });
+  return lista;
+}
 
 /* --------------------------------------------------------------------------
  *  Colunas das abas. "titulo" é o cabeçalho na planilha; "apelidos" são
@@ -158,5 +190,6 @@ function colunasLayout_() {
     { chave: 'altura', titulo: 'Altura', apelidos: ['Altura (Z)'] },
     { chave: 'ajusteX', titulo: 'Ajuste Etiqueta X (px)', apelidos: ['Ajuste X'] },
     { chave: 'ajusteY', titulo: 'Ajuste Etiqueta Y (px)', apelidos: ['Ajuste Y'] },
+    { chave: 'dividido', titulo: 'Meios divididos', texto: true, apelidos: ['Divisão', 'Dividido'] },
   ];
 }

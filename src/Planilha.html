@@ -144,6 +144,7 @@ const Planilha = (() => {
       '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto do móvel; "Marca Etiqueta N" define a cor de cada uma (vazio = cor do móvel).',
       '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
+      '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GON-01/PONTA-1, GON-01/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO).',
       '7. Planta = TODAS faz a linha valer para todas as plantas; uma linha da planta específica tem prioridade.',
       '8. Salve o arquivo e use o botão "Importar planilha" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',
       '9. Aba "' + abas.LAYOUT + '" (opcional): posição e tamanho dos móveis (X, Y, Largura, Profundidade, Altura). Ao importar, as plantas presentes nela são substituídas por inteiro.',
@@ -192,7 +193,10 @@ const Planilha = (() => {
     let faixa = 0;
     dados.plantas.filter((p) => op.plantas.indexOf(p.id) >= 0).forEach((p) => {
       const fundo = { type: 'pattern', pattern: 'solid', fgColor: { argb: FAIXAS_PLANTA[faixa++ % FAIXAS_PLANTA.length] } };
-      p.moveis.forEach((m) => {
+      // Gôndola: uma linha para ela inteira + uma por espaço (ponta/meio).
+      const linhasDoMovel = (m) => [{ id: m.id, descricao: m.descricao + (m.tipo === 'GONDOLA' ? ' (gôndola inteira)' : '') }]
+        .concat(Render.espacos(m).map((e) => ({ id: m.id + '/' + e.id, descricao: (m.descricao || m.id) + ' – ' + e.nome })));
+      p.moveis.reduce((acc, m) => acc.concat(linhasDoMovel(m)), []).forEach((m) => {
         const linha = { ciclo: op.ciclo, planta: p.id, movel: m.id, descricao: m.descricao };
         const info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;
         if (info) {
@@ -266,7 +270,7 @@ const Planilha = (() => {
         largura: p.loja.largura, profundidade: p.loja.profundidade, altura: p.loja.alturaParede, ajusteX: 0, ajusteY: 0,
       }].concat(p.moveis.map((m) => ({
         planta: p.id, movel: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z,
-        largura: m.w, profundidade: m.d, altura: m.h, ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0,
+        largura: m.w, profundidade: m.d, altura: m.h, ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '',
       })));
       linhas.forEach((l) => {
         const row = ws.addRow(l);

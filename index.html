@@ -218,6 +218,7 @@
   .cns-paleta button:hover { border-color: var(--texto); background: #fff; }
   .cns-paleta svg { width: 28px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
 
+  #cnsEspacos { word-break: break-word; font-weight: 600; color: var(--texto); }
   .cns-vazio { margin: 4px 0; color: var(--texto-2); font-style: italic; }
   .cns-campo { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 600; color: var(--texto-2); margin-bottom: 8px; }
   .cns-grupo { margin-bottom: 4px; }
@@ -437,20 +438,52 @@ const SECOES_PAINEL = {
   },
 };
 
-/** Tipos de móvel aceitos na aba "Layout" (definem o desenho 3D). */
+/**
+ * Tipos de móvel aceitos na aba "Layout" (definem o desenho 3D).
+ * O modo "Construir loja" oferece só PIRAMIDE, GONDOLA e FILA; os demais
+ * continuam sendo desenhados para não quebrar layouts antigos.
+ */
 const TIPOS_MOVEL = {
   LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
-  GONDOLA_PAREDE: 'Gôndola de parede (prateleiras brancas)',
-  GONDOLA: 'Gôndola / expositor de vidro com prateleiras',
-  PIRAMIDE: 'Pirâmide (3 blocos empilhados)',
-  CUBO: 'Cubo expositor',
-  MESA: 'Mesa / expositor baixo com nichos',
-  TOTEM: 'Totem / display vertical',
-  PAINEL: 'Painel alto e fino (ex.: parede O.U.i)',
-  VITRINE_L: 'Vitrine em "L"',
-  CAIXA: 'Caixa / balcão de atendimento',
+  PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados',
+  GONDOLA: 'Gôndola: 2 pontas + 2 meios (cada meio pode ser dividido em dois), 4 níveis de prateleira',
+  FILA: 'Móvel de fila: bloco único retangular com 4 níveis',
+  GONDOLA_PAREDE: '(antigo) Gôndola de parede',
+  CUBO: '(antigo) Cubo expositor',
+  MESA: '(antigo) Mesa / expositor baixo',
+  TOTEM: '(antigo) Totem / display vertical',
+  PAINEL: '(antigo) Painel alto e fino',
+  VITRINE_L: '(antigo) Vitrine em "L"',
+  CAIXA: '(antigo) Caixa / balcão de atendimento',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
 };
+
+/** Tipos oferecidos no modo "Construir loja". */
+const TIPOS_CONSTRUCAO = ['PIRAMIDE', 'GONDOLA', 'FILA'];
+
+/**
+ * Espaços de uma gôndola. Na planilha, cada espaço é endereçado como
+ * "<ID da gôndola>/<espaço>", ex.: GON-01/MEIO-A ou GON-01/MEIO-A-2.
+ * Uma linha só com o ID da gôndola vale para todos os espaços sem linha própria.
+ * (A página tem uma cópia desta regra em Render.espacos.)
+ * @param {{tipo: string, dividido: string}} m  dividido = '', 'A', 'B' ou 'AB'
+ * @return {Array<{id: string, nome: string}>}
+ */
+function espacosDoMovel_(m) {
+  if (!m || m.tipo !== 'GONDOLA') return [];
+  const div = String(m.dividido || '').toUpperCase();
+  const lista = [{ id: 'PONTA-1', nome: 'Ponta 1' }];
+  ['A', 'B'].forEach(function (lado) {
+    if (div.indexOf(lado) >= 0) {
+      lista.push({ id: 'MEIO-' + lado + '-1', nome: 'Meio ' + lado + ' (metade 1)' });
+      lista.push({ id: 'MEIO-' + lado + '-2', nome: 'Meio ' + lado + ' (metade 2)' });
+    } else {
+      lista.push({ id: 'MEIO-' + lado, nome: 'Meio ' + lado });
+    }
+  });
+  lista.push({ id: 'PONTA-2', nome: 'Ponta 2' });
+  return lista;
+}
 
 /* --------------------------------------------------------------------------
  *  Colunas das abas. "titulo" é o cabeçalho na planilha; "apelidos" são
@@ -499,6 +532,7 @@ function colunasLayout_() {
     { chave: 'altura', titulo: 'Altura', apelidos: ['Altura (Z)'] },
     { chave: 'ajusteX', titulo: 'Ajuste Etiqueta X (px)', apelidos: ['Ajuste X'] },
     { chave: 'ajusteY', titulo: 'Ajuste Etiqueta Y (px)', apelidos: ['Ajuste Y'] },
+    { chave: 'dividido', titulo: 'Meios divididos', texto: true, apelidos: ['Divisão', 'Dividido'] },
   ];
 }
 
@@ -810,7 +844,10 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
   const idsPorPlanta = {};
   plantas.forEach(function (p) {
     idsPorPlanta[p.id] = {};
-    p.moveis.forEach(function (m) { idsPorPlanta[p.id][m.id] = true; });
+    p.moveis.forEach(function (m) {
+      idsPorPlanta[p.id][m.id] = true;
+      espacosDoMovel_(m).forEach(function (e) { idsPorPlanta[p.id][m.id + '/' + e.id] = true; });
+    });
   });
   const existeMovel = function (planta, id) {
     if (planta === CONFIG.PLANTA_TODAS) {
@@ -903,6 +940,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
     simbolos: SIMBOLOS,
     secoes: SECOES_PAINEL,
     tipos: TIPOS_MOVEL,
+    tiposConstrucao: TIPOS_CONSTRUCAO,
     colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), layout: colunasLayout_() },
     config: { maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS },
   };
@@ -957,6 +995,7 @@ function montarPlantas_(linhas, aviso) {
       h: Math.max(0.1, numero_(l.altura, 1)),
       ajusteX: numero_(l.ajusteX, 0),
       ajusteY: numero_(l.ajusteY, 0),
+      dividido: normDivisao_(l.dividido),
     });
   });
 
@@ -1005,6 +1044,7 @@ function objetosLayoutDaPlanta_(planta, layout) {
       x: n(m.x, 0), y: n(m.y, 0), z: n(m.z, 0),
       largura: Math.max(0.1, n(m.w, 1)), profundidade: Math.max(0.1, n(m.d, 1)), altura: Math.max(0.1, n(m.h, 1)),
       ajusteX: Math.round(numero_(m.ajusteX, 0)), ajusteY: Math.round(numero_(m.ajusteY, 0)),
+      dividido: m.tipo === 'GONDOLA' ? normDivisao_(m.dividido) : '',
     });
   });
   return linhas;
@@ -1144,6 +1184,14 @@ function normPlanta_(v) {
     return (n < 10 ? '0' : '') + n;
   }
   return s;
+}
+
+/** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */
+function normDivisao_(v) {
+  const k = chave_(v);
+  if (!k || k === 'NAO' || k === 'N') return '';
+  if (k === 'SIM' || k === 'S' || k === 'AMBOS' || k === 'TODOS') return 'AB';
+  return (k.indexOf('A') >= 0 ? 'A' : '') + (k.indexOf('B') >= 0 ? 'B' : '');
 }
 
 function normId_(v) {
@@ -1379,7 +1427,8 @@ function removerAbaPadraoVazia_(ss) {
  *   - Y cresce ao longo da parede do fundo à ESQUERDA (em direção à frente/caixas).
  *   - Z é a elevação (0 = chão). Largura = eixo X, Profundidade = eixo Y.
  *
- *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y)]
+ *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
+ *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB')]
  *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato.
  */
 
@@ -1714,7 +1763,7 @@ function valoresLayoutPadrao_() {
     p.moveis.forEach(function (m) {
       linhas.push(linha({
         planta: planta, movel: m[0], descricao: m[1], tipo: m[2], x: m[3], y: m[4], z: m[8] || 0,
-        largura: m[5], profundidade: m[6], altura: m[7], ajusteX: m[9] || 0, ajusteY: m[10] || 0,
+        largura: m[5], profundidade: m[6], altura: m[7], ajusteX: m[9] || 0, ajusteY: m[10] || 0, dividido: m[11] || '',
       }));
     });
   });
@@ -1984,6 +2033,12 @@ function valoresPaineisExemplo_() {
           <div id="cnsCampos" hidden>
             <label class="cns-campo">Nome<input id="cnsDescricao" type="text" autocomplete="off" placeholder="Ex.: Ilha central – Botik"></label>
             <label class="cns-campo">Tipo<select id="cnsTipo"></select></label>
+            <div class="cns-grupo" id="cnsDivisao" hidden>
+              <span>Espaços da gôndola</span>
+              <label class="opcao"><input id="cnsDividirA" type="checkbox"> Dividir o meio A em dois</label>
+              <label class="opcao"><input id="cnsDividirB" type="checkbox"> Dividir o meio B em dois</label>
+              <p class="cns-ajuda">IDs para a planilha: <span id="cnsEspacos"></span></p>
+            </div>
             <div class="cns-grupo">
               <span>Tamanho</span>
               <div class="campos tres">
@@ -2365,8 +2420,52 @@ const Render = (() => {
 
   const espessuraL = (m) => Math.min(0.6, m.w / 2, m.d / 2);
 
-  /** Quebra um móvel em caixas "ordenáveis" (a vitrine em L vira duas). */
+  /** Espaços da gôndola (mesma regra de espacosDoMovel_ em Config.gs). */
+  function espacos(m) {
+    if (!m || m.tipo !== 'GONDOLA') return [];
+    const div = String(m.dividido || '').toUpperCase();
+    const lista = [{ id: 'PONTA-1', nome: 'Ponta 1' }];
+    ['A', 'B'].forEach((lado) => {
+      if (div.indexOf(lado) >= 0) {
+        lista.push({ id: 'MEIO-' + lado + '-1', nome: 'Meio ' + lado + ' (metade 1)' });
+        lista.push({ id: 'MEIO-' + lado + '-2', nome: 'Meio ' + lado + ' (metade 2)' });
+      } else {
+        lista.push({ id: 'MEIO-' + lado, nome: 'Meio ' + lado });
+      }
+    });
+    lista.push({ id: 'PONTA-2', nome: 'Ponta 2' });
+    return lista;
+  }
+
+  /**
+   * Caixa de cada espaço da gôndola: as pontas nas extremidades do lado maior
+   * e os dois meios lado a lado (meio A = lado de frente para quem olha).
+   */
+  function caixasGondola(m) {
+    const aoLongoDeX = m.w >= m.d;
+    const L = aoLongoDeX ? m.w : m.d; // comprimento
+    const C = aoLongoDeX ? m.d : m.w; // largura (de um meio ao outro)
+    const p = Math.min(0.6, L * 0.18); // espessura da ponta
+    const meio = (L - 2 * p) / 2;
+    const faixa = { 'PONTA-1': [0, p, 0, C], 'PONTA-2': [L - p, L, 0, C] };
+    ['A', 'B'].forEach((lado) => {
+      const v = lado === 'A' ? [C / 2, C] : [0, C / 2];
+      faixa['MEIO-' + lado] = [p, L - p, v[0], v[1]];
+      faixa['MEIO-' + lado + '-1'] = [p, p + meio, v[0], v[1]];
+      faixa['MEIO-' + lado + '-2'] = [p + meio, L - p, v[0], v[1]];
+    });
+    return espacos(m).map((e) => {
+      const [u0, u1, v0, v1] = faixa[e.id];
+      const caixaXY = aoLongoDeX
+        ? { x: m.x + u0, w: u1 - u0, y: m.y + v0, d: v1 - v0 }
+        : { x: m.x + v0, w: v1 - v0, y: m.y + u0, d: u1 - u0 };
+      return Object.assign(caixaXY, { z: m.z, h: m.h, movel: m, espaco: e });
+    });
+  }
+
+  /** Quebra um móvel em caixas "ordenáveis" (gôndola → espaços; vitrine em L → dois braços). */
   function primitivas(m) {
+    if (m.tipo === 'GONDOLA') return caixasGondola(m);
     if (m.tipo === 'VITRINE_L') {
       const t = espessuraL(m);
       return [
@@ -2406,19 +2505,16 @@ const Render = (() => {
         break;
       }
       case 'PIRAMIDE': {
-        const niveis = [[1, 0.38], [0.88, 0.36], [0.6, 0.26]];
-        let z = b.z;
-        niveis.forEach((n) => {
-          const w = b.w * n[0];
-          const d = b.d * n[0];
-          const h = b.h * n[1];
-          caixa(pai, P, { x: b.x + (b.w - w) / 2, y: b.y + (b.d - d) / 2, z, w, d, h }, { cores, vidro: true, prateleiras: 2 });
-          z += h;
-        });
+        // 4 blocos iguais, um em cima do outro.
+        const h = b.h / 4;
+        for (let k = 0; k < 4; k++) caixa(pai, P, Object.assign({}, b, { z: b.z + k * h, h }), { cores, vidro: true });
         break;
       }
-      default: // GONDOLA
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3, modulo: 2.4 });
+      case 'FILA':
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4, modulo: 1.5 });
+        break;
+      default: // GONDOLA (cada espaço é uma caixa) e tipos desconhecidos
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4 });
     }
   }
 
@@ -2853,35 +2949,44 @@ const Render = (() => {
     const extras = planta.moveis.filter((m) => m.tipo === 'EXTRA');
     const simbolosUsados = new Set();
 
-    // Situação de cada móvel no ciclo.
+    // Situação de cada móvel (e de cada espaço de gôndola) no ciclo.
     const info = {};
+    const infoEspaco = {}; // "GON-01/MEIO-A" → linha própria do espaço
+    const anotar = (i) => { if (i && i.simbolo) simbolosUsados.add(i.simbolo); return i; };
     moveis.concat(extras).forEach((m) => {
-      info[m.id] = ctx.obterMovimento(m);
-      if (info[m.id] && info[m.id].simbolo) simbolosUsados.add(info[m.id].simbolo);
+      info[m.id] = anotar(ctx.obterMovimento(m));
+      espacos(m).forEach((e) => {
+        const id = m.id + '/' + e.id;
+        // Linha de espaço vazia (sem marca, etiqueta nem símbolo) não conta: vale a gôndola inteira.
+        const i = ctx.obterMovimento({ id });
+        infoEspaco[id] = i && (i.marca || i.etiquetas.length || i.simbolo) ? anotar(i) : null;
+      });
     });
-    const marcasDoMovel = (m) => {
-      const i = info[m.id];
+    /** Espaço sem linha própria herda a linha da gôndola inteira. */
+    const infoDe = (b) => (b.espaco && infoEspaco[b.movel.id + '/' + b.espaco.id]) || info[b.movel.id];
+    const marcasDe = (i) => {
       if (!i) return new Set();
       const s = new Set(String(i.marca || '').split('+'));
       i.etiquetas.forEach((e) => String(e.marca || '').split('+').forEach((x) => s.add(x)));
       return s;
     };
-    const apagado = (m) => ctx.filtro && !marcasDoMovel(m).has(ctx.filtro);
+    const apagadoInfo = (i) => ctx.filtro && !marcasDe(i).has(ctx.filtro);
 
     // Móveis, na ordem de pintura.
     const prims = [];
     moveis.forEach((m) => primitivas(m).forEach((p) => prims.push(p)));
     ordenar(prims, P).forEach((b) => {
       const m = b.movel;
-      const i = info[m.id];
+      const i = infoDe(b);
       const cores = i && !ehNeutro(i.marca) ? coresDe(i.marca, 'movel') : null;
       const g = el('g', {
         class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
         'data-movel': m.id,
-        opacity: apagado(m) ? 0.18 : 1,
+        'data-espaco': b.espaco ? b.espaco.id : null,
+        opacity: apagadoInfo(i) ? 0.18 : 1,
       }, camadaPlanta);
       desenharPrimitiva(g, P, b, cores);
-      const linhasDica = [m.id + (m.descricao ? ' — ' + m.descricao : '')];
+      const linhasDica = [m.id + (b.espaco ? '/' + b.espaco.id + ' (' + b.espaco.nome + ')' : '') + (m.descricao ? ' — ' + m.descricao : '')];
       if (i) {
         linhasDica.push('Marca: ' + (i.marca ? i.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—'));
         i.etiquetas.forEach((e) => linhasDica.push('• ' + e.texto));
@@ -2933,31 +3038,32 @@ const Render = (() => {
       obstaculos.push(c);
     });
 
-    // Etiquetas dos móveis.
+    // Etiquetas: uma pilha por móvel e, nas gôndolas, uma por espaço que tenha linha própria.
     const grupos = [];
-    moveis.forEach((m) => {
-      const i = info[m.id];
+    const novoGrupo = (id, m, i, ancora, ajuste) => {
       if (!i || !i.etiquetas.length) return;
       const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta')) || [COR.etiquetaPadrao];
       const med = medirGrupo(i.etiquetas, i.simbolo, corPadrao);
-      const ancora = ancoraDe(m);
-      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
       const baseX = ancora[0] - med.w / 2;
       const baseY = ancora[1] - med.h / 2;
       grupos.push(Object.assign(med, {
-        id: m.id,
-        movel: m,
-        ancora,
-        baseX,
-        baseY,
-        x: baseX + ajuste.x,
-        y: baseY + ajuste.y,
-        manual: !!(ajuste.x || ajuste.y),
+        id, movel: m, info: i, ancora, baseX, baseY,
+        x: baseX + ajuste.x, y: baseY + ajuste.y, manual: !!(ajuste.x || ajuste.y),
       }));
+    };
+    moveis.forEach((m) => {
+      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
+      novoGrupo(m.id, m, info[m.id], ancoraDe(m), ajuste);
+      if (m.tipo === 'GONDOLA') {
+        caixasGondola(m).forEach((b) => {
+          const id = m.id + '/' + b.espaco.id;
+          novoGrupo(id, m, infoEspaco[id], P(b.x + b.w / 2, b.y + b.d / 2, b.z + b.h), { x: 0, y: 0 });
+        });
+      }
     });
     posicionar(grupos, obstaculos);
     grupos.forEach((gr) => {
-      const esmaecer = apagado(gr.movel) ? 0.15 : 1;
+      const esmaecer = apagadoInfo(gr.info) ? 0.15 : 1;
       const guia = el('g', { opacity: esmaecer }, camadaGuias);
       desenharGuia(guia, gr, gr.ancora, false);
       gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
@@ -2983,7 +3089,7 @@ const Render = (() => {
     return { grupos, escala: projecao.escala, P };
   }
 
-  return { desenhar, TELA };
+  return { desenhar, espacos, TELA };
 })();
 </script>
 
@@ -3133,6 +3239,7 @@ const Planilha = (() => {
       '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto do móvel; "Marca Etiqueta N" define a cor de cada uma (vazio = cor do móvel).',
       '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
+      '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GON-01/PONTA-1, GON-01/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO).',
       '7. Planta = TODAS faz a linha valer para todas as plantas; uma linha da planta específica tem prioridade.',
       '8. Salve o arquivo e use o botão "Importar planilha" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',
       '9. Aba "' + abas.LAYOUT + '" (opcional): posição e tamanho dos móveis (X, Y, Largura, Profundidade, Altura). Ao importar, as plantas presentes nela são substituídas por inteiro.',
@@ -3181,7 +3288,10 @@ const Planilha = (() => {
     let faixa = 0;
     dados.plantas.filter((p) => op.plantas.indexOf(p.id) >= 0).forEach((p) => {
       const fundo = { type: 'pattern', pattern: 'solid', fgColor: { argb: FAIXAS_PLANTA[faixa++ % FAIXAS_PLANTA.length] } };
-      p.moveis.forEach((m) => {
+      // Gôndola: uma linha para ela inteira + uma por espaço (ponta/meio).
+      const linhasDoMovel = (m) => [{ id: m.id, descricao: m.descricao + (m.tipo === 'GONDOLA' ? ' (gôndola inteira)' : '') }]
+        .concat(Render.espacos(m).map((e) => ({ id: m.id + '/' + e.id, descricao: (m.descricao || m.id) + ' – ' + e.nome })));
+      p.moveis.reduce((acc, m) => acc.concat(linhasDoMovel(m)), []).forEach((m) => {
         const linha = { ciclo: op.ciclo, planta: p.id, movel: m.id, descricao: m.descricao };
         const info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;
         if (info) {
@@ -3255,7 +3365,7 @@ const Planilha = (() => {
         largura: p.loja.largura, profundidade: p.loja.profundidade, altura: p.loja.alturaParede, ajusteX: 0, ajusteY: 0,
       }].concat(p.moveis.map((m) => ({
         planta: p.id, movel: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z,
-        largura: m.w, profundidade: m.d, altura: m.h, ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0,
+        largura: m.w, profundidade: m.d, altura: m.h, ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '',
       })));
       linhas.forEach((l) => {
         const row = ws.addRow(l);
@@ -3360,7 +3470,8 @@ const Planilha = (() => {
  * ============================================================================
  *  CONSTRUIR LOJA (editor visual do layout das plantas)
  * ============================================================================
- *  - Paleta "Adicionar móvel": um clique cria o móvel no centro da loja.
+ *  - Paleta "Adicionar móvel" (Gôndola, Pirâmide, Móvel de fila): um clique
+ *    cria o móvel no centro da loja.
  *  - Clicar num móvel seleciona; arrastar move (Alt = movimento fino);
  *    clicar no piso vazio desmarca.
  *  - Barra flutuante sobre o selecionado: Girar · Duplicar · Excluir.
@@ -3373,18 +3484,20 @@ const Construtor = (() => {
   const COS30 = Math.cos(Math.PI / 6);
   const MAX_HISTORICO = 80;
 
-  /** Tipos na paleta: nome amigável, prefixo do ID, tamanho padrão [largura, fundo, altura] e ícone. */
+  /** Móveis oferecidos: nome, prefixo do ID, tamanho padrão [largura, fundo, altura] e ícone. */
   const TIPOS = {
-    GONDOLA: { nome: 'Gôndola', prefixo: 'GON', tam: [2.4, 1.4, 3], icone: 'M4 19V8l8-4 8 4v11M4 8l8 4 8-4M12 12v8M4 13l8 4 8-4' },
-    GONDOLA_PAREDE: { nome: 'Parede', prefixo: 'PAR', tam: [4, 1.1, 3.8], icone: 'M2 19V6h20v13zM2 10h20M2 14h20M9 6v13M16 6v13' },
-    PIRAMIDE: { nome: 'Pirâmide', prefixo: 'PIR', tam: [1.7, 1.7, 3.6], icone: 'M5 20v-6h14v6zM6.5 14v-5h11v5zM9 9V4h6v5z' },
-    CUBO: { nome: 'Cubo', prefixo: 'CUBO', tam: [1.3, 1.3, 1.9], icone: 'M5 9l7-4 7 4v8l-7 4-7-4zM5 9l7 4 7-4M12 13v8' },
-    MESA: { nome: 'Mesa', prefixo: 'MESA', tam: [2.6, 2.4, 1.5], icone: 'M2 12l10-5 10 5-10 5zM2 12v4l10 5 10-5v-4M7 9.5l10 5M17 9.5l-10 5' },
-    TOTEM: { nome: 'Totem', prefixo: 'TOTEM', tam: [1.5, 0.35, 3.4], icone: 'M8 21V3h8v18zM8 8h8M8 13h8M6 21h12' },
-    PAINEL: { nome: 'Painel', prefixo: 'PAINEL', tam: [0.8, 1.6, 3.8], icone: 'M7 21V3l10 3v18zM9.5 8l5 1.5v9l-5-1.5z' },
-    VITRINE_L: { nome: 'Vitrine L', prefixo: 'VIT', tam: [3.6, 3, 2.4], icone: 'M3 20V9h5v6h13v5zM3 9l3-2h5' },
-    CAIXA: { nome: 'Caixa', prefixo: 'CX', tam: [1.8, 1.2, 1.7], icone: 'M3 21v-9h18v9zM3 12l3-3h12l3 3M10 9V4h5v5' },
-    EXTRA: { nome: 'Extra', prefixo: 'EXTRA', tam: [1, 1, 1], icone: 'M5 8h14l-2 12H7zM9 8a3 3 0 0 1 6 0' },
+    GONDOLA: {
+      nome: 'Gôndola', prefixo: 'GON', tam: [4, 1.6, 3],
+      icone: 'M2 8h20v9H2zM5 8v9M19 8v9M5 12.5h14M2 20h20',
+    },
+    PIRAMIDE: {
+      nome: 'Pirâmide', prefixo: 'PIR', tam: [1.7, 1.7, 3.6],
+      icone: 'M7 21V3h10v18zM7 7.5h10M7 12h10M7 16.5h10',
+    },
+    FILA: {
+      nome: 'Móvel de fila', prefixo: 'FILA', tam: [3, 0.8, 1.8],
+      icone: 'M2 8h20v12H2zM2 11h20M2 14h20M2 17h20',
+    },
   };
 
   const c = {
@@ -3403,7 +3516,7 @@ const Construtor = (() => {
   const $ = (id) => document.getElementById(id);
   const clonar = (o) => JSON.parse(JSON.stringify(o));
   const arred = (v) => Math.round(v * 100) / 100;
-  const nomeTipo = (t) => (TIPOS[t] ? TIPOS[t].nome : t);
+  const nomeTipo = (t) => (TIPOS[t] ? TIPOS[t].nome : t.charAt(0) + t.slice(1).toLowerCase().replace(/_/g, ' '));
   const sujo = () => c.nova || c.historico.length > 0;
 
   /* ------------------------------ estado ---------------------------------- */
@@ -3523,7 +3636,20 @@ const Construtor = (() => {
     if (!m) return;
     $('cnsId').value = m.id;
     $('cnsDescricao').value = m.descricao || '';
-    $('cnsTipo').value = m.tipo;
+    // Tipos antigos (layout padrão) continuam aparecendo só para o móvel que os usa.
+    const selTipo = $('cnsTipo');
+    selTipo.textContent = '';
+    Object.keys(TIPOS).forEach((t) => selTipo.appendChild(new Option(TIPOS[t].nome, t)));
+    if (!TIPOS[m.tipo]) selTipo.appendChild(new Option('Antigo: ' + nomeTipo(m.tipo), m.tipo));
+    selTipo.value = m.tipo;
+    const gondola = m.tipo === 'GONDOLA';
+    $('cnsDivisao').hidden = !gondola;
+    if (gondola) {
+      const div = m.dividido || '';
+      $('cnsDividirA').checked = div.indexOf('A') >= 0;
+      $('cnsDividirB').checked = div.indexOf('B') >= 0;
+      $('cnsEspacos').textContent = Render.espacos(m).map((e) => m.id + '/' + e.id).join('  ·  ');
+    }
     ['x', 'y', 'z', 'w', 'd', 'h'].forEach((k) => { $('cnsForm').querySelector('[data-campo="' + k + '"]').value = m[k]; });
   }
 
@@ -3574,14 +3700,13 @@ const Construtor = (() => {
     const L = c.planta.loja;
     registrar();
     const m = {
-      id: idLivre(t.prefixo), descricao: '', tipo,
+      id: idLivre(t.prefixo), descricao: '', tipo, dividido: '',
       x: arred(Math.round((L.largura - t.tam[0]) / 2)), y: arred(Math.round((L.profundidade - t.tam[1]) / 2)), z: 0,
       w: t.tam[0], d: t.tam[1], h: t.tam[2], ajusteX: 0, ajusteY: 0,
     };
     c.planta.moveis.push(m);
     preencherLista();
     selecionar(m.id);
-    if (tipo === 'EXTRA') app.toast('Itens "Extra" aparecem na faixa do canto inferior direito.');
   }
 
   function duplicar() {
@@ -3661,7 +3786,7 @@ const Construtor = (() => {
         loja: p.loja,
         moveis: p.moveis.map((m) => ({
           id: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h,
-          ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0,
+          ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '',
         })),
       };
       const r = await app.chamar('salvarLayout', p.id, layout);
@@ -3694,7 +3819,7 @@ const Construtor = (() => {
       '  "formato": "plano-varejo-layout",',
       '  "versao": 1,',
       '  "geradoEm": ' + JSON.stringify(new Date().toISOString()) + ',',
-      '  "legenda": "móvel = [ID, descrição, tipo, x, y, largura, profundidade, altura, elevação, ajuste etiqueta X, ajuste etiqueta Y]",',
+      '  "legenda": "móvel = [ID, descrição, tipo, x, y, largura, profundidade, altura, elevação, ajuste etiqueta X, ajuste etiqueta Y, meios divididos]",',
       '  "plantas": {',
     ];
     plantas.forEach((p, i) => {
@@ -3702,7 +3827,7 @@ const Construtor = (() => {
       L.push('      "loja": ' + JSON.stringify([p.loja.largura, p.loja.profundidade, p.loja.alturaParede]) + ',');
       L.push('      "moveis": [');
       p.moveis.forEach((m, j) => {
-        const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0];
+        const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0, m.dividido || ''];
         L.push('        ' + JSON.stringify(t) + (j < p.moveis.length - 1 ? ',' : ''));
       });
       L.push('      ]');
@@ -3732,7 +3857,8 @@ const Construtor = (() => {
         await app.chamar('salvarLayout', id, {
           loja: { largura: p.loja[0], profundidade: p.loja[1], alturaParede: p.loja[2] },
           moveis: p.moveis.map((t) => ({
-            id: t[0], descricao: t[1], tipo: t[2], x: t[3], y: t[4], w: t[5], d: t[6], h: t[7], z: t[8] || 0, ajusteX: t[9] || 0, ajusteY: t[10] || 0,
+            id: t[0], descricao: t[1], tipo: t[2], x: t[3], y: t[4], w: t[5], d: t[6], h: t[7], z: t[8] || 0,
+            ajusteX: t[9] || 0, ajusteY: t[10] || 0, dividido: t[11] || '',
           })),
         });
       }
@@ -3893,8 +4019,16 @@ const Construtor = (() => {
       b.addEventListener('click', () => adicionar(t));
       paleta.appendChild(b);
     });
-    const selTipo = $('cnsTipo');
-    Object.keys(TIPOS).forEach((t) => selTipo.appendChild(new Option(TIPOS[t].nome, t)));
+    ['cnsDividirA', 'cnsDividirB'].forEach((id) => {
+      $(id).addEventListener('change', () => {
+        const m = movelSelecionado();
+        if (!m) return;
+        registrar();
+        m.dividido = ($('cnsDividirA').checked ? 'A' : '') + ($('cnsDividirB').checked ? 'B' : '');
+        preencherFormulario();
+        redesenhar();
+      });
+    });
 
     // Campos numéricos (loja e móvel).
     const numero = (v) => parseFloat(String(v).replace(',', '.'));
@@ -4303,6 +4437,7 @@ const App = (() => {
 
   function ativarArraste() {
     estado.grupos.forEach((gr) => {
+      if (gr.id.indexOf('/') >= 0) return; // etiquetas de espaço de gôndola ficam no automático
       gr.elemento.addEventListener('pointerdown', (ev) => {
         ev.preventDefault();
         const alvo = gr.elemento;

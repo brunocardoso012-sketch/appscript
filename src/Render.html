@@ -241,8 +241,52 @@ const Render = (() => {
 
   const espessuraL = (m) => Math.min(0.6, m.w / 2, m.d / 2);
 
-  /** Quebra um móvel em caixas "ordenáveis" (a vitrine em L vira duas). */
+  /** Espaços da gôndola (mesma regra de espacosDoMovel_ em Config.gs). */
+  function espacos(m) {
+    if (!m || m.tipo !== 'GONDOLA') return [];
+    const div = String(m.dividido || '').toUpperCase();
+    const lista = [{ id: 'PONTA-1', nome: 'Ponta 1' }];
+    ['A', 'B'].forEach((lado) => {
+      if (div.indexOf(lado) >= 0) {
+        lista.push({ id: 'MEIO-' + lado + '-1', nome: 'Meio ' + lado + ' (metade 1)' });
+        lista.push({ id: 'MEIO-' + lado + '-2', nome: 'Meio ' + lado + ' (metade 2)' });
+      } else {
+        lista.push({ id: 'MEIO-' + lado, nome: 'Meio ' + lado });
+      }
+    });
+    lista.push({ id: 'PONTA-2', nome: 'Ponta 2' });
+    return lista;
+  }
+
+  /**
+   * Caixa de cada espaço da gôndola: as pontas nas extremidades do lado maior
+   * e os dois meios lado a lado (meio A = lado de frente para quem olha).
+   */
+  function caixasGondola(m) {
+    const aoLongoDeX = m.w >= m.d;
+    const L = aoLongoDeX ? m.w : m.d; // comprimento
+    const C = aoLongoDeX ? m.d : m.w; // largura (de um meio ao outro)
+    const p = Math.min(0.6, L * 0.18); // espessura da ponta
+    const meio = (L - 2 * p) / 2;
+    const faixa = { 'PONTA-1': [0, p, 0, C], 'PONTA-2': [L - p, L, 0, C] };
+    ['A', 'B'].forEach((lado) => {
+      const v = lado === 'A' ? [C / 2, C] : [0, C / 2];
+      faixa['MEIO-' + lado] = [p, L - p, v[0], v[1]];
+      faixa['MEIO-' + lado + '-1'] = [p, p + meio, v[0], v[1]];
+      faixa['MEIO-' + lado + '-2'] = [p + meio, L - p, v[0], v[1]];
+    });
+    return espacos(m).map((e) => {
+      const [u0, u1, v0, v1] = faixa[e.id];
+      const caixaXY = aoLongoDeX
+        ? { x: m.x + u0, w: u1 - u0, y: m.y + v0, d: v1 - v0 }
+        : { x: m.x + v0, w: v1 - v0, y: m.y + u0, d: u1 - u0 };
+      return Object.assign(caixaXY, { z: m.z, h: m.h, movel: m, espaco: e });
+    });
+  }
+
+  /** Quebra um móvel em caixas "ordenáveis" (gôndola → espaços; vitrine em L → dois braços). */
   function primitivas(m) {
+    if (m.tipo === 'GONDOLA') return caixasGondola(m);
     if (m.tipo === 'VITRINE_L') {
       const t = espessuraL(m);
       return [
@@ -282,19 +326,16 @@ const Render = (() => {
         break;
       }
       case 'PIRAMIDE': {
-        const niveis = [[1, 0.38], [0.88, 0.36], [0.6, 0.26]];
-        let z = b.z;
-        niveis.forEach((n) => {
-          const w = b.w * n[0];
-          const d = b.d * n[0];
-          const h = b.h * n[1];
-          caixa(pai, P, { x: b.x + (b.w - w) / 2, y: b.y + (b.d - d) / 2, z, w, d, h }, { cores, vidro: true, prateleiras: 2 });
-          z += h;
-        });
+        // 4 blocos iguais, um em cima do outro.
+        const h = b.h / 4;
+        for (let k = 0; k < 4; k++) caixa(pai, P, Object.assign({}, b, { z: b.z + k * h, h }), { cores, vidro: true });
         break;
       }
-      default: // GONDOLA
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3, modulo: 2.4 });
+      case 'FILA':
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4, modulo: 1.5 });
+        break;
+      default: // GONDOLA (cada espaço é uma caixa) e tipos desconhecidos
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4 });
     }
   }
 
@@ -729,35 +770,44 @@ const Render = (() => {
     const extras = planta.moveis.filter((m) => m.tipo === 'EXTRA');
     const simbolosUsados = new Set();
 
-    // Situação de cada móvel no ciclo.
+    // Situação de cada móvel (e de cada espaço de gôndola) no ciclo.
     const info = {};
+    const infoEspaco = {}; // "GON-01/MEIO-A" → linha própria do espaço
+    const anotar = (i) => { if (i && i.simbolo) simbolosUsados.add(i.simbolo); return i; };
     moveis.concat(extras).forEach((m) => {
-      info[m.id] = ctx.obterMovimento(m);
-      if (info[m.id] && info[m.id].simbolo) simbolosUsados.add(info[m.id].simbolo);
+      info[m.id] = anotar(ctx.obterMovimento(m));
+      espacos(m).forEach((e) => {
+        const id = m.id + '/' + e.id;
+        // Linha de espaço vazia (sem marca, etiqueta nem símbolo) não conta: vale a gôndola inteira.
+        const i = ctx.obterMovimento({ id });
+        infoEspaco[id] = i && (i.marca || i.etiquetas.length || i.simbolo) ? anotar(i) : null;
+      });
     });
-    const marcasDoMovel = (m) => {
-      const i = info[m.id];
+    /** Espaço sem linha própria herda a linha da gôndola inteira. */
+    const infoDe = (b) => (b.espaco && infoEspaco[b.movel.id + '/' + b.espaco.id]) || info[b.movel.id];
+    const marcasDe = (i) => {
       if (!i) return new Set();
       const s = new Set(String(i.marca || '').split('+'));
       i.etiquetas.forEach((e) => String(e.marca || '').split('+').forEach((x) => s.add(x)));
       return s;
     };
-    const apagado = (m) => ctx.filtro && !marcasDoMovel(m).has(ctx.filtro);
+    const apagadoInfo = (i) => ctx.filtro && !marcasDe(i).has(ctx.filtro);
 
     // Móveis, na ordem de pintura.
     const prims = [];
     moveis.forEach((m) => primitivas(m).forEach((p) => prims.push(p)));
     ordenar(prims, P).forEach((b) => {
       const m = b.movel;
-      const i = info[m.id];
+      const i = infoDe(b);
       const cores = i && !ehNeutro(i.marca) ? coresDe(i.marca, 'movel') : null;
       const g = el('g', {
         class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
         'data-movel': m.id,
-        opacity: apagado(m) ? 0.18 : 1,
+        'data-espaco': b.espaco ? b.espaco.id : null,
+        opacity: apagadoInfo(i) ? 0.18 : 1,
       }, camadaPlanta);
       desenharPrimitiva(g, P, b, cores);
-      const linhasDica = [m.id + (m.descricao ? ' — ' + m.descricao : '')];
+      const linhasDica = [m.id + (b.espaco ? '/' + b.espaco.id + ' (' + b.espaco.nome + ')' : '') + (m.descricao ? ' — ' + m.descricao : '')];
       if (i) {
         linhasDica.push('Marca: ' + (i.marca ? i.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—'));
         i.etiquetas.forEach((e) => linhasDica.push('• ' + e.texto));
@@ -809,31 +859,32 @@ const Render = (() => {
       obstaculos.push(c);
     });
 
-    // Etiquetas dos móveis.
+    // Etiquetas: uma pilha por móvel e, nas gôndolas, uma por espaço que tenha linha própria.
     const grupos = [];
-    moveis.forEach((m) => {
-      const i = info[m.id];
+    const novoGrupo = (id, m, i, ancora, ajuste) => {
       if (!i || !i.etiquetas.length) return;
       const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta')) || [COR.etiquetaPadrao];
       const med = medirGrupo(i.etiquetas, i.simbolo, corPadrao);
-      const ancora = ancoraDe(m);
-      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
       const baseX = ancora[0] - med.w / 2;
       const baseY = ancora[1] - med.h / 2;
       grupos.push(Object.assign(med, {
-        id: m.id,
-        movel: m,
-        ancora,
-        baseX,
-        baseY,
-        x: baseX + ajuste.x,
-        y: baseY + ajuste.y,
-        manual: !!(ajuste.x || ajuste.y),
+        id, movel: m, info: i, ancora, baseX, baseY,
+        x: baseX + ajuste.x, y: baseY + ajuste.y, manual: !!(ajuste.x || ajuste.y),
       }));
+    };
+    moveis.forEach((m) => {
+      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
+      novoGrupo(m.id, m, info[m.id], ancoraDe(m), ajuste);
+      if (m.tipo === 'GONDOLA') {
+        caixasGondola(m).forEach((b) => {
+          const id = m.id + '/' + b.espaco.id;
+          novoGrupo(id, m, infoEspaco[id], P(b.x + b.w / 2, b.y + b.d / 2, b.z + b.h), { x: 0, y: 0 });
+        });
+      }
     });
     posicionar(grupos, obstaculos);
     grupos.forEach((gr) => {
-      const esmaecer = apagado(gr.movel) ? 0.15 : 1;
+      const esmaecer = apagadoInfo(gr.info) ? 0.15 : 1;
       const guia = el('g', { opacity: esmaecer }, camadaGuias);
       desenharGuia(guia, gr, gr.ancora, false);
       gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
@@ -859,6 +910,6 @@ const Render = (() => {
     return { grupos, escala: projecao.escala, P };
   }
 
-  return { desenhar, TELA };
+  return { desenhar, espacos, TELA };
 })();
 </script>
