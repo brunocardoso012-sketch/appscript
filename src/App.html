@@ -515,9 +515,10 @@ const App = (() => {
 
     // Setas ← → trocam de planta (útil ao apresentar).
     document.addEventListener('keydown', (e) => {
-      if (!estado.dados || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (!estado.dados) return;
       if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
       if (Construtor.ativo()) { Construtor.tecla(e); return; }
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       const ids = estado.dados.plantas.map((p) => p.id);
       const i = ids.indexOf(estado.planta) + (e.key === 'ArrowRight' ? 1 : -1);

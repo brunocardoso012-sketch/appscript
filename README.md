@@ -25,15 +25,26 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 
 ## Construir loja (editor do layout)
 
-O botão **Construir loja** abre um editor ao lado da planta:
+Clique em **Construir loja** para abrir o editor ao lado da planta.
 
-- **Mover:** clique num móvel para selecionar (fica com contorno laranja) e arraste no piso. As setas do teclado também movem: → +X, ← −X, ↓ +Y, ↑ −Y; com Shift o passo é 5×. O **Passo** define o encaixe (0,1 a 1 unidade).
-- **Medidas:** ID, tipo, descrição, X, Y, elevação, largura, profundidade e altura ficam no formulário. **Girar 90°** troca largura e profundidade.
-- **Móveis:** + Novo, Duplicar e Excluir. **+ Nova planta** cria a próxima planta, começando com as paredes da atual.
-- **Loja:** largura, profundidade e altura das paredes.
-- **Imagem de referência:** escolha a sua tela original da planta. Ela aparece por cima, semitransparente, para você "decalcar" os móveis. Ajuste opacidade, zoom e posição até alinhar com o piso. A **Grade no piso** mostra a numeração de X e Y.
-- **Salvar planta:** grava o layout (aba Layout no Apps Script; navegador na versão web).
-- **Baixar código da loja:** gera `layout-plantas-AAAA-MM-DD.json` com o layout de todas as plantas, no mesmo formato de [`src/Layouts.gs`](src/Layouts.gs). Mande esse arquivo para virar o layout padrão do projeto. **Carregar código…** aplica um arquivo desses de volta.
+| Para… | Faça |
+|---|---|
+| Adicionar um móvel | Clique no tipo em **Adicionar móvel** (Gôndola, Parede, Pirâmide…). Ele aparece no centro da loja, já selecionado, com ID automático. |
+| Selecionar | Clique no móvel: ele fica com contorno laranja. Clique no piso vazio ou aperte <kbd>Esc</kbd> para desmarcar. |
+| Mover | Arraste o móvel (segure <kbd>Alt</kbd> para mover fino) ou use as setas (→ +X, ↓ +Y; <kbd>Shift</kbd> = 5×). |
+| Girar / duplicar / excluir | Use a barra preta que aparece sobre o móvel, ou <kbd>R</kbd>, <kbd>Ctrl</kbd>+<kbd>D</kbd> e <kbd>Delete</kbd>. |
+| Mudar nome, tipo, tamanho | Edite no painel, em **Móvel selecionado**. ID e elevação ficam em *Mais opções*. |
+| Voltar atrás | **Desfazer** ou <kbd>Ctrl</kbd>+<kbd>Z</kbd>. Desfaz uma ação por vez, inclusive exclusões. |
+| Guardar | **Salvar planta** (aba Layout no Apps Script; navegador na versão web). O rodapé mostra se há alterações não salvas. |
+
+Seções recolhidas no painel:
+
+- **Lista de móveis:** para achar um móvel escondido atrás de outro, ou os itens "Extra", que ficam fora da planta.
+- **Tamanho da loja e plantas:** largura, fundo e altura das paredes; **+ Criar nova planta**.
+- **Imagem de referência:** coloque a tela original da planta por cima, semitransparente, para "decalcar". Ajuste transparência, zoom e posição até alinhar.
+- **Grade e encaixe:** grade numerada no piso e o passo do arraste.
+
+**Baixar código da loja** gera `layout-plantas-AAAA-MM-DD.json` com o layout de todas as plantas, no mesmo formato de [`src/Layouts.gs`](src/Layouts.gs). Mande esse arquivo para virar o layout padrão do projeto. **Carregar código…** aplica um arquivo desses de volta.
 
 ## Versão web para testes (netli.fyi / Netlify)
 

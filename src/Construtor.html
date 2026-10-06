@@ -3,25 +3,42 @@
  * ============================================================================
  *  CONSTRUIR LOJA (editor visual do layout das plantas)
  * ============================================================================
- *  - clicar num móvel seleciona; arrastar move no piso (com passo/encaixe);
- *  - setas do teclado movem o selecionado (→ +X, ← −X, ↓ +Y, ↑ −Y);
- *  - formulário para ID, tipo, posição e medidas; novo / duplicar / excluir / girar;
- *  - imagem de referência semitransparente por cima (para decalcar a planta);
+ *  - Paleta "Adicionar móvel": um clique cria o móvel no centro da loja.
+ *  - Clicar num móvel seleciona; arrastar move (Alt = movimento fino);
+ *    clicar no piso vazio desmarca.
+ *  - Barra flutuante sobre o selecionado: Girar · Duplicar · Excluir.
+ *  - Atalhos: setas movem, Delete exclui, Ctrl+Z desfaz, Ctrl+D duplica,
+ *    R gira, Esc desmarca.
  *  - "Salvar planta" grava na aba Layout; "Baixar código da loja" gera o
  *    layout de todas as plantas no formato de src/Layouts.gs.
  */
 const Construtor = (() => {
   const COS30 = Math.cos(Math.PI / 6);
-  const CAMPOS_NUMERICOS = ['x', 'y', 'z', 'w', 'd', 'h'];
+  const MAX_HISTORICO = 80;
+
+  /** Tipos na paleta: nome amigável, prefixo do ID, tamanho padrão [largura, fundo, altura] e ícone. */
+  const TIPOS = {
+    GONDOLA: { nome: 'Gôndola', prefixo: 'GON', tam: [2.4, 1.4, 3], icone: 'M4 19V8l8-4 8 4v11M4 8l8 4 8-4M12 12v8M4 13l8 4 8-4' },
+    GONDOLA_PAREDE: { nome: 'Parede', prefixo: 'PAR', tam: [4, 1.1, 3.8], icone: 'M2 19V6h20v13zM2 10h20M2 14h20M9 6v13M16 6v13' },
+    PIRAMIDE: { nome: 'Pirâmide', prefixo: 'PIR', tam: [1.7, 1.7, 3.6], icone: 'M5 20v-6h14v6zM6.5 14v-5h11v5zM9 9V4h6v5z' },
+    CUBO: { nome: 'Cubo', prefixo: 'CUBO', tam: [1.3, 1.3, 1.9], icone: 'M5 9l7-4 7 4v8l-7 4-7-4zM5 9l7 4 7-4M12 13v8' },
+    MESA: { nome: 'Mesa', prefixo: 'MESA', tam: [2.6, 2.4, 1.5], icone: 'M2 12l10-5 10 5-10 5zM2 12v4l10 5 10-5v-4M7 9.5l10 5M17 9.5l-10 5' },
+    TOTEM: { nome: 'Totem', prefixo: 'TOTEM', tam: [1.5, 0.35, 3.4], icone: 'M8 21V3h8v18zM8 8h8M8 13h8M6 21h12' },
+    PAINEL: { nome: 'Painel', prefixo: 'PAINEL', tam: [0.8, 1.6, 3.8], icone: 'M7 21V3l10 3v18zM9.5 8l5 1.5v9l-5-1.5z' },
+    VITRINE_L: { nome: 'Vitrine L', prefixo: 'VIT', tam: [3.6, 3, 2.4], icone: 'M3 20V9h5v6h13v5zM3 9l3-2h5' },
+    CAIXA: { nome: 'Caixa', prefixo: 'CX', tam: [1.8, 1.2, 1.7], icone: 'M3 21v-9h18v9zM3 12l3-3h12l3 3M10 9V4h5v5' },
+    EXTRA: { nome: 'Extra', prefixo: 'EXTRA', tam: [1, 1, 1], icone: 'M5 8h14l-2 12H7zM9 8a3 3 0 0 1 6 0' },
+  };
+
   const c = {
     ativo: false,
     planta: null, // cópia editável da planta
     nova: false, // planta criada aqui e ainda não salva
     selecionado: '',
-    sujo: false,
+    historico: [], // fotos (JSON) antes de cada alteração — para desfazer
     grade: true,
     passo: 0.5,
-    referencias: {}, // planta → {src, opacidade}
+    referencias: {}, // planta → {src, opacidade, zoom, dx, dy}
     escala: 1,
     quadro: 0,
   };
@@ -29,6 +46,8 @@ const Construtor = (() => {
   const $ = (id) => document.getElementById(id);
   const clonar = (o) => JSON.parse(JSON.stringify(o));
   const arred = (v) => Math.round(v * 100) / 100;
+  const nomeTipo = (t) => (TIPOS[t] ? TIPOS[t].nome : t);
+  const sujo = () => c.nova || c.historico.length > 0;
 
   /* ------------------------------ estado ---------------------------------- */
 
@@ -39,13 +58,26 @@ const Construtor = (() => {
 
   function aposDesenhar(r) {
     if (r && r.escala) c.escala = r.escala;
+    posicionarBarra();
   }
 
   const movelSelecionado = () => (c.planta ? c.planta.moveis.find((m) => m.id === c.selecionado) : null);
 
-  function marcarSujo() {
-    c.sujo = true;
+  /** Guarda uma foto do estado ANTES de alterar (para o Desfazer). */
+  function registrar() {
+    c.historico.push(JSON.stringify({ planta: c.planta, selecionado: c.selecionado }));
+    if (c.historico.length > MAX_HISTORICO) c.historico.shift();
     atualizarStatus();
+  }
+
+  function desfazer() {
+    const foto = c.historico.pop();
+    if (!foto) return;
+    const o = JSON.parse(foto);
+    c.planta = o.planta;
+    c.selecionado = o.selecionado;
+    preencherTudo();
+    app.desenhar();
   }
 
   function redesenhar() {
@@ -55,21 +87,21 @@ const Construtor = (() => {
 
   /** Pode trocar de planta / sair? (pergunta se há alterações não salvas) */
   function podeSair() {
-    return !c.ativo || !c.sujo || window.confirm('Há alterações não salvas no layout desta planta. Descartar?');
+    return !c.ativo || !sujo() || window.confirm('Há alterações não salvas no layout desta planta. Descartar?');
   }
 
   function carregarPlanta(planta) {
     c.planta = clonar(planta);
     c.nova = false;
-    c.sujo = false;
-    if (!c.planta.moveis.some((m) => m.id === c.selecionado)) c.selecionado = (c.planta.moveis[0] || {}).id || '';
+    c.historico = [];
+    if (!c.planta.moveis.some((m) => m.id === c.selecionado)) c.selecionado = '';
     lerReferencia(c.planta.id);
     preencherTudo();
   }
 
   /** Chamado pelo App depois de recarregar os dados ou trocar de planta. */
   function sincronizar(planta) {
-    if (c.ativo && planta && (!c.sujo || c.planta.id !== planta.id)) carregarPlanta(planta);
+    if (c.ativo && planta && (!sujo() || c.planta.id !== planta.id)) carregarPlanta(planta);
   }
 
   /* ------------------------------ abrir/fechar ---------------------------- */
@@ -78,6 +110,7 @@ const Construtor = (() => {
     const planta = app.plantaAtual();
     if (!planta) return;
     c.ativo = true;
+    c.selecionado = '';
     carregarPlanta(planta);
     document.body.classList.add('construindo');
     $('painelConstrutor').hidden = false;
@@ -88,18 +121,20 @@ const Construtor = (() => {
   function fechar() {
     if (!podeSair()) return;
     c.ativo = false;
-    c.sujo = false;
+    c.historico = [];
+    c.nova = false;
     document.body.classList.remove('construindo');
     $('painelConstrutor').hidden = true;
+    $('cnsFlutuante').hidden = true;
     $('btnConstruir').setAttribute('aria-pressed', 'false');
     app.desenhar();
   }
 
-  /* ------------------------------ formulário ------------------------------ */
+  /* ------------------------------ painel ---------------------------------- */
 
   function preencherTudo() {
     const p = c.planta;
-    $('cnsPlanta').textContent = p.nome + (c.nova ? ' (nova)' : '');
+    $('cnsPlanta').textContent = p.nome + (c.nova ? ' · nova' : '');
     $('cnsLargura').value = p.loja.largura;
     $('cnsProfundidade').value = p.loja.profundidade;
     $('cnsAltura').value = p.loja.alturaParede;
@@ -118,85 +153,106 @@ const Construtor = (() => {
     const sel = $('cnsLista');
     sel.textContent = '';
     c.planta.moveis.forEach((m) => {
-      const extra = m.tipo === 'EXTRA' ? ' (fora da planta)' : '';
-      sel.appendChild(new Option(m.id + (m.descricao ? ' — ' + m.descricao : '') + extra, m.id, false, m.id === c.selecionado));
+      const texto = (m.descricao || nomeTipo(m.tipo)) + ' · ' + m.id + (m.tipo === 'EXTRA' ? ' (fora da planta)' : '');
+      sel.appendChild(new Option(texto, m.id, false, m.id === c.selecionado));
     });
+    $('cnsQtd').textContent = '(' + c.planta.moveis.length + ')';
   }
 
   function preencherFormulario() {
     const m = movelSelecionado();
-    $('cnsForm').classList.toggle('desativado', !m);
-    $('cnsForm').querySelectorAll('input, select, button').forEach((e) => { e.disabled = !m; });
-    $('cnsDuplicar').disabled = !m;
-    $('cnsExcluir').disabled = !m;
+    $('cnsVazio').hidden = !!m;
+    $('cnsCampos').hidden = !m;
     if (!m) return;
     $('cnsId').value = m.id;
     $('cnsDescricao').value = m.descricao || '';
     $('cnsTipo').value = m.tipo;
-    CAMPOS_NUMERICOS.forEach((k) => { $('cnsForm').querySelector('[data-campo="' + k + '"]').value = m[k]; });
+    ['x', 'y', 'z', 'w', 'd', 'h'].forEach((k) => { $('cnsForm').querySelector('[data-campo="' + k + '"]').value = m[k]; });
   }
 
   function atualizarStatus() {
-    const n = c.planta ? c.planta.moveis.length : 0;
-    $('cnsStatus').textContent = (c.sujo ? '● não salvo · ' : '') + n + ' móveis';
-    $('cnsStatus').classList.toggle('sujo', c.sujo);
-    $('cnsSalvar').disabled = !c.sujo;
-    $('cnsDescartar').disabled = !c.sujo;
+    const s = sujo();
+    $('cnsStatus').textContent = s ? '● Alterações não salvas' : '✓ Tudo salvo';
+    $('cnsStatus').classList.toggle('sujo', s);
+    $('cnsSalvar').disabled = !s;
+    $('cnsDescartar').disabled = !s;
+    $('cnsDesfazer').disabled = !c.historico.length;
   }
 
   function selecionar(id) {
-    c.selecionado = id;
-    $('cnsLista').value = id;
+    c.selecionado = id || '';
+    if (!c.selecionado) $('cnsFlutuante').hidden = true;
+    $('cnsLista').value = c.selecionado;
     preencherFormulario();
     redesenhar();
   }
 
-  function idLivre(base) {
-    const ids = new Set(c.planta.moveis.map((m) => m.id));
-    if (!ids.has(base)) return base;
-    for (let i = 2; ; i++) if (!ids.has(base + '-' + i)) return base + '-' + i;
+  /** Barra flutuante (Girar / Duplicar / Excluir) acima do móvel selecionado. */
+  function posicionarBarra() {
+    const barra = $('cnsFlutuante');
+    const m = movelSelecionado();
+    const partes = m ? Array.from(document.querySelectorAll('#slide g.movel.selecionado')) : [];
+    if (!c.ativo || !partes.length) { barra.hidden = true; return; }
+    const r = partes.map((g) => g.getBoundingClientRect()).reduce((a, b) => ({
+      left: Math.min(a.left, b.left), right: Math.max(a.right, b.right), top: Math.min(a.top, b.top),
+    }));
+    const base = $('palco').getBoundingClientRect();
+    barra.hidden = false;
+    barra.style.left = (r.left + r.right) / 2 - base.left + 'px';
+    barra.style.top = Math.max(r.top - base.top - 8, 40) + 'px';
   }
 
   /* ------------------------------ ações ----------------------------------- */
 
-  function novoMovel() {
+  function idLivre(prefixo) {
+    const ids = new Set(c.planta.moveis.map((m) => m.id));
+    for (let i = 1; ; i++) {
+      const id = prefixo + '-' + (i < 10 ? '0' : '') + i;
+      if (!ids.has(id)) return id;
+    }
+  }
+
+  function adicionar(tipo) {
+    const t = TIPOS[tipo];
     const L = c.planta.loja;
+    registrar();
     const m = {
-      id: idLivre('NOVO'), descricao: '', tipo: 'GONDOLA',
-      x: arred(L.largura / 2 - 1), y: arred(L.profundidade / 2 - 0.6), z: 0, w: 2, d: 1.2, h: 3, ajusteX: 0, ajusteY: 0,
+      id: idLivre(t.prefixo), descricao: '', tipo,
+      x: arred(Math.round((L.largura - t.tam[0]) / 2)), y: arred(Math.round((L.profundidade - t.tam[1]) / 2)), z: 0,
+      w: t.tam[0], d: t.tam[1], h: t.tam[2], ajusteX: 0, ajusteY: 0,
     };
     c.planta.moveis.push(m);
-    marcarSujo();
     preencherLista();
     selecionar(m.id);
-    $('cnsId').select();
+    if (tipo === 'EXTRA') app.toast('Itens "Extra" aparecem na faixa do canto inferior direito.');
   }
 
   function duplicar() {
     const m = movelSelecionado();
     if (!m) return;
-    const copia = Object.assign(clonar(m), { id: idLivre(m.id), x: arred(m.x + 1), y: arred(m.y + 1), ajusteX: 0, ajusteY: 0 });
+    registrar();
+    const prefixo = m.id.replace(/-?\d+$/, '') || (TIPOS[m.tipo] || {}).prefixo || 'MOVEL';
+    const copia = Object.assign(clonar(m), { id: idLivre(prefixo), x: arred(m.x + 1), y: arred(m.y + 1), ajusteX: 0, ajusteY: 0 });
     c.planta.moveis.push(copia);
-    marcarSujo();
     preencherLista();
     selecionar(copia.id);
   }
 
   function excluir() {
     const m = movelSelecionado();
-    if (!m || !window.confirm('Excluir o móvel ' + m.id + ' desta planta?')) return;
-    const i = c.planta.moveis.indexOf(m);
-    c.planta.moveis.splice(i, 1);
-    const prox = c.planta.moveis[Math.min(i, c.planta.moveis.length - 1)];
-    marcarSujo();
+    if (!m) return;
+    registrar();
+    c.planta.moveis.splice(c.planta.moveis.indexOf(m), 1);
     preencherLista();
-    selecionar(prox ? prox.id : '');
+    selecionar('');
+    app.toast('Móvel ' + m.id + ' excluído. Use Desfazer (Ctrl+Z) se foi engano.');
   }
 
   function girar() {
     const m = movelSelecionado();
     if (!m) return;
-    // Gira em torno do centro: troca largura e profundidade.
+    registrar();
+    // Gira em torno do centro: troca largura e fundo.
     const cx = m.x + m.w / 2;
     const cy = m.y + m.d / 2;
     const w = m.w;
@@ -204,7 +260,6 @@ const Construtor = (() => {
     m.d = w;
     m.x = arred(cx - m.w / 2);
     m.y = arred(cy - m.d / 2);
-    marcarSujo();
     preencherFormulario();
     redesenhar();
   }
@@ -212,9 +267,9 @@ const Construtor = (() => {
   function mover(dx, dy) {
     const m = movelSelecionado();
     if (!m || m.tipo === 'EXTRA') return;
+    registrar();
     m.x = arred(m.x + dx);
     m.y = arred(m.y + dy);
-    marcarSujo();
     preencherFormulario();
     redesenhar();
   }
@@ -233,11 +288,12 @@ const Construtor = (() => {
       moveis: clonar(base.moveis.filter((m) => m.tipo === 'GONDOLA_PAREDE' || m.tipo === 'EXTRA')),
     };
     c.nova = true;
-    c.selecionado = (c.planta.moveis[0] || {}).id || '';
+    c.historico = [];
+    c.selecionado = '';
     lerReferencia(id);
-    marcarSujo();
     preencherTudo();
     app.desenhar();
+    app.toast('PLANTA ' + id + ' criada. Ajuste e clique em Salvar planta.');
   }
 
   async function salvar() {
@@ -252,7 +308,8 @@ const Construtor = (() => {
         })),
       };
       const r = await app.chamar('salvarLayout', p.id, layout);
-      c.sujo = false;
+      c.historico = [];
+      c.nova = false;
       await app.carregar({ planta: p.id });
       app.toast('Layout salvo: ' + p.nome + ' (' + r.moveis + ' móveis).');
     } catch (e) {
@@ -263,8 +320,7 @@ const Construtor = (() => {
   }
 
   function descartar() {
-    if (!c.sujo || !window.confirm('Descartar as alterações do layout?')) return;
-    c.sujo = false;
+    if (!sujo() || !window.confirm('Descartar todas as alterações desde o último salvamento?')) return;
     carregarPlanta(app.plantaAtual());
     app.desenhar();
   }
@@ -303,7 +359,7 @@ const Construtor = (() => {
     const blob = new Blob([gerarCodigo()], { type: 'application/json' });
     const data = new Date().toISOString().slice(0, 10);
     Planilha.baixarBlob(blob, 'layout-plantas-' + data + '.json');
-    app.toast(c.sujo ? 'Código baixado (inclui alterações ainda não salvas).' : 'Código da loja baixado.');
+    app.toast(sujo() ? 'Código baixado (inclui alterações ainda não salvas).' : 'Código da loja baixado.');
   }
 
   async function carregarCodigo(arquivo) {
@@ -323,7 +379,8 @@ const Construtor = (() => {
           })),
         });
       }
-      c.sujo = false;
+      c.historico = [];
+      c.nova = false;
       await app.carregar({ planta: ids[0] });
       app.toast('Layout carregado (' + ids.length + ' planta(s)).');
     } catch (e) {
@@ -367,11 +424,8 @@ const Construtor = (() => {
         cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
         const id = c.planta.id;
         c.referencias[id] = { src: cv.toDataURL('image/jpeg', 0.82), opacidade: Number($('cnsOpacidade').value) / 100, zoom: 1, dx: 0, dy: 0 };
-        $('cnsRefZoom').value = 100;
-        $('cnsRefX').value = 0;
-        $('cnsRefY').value = 0;
         gravarReferencia(id);
-        $('cnsTirarImagem').disabled = false;
+        preencherTudo();
         app.desenhar();
       };
       img.onerror = () => app.erro(new Error('Não foi possível ler a imagem.'));
@@ -390,31 +444,34 @@ const Construtor = (() => {
     return pt.matrixTransform(svg.getScreenCTM().inverse());
   }
 
-  const encaixar = (v) => arred(Math.round(v / c.passo) * c.passo);
-
   function ligarArraste(svg) {
     svg.addEventListener('pointerdown', (ev) => {
-      if (!c.ativo) return;
+      if (!c.ativo || ev.button !== 0) return;
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); // libera os atalhos
       const alvo = ev.target.closest('g.movel');
-      if (!alvo) return;
+      if (!alvo) { selecionar(''); return; } // clique no piso vazio desmarca
       ev.preventDefault();
       selecionar(alvo.getAttribute('data-movel'));
       const m = movelSelecionado();
       if (!m) return;
       const inicio = pontoSvg(svg, ev);
       const orig = { x: m.x, y: m.y };
+      let registrou = false;
+      $('cnsFlutuante').hidden = true;
       svg.setPointerCapture(ev.pointerId);
       const mover = (e) => {
         const p = pontoSvg(svg, e);
         // Converte o deslocamento na tela em deslocamento no piso (plano z = 0).
         const a = (p.x - inicio.x) / (COS30 * c.escala);
         const b = (2 * (p.y - inicio.y)) / c.escala;
+        const passo = e.altKey ? 0.1 : c.passo;
+        const encaixar = (v) => arred(Math.round(v / passo) * passo);
         const nx = encaixar(orig.x + (a + b) / 2);
         const ny = encaixar(orig.y + (b - a) / 2);
         if (nx === m.x && ny === m.y) return;
+        if (!registrou) { registrar(); registrou = true; }
         m.x = nx;
         m.y = ny;
-        marcarSujo();
         preencherFormulario();
         redesenhar();
       };
@@ -422,6 +479,7 @@ const Construtor = (() => {
         svg.removeEventListener('pointermove', mover);
         svg.removeEventListener('pointerup', soltar);
         svg.removeEventListener('pointercancel', soltar);
+        posicionarBarra();
       };
       svg.addEventListener('pointermove', mover);
       svg.addEventListener('pointerup', soltar);
@@ -429,40 +487,92 @@ const Construtor = (() => {
     });
   }
 
-  /** Setas movem o móvel selecionado (Shift = passo x5). */
+  /** Atalhos de teclado (o App só repassa quando o foco não está num campo). */
   function tecla(e) {
+    const ctrl = e.ctrlKey || e.metaKey;
+    const k = e.key.toLowerCase();
+    if (ctrl && k === 'z') { e.preventDefault(); desfazer(); return; }
+    if (ctrl && k === 'd') { e.preventDefault(); duplicar(); return; }
+    if (ctrl || e.altKey) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); excluir(); return; }
+    if (e.key === 'Escape') { selecionar(''); return; }
+    if (k === 'r') { girar(); return; }
     const mapa = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1] };
     const d = mapa[e.key];
-    if (!d) return false;
+    if (!d) return;
     e.preventDefault();
-    const k = c.passo * (e.shiftKey ? 5 : 1);
-    mover(d[0] * k, d[1] * k);
-    return true;
+    const passo = c.passo * (e.shiftKey ? 5 : 1);
+    mover(d[0] * passo, d[1] * passo);
   }
 
   /* ------------------------------ eventos --------------------------------- */
 
+  /** Campo de formulário: a foto para o Desfazer é tirada ao focar e só entra no histórico se o valor mudar. */
+  function campo(el, aplicar) {
+    let foto = null;
+    el.addEventListener('focus', () => { foto = JSON.stringify({ planta: c.planta, selecionado: c.selecionado }); });
+    el.addEventListener('input', () => {
+      if (!c.planta || aplicar(el.value) === false) return;
+      if (foto) {
+        c.historico.push(foto);
+        if (c.historico.length > MAX_HISTORICO) c.historico.shift();
+        foto = null;
+      }
+      atualizarStatus();
+      redesenhar();
+    });
+  }
+
   function ligar() {
     ligarArraste($('slide'));
 
-    const numLoja = { cnsLargura: 'largura', cnsProfundidade: 'profundidade', cnsAltura: 'alturaParede' };
-    Object.keys(numLoja).forEach((id) => {
-      $(id).addEventListener('input', (e) => {
-        const v = parseFloat(String(e.target.value).replace(',', '.'));
-        if (!isFinite(v) || v <= 0) return;
-        c.planta.loja[numLoja[id]] = v;
-        marcarSujo();
-        redesenhar();
+    const paleta = $('cnsPaleta');
+    Object.keys(TIPOS).forEach((t) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.title = 'Adicionar ' + TIPOS[t].nome.toLowerCase();
+      b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + TIPOS[t].icone + '"/></svg>';
+      b.appendChild(document.createTextNode(TIPOS[t].nome));
+      b.addEventListener('click', () => adicionar(t));
+      paleta.appendChild(b);
+    });
+    const selTipo = $('cnsTipo');
+    Object.keys(TIPOS).forEach((t) => selTipo.appendChild(new Option(TIPOS[t].nome, t)));
+
+    // Campos numéricos (loja e móvel).
+    const numero = (v) => parseFloat(String(v).replace(',', '.'));
+    const lojaCampos = { cnsLargura: 'largura', cnsProfundidade: 'profundidade', cnsAltura: 'alturaParede' };
+    Object.keys(lojaCampos).forEach((id) => {
+      campo($(id), (valor) => {
+        const v = numero(valor);
+        if (!isFinite(v) || v <= 0) return false;
+        c.planta.loja[lojaCampos[id]] = v;
       });
     });
-
-    $('cnsLista').addEventListener('change', (e) => selecionar(e.target.value));
-    $('cnsNovo').addEventListener('click', novoMovel);
-    $('cnsDuplicar').addEventListener('click', duplicar);
-    $('cnsExcluir').addEventListener('click', excluir);
-    $('cnsGirar').addEventListener('click', girar);
-    $('cnsNovaPlanta').addEventListener('click', novaPlanta);
-
+    $('cnsForm').querySelectorAll('[data-campo]').forEach((inp) => {
+      const k = inp.getAttribute('data-campo');
+      campo(inp, (valor) => {
+        const m = movelSelecionado();
+        const v = numero(valor);
+        if (!m || !isFinite(v)) return false;
+        m[k] = ['w', 'd', 'h'].indexOf(k) >= 0 ? Math.max(0.1, v) : v;
+      });
+    });
+    $('cnsDescricao').addEventListener('change', (e) => {
+      const m = movelSelecionado();
+      if (!m || m.descricao === e.target.value) return;
+      registrar();
+      m.descricao = e.target.value;
+      preencherLista();
+    });
+    $('cnsTipo').addEventListener('change', (e) => {
+      const m = movelSelecionado();
+      if (!m) return;
+      registrar();
+      m.tipo = e.target.value;
+      preencherLista();
+      redesenhar();
+    });
     $('cnsId').addEventListener('change', (e) => {
       const m = movelSelecionado();
       const novo = String(e.target.value).trim().toUpperCase().replace(/\s+/g, ' ');
@@ -472,46 +582,28 @@ const Construtor = (() => {
         e.target.value = m.id;
         return;
       }
+      registrar();
       m.id = novo;
       c.selecionado = novo;
-      marcarSujo();
       preencherLista();
       redesenhar();
     });
-    $('cnsDescricao').addEventListener('input', (e) => {
-      const m = movelSelecionado();
-      if (!m) return;
-      m.descricao = e.target.value;
-      marcarSujo();
-      const opt = $('cnsLista').selectedOptions[0];
-      if (opt) opt.textContent = m.id + (m.descricao ? ' — ' + m.descricao : '');
+
+    $('cnsLista').addEventListener('change', (e) => selecionar(e.target.value));
+    $('cnsFlutuante').addEventListener('click', (e) => {
+      const acao = e.target.getAttribute('data-acao');
+      if (acao === 'girar') girar();
+      else if (acao === 'duplicar') duplicar();
+      else if (acao === 'excluir') excluir();
     });
-    $('cnsTipo').addEventListener('change', (e) => {
-      const m = movelSelecionado();
-      if (!m) return;
-      m.tipo = e.target.value;
-      marcarSujo();
-      preencherLista();
-      redesenhar();
-    });
-    $('cnsForm').querySelectorAll('[data-campo]').forEach((inp) => {
-      inp.addEventListener('input', () => {
-        const m = movelSelecionado();
-        const v = parseFloat(String(inp.value).replace(',', '.'));
-        if (!m || !isFinite(v)) return;
-        const k = inp.getAttribute('data-campo');
-        m[k] = ['w', 'd', 'h'].indexOf(k) >= 0 ? Math.max(0.1, v) : v;
-        marcarSujo();
-        redesenhar();
-      });
-    });
+    $('cnsNovaPlanta').addEventListener('click', novaPlanta);
 
     $('cnsImagem').addEventListener('click', () => $('cnsArquivoImagem').click());
     $('cnsArquivoImagem').addEventListener('change', (e) => carregarImagem(e.target.files[0]));
     $('cnsTirarImagem').addEventListener('click', () => {
       delete c.referencias[c.planta.id];
       gravarReferencia(c.planta.id);
-      $('cnsTirarImagem').disabled = true;
+      preencherTudo();
       app.desenhar();
     });
     $('cnsOpacidade').addEventListener('input', (e) => {
@@ -534,19 +626,14 @@ const Construtor = (() => {
     $('cnsGrade').addEventListener('change', (e) => { c.grade = e.target.checked; redesenhar(); });
     $('cnsPasso').addEventListener('change', (e) => { c.passo = Number(e.target.value); });
 
+    $('cnsDesfazer').addEventListener('click', desfazer);
     $('cnsSalvar').addEventListener('click', salvar);
     $('cnsDescartar').addEventListener('click', descartar);
     $('cnsBaixarCodigo').addEventListener('click', baixarCodigo);
     $('cnsCarregarCodigo').addEventListener('click', () => $('cnsArquivoCodigo').click());
     $('cnsArquivoCodigo').addEventListener('change', (e) => carregarCodigo(e.target.files[0]));
     $('cnsFechar').addEventListener('click', fechar);
-  }
-
-  /** Preenche a lista de tipos (precisa dos dados carregados). */
-  function preencherTipos(tipos) {
-    const sel = $('cnsTipo');
-    if (sel.options.length) return;
-    Object.keys(tipos).filter((t) => t !== 'LOJA').forEach((t) => sel.appendChild(new Option(t + ' — ' + tipos[t], t)));
+    window.addEventListener('resize', posicionarBarra);
   }
 
   function iniciar(api) {
@@ -556,7 +643,7 @@ const Construtor = (() => {
 
   return {
     iniciar,
-    abrir: () => { preencherTipos(app.estado.dados.tipos); abrir(); },
+    abrir,
     fechar,
     ativo: () => c.ativo,
     podeSair,
