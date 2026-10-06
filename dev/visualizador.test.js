@@ -89,3 +89,8 @@ test('visualizador/apps-script está atualizado com src/ (rode npm run build:vis
   assert.equal(ler('Codigo.gs'), gerarCodigo(), 'Codigo.gs desatualizado');
   assert.equal(ler('Index.html'), gerarIndex(), 'Index.html desatualizado');
 });
+
+test('código do visualizador não traz o ciclo de exemplo', () => {
+  const codigo = gerarCodigo();
+  assert.ok(!/EXEMPLO_|Ciclo exemplo|valoresMovimentosExemplo_/.test(codigo));
+});

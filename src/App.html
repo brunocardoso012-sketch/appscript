@@ -201,14 +201,41 @@ const App = (() => {
     }
   }
 
+  let jaCarregou = false;
+
+  /**
+   * Ciclo mais recente: pelo ano e pelo número do nome ("C15/2026", "Ciclo 3 - 2027", "C02 2026");
+   * nomes sem ano ficam atrás dos que têm. Empate (ou nomes sem número): o que vem por último na planilha.
+   */
+  function cicloMaisRecente(ciclos) {
+    const chave = (nome) => {
+      const ano = (String(nome).match(/(?:^|\D)((?:19|20)\d{2})(?!\d)/) || [])[1];
+      const resto = ano ? String(nome).replace(ano, ' ') : String(nome);
+      const num = (resto.match(/\d+/) || [])[0];
+      return [ano ? Number(ano) : -1, num ? Number(num) : -1];
+    };
+    let melhor = '';
+    let k0 = null;
+    ciclos.forEach((c) => {
+      const k = chave(c);
+      if (!k0 || k[0] > k0[0] || (k[0] === k0[0] && k[1] >= k0[1])) { melhor = c; k0 = k; }
+    });
+    return melhor;
+  }
+
   function aplicarDados(dados, pref) {
     estado.dados = dados;
     $('telaConfig').hidden = true;
     svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden
 
-    // O app abre sem ciclo (planta limpa, sem cores nem etiquetas) até o usuário escolher um.
+    // O app abre no ciclo mais recente; ao atualizar, continua no ciclo escolhido
+    // (inclusive "Sem ciclo", se o usuário tiver escolhido a planta limpa).
+    const primeiraVez = !jaCarregou;
+    jaCarregou = true;
     const cicloPref = 'ciclo' in pref ? pref.ciclo : estado.ciclo;
-    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 ? cicloPref : '';
+    if (dados.ciclos.indexOf(cicloPref) >= 0) estado.ciclo = cicloPref;
+    else if (cicloPref === '' && !primeiraVez && !('ciclo' in pref)) estado.ciclo = '';
+    else estado.ciclo = cicloMaisRecente(dados.ciclos);
     const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
     estado.planta = dados.plantas.some((p) => p.id === plantaPref) ? plantaPref : (dados.plantas[0] || {}).id || '';
     estado.ajustes = {};

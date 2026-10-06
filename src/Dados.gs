@@ -59,6 +59,8 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
       // Nomes antigos dos lados da gôndola: Ponta 2 era o lado da frente (A), Ponta 1 o de trás (B).
       const id = normIdEspaco_(l.movel);
       const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
+      // Linha-modelo da planilha base ainda não usada (sem ciclo nem conteúdo): ignorada sem aviso.
+      if (!ciclo && !linhaTemConteudo_(l)) return;
       if (!ciclo || !planta || !id) {
         aviso(onde + ': Ciclo, Planta e ID Móvel são obrigatórios — linha ignorada.');
         return;
@@ -209,6 +211,13 @@ function montarPlantas_(linhas, aviso) {
 
   ordem.sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
   return ordem.map(function (id) { return mapa[id]; });
+}
+
+/** A linha da aba Movimentos tem marca, etiqueta, símbolo ou observação preenchidos? */
+function linhaTemConteudo_(l) {
+  const campos = ['marca', 'simbolo', 'observacao'];
+  for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) campos.push('etiqueta' + i, 'marcaEtiqueta' + i);
+  return campos.some(function (c) { return texto_(l[c]) !== ''; });
 }
 
 /** TRANSFERENCIAS (Config.gs) com plantas e IDs normalizados ("ER G" → "03"). */

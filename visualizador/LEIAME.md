@@ -8,7 +8,7 @@ Comparado ao app completo, esta versão **não tem** *Construir loja*, *Baixar p
 
 | Arquivo | O que é |
 |---|---|
-| `Planilha base - Visualizador.xlsx` | A planilha que alimenta o app (abas **Movimentos**, **Painéis** e **Instruções**), já com o *Ciclo exemplo* das quatro plantas. |
+| `Planilha base - Visualizador.xlsx` | A planilha que alimenta o app (abas **Movimentos**, **Painéis** e **Instruções**), em branco: uma linha por móvel de cada planta, pronta para preencher o primeiro ciclo. |
 | `apps-script/Codigo.gs` | Todo o código do servidor, num arquivo só. |
 | `apps-script/Index.html` | A página, num arquivo só. |
 | `apps-script/appsscript.json` | Manifesto (fuso horário, V8, App da Web). |

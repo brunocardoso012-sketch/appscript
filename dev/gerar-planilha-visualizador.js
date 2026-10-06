@@ -1,6 +1,6 @@
 /**
  * Gera visualizador/Planilha base - Visualizador.xlsx: a planilha que alimenta a versão só de
- * visualização, já com o "Ciclo exemplo" das quatro plantas. Usa o mesmo gerador do botão
+ * visualização, em branco (uma linha por móvel de cada planta, sem ciclo de exemplo). Usa o mesmo gerador do botão
  * "Baixar planilha base" (src/Planilha.html), rodando o index.html num Chromium (Playwright),
  * com as instruções da versão de visualização (lê a planilha direto, sem importar).
  *
@@ -39,9 +39,9 @@ function excelLocal() {
     pagina.waitForEvent('download'),
     pagina.evaluate(() => {
       const dados = App.estado.dados;
-      const ciclo = dados.ciclos[0];
+      // Em branco (sem o ciclo de exemplo): uma linha por móvel de cada planta, com o "Ciclo" vazio.
       return Planilha.baixarModelo(dados, {
-        ciclo, origem: ciclo, plantas: dados.plantas.map((p) => p.id), incluirLayout: false, visualizador: true,
+        ciclo: '', origem: '', plantas: dados.plantas.map((p) => p.id), incluirLayout: false, visualizador: true,
       }, App.resolver);
     }),
   ]);

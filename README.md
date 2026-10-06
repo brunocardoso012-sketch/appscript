@@ -15,7 +15,7 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 
 ## O que ele faz
 
-- **Abre com a planta limpa** (sem cores, etiquetas nem caixas de destaque) até você escolher um ciclo no seletor; a opção *Sem ciclo (planta limpa)* volta a esse estado.
+- **Abre no ciclo mais recente** (pelo ano e número do nome, ex.: C15/2026; sem ano, o último da planilha). A opção *Sem ciclo (planta limpa)* do seletor mostra a planta sem cores, etiquetas nem caixas de destaque.
 - **Seletor de ciclo e abas por planta** (ER P, ER M, ER G e ER GG = plantas 01 a 04). As setas ← → do teclado trocam de planta.
 - **Móveis coloridos pela marca**, com as etiquetas (caixas de texto) de cada móvel, os símbolos ▶ ◆ Ⓔ e NEW, as caixas de destaque que apontam para um móvel, a lateral TV/rádio, (A), (C), as notas e a faixa Cestinhas / Espaço da Beleza / Cavalete.
 - **Botão "Baixar planilha base"**: gera um `.xlsx` com uma linha por móvel de cada planta, listas suspensas e cores por marca. Pode vir em branco ou já preenchido com um ciclo existente, para servir de ponto de partida do próximo.
@@ -55,7 +55,7 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 | **Parede O.U.i** (`PAREDE OUI 1`…) | Painel alto com moldura, para a parede (padrão 3,6 × 0,9 × 5). | Uma linha. |
 | **Totem O.U.i** (`TOTEM OUI 1`…) | Expositor de base quadrada com moldura, na altura da gôndola (padrão 0,8 × 0,8 × 1,94). | Uma linha. |
 | **Ilha premium O.U.i** (`ILHA PREMIUM OUI 1`…) | Base com prateleiras e, centralizado em cima dela, painel alto com duas faixas verticais mais claras nas laterais (padrão 3 × 1,6 × 3). | Uma linha. |
-| **Móvel make** (`MOVEL MAKE 1`…) | Estante de parede com painel de fundo, montantes nas pontas, base com rodapé escuro, 5 prateleiras com a fileira de produtos na borda e **4 testeiras** no alto; o fundo fica do lado da parede (padrão 6 × 1,4 × 3,2). | Uma linha para o móvel e uma por testeira (`MOVEL MAKE 1/TESTEIRA-1` … `TESTEIRA-4`), como nos espaços da gôndola: a testeira com linha própria usa a cor (e a Etiqueta 1) dela; sem linha, usa a do móvel. Testeiras vizinhas com o mesmo texto e cor ficam com uma etiqueta só, centralizada. |
+| **Móvel make** (`MOVEL MAKE 1`…) | Estante de parede com painel de fundo, montantes nas pontas, base com rodapé escuro, 5 prateleiras com a fileira de produtos na borda e **4 testeiras** no alto; o fundo fica do lado da parede (padrão 6 × 1,4 × 3,2). | Uma linha para o móvel e uma por testeira (`MOVEL MAKE 1/TESTEIRA-1` … `TESTEIRA-4`), como nos espaços da gôndola: a testeira com linha própria usa a cor dela e mostra até 4 etiquetas, empilhadas; sem linha, usa a do móvel. Testeiras vizinhas com o mesmo texto e cor ficam com uma etiqueta só, centralizada. |
 
 Lado A e meio A são sempre os que estão virados para quem olha a planta. A gôndola tem por padrão a mesma altura da pirâmide (1,94).
 
@@ -74,7 +74,7 @@ Seções recolhidas no painel:
 
 A pasta [`visualizador/`](visualizador/) tem uma versão do app **só para visualizar** a estratégia, que é montada direto numa planilha do Google Sheets. Todos os ciclos ficam numa única planilha (abas *Movimentos* e *Painéis*), conectada ao script. Não tem *Construir loja*, *Baixar planilha base* nem *Importar planilha*. O layout das lojas fica no código.
 
-- [`visualizador/Planilha base - Visualizador.xlsx`](visualizador/) é a planilha que alimenta o app.
+- [`visualizador/Planilha base - Visualizador.xlsx`](visualizador/) é a planilha que alimenta o app (em branco; o código do visualizador não traz o ciclo de exemplo e abre no ciclo mais recente).
 - [`visualizador/apps-script/`](visualizador/apps-script/) tem o projeto pronto para colar no Apps Script: `Codigo.gs`, `Index.html` e o manifesto.
 - O passo a passo de instalação está em [`visualizador/LEIAME.md`](visualizador/LEIAME.md).
 
@@ -173,7 +173,7 @@ Se você já tinha um ciclo próprio com os IDs antigos (`GON-01`, `PIR-02`…),
 | **ID Móvel** | Liga a linha ao desenho. **Não altere**, deve existir na aba Layout. |
 | Móvel (referência) | Só para orientação (ex.: *Ilha central – Botik*). |
 | **Marca do Móvel** | Cor do móvel: `BOT`, `QDB`, `EUD`, `OUI`, `MULTI`, `NEUTRO`. Aceita combinação (`BOT+QDB` gera degradê) ou cor livre (`#FF8800`). |
-| Etiqueta 1…4 | Texto de cada caixinha. Quebra de linha na célula (Alt+Enter) vira quebra na etiqueta. Pirâmide e mesas mostram até 4, empilhadas; na linha da gôndola inteira, cada etiqueta vai para um bloco, e a linha de um bloco (gôndola ou frente de mesa) mostra até 4 em cima dele; no totem, Etiqueta 1–3 = painel de cima, do meio e de baixo; testeira do make, 1 (ver *Os móveis*). No ID Móvel, o espaço depois da "/" aceita variações (`TOTEM 1/PAINEL 1`, `GONDOLA 1/LADO A`). Na planilha base, as colunas que não aparecem na planta ficam cinza. |
+| Etiqueta 1…4 | Texto de cada caixinha. Quebra de linha na célula (Alt+Enter) vira quebra na etiqueta. Pirâmide e mesas mostram até 4, empilhadas; na linha da gôndola inteira, cada etiqueta vai para um bloco, e a linha de um bloco (gôndola ou frente de mesa) mostra até 4 em cima dele; no totem, Etiqueta 1–3 = painel de cima, do meio e de baixo; testeira do make e linha de painel do totem, até 4 empilhadas (ver *Os móveis*). No ID Móvel, o espaço depois da "/" aceita variações (`TOTEM 1/PAINEL 1`, `GONDOLA 1/LADO A`). Na planilha base, as colunas que não aparecem na planta ficam cinza. |
 | Marca Etiqueta 1…4 | Cor de cada etiqueta. Se vazio, usa a cor do móvel. |
 | Símbolo | `MOVIMENTO` (▶), `FIXO` (◆), `EXPOSICAO` (Ⓔ), `NOVO` (selo NEW). |
 | Observação | Aparece ao passar o mouse sobre o móvel. |

@@ -24,12 +24,14 @@
  */
 const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
 
+// <so-app-completo>: o ciclo de exemplo não vai para a versão do visualizador (dev/build-visualizador.js).
 /**
  * Versão do ciclo de exemplo inteiro (Movimentos + Painéis, todas as plantas e TODAS).
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
 const VERSAO_EXEMPLO = 7;
+// </so-app-completo>
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -168,6 +170,7 @@ const LAYOUT_PADRAO = {
   },
 };
 
+// <so-app-completo>: o ciclo de exemplo não vai para a versão do visualizador (dev/build-visualizador.js).
 /* --------------------------------------------------------------------------
  *  CICLO DE EXEMPLO (transcrito das telas de referência)
  *  Móvel: ID → [marca do móvel, [[etiqueta, marca da etiqueta], ...], símbolo]
@@ -268,6 +271,7 @@ const EXEMPLO_PAINEIS = [
   ['04', 'NOTA', 'Meio de gôndola: exclusivo NE, exposição de Lily.', '', ''],
   ['04', 'NOTA', 'Pirâmide: NE exposição de masculino e SP Masculino + Lily', '', ''],
 ];
+// </so-app-completo>
 
 /* ------------------------- Conversão em matrizes ------------------------- */
 
@@ -292,6 +296,7 @@ function valoresLayoutPadrao_() {
   return linhas;
 }
 
+// <so-app-completo>: o ciclo de exemplo não vai para a versão do visualizador (dev/build-visualizador.js).
 /** Matriz [cabeçalho, ...linhas] da aba Movimentos com o ciclo de exemplo. */
 function valoresMovimentosExemplo_() {
   const cols = colunasMovimentos_();
@@ -328,3 +333,4 @@ function valoresPaineisExemplo_() {
   });
   return linhas;
 }
+// </so-app-completo>

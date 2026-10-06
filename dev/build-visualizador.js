@@ -2,7 +2,8 @@
  * Gera visualizador/apps-script/: a versão só de visualização para o Google Apps Script.
  * São só dois arquivos (mais o manifesto), fáceis de colar no editor do Apps Script:
  *
- *   - Codigo.gs  = visualizador/fonte/Visualizador.gs + src/Config.gs, Layouts.gs e Dados.gs;
+ *   - Codigo.gs  = visualizador/fonte/Visualizador.gs + src/Config.gs, Layouts.gs (sem o ciclo de
+ *                  exemplo) e Dados.gs;
  *   - Index.html = src/Index.html com Styles, Render e App embutidos, sem os trechos marcados
  *                  com <!-- so-app-completo --> (Construir loja, Baixar / Importar planilha).
  *
@@ -17,11 +18,18 @@ const FONTE = path.join(RAIZ, 'visualizador', 'fonte');
 const DESTINO = path.join(RAIZ, 'visualizador', 'apps-script');
 const ler = (...p) => fs.readFileSync(path.join(...p), 'utf8');
 
+/** Tira os trechos entre "// <so-app-completo>" e "// </so-app-completo>" (o ciclo de exemplo). */
+function semCicloExemplo(codigo) {
+  const limpo = codigo.replace(/^\/\/ <so-app-completo>[^\n]*\n[\s\S]*?^\/\/ <\/so-app-completo>\n\n?/gm, '');
+  if (/so-app-completo|EXEMPLO_|Ciclo exemplo/.test(limpo)) throw new Error('Sobrou ciclo de exemplo em Layouts.gs.');
+  return limpo;
+}
+
 function gerarCodigo() {
   const partes = [
     ['visualizador/fonte/Visualizador.gs', ler(FONTE, 'Visualizador.gs')],
     ['src/Config.gs', ler(SRC, 'Config.gs')],
-    ['src/Layouts.gs', ler(SRC, 'Layouts.gs')],
+    ['src/Layouts.gs', semCicloExemplo(ler(SRC, 'Layouts.gs'))],
     ['src/Dados.gs', ler(SRC, 'Dados.gs')],
   ];
   return partes.map(([nome, codigo]) => '/* ===== ' + nome + ' ===== */\n' + codigo.trim() + '\n').join('\n');

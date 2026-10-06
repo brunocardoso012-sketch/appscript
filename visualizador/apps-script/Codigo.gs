@@ -217,11 +217,11 @@ const ETIQUETAS_POR_TIPO = { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 };
 
 /**
  * Quantas etiquetas a linha de um bloco mostra em cima dele (GONDOLA 1/LADO-A,
- * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
- * (totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
+ * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3, MOVEL MAKE 1/TESTEIRA-2…), empilhadas.
+ * Tipos que não aparecem aqui mostram só a Etiqueta 1. Blocos vizinhos com as
  * mesmas etiquetas (texto e cor) viram uma pilha só, centralizada.
  */
-const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
+const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4, MAKE: 4, TOTEM: 4 };
 
 /**
  * Marcas e cores.
@@ -459,13 +459,6 @@ function colunasLayout_() {
  */
 const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
 
-/**
- * Versão do ciclo de exemplo inteiro (Movimentos + Painéis, todas as plantas e TODAS).
- * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
- * abertura (os outros ciclos não mudam).
- */
-const VERSAO_EXEMPLO = 7;
-
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
   '01': {
@@ -603,107 +596,6 @@ const LAYOUT_PADRAO = {
   },
 };
 
-/* --------------------------------------------------------------------------
- *  CICLO DE EXEMPLO (transcrito das telas de referência)
- *  Móvel: ID → [marca do móvel, [[etiqueta, marca da etiqueta], ...], símbolo]
- *  Cascata: o que é definido numa planta vale também para as seguintes
- *  (ER P → ER M → ER G → ER GG), então cada móvel aparece só na primeira planta
- *  que o tem. Uma linha da própria planta tem prioridade; "TODAS" vale para todas.
- *  Pirâmide e mesa destaque mostram 1 etiqueta; na gôndola inteira, as
- *  etiquetas 1–4 vão para Ponta 1, Meio A, Meio B e Ponta 2 (ETIQUETAS_POR_TIPO).
- * ------------------------------------------------------------------------ */
-
-const EXEMPLO_CICLO = 'Ciclo exemplo';
-
-const EXEMPLO_MOVIMENTOS = {
-  TODAS: {
-    'EXTRA-CESTINHAS': ['NEUTRO', [['LÇTO EGEO', 'BOT+QDB']]],
-    'EXTRA-BELEZA': ['NEUTRO', [['BOTIPROMO MAKE B.', 'BOT'], ['LIQUIDA MAKE', 'QDB']]],
-    'EXTRA-CAVALETE': ['NEUTRO', [['SIÀGE ULTIMATE', 'EUD']]],
-  },
-  '01': {
-    'MOVEL DE PAREDE 1': ['NEUTRO', [['CUIDADOS (NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'MOVEL DE PAREDE 2': ['NEUTRO', [['PERF MASC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'MOVEL DE PAREDE 3': ['NEUTRO', [['CUIDADOS (CBEM)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'MOVEL DE PAREDE 4': ['NEUTRO', [['PERF FEM', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'GONDOLA 1': ['BOT', [['', ''], ['BOTIK', 'BOT'], ['UOMINI HERO', 'BOT'], ['BOTI PROMO', 'BOT']], 'FIXO'],
-    'GONDOLA 1/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']]],
-    'PIRAMIDE 1': ['EUD', [['MULTI PROMO', 'MULTI']]],
-    'PIRAMIDE 2': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT']]],
-    'MESA DESTAQUE 1': ['MULTI'],
-    'MESA DESTAQUE 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
-    'MESA DESTAQUE 1/FRENTE-2': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
-    'PDV MOVEL 1': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
-    'BALCAO RECEPCAO 1': ['BOT', [['LÇTO EGEO', 'BOT+QDB'], ['JUICY MOOD', 'QDB'], ['SIÀGE ULTIMATE', 'EUD']]],
-    'MOVEL DE FILA 1': ['EUD', [['OUTLET EUD', 'EUD']]],
-    'MOVEL DE FILA 2': ['BOT', [['BOTIPROMO', 'BOT']]],
-    'TOTEM 1': ['BOT', [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT'], ['LIQUIDA QDB', 'QDB']]],
-    'MOVEL MAKE 1': ['NEUTRO', [['TESTEIRA MAKE MULTIPROMO', 'MULTI']]],
-    'MOVEL MAKE 1/TESTEIRA-1': ['#1F1F1F'],
-    'MOVEL MAKE 1/TESTEIRA-2': ['BOT', [['BOTIPROMO MAKE B.', 'BOT']]],
-    'MOVEL MAKE 1/TESTEIRA-3': ['BOT', [['BOTIPROMO MAKE B.', 'BOT']]],
-    'MOVEL MAKE 1/TESTEIRA-4': ['EUD'],
-  },
-  '02': {
-    'GONDOLA 2': ['EUD', [['', ''], ['PERFUMARIA', 'EUD'], ['CUIDADOS', 'EUD'], ['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 2/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
-    'PIRAMIDE 3': ['EUD', [['MULTI PROMO', 'MULTI']]],
-    'MOVEL DE FILA 3': ['BOT', [['BOTIPROMO', 'BOT']]],
-    'MOVEL DE FILA 4': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'PAREDE OUI 1': ['OUI', [['MON AMIE + LOÇÃO', 'OUI']], 'EXPOSICAO'],
-    'TOTEM OUI 1': ['OUI', [['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
-  },
-  '03': {
-    // Lado A e meio A da Gôndola 3 vêm do lado B e do meio B da Gôndola 2 da ER M (TRANSFERENCIAS, Config.gs).
-    'GONDOLA 3': ['MULTI', [['', ''], ['', ''], ['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
-    'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
-    'MOVEL DE FILA 8': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'MESA DESTAQUE 3 FRENTES 1': ['MULTI'],
-    'MESA DESTAQUE 3 FRENTES 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
-    'MESA DESTAQUE 3 FRENTES 1/FRENTE-2': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI']]],
-    'MESA DESTAQUE 3 FRENTES 1/FRENTE-3': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
-  },
-  '04': {
-    'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']], 'MOVIMENTO'],
-    'PIRAMIDE 5': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
-    'GONDOLA 4': ['OUI', [['EXAUSTÃO OUI', 'OUI']], 'MOVIMENTO'],
-    'GONDOLA 5': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'GONDOLA 6': ['EUD', [['EXAUSTÃO EUD', 'EUD']], 'MOVIMENTO'],
-    'MOVEL DE PAREDE 4': ['NEUTRO', [['CUIDADOS (NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'ILHA PREMIUM OUI 1': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
-  },
-};
-
-const TEXTO_CALLOUT_BOTIPROMO =
-  '- MATERIAIS COMPLEMENTARES PARA BOTIPROMO DESTACANDO AS ISCAS COMERCIAIS: “ATÉ 52% DE DD” / “ITENS A PARTIR DE”.\n\n' +
-  'VM COMPLEMENTAR PARA TOP SKUS:\n- FLORATTA ROM/VER\n- ARBO PURO\n- NSPA LOC AMEI/NEG 400\n- MATCH SHAMP NUTR PROFUNDA\n\n' +
-  '- STOPPER LÇTO EGEO';
-
-/** [planta, seção, texto, marca, aponta para (ID móvel)] */
-const EXEMPLO_PAINEIS = [
-  ['TODAS', 'TV', 'GRADE CURTO PRAZO', 'MULTI', ''],
-  ['TODAS', 'A', 'BOTIPROMO', 'BOT', ''],
-  ['TODAS', 'A', 'OUTLET EUDORA', 'EUD', ''],
-  ['TODAS', 'C', 'LÇTO UOMINI', 'BOT', ''],
-  ['TODAS', 'C', 'LÇTO EGEO', 'BOT', ''],
-  ['TODAS', 'C', 'LÇTO SIÀGE', 'EUD', ''],
-  ['TODAS', 'C', 'LÇTO MON AMIE', 'OUI', ''],
-  ['TODAS', 'C', 'COMUNICAÇÃO INSTITUCIONAL PERMANENTE (3)', 'MULTI', ''],
-  ['TODAS', 'CALLOUT', 'TESTEIRA MAKE MULTIPROMO - BOTI COM BOTIPROMO MAKE.B EUDORA COM OUTLET E QDB COM LIQUIDA', 'MULTI', 'MOVEL MAKE 1'],
-  ['TODAS', 'CALLOUT', TEXTO_CALLOUT_BOTIPROMO, 'BOT', 'MOVEL DE PAREDE 2'],
-  ['TODAS', 'CALLOUT', 'VMS COMPLEMENTARES DIRECIONADOS PARA O OUTLET. USAR ESSA LISTA DE PRIORIDADE COMO DIRECIONAL.', 'EUD', 'MOVEL DE PAREDE 3'],
-  ['01', 'NOTA', 'Destaque PN: Comunicar promo como movimento MM nos espaços destaque', '', ''],
-  ['01', 'NOTA', 'Pirâmide principais oportunidades: Itens de alta frequência na promo', '', ''],
-  ['02', 'NOTA', 'PEC REGIONAL: Regionalização de exposição SP e NE.', '', ''],
-  ['02', 'NOTA', 'Pirâmide: NE exposição de masculino e SP Masculino + Lily', '', ''],
-  ['03', 'NOTA', 'PEC REGIONAL: Regionalização de exposição SP e NE.', '', ''],
-  ['03', 'NOTA', 'Pirâmide: NE exposição de masculino e SP Masculino + Lily', '', ''],
-  ['04', 'NOTA', 'PEC REGIONAL: Regionalização de exposição SP e NE.', '', ''],
-  ['04', 'NOTA', 'Meio de gôndola: exclusivo NE, exposição de Lily.', '', ''],
-  ['04', 'NOTA', 'Pirâmide: NE exposição de masculino e SP Masculino + Lily', '', ''],
-];
-
 /* ------------------------- Conversão em matrizes ------------------------- */
 
 /** Matriz [cabeçalho, ...linhas] da aba Layout padrão. */
@@ -723,43 +615,6 @@ function valoresLayoutPadrao_() {
         largura: m[5], profundidade: m[6], altura: m[7], ajusteX: m[9] || 0, ajusteY: m[10] || 0, dividido: m[11] || '', giro: m[12] || 0,
       }));
     });
-  });
-  return linhas;
-}
-
-/** Matriz [cabeçalho, ...linhas] da aba Movimentos com o ciclo de exemplo. */
-function valoresMovimentosExemplo_() {
-  const cols = colunasMovimentos_();
-  const linhas = [cols.map(function (c) { return c.titulo; })];
-  const descricoes = {};
-  Object.keys(LAYOUT_PADRAO).forEach(function (planta) {
-    LAYOUT_PADRAO[planta].moveis.forEach(function (m) { descricoes[m[0]] = descricoes[m[0]] || m[1]; });
-  });
-  Object.keys(EXEMPLO_MOVIMENTOS).forEach(function (planta) {
-    const moveis = EXEMPLO_MOVIMENTOS[planta];
-    Object.keys(moveis).forEach(function (id) {
-      const m = moveis[id];
-      const o = {
-        ciclo: EXEMPLO_CICLO, planta: planta, movel: id, descricao: descricoes[id] || '',
-        marca: m[0], simbolo: m[2] || '', observacao: '',
-      };
-      (m[1] || []).slice(0, CONFIG.MAX_ETIQUETAS).forEach(function (e, i) {
-        o['etiqueta' + (i + 1)] = e[0];
-        o['marcaEtiqueta' + (i + 1)] = e[1];
-      });
-      linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
-    });
-  });
-  return linhas;
-}
-
-/** Matriz [cabeçalho, ...linhas] da aba Painéis com o ciclo de exemplo. */
-function valoresPaineisExemplo_() {
-  const cols = colunasPaineis_();
-  const linhas = [cols.map(function (c) { return c.titulo; })];
-  EXEMPLO_PAINEIS.forEach(function (p) {
-    const o = { ciclo: EXEMPLO_CICLO, planta: p[0], secao: p[1], texto: p[2], marca: p[3], movel: p[4] };
-    linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
   });
   return linhas;
 }
@@ -826,6 +681,8 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
       // Nomes antigos dos lados da gôndola: Ponta 2 era o lado da frente (A), Ponta 1 o de trás (B).
       const id = normIdEspaco_(l.movel);
       const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
+      // Linha-modelo da planilha base ainda não usada (sem ciclo nem conteúdo): ignorada sem aviso.
+      if (!ciclo && !linhaTemConteudo_(l)) return;
       if (!ciclo || !planta || !id) {
         aviso(onde + ': Ciclo, Planta e ID Móvel são obrigatórios — linha ignorada.');
         return;
@@ -976,6 +833,13 @@ function montarPlantas_(linhas, aviso) {
 
   ordem.sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
   return ordem.map(function (id) { return mapa[id]; });
+}
+
+/** A linha da aba Movimentos tem marca, etiqueta, símbolo ou observação preenchidos? */
+function linhaTemConteudo_(l) {
+  const campos = ['marca', 'simbolo', 'observacao'];
+  for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) campos.push('etiqueta' + i, 'marcaEtiqueta' + i);
+  return campos.some(function (c) { return texto_(l[c]) !== ''; });
 }
 
 /** TRANSFERENCIAS (Config.gs) com plantas e IDs normalizados ("ER G" → "03"). */

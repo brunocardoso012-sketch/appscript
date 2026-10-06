@@ -200,7 +200,7 @@ test('etiquetas guardam a coluna de origem; planta aceita o nome', () => {
   const gon = d.movimentos.C1['01']['GONDOLA 1'];
   assert.deepEqual(gon.etiquetas.map((e) => [e.texto, e.posicao]), [['MEIO A', 2], ['PONTA 2', 4]]);
   assert.deepEqual(d.config.etiquetasPorTipo, { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 }, 'pirâmide e mesas mostram até 4');
-  assert.deepEqual(d.config.etiquetasPorBloco, { GONDOLA: 4, MESA: 4, MESA_3: 4 });
+  assert.deepEqual(d.config.etiquetasPorBloco, { GONDOLA: 4, MESA: 4, MESA_3: 4, MAKE: 4, TOTEM: 4 });
 });
 
 test('giro do balcão e testeiras do móvel make', () => {
@@ -294,4 +294,15 @@ test('transferências entre plantas vêm normalizadas na configuração', () => 
     { planta: '03', de: 'GONDOLA 2/LADO-B', para: 'GONDOLA 3/LADO-A' },
     { planta: '03', de: 'GONDOLA 2/MEIO-B', para: 'GONDOLA 3/MEIO-A' },
   ]);
+});
+
+test('linhas-modelo sem ciclo e sem conteúdo são ignoradas sem aviso', () => {
+  const { run } = carregarGas();
+  const d = run(`montarDados_(valoresLayoutPadrao_(), [
+    ['Ciclo', 'Planta', 'ID Móvel', 'Marca do Móvel', 'Etiqueta 1'],
+    ['', 'ER P', 'GONDOLA 1', '', ''],
+    ['', 'ER P', 'PIRAMIDE 1', 'BOT', ''],
+  ], null)`);
+  assert.equal(d.avisos.length, 1, 'só a linha com conteúdo e sem ciclo gera aviso');
+  assert.deepEqual(d.ciclos, []);
 });

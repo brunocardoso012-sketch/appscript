@@ -60,11 +60,11 @@ const ETIQUETAS_POR_TIPO = { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 };
 
 /**
  * Quantas etiquetas a linha de um bloco mostra em cima dele (GONDOLA 1/LADO-A,
- * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
- * (totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
+ * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3, MOVEL MAKE 1/TESTEIRA-2…), empilhadas.
+ * Tipos que não aparecem aqui mostram só a Etiqueta 1. Blocos vizinhos com as
  * mesmas etiquetas (texto e cor) viram uma pilha só, centralizada.
  */
-const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
+const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4, MAKE: 4, TOTEM: 4 };
 
 /**
  * Marcas e cores.

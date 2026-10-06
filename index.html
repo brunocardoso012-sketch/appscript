@@ -405,11 +405,11 @@ const ETIQUETAS_POR_TIPO = { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 };
 
 /**
  * Quantas etiquetas a linha de um bloco mostra em cima dele (GONDOLA 1/LADO-A,
- * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
- * (totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
+ * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3, MOVEL MAKE 1/TESTEIRA-2…), empilhadas.
+ * Tipos que não aparecem aqui mostram só a Etiqueta 1. Blocos vizinhos com as
  * mesmas etiquetas (texto e cor) viram uma pilha só, centralizada.
  */
-const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
+const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4, MAKE: 4, TOTEM: 4 };
 
 /**
  * Marcas e cores.
@@ -682,6 +682,8 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
       // Nomes antigos dos lados da gôndola: Ponta 2 era o lado da frente (A), Ponta 1 o de trás (B).
       const id = normIdEspaco_(l.movel);
       const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
+      // Linha-modelo da planilha base ainda não usada (sem ciclo nem conteúdo): ignorada sem aviso.
+      if (!ciclo && !linhaTemConteudo_(l)) return;
       if (!ciclo || !planta || !id) {
         aviso(onde + ': Ciclo, Planta e ID Móvel são obrigatórios — linha ignorada.');
         return;
@@ -832,6 +834,13 @@ function montarPlantas_(linhas, aviso) {
 
   ordem.sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
   return ordem.map(function (id) { return mapa[id]; });
+}
+
+/** A linha da aba Movimentos tem marca, etiqueta, símbolo ou observação preenchidos? */
+function linhaTemConteudo_(l) {
+  const campos = ['marca', 'simbolo', 'observacao'];
+  for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) campos.push('etiqueta' + i, 'marcaEtiqueta' + i);
+  return campos.some(function (c) { return texto_(l[c]) !== ''; });
 }
 
 /** TRANSFERENCIAS (Config.gs) com plantas e IDs normalizados ("ER G" → "03"). */
@@ -1671,12 +1680,14 @@ function removerAbaPadraoVazia_(ss) {
  */
 const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
 
+// <so-app-completo>: o ciclo de exemplo não vai para a versão do visualizador (dev/build-visualizador.js).
 /**
  * Versão do ciclo de exemplo inteiro (Movimentos + Painéis, todas as plantas e TODAS).
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
 const VERSAO_EXEMPLO = 7;
+// </so-app-completo>
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -1815,6 +1826,7 @@ const LAYOUT_PADRAO = {
   },
 };
 
+// <so-app-completo>: o ciclo de exemplo não vai para a versão do visualizador (dev/build-visualizador.js).
 /* --------------------------------------------------------------------------
  *  CICLO DE EXEMPLO (transcrito das telas de referência)
  *  Móvel: ID → [marca do móvel, [[etiqueta, marca da etiqueta], ...], símbolo]
@@ -1915,6 +1927,7 @@ const EXEMPLO_PAINEIS = [
   ['04', 'NOTA', 'Meio de gôndola: exclusivo NE, exposição de Lily.', '', ''],
   ['04', 'NOTA', 'Pirâmide: NE exposição de masculino e SP Masculino + Lily', '', ''],
 ];
+// </so-app-completo>
 
 /* ------------------------- Conversão em matrizes ------------------------- */
 
@@ -1939,6 +1952,7 @@ function valoresLayoutPadrao_() {
   return linhas;
 }
 
+// <so-app-completo>: o ciclo de exemplo não vai para a versão do visualizador (dev/build-visualizador.js).
 /** Matriz [cabeçalho, ...linhas] da aba Movimentos com o ciclo de exemplo. */
 function valoresMovimentosExemplo_() {
   const cols = colunasMovimentos_();
@@ -1975,6 +1989,7 @@ function valoresPaineisExemplo_() {
   });
   return linhas;
 }
+// </so-app-completo>
 
 /**
  * ============================================================================
@@ -3328,7 +3343,17 @@ const Render = (() => {
     if (!extras.length) return null;
     const slot = 206;
     const w = slot * extras.length;
-    const h = 84;
+    // Até 4 etiquetas por extra (cada uma com até 2 linhas); a caixa cresce para caber a maior pilha.
+    const pilhas = extras.map((m) => {
+      const info = obterDados(m);
+      const etiquetas = info && info.etiquetas.length ? info.etiquetas.slice(0, 4) : [];
+      return etiquetas.map((e) => {
+        const linhas = quebrar(e.texto, 116, 10, 700).slice(0, 2);
+        return { e, info, linhas, hh: linhas.length * 11 + 5 };
+      });
+    });
+    const alturaPilha = Math.max.apply(null, pilhas.map((p) => p.reduce((s, x) => s + x.hh + 3, 0)));
+    const h = Math.max(84, 28 + alturaPilha + 8);
     const x = 1904 - w;
     const y = 1064 - h;
     const g = el('g', { class: 'extras' }, pai);
@@ -3340,18 +3365,14 @@ const Render = (() => {
       if (i) linha(gs, [x0, y + 14], [x0, y + h - 14], { stroke: '#BBBBBB', 'stroke-width': 1.5 });
       iconeExtra(gs, m.id + ' ' + m.descricao, x0 + 38, y + h / 2);
       texto(gs, x0 + 136, y + 20, m.descricao || m.id, { 'font-size': 11, 'font-style': 'italic', fill: '#666', 'text-anchor': 'middle' });
-      const info = obterDados(m);
-      const etiquetas = info && info.etiquetas.length ? info.etiquetas : [];
       let cy = y + 28;
-      etiquetas.slice(0, 3).forEach((e) => {
+      pilhas[i].forEach(({ e, info, linhas, hh }) => {
         const cores = coresDe(e.marca, 'etiqueta', true) || coresDe(info.marca, 'etiqueta', true) || corEtiquetaPadrao(true);
-        const linhas = quebrar(e.texto, 116, 10, 700).slice(0, 2);
-        const hh = linhas.length * 11 + 5;
         el('rect', { x: x0 + 76, y: cy, width: 120, height: hh, fill: tinta(cores, 0) }, gs);
         linhas.forEach((l, k) => texto(gs, x0 + 136, cy + 10 + k * 11, l, { 'font-size': 10, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' }));
         cy += hh + 3;
       });
-      if (!etiquetas.length) texto(gs, x0 + 136, y + 50, '—', { 'font-size': 14, fill: '#AAA', 'text-anchor': 'middle' });
+      if (!pilhas[i].length) texto(gs, x0 + 136, y + 50, '—', { 'font-size': 14, fill: '#AAA', 'text-anchor': 'middle' });
     });
     return { x, y, w, h };
   }
@@ -3810,7 +3831,7 @@ const Planilha = (() => {
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
       '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
       '6.2 Etiquetas da gôndola. Na linha da gôndola inteira: Etiqueta 1 = Lado A, Etiqueta 2 = Meio A, Etiqueta 3 = Meio B, Etiqueta 4 = Lado B ("A" é sempre o lado virado para quem olha a planta). A linha de um espaço mostra até 4 etiquetas empilhadas em cima daquele bloco (Etiqueta 1 a 4) e substitui a etiqueta que viria da gôndola inteira.',
-      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3) e móvel make (TESTEIRA-1 a 4) têm uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada testeira, 1. Bloco sem linha própria usa a cor do móvel inteiro. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só, no centro. O balcão recepção tem uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.',
+      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3) e móvel make (TESTEIRA-1 a 4) têm uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas e cada testeira mostram até 4 etiquetas, empilhadas. Bloco sem linha própria usa a cor do móvel inteiro. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só, no centro. O balcão recepção tem uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.',
       '6.4 Totem: na linha do totem, Etiqueta 1, 2 e 3 vão para o painel de cima, o do meio e o de baixo (cada uma ao lado do seu painel), e a "Marca Etiqueta N" pinta o painel N. Painel sem etiqueta usa a "Marca do Móvel". Se preferir, uma linha TOTEM 1/PAINEL-1 (a 3) define cor e etiqueta de um painel e tem prioridade.',
       '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
     ].concat((dados.config.transferencias || []).length ? [
@@ -3821,7 +3842,7 @@ const Planilha = (() => {
       }).join('; ') + '. Nessas plantas o espaço de origem fica livre (branco): preencha a linha dele com o novo movimento. Uma linha própria do espaço de destino tem prioridade sobre a transferência.',
     ] : []).concat(op.visualizador ? [
       // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.
-      '8. Todos os ciclos ficam nesta mesma planilha. Para criar um ciclo novo, copie as linhas de um ciclo existente (nas abas "' + abas.MOVIMENTOS + '" e "' + abas.PAINEIS + '"), cole no fim e troque o "Ciclo". Cada nome diferente de ciclo aparece no seletor do visualizador.',
+      '8. Todos os ciclos ficam nesta mesma planilha. No primeiro ciclo, preencha o "Ciclo" nas linhas já prontas (linhas sem ciclo e sem conteúdo são ignoradas). Para criar um ciclo novo, copie as linhas de um ciclo existente (nas abas "' + abas.MOVIMENTOS + '" e "' + abas.PAINEIS + '"), cole no fim e troque o "Ciclo". Cada nome diferente de ciclo aparece no seletor do visualizador.',
       '9. O visualizador lê esta planilha diretamente: depois de editar, clique em "Atualizar" no app. Não renomeie as abas nem os títulos das colunas. Os avisos do app (marca desconhecida, ID inexistente…) indicam a linha da planilha a corrigir.',
     ] : [
       '8. Salve o arquivo e use o botão "Importar planilha" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',
@@ -5112,14 +5133,41 @@ const App = (() => {
     }
   }
 
+  let jaCarregou = false;
+
+  /**
+   * Ciclo mais recente: pelo ano e pelo número do nome ("C15/2026", "Ciclo 3 - 2027", "C02 2026");
+   * nomes sem ano ficam atrás dos que têm. Empate (ou nomes sem número): o que vem por último na planilha.
+   */
+  function cicloMaisRecente(ciclos) {
+    const chave = (nome) => {
+      const ano = (String(nome).match(/(?:^|\D)((?:19|20)\d{2})(?!\d)/) || [])[1];
+      const resto = ano ? String(nome).replace(ano, ' ') : String(nome);
+      const num = (resto.match(/\d+/) || [])[0];
+      return [ano ? Number(ano) : -1, num ? Number(num) : -1];
+    };
+    let melhor = '';
+    let k0 = null;
+    ciclos.forEach((c) => {
+      const k = chave(c);
+      if (!k0 || k[0] > k0[0] || (k[0] === k0[0] && k[1] >= k0[1])) { melhor = c; k0 = k; }
+    });
+    return melhor;
+  }
+
   function aplicarDados(dados, pref) {
     estado.dados = dados;
     $('telaConfig').hidden = true;
     svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden
 
-    // O app abre sem ciclo (planta limpa, sem cores nem etiquetas) até o usuário escolher um.
+    // O app abre no ciclo mais recente; ao atualizar, continua no ciclo escolhido
+    // (inclusive "Sem ciclo", se o usuário tiver escolhido a planta limpa).
+    const primeiraVez = !jaCarregou;
+    jaCarregou = true;
     const cicloPref = 'ciclo' in pref ? pref.ciclo : estado.ciclo;
-    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 ? cicloPref : '';
+    if (dados.ciclos.indexOf(cicloPref) >= 0) estado.ciclo = cicloPref;
+    else if (cicloPref === '' && !primeiraVez && !('ciclo' in pref)) estado.ciclo = '';
+    else estado.ciclo = cicloMaisRecente(dados.ciclos);
     const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
     estado.planta = dados.plantas.some((p) => p.id === plantaPref) ? plantaPref : (dados.plantas[0] || {}).id || '';
     estado.ajustes = {};

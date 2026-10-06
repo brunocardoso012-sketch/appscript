@@ -936,7 +936,17 @@ const Render = (() => {
     if (!extras.length) return null;
     const slot = 206;
     const w = slot * extras.length;
-    const h = 84;
+    // Até 4 etiquetas por extra (cada uma com até 2 linhas); a caixa cresce para caber a maior pilha.
+    const pilhas = extras.map((m) => {
+      const info = obterDados(m);
+      const etiquetas = info && info.etiquetas.length ? info.etiquetas.slice(0, 4) : [];
+      return etiquetas.map((e) => {
+        const linhas = quebrar(e.texto, 116, 10, 700).slice(0, 2);
+        return { e, info, linhas, hh: linhas.length * 11 + 5 };
+      });
+    });
+    const alturaPilha = Math.max.apply(null, pilhas.map((p) => p.reduce((s, x) => s + x.hh + 3, 0)));
+    const h = Math.max(84, 28 + alturaPilha + 8);
     const x = 1904 - w;
     const y = 1064 - h;
     const g = el('g', { class: 'extras' }, pai);
@@ -948,18 +958,14 @@ const Render = (() => {
       if (i) linha(gs, [x0, y + 14], [x0, y + h - 14], { stroke: '#BBBBBB', 'stroke-width': 1.5 });
       iconeExtra(gs, m.id + ' ' + m.descricao, x0 + 38, y + h / 2);
       texto(gs, x0 + 136, y + 20, m.descricao || m.id, { 'font-size': 11, 'font-style': 'italic', fill: '#666', 'text-anchor': 'middle' });
-      const info = obterDados(m);
-      const etiquetas = info && info.etiquetas.length ? info.etiquetas : [];
       let cy = y + 28;
-      etiquetas.slice(0, 3).forEach((e) => {
+      pilhas[i].forEach(({ e, info, linhas, hh }) => {
         const cores = coresDe(e.marca, 'etiqueta', true) || coresDe(info.marca, 'etiqueta', true) || corEtiquetaPadrao(true);
-        const linhas = quebrar(e.texto, 116, 10, 700).slice(0, 2);
-        const hh = linhas.length * 11 + 5;
         el('rect', { x: x0 + 76, y: cy, width: 120, height: hh, fill: tinta(cores, 0) }, gs);
         linhas.forEach((l, k) => texto(gs, x0 + 136, cy + 10 + k * 11, l, { 'font-size': 10, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' }));
         cy += hh + 3;
       });
-      if (!etiquetas.length) texto(gs, x0 + 136, y + 50, '—', { 'font-size': 14, fill: '#AAA', 'text-anchor': 'middle' });
+      if (!pilhas[i].length) texto(gs, x0 + 136, y + 50, '—', { 'font-size': 14, fill: '#AAA', 'text-anchor': 'middle' });
     });
     return { x, y, w, h };
   }
