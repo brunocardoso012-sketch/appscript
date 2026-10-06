@@ -708,13 +708,14 @@ const Render = (() => {
       : Object.assign(base, { x: b.x + v0, w: v1 - v0, y: b.y + u0, d: u1 - u0 });
   }
 
-  /** Espaços do móvel: gôndola e testeiras do móvel make (mesma regra de espacosDoMovel_ em Config.gs). */
+  /** Espaços do móvel: gôndola, mesas, painéis do totem e testeiras do make (mesma regra de espacosDoMovel_ em Config.gs). */
   function espacos(m) {
     const numerados = (prefixo, nome, n) => Array.from({ length: n }, (_, i) => ({ id: prefixo + '-' + (i + 1), nome: nome + ' ' + (i + 1) }));
     if (!m) return [];
     if (m.tipo === 'MAKE') return numerados('TESTEIRA', 'Testeira', 4);
     if (m.tipo === 'MESA') return numerados('FRENTE', 'Frente', 2);
     if (m.tipo === 'MESA_3') return numerados('FRENTE', 'Frente', 3);
+    if (m.tipo === 'TOTEM') return numerados('PAINEL', 'Painel', 3);
     if (m.tipo !== 'GONDOLA') return [];
     const div = String(m.dividido || '').toUpperCase();
     const lista = [{ id: 'LADO-A', nome: 'Lado A' }];
@@ -762,14 +763,14 @@ const Render = (() => {
   const BLOCOS_GONDOLA = ['LADO-A', 'MEIO-A', 'MEIO-B', 'LADO-B'];
 
   /**
-   * Etiquetas da gôndola: uma por bloco. A linha do espaço (GONDOLA 1/MEIO-A…) usa a
-   * própria Etiqueta 1; sem ela, o bloco mostra a etiqueta da linha da gôndola inteira
+   * Etiquetas da gôndola, por bloco. A linha do espaço (GONDOLA 1/MEIO-A…) mostra as
+   * próprias etiquetas (até "limite", empilhadas); sem elas, o bloco mostra a etiqueta da linha da gôndola inteira
    * na posição dele (Etiqueta 1 = Lado A, 2 = Meio A, 3 = Meio B, 4 = Lado B). As
    * metades de um meio dividido que usam a mesma etiqueta da gôndola mostram uma só,
    * no centro do meio. O símbolo da gôndola inteira vai só na primeira etiqueta dela.
    * @return {Array<{id, info, etiquetas, simbolo, topo: number[]}>} topo = ponto 3D (x, y, z) da âncora
    */
-  function etiquetasGondola(m, geral, infoEspaco) {
+  function etiquetasGondola(m, geral, infoEspaco, limite) {
     const lista = [];
     const porBloco = {};
     let simboloGeral = geral ? geral.simbolo : '';
@@ -778,7 +779,7 @@ const Render = (() => {
       const topo = [b.x + b.w / 2, b.y + b.d / 2, b.z + b.h];
       const proprio = infoEspaco[id];
       if (proprio && proprio.etiquetas.length) {
-        lista.push({ id, info: proprio, etiquetas: proprio.etiquetas.slice(0, 1), simbolo: proprio.simbolo, pontos: [topo] });
+        lista.push({ id, info: proprio, etiquetas: proprio.etiquetas.slice(0, limite || 1), simbolo: proprio.simbolo, pontos: [topo] });
         return;
       }
       const bloco = b.espaco.id.replace(/^(MEIO-[AB])-\d$/, '$1');
@@ -797,12 +798,12 @@ const Render = (() => {
   }
 
   /**
-   * Blocos vizinhos com a mesma etiqueta (texto e cor) viram uma só, no centro deles.
-   * lista: itens { id, info, etiquetas: [e], simbolo, pontos } ou null (bloco sem etiqueta,
+   * Blocos vizinhos com as mesmas etiquetas (texto e cor) viram uma pilha só, no centro deles.
+   * lista: itens { id, info, etiquetas, simbolo, pontos } ou null (bloco sem etiqueta,
    * que separa os vizinhos). Devolve os itens com topo = ponto 3D médio.
    */
   function juntarIguais(lista) {
-    const chave = (it) => it.etiquetas[0].texto + '|' + (it.etiquetas[0].marca || it.info.marca || '');
+    const chave = (it) => it.etiquetas.map((e) => e.texto + '|' + (e.marca || it.info.marca || '')).join('||');
     const saida = [];
     let anterior = null;
     lista.forEach((it) => {
@@ -819,8 +820,21 @@ const Render = (() => {
     }));
   }
 
-  /** Ponto 3D (topo, no centro) de cada bloco de mesa e móvel make, na ordem de espacos(). */
+  /**
+   * Painéis do totem, de baixo para cima (k = 0, 1, 2): faixa de altura [z0, z1].
+   * Na planilha o Painel 1 é o de cima, então o painel k é o espaço 3 - k.
+   */
+  const painelTotem = (h, k) => [h * (0.33 + 0.21 * k), h * (0.48 + 0.21 * k)];
+
+  /** Ponto 3D (âncora da etiqueta) de cada bloco de mesa, totem e móvel make, na ordem de espacos(). */
   function topoDosBlocos(m) {
+    if (m.tipo === 'TOTEM') {
+      // Âncora no meio da face da frente de cada painel (o totem é fino: as etiquetas saem ao lado).
+      return espacos(m).map((e, i) => {
+        const [z0, z1] = painelTotem(m.h, 2 - i);
+        return { espaco: e, topo: [m.x + m.w / 2, m.y + m.d / 2, m.z + (z0 + z1) / 2] };
+      });
+    }
     if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
       const [L, C] = eixos(m);
       const n = espacos(m).length;
@@ -932,8 +946,9 @@ const Render = (() => {
         caixa(pai, P, loc(0, t, 0, C, base, b.h), { cores: [COR.metal] });
         caixa(pai, P, loc(t, L - t, C * 0.35, C * 0.65, base, b.h * 0.3), { cores: [COR.tela] });
         for (let k = 0; k < 3; k++) {
-          const z0 = b.h * (0.33 + 0.21 * k);
-          caixa(pai, P, loc(t, L - t, 0, C, z0, z0 + b.h * 0.15), { cores, vidro: true });
+          // Cada painel pode ter a cor da própria linha (TOTEM 1/PAINEL-1 = o de cima).
+          const [z0, z1] = painelTotem(b.h, k);
+          caixa(pai, P, loc(t, L - t, 0, C, z0, z1), { cores: b.coresBlocos ? b.coresBlocos[2 - k] : cores, vidro: true });
         }
         caixa(pai, P, loc(t, L - t, 0, C, b.h - t, b.h), { cores: [COR.metal] });
         caixa(pai, P, loc(L - t, L, 0, C, base, b.h), { cores: [COR.metal] });
@@ -1198,7 +1213,9 @@ const Render = (() => {
       longe.some((d) => tentar(d[0], d[1]));
     };
     grupos.filter((g) => g.manual).forEach((g) => { acomodar(g); ocupados.push(g); });
-    grupos.filter((g) => !g.manual).sort((a, b) => a.ancora[1] - b.ancora[1]).forEach((g) => { acomodar(g); ocupados.push(g); });
+    // As etiquetas ao lado do móvel (painéis do totem) vão antes, para ficarem juntas do móvel delas.
+    grupos.filter((g) => !g.manual).sort((a, b) => (b.aoLado ? 1 : 0) - (a.aoLado ? 1 : 0) || a.ancora[1] - b.ancora[1])
+      .forEach((g) => { acomodar(g); ocupados.push(g); });
   }
 
   /** Linha-guia do grupo até o ponto do móvel (quando o grupo ficou longe). */
@@ -1495,7 +1512,7 @@ const Render = (() => {
       const corInfo = (x) => (x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);
       const cores = corInfo(i);
       // Mesas: um só desenho, mas cada frente com a cor da própria linha (ou a da mesa inteira).
-      if (m.tipo === 'MESA' || m.tipo === 'MESA_3') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id] || i));
+      if (m.tipo === 'MESA' || m.tipo === 'MESA_3' || m.tipo === 'TOTEM') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id] || i));
       const g = el('g', {
         class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
         'data-movel': m.id,
@@ -1557,23 +1574,27 @@ const Render = (() => {
     // Etiquetas: uma pilha por móvel (limitada por tipo) e, na gôndola, uma por bloco.
     // As etiquetas de uma gôndola compartilham o ajuste manual do móvel (movem juntas).
     const limitePorTipo = ctx.dados.config.etiquetasPorTipo || {};
+    const limitePorBloco = ctx.dados.config.etiquetasPorBloco || {};
     const grupos = [];
-    const novoGrupo = (id, m, i, etiquetas, simbolo, ancora, ajuste) => {
+    // aoLado: a etiqueta começa à direita do móvel (com linha-guia até a âncora) em vez de ficar em
+    // cima dela — usado nos painéis do totem, para a etiqueta não cobrir a cor do painel.
+    const direitaDe = (m) => Math.max.apply(null, [m.x, m.x + m.w].map((x) => P(x, m.y, m.z)[0]));
+    const novoGrupo = (id, m, i, etiquetas, simbolo, ancora, ajuste, aoLado) => {
       if (!etiquetas.length) return;
       const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta', true)) || corEtiquetaPadrao(true);
       const med = medirGrupo(etiquetas, simbolo, corPadrao);
-      const baseX = ancora[0] - med.w / 2;
+      const baseX = aoLado ? direitaDe(m) + 16 : ancora[0] - med.w / 2;
       const baseY = ancora[1] - med.h / 2;
       grupos.push(Object.assign(med, {
-        id, movel: m, info: i, ancora, baseX, baseY,
+        id, movel: m, info: i, ancora, baseX, baseY, aoLado: !!aoLado,
         x: baseX + ajuste.x, y: baseY + ajuste.y, manual: !!(ajuste.x || ajuste.y),
       }));
     };
     moveis.forEach((m) => {
       const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
-      const grupo = (e) => novoGrupo(e.id, m, e.info, e.etiquetas, e.simbolo, P(e.topo[0], e.topo[1], e.topo[2]), ajuste);
+      const grupo = (e) => novoGrupo(e.id, m, e.info, e.etiquetas, e.simbolo, P(e.topo[0], e.topo[1], e.topo[2]), ajuste, e.aoLado);
       if (m.tipo === 'GONDOLA') {
-        juntarIguais(etiquetasGondola(m, info[m.id], infoEspaco)).forEach(grupo);
+        juntarIguais(etiquetasGondola(m, info[m.id], infoEspaco, limitePorBloco.GONDOLA)).forEach(grupo);
         return;
       }
       const i = info[m.id];
@@ -1588,12 +1609,15 @@ const Render = (() => {
         return;
       }
       if (i) novoGrupo(m.id, m, i, i.etiquetas.slice(0, limitePorTipo[m.tipo] || i.etiquetas.length), i.simbolo, ancoraDe(m), ajuste);
-      // Blocos (balcão, mesas, testeiras do make): a linha própria do bloco mostra a Etiqueta 1 em cima
-      // dele; blocos vizinhos com o mesmo texto e cor ficam com uma etiqueta só, no centro deles.
+      // Blocos (mesas, painéis do totem, testeiras do make): a linha própria do bloco mostra as etiquetas
+      // dela em cima do bloco (até ETIQUETAS_POR_BLOCO; senão só a 1); blocos vizinhos com as mesmas
+      // etiquetas ficam com uma pilha só, no centro deles.
       juntarIguais(topoDosBlocos(m).map((bl) => {
         const id = m.id + '/' + bl.espaco.id;
         const ie = infoEspaco[id];
-        return ie && ie.etiquetas.length ? { id, info: ie, etiquetas: ie.etiquetas.slice(0, 1), simbolo: ie.simbolo, pontos: [bl.topo] } : null;
+        return ie && ie.etiquetas.length
+          ? { id, info: ie, etiquetas: ie.etiquetas.slice(0, limitePorBloco[m.tipo] || 1), simbolo: ie.simbolo, pontos: [bl.topo], aoLado: m.tipo === 'TOTEM' }
+          : null;
       })).forEach(grupo);
     });
     posicionar(grupos, obstaculos);
