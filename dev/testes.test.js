@@ -12,6 +12,9 @@ test('normalizações', () => {
   assert.equal(run("normPlanta_('Planta 3')"), '03');
   assert.equal(run("normPlanta_('todas')"), 'TODAS');
   assert.equal(run("normPlanta_('*')"), 'TODAS');
+  assert.equal(run("normPlanta_('ER P')"), '01');
+  assert.equal(run("normPlanta_('er gg')"), '04');
+  assert.equal(run("normPlanta_('Planta ER M')"), '02');
   assert.equal(run("normMarca_('Boticário')"), 'BOT');
   assert.equal(run("normMarca_('bot + qdb')"), 'BOT+QDB');
   assert.equal(run("normMarca_('#ff8800')"), '#FF8800');
@@ -27,6 +30,7 @@ test('layout padrão + ciclo de exemplo são lidos sem avisos', () => {
   const { run } = carregarGas();
   const d = run('montarDados_(valoresLayoutPadrao_(), valoresMovimentosExemplo_(), valoresPaineisExemplo_())');
   assert.deepEqual(d.plantas.map((p) => p.id), ['01', '02', '03', '04']);
+  assert.deepEqual(d.plantas.map((p) => p.nome), ['ER P', 'ER M', 'ER G', 'ER GG']);
   assert.deepEqual(d.ciclos, ['Ciclo exemplo']);
   assert.deepEqual(d.avisos, []);
   assert.ok(d.movimentos['Ciclo exemplo'].TODAS['PE-01']);
@@ -171,10 +175,10 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
     movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
     movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
-    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 4, '03': 2, '04': 2 }); // só a 02 pendente
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 5, '03': 2, '04': 2 }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
-  assert.equal(r.versoes['02'], 3);
+  assert.equal(r.versoes['02'], 4);
   const ids = (planta) => r.abas.layout.slice(1).filter((l) => l[0] === planta).map((l) => l[1]);
   assert.ok(!ids('02').includes('VELHO-01') && ids('02').includes('MESA-01') && ids('02').includes('LOJA'), 'planta 02 com o modelo novo');
   assert.ok(ids('01').includes('MEU-01'), 'planta 01 intacta');
@@ -184,4 +188,16 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
   assert.ok(mov.some((l) => l[0] === 'C9'), 'outros ciclos da planta 02 intactos');
   const de_novo = run(`atualizarModelosPlantas_({ layout: valoresLayoutPadrao_(), movimentos: [] }, VERSAO_MODELO_PLANTAS)`);
   assert.deepEqual(de_novo.plantas, [], 'não repete quando a versão já foi aplicada');
+});
+
+test('etiquetas guardam a coluna de origem; planta aceita o nome', () => {
+  const { run } = carregarGas();
+  const d = run(`montarDados_(valoresLayoutPadrao_(), [
+    ['Ciclo', 'Planta', 'ID Móvel', 'Etiqueta 1', 'Etiqueta 2', 'Etiqueta 3', 'Etiqueta 4'],
+    ['C1', 'ER P', 'GON-01', '', 'MEIO A', '', 'PONTA 2'],
+  ], null)`);
+  assert.deepEqual(d.avisos, []);
+  const gon = d.movimentos.C1['01']['GON-01'];
+  assert.deepEqual(gon.etiquetas.map((e) => [e.texto, e.posicao]), [['MEIO A', 2], ['PONTA 2', 4]]);
+  assert.deepEqual(d.config.etiquetasPorTipo, { PIRAMIDE: 1, MESA: 1, GONDOLA: 4 });
 });

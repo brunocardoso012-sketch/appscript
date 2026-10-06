@@ -24,6 +24,24 @@ const CONFIG = {
 };
 
 /**
+ * Nome de cada planta (abas, título do slide e PNG). Na coluna "Planta" das
+ * abas vale tanto o número (01) quanto o nome (ER P). Planta que não aparece
+ * aqui é chamada de "PLANTA <número>".
+ */
+const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
+
+/**
+ * Quantas etiquetas cada tipo de móvel mostra na planta (as outras colunas
+ * "Etiqueta N" da linha são ignoradas). Tipos que não aparecem aqui mostram
+ * até CONFIG.MAX_ETIQUETAS. Pirâmide e mesa destaque usam a primeira etiqueta
+ * preenchida.
+ * Gôndola: uma etiqueta por bloco. Na linha da gôndola inteira, Etiqueta 1 =
+ * Ponta 1, 2 = Meio A, 3 = Meio B e 4 = Ponta 2; a linha de um espaço
+ * (GON-01/MEIO-A…) usa só a Etiqueta 1 e substitui a do bloco.
+ */
+const ETIQUETAS_POR_TIPO = { PIRAMIDE: 1, MESA: 1, GONDOLA: 4 };
+
+/**
  * Marcas e cores.
  *  - etiqueta: cor da caixa de texto (fundo) — texto sempre branco.
  *  - movel:    cor de preenchimento do móvel na planta.
@@ -103,22 +121,25 @@ const SECOES_PAINEL = {
  */
 const TIPOS_MOVEL = {
   LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
-  PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados',
-  GONDOLA: 'Gôndola: 2 pontas + 2 meios (cada meio pode ser dividido em dois), 4 níveis de prateleira',
+  PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados (1 etiqueta)',
+  GONDOLA: 'Gôndola: 2 pontas + 2 meios (cada meio pode ser dividido em dois), 4 níveis de prateleira, 1 etiqueta por bloco',
   FILA: 'Móvel de fila: bloco único retangular com 4 níveis',
   GONDOLA_PAREDE: 'Móvel de parede: estante encostada na parede, com prateleiras',
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
-  MESA: 'Mesa destaque: 2 nichos sobre estrutura, com painel de vidro ao fundo',
+  MESA: 'Mesa destaque: 2 nichos baixos sobre estrutura, painel de vidro ao fundo e 2 painéis na frente, embaixo (1 etiqueta)',
   MESA_3: 'Mesa destaque 3 frentes: 3 nichos sobre estrutura, com painel de vidro ao fundo',
   TOTEM: 'Totem: estrutura metálica com 3 painéis',
-  PAINEL: '(antigo) Painel alto e fino',
+  PAINEL: 'Painel O.U.i: painel alto e fino, com moldura',
+  EXPOSITOR_OUI: 'Expositor O.U.i: expositor alto e estreito, com moldura',
   VITRINE_L: 'Balcão recepção: em "L", com os dois lados do mesmo tamanho',
-  CAIXA: '(antigo) Caixa / balcão de atendimento',
+  CAIXA: 'Móvel de atendimento (caixa): balcão com tela preta em cima',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
 };
 
 /** Tipos oferecidos no modo "Construir loja". */
-const TIPOS_CONSTRUCAO = ['GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L'];
+const TIPOS_CONSTRUCAO = [
+  'GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L', 'CAIXA', 'PAINEL', 'EXPOSITOR_OUI',
+];
 
 /**
  * Espaços de uma gôndola. Na planilha, cada espaço é endereçado como

@@ -15,6 +15,7 @@ const Planilha = (() => {
   const LINHAS_EXTRAS = 300; // linhas vazias com validação, para o usuário acrescentar
   const COR_CABECALHO = 'FF202124';
   const FAIXAS_PLANTA = ['FFFFFFFF', 'FFF3F4F6'];
+  const SEM_USO = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9DBDF' } }; // etiqueta que não aparece na planta
 
   let promessaExcel = null;
 
@@ -54,6 +55,8 @@ const Planilha = (() => {
   const argb = (hex) => 'FF' + String(hex).replace('#', '').toUpperCase();
   const letra = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
   const nomeArquivo = (s) => String(s).replace(/[\\/:*?"<>|]+/g, '-').trim();
+  /** Coluna "Planta": o nome da planta (ER P…) quando houver; a importação aceita nome ou número. */
+  const plantaNaPlanilha = (dados, id) => (dados.config.nomesPlantas || {})[id] || id;
 
   function estilizarCabecalho(row) {
     row.height = 30;
@@ -141,11 +144,12 @@ const Planilha = (() => {
       '1. Na aba "' + abas.MOVIMENTOS + '", cada linha é um móvel de uma planta. NÃO altere "Planta" nem "ID Móvel": eles ligam a linha ao desenho.',
       '2. Preencha "Ciclo" em todas as linhas com o nome do ciclo (ex.: C15/2026). É esse nome que aparece no seletor de ciclos.',
       '3. "Marca do Móvel" define a cor do móvel na planta. Deixe vazio (ou NEUTRO) para o móvel aparecer branco.',
-      '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto do móvel; "Marca Etiqueta N" define a cor de cada uma (vazio = cor do móvel).',
+      '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto do móvel; "Marca Etiqueta N" define a cor de cada uma (vazio = cor do móvel). Pirâmide e mesa destaque mostram só 1 etiqueta (as colunas que não aparecem na planta ficam cinza).',
       '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
       '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GON-01/PONTA-1, GON-01/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO).',
-      '7. Planta = TODAS faz a linha valer para todas as plantas; uma linha da planta específica tem prioridade.',
+      '6.2 A gôndola mostra uma etiqueta por bloco. Na linha da gôndola inteira: Etiqueta 1 = Ponta 1, Etiqueta 2 = Meio A, Etiqueta 3 = Meio B, Etiqueta 4 = Ponta 2. A Etiqueta 1 da linha de um espaço substitui a etiqueta daquele bloco.',
+      '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Planta = TODAS faz a linha valer para todas as plantas; uma linha da planta específica tem prioridade.',
       '8. Salve o arquivo e use o botão "Importar planilha" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',
       '9. Aba "' + abas.LAYOUT + '" (opcional): posição e tamanho dos móveis (X, Y, Largura, Profundidade, Altura). Ao importar, as plantas presentes nela são substituídas por inteiro.',
     ].forEach(paragrafo);
@@ -190,20 +194,32 @@ const Planilha = (() => {
     ws.columns = cols.map((c) => ({ header: c.titulo, key: c.chave, width: larguraColuna(c.chave), style: { numFmt: '@' } }));
     estilizarCabecalho(ws.getRow(1));
 
+    const max = dados.config.maxEtiquetas;
+    const porTipo = dados.config.etiquetasPorTipo || {};
     let faixa = 0;
     dados.plantas.filter((p) => op.plantas.indexOf(p.id) >= 0).forEach((p) => {
       const fundo = { type: 'pattern', pattern: 'solid', fgColor: { argb: FAIXAS_PLANTA[faixa++ % FAIXAS_PLANTA.length] } };
-      // Gôndola: uma linha para ela inteira + uma por espaço (ponta/meio).
-      const linhasDoMovel = (m) => [{ id: m.id, descricao: m.descricao + (m.tipo === 'GONDOLA' ? ' (gôndola inteira)' : '') }]
-        .concat(Render.espacos(m).map((e) => ({ id: m.id + '/' + e.id, descricao: (m.descricao || m.id) + ' – ' + e.nome })));
+      // Gôndola: uma linha para ela inteira (etiqueta N = bloco N) + uma por espaço (ponta/meio), com 1 etiqueta cada.
+      // limite = quantas etiquetas aparecem na planta (as outras colunas ficam cinza).
+      const linhasDoMovel = (m) => [{
+        id: m.id,
+        descricao: m.descricao + (m.tipo === 'GONDOLA' ? ' (gôndola inteira; Etiqueta 1–4 = Ponta 1, Meio A, Meio B, Ponta 2)' : ''),
+        limite: porTipo[m.tipo] || max,
+        porPosicao: m.tipo === 'GONDOLA',
+      }].concat(Render.espacos(m).map((e) => ({ id: m.id + '/' + e.id, descricao: (m.descricao || m.id) + ' – ' + e.nome, limite: 1 })));
       p.moveis.reduce((acc, m) => acc.concat(linhasDoMovel(m)), []).forEach((m) => {
-        const linha = { ciclo: op.ciclo, planta: p.id, movel: m.id, descricao: m.descricao };
+        const linha = { ciclo: op.ciclo, planta: plantaNaPlanilha(dados, p.id), movel: m.id, descricao: m.descricao };
         const info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;
         if (info) {
           linha.marca = info.marca;
-          info.etiquetas.forEach((e, i) => {
-            linha['etiqueta' + (i + 1)] = e.texto;
-            linha['marcaEtiqueta' + (i + 1)] = e.marca;
+          // Só as etiquetas que aparecem na planta (na gôndola inteira, cada uma fica na coluna do seu bloco).
+          const usadas = m.porPosicao
+            ? info.etiquetas.filter((e, i) => (e.posicao || i + 1) <= m.limite)
+            : info.etiquetas.slice(0, m.limite);
+          usadas.forEach((e, i) => {
+            const n = m.porPosicao ? e.posicao || i + 1 : i + 1;
+            linha['etiqueta' + n] = e.texto;
+            linha['marcaEtiqueta' + n] = e.marca;
           });
           linha.simbolo = info.simbolo;
           linha.observacao = info.observacao;
@@ -211,6 +227,10 @@ const Planilha = (() => {
         const row = ws.addRow(linha);
         for (let c = 1; c <= 4; c++) row.getCell(c).fill = fundo;
         row.getCell(4).font = { italic: true, color: { argb: 'FF666666' } };
+        for (let n = m.limite + 1; n <= max; n++) {
+          row.getCell('etiqueta' + n).fill = SEM_USO;
+          row.getCell('marcaEtiqueta' + n).fill = SEM_USO;
+        }
       });
     });
 
@@ -236,7 +256,9 @@ const Planilha = (() => {
 
     if (op.origem) {
       resolver.linhasPaineis(op.origem, op.plantas).forEach((p) => {
-        const row = ws.addRow({ ciclo: op.ciclo, planta: p.planta, secao: p.secao, texto: p.texto, marca: p.marca, movel: p.movel });
+        const row = ws.addRow({
+          ciclo: op.ciclo, planta: plantaNaPlanilha(dados, p.planta), secao: p.secao, texto: p.texto, marca: p.marca, movel: p.movel,
+        });
         row.getCell(4).alignment = { wrapText: true, vertical: 'top' };
       });
     }
@@ -266,10 +288,10 @@ const Planilha = (() => {
     dados.plantas.filter((p) => op.plantas.indexOf(p.id) >= 0).forEach((p) => {
       const fundo = { type: 'pattern', pattern: 'solid', fgColor: { argb: FAIXAS_PLANTA[faixa++ % FAIXAS_PLANTA.length] } };
       const linhas = [{
-        planta: p.id, movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA', x: 0, y: 0, z: 0,
+        planta: plantaNaPlanilha(dados, p.id), movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA', x: 0, y: 0, z: 0,
         largura: p.loja.largura, profundidade: p.loja.profundidade, altura: p.loja.alturaParede, ajusteX: 0, ajusteY: 0,
       }].concat(p.moveis.map((m) => ({
-        planta: p.id, movel: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z,
+        planta: plantaNaPlanilha(dados, p.id), movel: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z,
         largura: m.w, profundidade: m.d, altura: m.h, ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '',
       })));
       linhas.forEach((l) => {

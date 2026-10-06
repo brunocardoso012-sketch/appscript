@@ -373,7 +373,8 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
       const etiquetas = [];
       for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
         const t = texto_(l['etiqueta' + i]);
-        if (t) etiquetas.push({ texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde) });
+        // posicao = número da coluna (na gôndola, cada uma vai para um bloco).
+        if (t) etiquetas.push({ texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i });
       }
       registrarCiclo(ciclo);
       movimentos[ciclo] = movimentos[ciclo] || {};
@@ -432,7 +433,10 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
     tipos: TIPOS_MOVEL,
     tiposConstrucao: TIPOS_CONSTRUCAO,
     colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), layout: colunasLayout_() },
-    config: { maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS },
+    config: {
+      maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
+      etiquetasPorTipo: ETIQUETAS_POR_TIPO, nomesPlantas: NOMES_PLANTAS,
+    },
   };
 }
 
@@ -457,7 +461,7 @@ function montarPlantas_(linhas, aviso) {
       tipo = 'GONDOLA';
     }
     if (!mapa[planta]) {
-      mapa[planta] = { id: planta, nome: 'PLANTA ' + planta, loja: null, moveis: [] };
+      mapa[planta] = { id: planta, nome: nomePlanta_(planta), loja: null, moveis: [] };
       ordem.push(planta);
     }
     const p = mapa[planta];
@@ -663,17 +667,24 @@ function numero_(v, padrao) {
   return isFinite(n) ? n : padrao;
 }
 
-/** "1", "01", "Planta 1" → "01"; "todas" / "*" → "TODAS". */
+/** "1", "01", "Planta 1", "ER P" → "01"; "todas" / "*" → "TODAS". */
 function normPlanta_(v) {
   const s = texto_(v).toUpperCase().replace(/^PLANTA\s*/, '').trim();
   if (!s) return '';
   const k = chave_(s);
   if (s === '*' || k === 'TODAS' || k === 'TODOS' || k === 'GERAL') return CONFIG.PLANTA_TODAS;
+  const porNome = Object.keys(NOMES_PLANTAS).filter(function (id) { return chave_(NOMES_PLANTAS[id]) === k; })[0];
+  if (porNome) return porNome;
   if (/^\d+([.,]0+)?$/.test(s)) {
     const n = parseInt(s, 10);
     return (n < 10 ? '0' : '') + n;
   }
   return s;
+}
+
+/** "01" → "ER P" (ou "PLANTA 05" para planta sem nome em NOMES_PLANTAS). */
+function nomePlanta_(id) {
+  return NOMES_PLANTAS[id] || 'PLANTA ' + id;
 }
 
 /** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */
