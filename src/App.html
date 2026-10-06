@@ -118,8 +118,9 @@ const App = (() => {
     $('telaConfig').hidden = true;
     svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden
 
-    const cicloPref = pref.ciclo || estado.ciclo || memoria.ler('ciclo');
-    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 ? cicloPref : dados.ciclos[dados.ciclos.length - 1] || '';
+    // O app abre sem ciclo (planta limpa, sem cores nem etiquetas) até o usuário escolher um.
+    const cicloPref = 'ciclo' in pref ? pref.ciclo : estado.ciclo;
+    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 ? cicloPref : '';
     const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
     estado.planta = dados.plantas.some((p) => p.id === plantaPref) ? plantaPref : (dados.plantas[0] || {}).id || '';
     estado.ajustes = {};
@@ -167,6 +168,7 @@ const App = (() => {
       return;
     }
     sel.disabled = false;
+    sel.appendChild(new Option('Sem ciclo (planta limpa)', '', false, !estado.ciclo));
     estado.dados.ciclos.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.ciclo)));
   }
 
@@ -494,7 +496,6 @@ const App = (() => {
   function ligarEventos() {
     $('selCiclo').addEventListener('change', (e) => {
       estado.ciclo = e.target.value;
-      memoria.gravar('ciclo', estado.ciclo);
       desenhar();
     });
     $('btnModelo').addEventListener('click', () => estado.dados && abrirDialogoModelo());
