@@ -178,7 +178,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 11, '03': 6, '04': 7, _exemplo: 4 }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
-  assert.equal(r.versoes['02'], 9);
+  assert.equal(r.versoes['02'], 10);
   const ids = (planta) => r.abas.layout.slice(1).filter((l) => l[0] === planta).map((l) => l[1]);
   assert.ok(!ids('02').includes('VELHO-01') && ids('02').includes('MESA DESTAQUE 1') && ids('02').includes('LOJA'), 'planta 02 com o modelo novo');
   assert.ok(ids('01').includes('MEU-01'), 'planta 01 intacta');
@@ -233,7 +233,7 @@ test('ciclo de exemplo novo troca todas as linhas dele (e só dele)', () => {
       ['Ciclo exemplo', 'TODAS', 'GON-01', '', 'BOT'], ['C9', '01', 'GONDOLA 1', '', 'EUD']],
     paineis: [colunasPaineis_().map(function (c) { return c.titulo; }),
       ['Ciclo exemplo', 'TODAS', 'CALLOUT', 'velho', 'BOT', 'PAR-02'], ['C9', 'TODAS', 'NOTA', 'minha nota', '', '']],
-  }, { '01': 11, '02': 9, '03': 6, '04': 7, _exemplo: 1 })`);
+  }, { '01': 11, '02': 10, '03': 6, '04': 7, _exemplo: 1 })`);
   assert.deepEqual(r.plantas, ['exemplo']);
   assert.ok(!r.abas.movimentos.some((l) => l[2] === 'GON-01'), 'linha antiga do exemplo sai');
   assert.ok(r.abas.movimentos.some((l) => l[0] === 'C9'), 'outro ciclo fica');
