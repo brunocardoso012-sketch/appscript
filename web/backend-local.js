@@ -64,6 +64,14 @@
       return resultado;
     },
 
+    salvarLayout(planta, layout) {
+      const objetos = objetosLayoutDaPlanta_(planta, layout);
+      const abas = ler();
+      abas.layout = mesclarLinhas_(abas.layout, objetos, colunasLayout_());
+      gravar(abas);
+      return { planta: normPlanta_(planta), moveis: objetos.length - 1 };
+    },
+
     salvarAjustesEtiquetas(planta, ajustes) {
       planta = normPlanta_(planta);
       if (!planta || !ajustes || typeof ajustes !== 'object') throw new Error('Dados inválidos.');

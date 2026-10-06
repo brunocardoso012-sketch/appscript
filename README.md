@@ -23,6 +23,18 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 - **Baixar PNG** em 3840×2160, pronto para colar na apresentação.
 - **Ajustar etiquetas**: as etiquetas se afastam sozinhas para não se sobrepor. Se quiser outra posição, arraste e clique em *Salvar posições*.
 
+## Construir loja (editor do layout)
+
+O botão **Construir loja** abre um editor ao lado da planta:
+
+- **Mover:** clique num móvel para selecionar (fica com contorno laranja) e arraste no piso. As setas do teclado também movem: → +X, ← −X, ↓ +Y, ↑ −Y; com Shift o passo é 5×. O **Passo** define o encaixe (0,1 a 1 unidade).
+- **Medidas:** ID, tipo, descrição, X, Y, elevação, largura, profundidade e altura ficam no formulário. **Girar 90°** troca largura e profundidade.
+- **Móveis:** + Novo, Duplicar e Excluir. **+ Nova planta** cria a próxima planta, começando com as paredes da atual.
+- **Loja:** largura, profundidade e altura das paredes.
+- **Imagem de referência:** escolha a sua tela original da planta. Ela aparece por cima, semitransparente, para você "decalcar" os móveis. Ajuste opacidade, zoom e posição até alinhar com o piso. A **Grade no piso** mostra a numeração de X e Y.
+- **Salvar planta:** grava o layout (aba Layout no Apps Script; navegador na versão web).
+- **Baixar código da loja:** gera `layout-plantas-AAAA-MM-DD.json` com o layout de todas as plantas, no mesmo formato de [`src/Layouts.gs`](src/Layouts.gs). Mande esse arquivo para virar o layout padrão do projeto. **Carregar código…** aplica um arquivo desses de volta.
+
 ## Versão web para testes (netli.fyi / Netlify)
 
 Para ver e ajustar o visualizador **sem o Apps Script**, use [`index.html`](index.html) (na raiz do projeto): é um arquivo único, com o mesmo código, que guarda os dados no próprio navegador.
@@ -58,6 +70,7 @@ Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`
    | HTML | `Styles` | [`src/Styles.html`](src/Styles.html) |
    | HTML | `Render` | [`src/Render.html`](src/Render.html) |
    | HTML | `Planilha` | [`src/Planilha.html`](src/Planilha.html) |
+   | HTML | `Construtor` | [`src/Construtor.html`](src/Construtor.html) |
    | HTML | `App` | [`src/App.html`](src/App.html) |
 
 5. Salve, volte para a planilha e recarregue a página. Vai aparecer o menu **Plano de Varejo**. Clique em **Configurar planilha (criar abas que faltam)** e autorize o script. Ele cria as abas `Layout`, `Movimentos` e `Painéis` com o layout das 4 plantas e um *Ciclo exemplo*.
@@ -160,12 +173,13 @@ O layout que vem pronto é uma **aproximação** das 4 plantas de referência. A
 src/
   appsscript.json   manifesto (fuso, V8, App da Web)
   Config.gs         marcas/cores, símbolos, seções, tipos, colunas das abas
-  Code.gs           doGet, menu, getDados, importarPlanilha, salvarAjustesEtiquetas…
+  Code.gs           doGet, menu, getDados, importarPlanilha, salvarLayout, salvarAjustesEtiquetas…
   Layouts.gs        layout padrão das 4 plantas + ciclo de exemplo
   Index.html        página (inclui os arquivos abaixo)
   Styles.html       estilos
   Render.html       desenho isométrico em SVG (slide 1920×1080)
   Planilha.html     gerar/ler .xlsx no navegador (ExcelJS via cdnjs, com SRI)
+  Construtor.html   modo "Construir loja" (editor visual do layout)
   App.html          estado da tela, botões e chamadas ao servidor
 index.html          versão web gerada (netli.fyi / Netlify)
 netlify.toml        publicação estática a partir da raiz

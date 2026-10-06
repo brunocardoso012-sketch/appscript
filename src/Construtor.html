@@ -1,0 +1,570 @@
+<script>
+/**
+ * ============================================================================
+ *  CONSTRUIR LOJA (editor visual do layout das plantas)
+ * ============================================================================
+ *  - clicar num móvel seleciona; arrastar move no piso (com passo/encaixe);
+ *  - setas do teclado movem o selecionado (→ +X, ← −X, ↓ +Y, ↑ −Y);
+ *  - formulário para ID, tipo, posição e medidas; novo / duplicar / excluir / girar;
+ *  - imagem de referência semitransparente por cima (para decalcar a planta);
+ *  - "Salvar planta" grava na aba Layout; "Baixar código da loja" gera o
+ *    layout de todas as plantas no formato de src/Layouts.gs.
+ */
+const Construtor = (() => {
+  const COS30 = Math.cos(Math.PI / 6);
+  const CAMPOS_NUMERICOS = ['x', 'y', 'z', 'w', 'd', 'h'];
+  const c = {
+    ativo: false,
+    planta: null, // cópia editável da planta
+    nova: false, // planta criada aqui e ainda não salva
+    selecionado: '',
+    sujo: false,
+    grade: true,
+    passo: 0.5,
+    referencias: {}, // planta → {src, opacidade}
+    escala: 1,
+    quadro: 0,
+  };
+  let app = null;
+  const $ = (id) => document.getElementById(id);
+  const clonar = (o) => JSON.parse(JSON.stringify(o));
+  const arred = (v) => Math.round(v * 100) / 100;
+
+  /* ------------------------------ estado ---------------------------------- */
+
+  function contexto() {
+    if (!c.ativo || !c.planta) return null;
+    return { planta: c.planta, selecionado: c.selecionado, grade: c.grade, referencia: c.referencias[c.planta.id] || null };
+  }
+
+  function aposDesenhar(r) {
+    if (r && r.escala) c.escala = r.escala;
+  }
+
+  const movelSelecionado = () => (c.planta ? c.planta.moveis.find((m) => m.id === c.selecionado) : null);
+
+  function marcarSujo() {
+    c.sujo = true;
+    atualizarStatus();
+  }
+
+  function redesenhar() {
+    cancelAnimationFrame(c.quadro);
+    c.quadro = requestAnimationFrame(() => app.desenhar());
+  }
+
+  /** Pode trocar de planta / sair? (pergunta se há alterações não salvas) */
+  function podeSair() {
+    return !c.ativo || !c.sujo || window.confirm('Há alterações não salvas no layout desta planta. Descartar?');
+  }
+
+  function carregarPlanta(planta) {
+    c.planta = clonar(planta);
+    c.nova = false;
+    c.sujo = false;
+    if (!c.planta.moveis.some((m) => m.id === c.selecionado)) c.selecionado = (c.planta.moveis[0] || {}).id || '';
+    lerReferencia(c.planta.id);
+    preencherTudo();
+  }
+
+  /** Chamado pelo App depois de recarregar os dados ou trocar de planta. */
+  function sincronizar(planta) {
+    if (c.ativo && planta && (!c.sujo || c.planta.id !== planta.id)) carregarPlanta(planta);
+  }
+
+  /* ------------------------------ abrir/fechar ---------------------------- */
+
+  function abrir() {
+    const planta = app.plantaAtual();
+    if (!planta) return;
+    c.ativo = true;
+    carregarPlanta(planta);
+    document.body.classList.add('construindo');
+    $('painelConstrutor').hidden = false;
+    $('btnConstruir').setAttribute('aria-pressed', 'true');
+    app.desenhar();
+  }
+
+  function fechar() {
+    if (!podeSair()) return;
+    c.ativo = false;
+    c.sujo = false;
+    document.body.classList.remove('construindo');
+    $('painelConstrutor').hidden = true;
+    $('btnConstruir').setAttribute('aria-pressed', 'false');
+    app.desenhar();
+  }
+
+  /* ------------------------------ formulário ------------------------------ */
+
+  function preencherTudo() {
+    const p = c.planta;
+    $('cnsPlanta').textContent = p.nome + (c.nova ? ' (nova)' : '');
+    $('cnsLargura').value = p.loja.largura;
+    $('cnsProfundidade').value = p.loja.profundidade;
+    $('cnsAltura').value = p.loja.alturaParede;
+    const ref = c.referencias[p.id];
+    $('cnsOpacidade').value = Math.round((ref ? ref.opacidade : 0.45) * 100);
+    $('cnsTirarImagem').disabled = !ref;
+    $('cnsRefZoom').value = Math.round(((ref && ref.zoom) || 1) * 100);
+    $('cnsRefX').value = (ref && ref.dx) || 0;
+    $('cnsRefY').value = (ref && ref.dy) || 0;
+    preencherLista();
+    preencherFormulario();
+    atualizarStatus();
+  }
+
+  function preencherLista() {
+    const sel = $('cnsLista');
+    sel.textContent = '';
+    c.planta.moveis.forEach((m) => {
+      const extra = m.tipo === 'EXTRA' ? ' (fora da planta)' : '';
+      sel.appendChild(new Option(m.id + (m.descricao ? ' — ' + m.descricao : '') + extra, m.id, false, m.id === c.selecionado));
+    });
+  }
+
+  function preencherFormulario() {
+    const m = movelSelecionado();
+    $('cnsForm').classList.toggle('desativado', !m);
+    $('cnsForm').querySelectorAll('input, select, button').forEach((e) => { e.disabled = !m; });
+    $('cnsDuplicar').disabled = !m;
+    $('cnsExcluir').disabled = !m;
+    if (!m) return;
+    $('cnsId').value = m.id;
+    $('cnsDescricao').value = m.descricao || '';
+    $('cnsTipo').value = m.tipo;
+    CAMPOS_NUMERICOS.forEach((k) => { $('cnsForm').querySelector('[data-campo="' + k + '"]').value = m[k]; });
+  }
+
+  function atualizarStatus() {
+    const n = c.planta ? c.planta.moveis.length : 0;
+    $('cnsStatus').textContent = (c.sujo ? '● não salvo · ' : '') + n + ' móveis';
+    $('cnsStatus').classList.toggle('sujo', c.sujo);
+    $('cnsSalvar').disabled = !c.sujo;
+    $('cnsDescartar').disabled = !c.sujo;
+  }
+
+  function selecionar(id) {
+    c.selecionado = id;
+    $('cnsLista').value = id;
+    preencherFormulario();
+    redesenhar();
+  }
+
+  function idLivre(base) {
+    const ids = new Set(c.planta.moveis.map((m) => m.id));
+    if (!ids.has(base)) return base;
+    for (let i = 2; ; i++) if (!ids.has(base + '-' + i)) return base + '-' + i;
+  }
+
+  /* ------------------------------ ações ----------------------------------- */
+
+  function novoMovel() {
+    const L = c.planta.loja;
+    const m = {
+      id: idLivre('NOVO'), descricao: '', tipo: 'GONDOLA',
+      x: arred(L.largura / 2 - 1), y: arred(L.profundidade / 2 - 0.6), z: 0, w: 2, d: 1.2, h: 3, ajusteX: 0, ajusteY: 0,
+    };
+    c.planta.moveis.push(m);
+    marcarSujo();
+    preencherLista();
+    selecionar(m.id);
+    $('cnsId').select();
+  }
+
+  function duplicar() {
+    const m = movelSelecionado();
+    if (!m) return;
+    const copia = Object.assign(clonar(m), { id: idLivre(m.id), x: arred(m.x + 1), y: arred(m.y + 1), ajusteX: 0, ajusteY: 0 });
+    c.planta.moveis.push(copia);
+    marcarSujo();
+    preencherLista();
+    selecionar(copia.id);
+  }
+
+  function excluir() {
+    const m = movelSelecionado();
+    if (!m || !window.confirm('Excluir o móvel ' + m.id + ' desta planta?')) return;
+    const i = c.planta.moveis.indexOf(m);
+    c.planta.moveis.splice(i, 1);
+    const prox = c.planta.moveis[Math.min(i, c.planta.moveis.length - 1)];
+    marcarSujo();
+    preencherLista();
+    selecionar(prox ? prox.id : '');
+  }
+
+  function girar() {
+    const m = movelSelecionado();
+    if (!m) return;
+    // Gira em torno do centro: troca largura e profundidade.
+    const cx = m.x + m.w / 2;
+    const cy = m.y + m.d / 2;
+    const w = m.w;
+    m.w = m.d;
+    m.d = w;
+    m.x = arred(cx - m.w / 2);
+    m.y = arred(cy - m.d / 2);
+    marcarSujo();
+    preencherFormulario();
+    redesenhar();
+  }
+
+  function mover(dx, dy) {
+    const m = movelSelecionado();
+    if (!m || m.tipo === 'EXTRA') return;
+    m.x = arred(m.x + dx);
+    m.y = arred(m.y + dy);
+    marcarSujo();
+    preencherFormulario();
+    redesenhar();
+  }
+
+  function novaPlanta() {
+    if (!podeSair()) return;
+    const ids = app.estado.dados.plantas.map((p) => p.id);
+    let n = ids.length + 1;
+    let id = (n < 10 ? '0' : '') + n;
+    while (ids.indexOf(id) >= 0) { n++; id = (n < 10 ? '0' : '') + n; }
+    const base = c.planta;
+    c.planta = {
+      id, nome: 'PLANTA ' + id,
+      loja: { largura: 20, profundidade: 18, alturaParede: 4.6 },
+      // Começa com as paredes e os extras da planta atual (ajuste depois).
+      moveis: clonar(base.moveis.filter((m) => m.tipo === 'GONDOLA_PAREDE' || m.tipo === 'EXTRA')),
+    };
+    c.nova = true;
+    c.selecionado = (c.planta.moveis[0] || {}).id || '';
+    lerReferencia(id);
+    marcarSujo();
+    preencherTudo();
+    app.desenhar();
+  }
+
+  async function salvar() {
+    const p = c.planta;
+    app.carregando(true, 'Salvando layout da ' + p.nome + '…');
+    try {
+      const layout = {
+        loja: p.loja,
+        moveis: p.moveis.map((m) => ({
+          id: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h,
+          ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0,
+        })),
+      };
+      const r = await app.chamar('salvarLayout', p.id, layout);
+      c.sujo = false;
+      await app.carregar({ planta: p.id });
+      app.toast('Layout salvo: ' + p.nome + ' (' + r.moveis + ' móveis).');
+    } catch (e) {
+      app.erro(e);
+    } finally {
+      app.carregando(false);
+    }
+  }
+
+  function descartar() {
+    if (!c.sujo || !window.confirm('Descartar as alterações do layout?')) return;
+    c.sujo = false;
+    carregarPlanta(app.plantaAtual());
+    app.desenhar();
+  }
+
+  /* -------------------------- código da loja ------------------------------ */
+
+  /** Layout de todas as plantas (com a planta em edição), no formato de Layouts.gs. */
+  function gerarCodigo() {
+    const plantas = app.estado.dados.plantas.map((p) => (p.id === c.planta.id ? c.planta : p));
+    if (!plantas.some((p) => p.id === c.planta.id)) plantas.push(c.planta);
+    plantas.sort((a, b) => a.id.localeCompare(b.id, 'pt-BR', { numeric: true }));
+    const L = [
+      '{',
+      '  "formato": "plano-varejo-layout",',
+      '  "versao": 1,',
+      '  "geradoEm": ' + JSON.stringify(new Date().toISOString()) + ',',
+      '  "legenda": "móvel = [ID, descrição, tipo, x, y, largura, profundidade, altura, elevação, ajuste etiqueta X, ajuste etiqueta Y]",',
+      '  "plantas": {',
+    ];
+    plantas.forEach((p, i) => {
+      L.push('    ' + JSON.stringify(p.id) + ': {');
+      L.push('      "loja": ' + JSON.stringify([p.loja.largura, p.loja.profundidade, p.loja.alturaParede]) + ',');
+      L.push('      "moveis": [');
+      p.moveis.forEach((m, j) => {
+        const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0];
+        L.push('        ' + JSON.stringify(t) + (j < p.moveis.length - 1 ? ',' : ''));
+      });
+      L.push('      ]');
+      L.push('    }' + (i < plantas.length - 1 ? ',' : ''));
+    });
+    L.push('  }', '}', '');
+    return L.join('\n');
+  }
+
+  function baixarCodigo() {
+    const blob = new Blob([gerarCodigo()], { type: 'application/json' });
+    const data = new Date().toISOString().slice(0, 10);
+    Planilha.baixarBlob(blob, 'layout-plantas-' + data + '.json');
+    app.toast(c.sujo ? 'Código baixado (inclui alterações ainda não salvas).' : 'Código da loja baixado.');
+  }
+
+  async function carregarCodigo(arquivo) {
+    if (!arquivo) return;
+    try {
+      const json = JSON.parse(await arquivo.text());
+      if (!json || json.formato !== 'plano-varejo-layout' || !json.plantas) throw new Error('Arquivo não é um código de loja deste visualizador.');
+      const ids = Object.keys(json.plantas);
+      if (!window.confirm('Substituir o layout de: ' + ids.map((i) => 'PLANTA ' + i).join(', ') + '?')) return;
+      app.carregando(true, 'Carregando layout…');
+      for (const id of ids) {
+        const p = json.plantas[id];
+        await app.chamar('salvarLayout', id, {
+          loja: { largura: p.loja[0], profundidade: p.loja[1], alturaParede: p.loja[2] },
+          moveis: p.moveis.map((t) => ({
+            id: t[0], descricao: t[1], tipo: t[2], x: t[3], y: t[4], w: t[5], d: t[6], h: t[7], z: t[8] || 0, ajusteX: t[9] || 0, ajusteY: t[10] || 0,
+          })),
+        });
+      }
+      c.sujo = false;
+      await app.carregar({ planta: ids[0] });
+      app.toast('Layout carregado (' + ids.length + ' planta(s)).');
+    } catch (e) {
+      app.erro(e);
+    } finally {
+      app.carregando(false);
+      $('cnsArquivoCodigo').value = '';
+    }
+  }
+
+  /* --------------------------- imagem de referência ------------------------ */
+
+  const chaveRef = (id) => 'planoVarejo.referencia.' + id;
+
+  function lerReferencia(id) {
+    if (c.referencias[id]) return;
+    try {
+      const salvo = JSON.parse(window.localStorage.getItem(chaveRef(id)));
+      if (salvo && salvo.src) c.referencias[id] = salvo;
+    } catch (e) { /* sem armazenamento */ }
+  }
+
+  function gravarReferencia(id) {
+    try {
+      if (c.referencias[id]) window.localStorage.setItem(chaveRef(id), JSON.stringify(c.referencias[id]));
+      else window.localStorage.removeItem(chaveRef(id));
+    } catch (e) { /* imagem grande demais para guardar: fica só nesta sessão */ }
+  }
+
+  /** Reduz a imagem para 1920 px (JPEG) para caber no armazenamento do navegador. */
+  function carregarImagem(arquivo) {
+    if (!arquivo) return;
+    const leitor = new FileReader();
+    leitor.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, 1920 / img.width);
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(img.width * k);
+        cv.height = Math.round(img.height * k);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        const id = c.planta.id;
+        c.referencias[id] = { src: cv.toDataURL('image/jpeg', 0.82), opacidade: Number($('cnsOpacidade').value) / 100, zoom: 1, dx: 0, dy: 0 };
+        $('cnsRefZoom').value = 100;
+        $('cnsRefX').value = 0;
+        $('cnsRefY').value = 0;
+        gravarReferencia(id);
+        $('cnsTirarImagem').disabled = false;
+        app.desenhar();
+      };
+      img.onerror = () => app.erro(new Error('Não foi possível ler a imagem.'));
+      img.src = leitor.result;
+    };
+    leitor.readAsDataURL(arquivo);
+    $('cnsArquivoImagem').value = '';
+  }
+
+  /* ------------------------------ arraste --------------------------------- */
+
+  function pontoSvg(svg, ev) {
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX;
+    pt.y = ev.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  const encaixar = (v) => arred(Math.round(v / c.passo) * c.passo);
+
+  function ligarArraste(svg) {
+    svg.addEventListener('pointerdown', (ev) => {
+      if (!c.ativo) return;
+      const alvo = ev.target.closest('g.movel');
+      if (!alvo) return;
+      ev.preventDefault();
+      selecionar(alvo.getAttribute('data-movel'));
+      const m = movelSelecionado();
+      if (!m) return;
+      const inicio = pontoSvg(svg, ev);
+      const orig = { x: m.x, y: m.y };
+      svg.setPointerCapture(ev.pointerId);
+      const mover = (e) => {
+        const p = pontoSvg(svg, e);
+        // Converte o deslocamento na tela em deslocamento no piso (plano z = 0).
+        const a = (p.x - inicio.x) / (COS30 * c.escala);
+        const b = (2 * (p.y - inicio.y)) / c.escala;
+        const nx = encaixar(orig.x + (a + b) / 2);
+        const ny = encaixar(orig.y + (b - a) / 2);
+        if (nx === m.x && ny === m.y) return;
+        m.x = nx;
+        m.y = ny;
+        marcarSujo();
+        preencherFormulario();
+        redesenhar();
+      };
+      const soltar = () => {
+        svg.removeEventListener('pointermove', mover);
+        svg.removeEventListener('pointerup', soltar);
+        svg.removeEventListener('pointercancel', soltar);
+      };
+      svg.addEventListener('pointermove', mover);
+      svg.addEventListener('pointerup', soltar);
+      svg.addEventListener('pointercancel', soltar);
+    });
+  }
+
+  /** Setas movem o móvel selecionado (Shift = passo x5). */
+  function tecla(e) {
+    const mapa = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1] };
+    const d = mapa[e.key];
+    if (!d) return false;
+    e.preventDefault();
+    const k = c.passo * (e.shiftKey ? 5 : 1);
+    mover(d[0] * k, d[1] * k);
+    return true;
+  }
+
+  /* ------------------------------ eventos --------------------------------- */
+
+  function ligar() {
+    ligarArraste($('slide'));
+
+    const numLoja = { cnsLargura: 'largura', cnsProfundidade: 'profundidade', cnsAltura: 'alturaParede' };
+    Object.keys(numLoja).forEach((id) => {
+      $(id).addEventListener('input', (e) => {
+        const v = parseFloat(String(e.target.value).replace(',', '.'));
+        if (!isFinite(v) || v <= 0) return;
+        c.planta.loja[numLoja[id]] = v;
+        marcarSujo();
+        redesenhar();
+      });
+    });
+
+    $('cnsLista').addEventListener('change', (e) => selecionar(e.target.value));
+    $('cnsNovo').addEventListener('click', novoMovel);
+    $('cnsDuplicar').addEventListener('click', duplicar);
+    $('cnsExcluir').addEventListener('click', excluir);
+    $('cnsGirar').addEventListener('click', girar);
+    $('cnsNovaPlanta').addEventListener('click', novaPlanta);
+
+    $('cnsId').addEventListener('change', (e) => {
+      const m = movelSelecionado();
+      const novo = String(e.target.value).trim().toUpperCase().replace(/\s+/g, ' ');
+      if (!m || novo === m.id) return;
+      if (!novo || novo === 'LOJA' || c.planta.moveis.some((x) => x.id === novo)) {
+        app.erro(new Error('ID vazio ou já usado nesta planta.'));
+        e.target.value = m.id;
+        return;
+      }
+      m.id = novo;
+      c.selecionado = novo;
+      marcarSujo();
+      preencherLista();
+      redesenhar();
+    });
+    $('cnsDescricao').addEventListener('input', (e) => {
+      const m = movelSelecionado();
+      if (!m) return;
+      m.descricao = e.target.value;
+      marcarSujo();
+      const opt = $('cnsLista').selectedOptions[0];
+      if (opt) opt.textContent = m.id + (m.descricao ? ' — ' + m.descricao : '');
+    });
+    $('cnsTipo').addEventListener('change', (e) => {
+      const m = movelSelecionado();
+      if (!m) return;
+      m.tipo = e.target.value;
+      marcarSujo();
+      preencherLista();
+      redesenhar();
+    });
+    $('cnsForm').querySelectorAll('[data-campo]').forEach((inp) => {
+      inp.addEventListener('input', () => {
+        const m = movelSelecionado();
+        const v = parseFloat(String(inp.value).replace(',', '.'));
+        if (!m || !isFinite(v)) return;
+        const k = inp.getAttribute('data-campo');
+        m[k] = ['w', 'd', 'h'].indexOf(k) >= 0 ? Math.max(0.1, v) : v;
+        marcarSujo();
+        redesenhar();
+      });
+    });
+
+    $('cnsImagem').addEventListener('click', () => $('cnsArquivoImagem').click());
+    $('cnsArquivoImagem').addEventListener('change', (e) => carregarImagem(e.target.files[0]));
+    $('cnsTirarImagem').addEventListener('click', () => {
+      delete c.referencias[c.planta.id];
+      gravarReferencia(c.planta.id);
+      $('cnsTirarImagem').disabled = true;
+      app.desenhar();
+    });
+    $('cnsOpacidade').addEventListener('input', (e) => {
+      const ref = c.referencias[c.planta.id];
+      if (!ref) return;
+      ref.opacidade = Number(e.target.value) / 100;
+      redesenhar();
+    });
+    $('cnsOpacidade').addEventListener('change', () => gravarReferencia(c.planta.id));
+    [['cnsRefZoom', 'zoom', 0.01], ['cnsRefX', 'dx', 1], ['cnsRefY', 'dy', 1]].forEach(([id, chave, fator]) => {
+      $(id).addEventListener('input', (e) => {
+        const ref = c.referencias[c.planta.id];
+        const v = parseFloat(e.target.value);
+        if (!ref || !isFinite(v) || (chave === 'zoom' && v <= 0)) return;
+        ref[chave] = v * fator;
+        redesenhar();
+      });
+      $(id).addEventListener('change', () => gravarReferencia(c.planta.id));
+    });
+    $('cnsGrade').addEventListener('change', (e) => { c.grade = e.target.checked; redesenhar(); });
+    $('cnsPasso').addEventListener('change', (e) => { c.passo = Number(e.target.value); });
+
+    $('cnsSalvar').addEventListener('click', salvar);
+    $('cnsDescartar').addEventListener('click', descartar);
+    $('cnsBaixarCodigo').addEventListener('click', baixarCodigo);
+    $('cnsCarregarCodigo').addEventListener('click', () => $('cnsArquivoCodigo').click());
+    $('cnsArquivoCodigo').addEventListener('change', (e) => carregarCodigo(e.target.files[0]));
+    $('cnsFechar').addEventListener('click', fechar);
+  }
+
+  /** Preenche a lista de tipos (precisa dos dados carregados). */
+  function preencherTipos(tipos) {
+    const sel = $('cnsTipo');
+    if (sel.options.length) return;
+    Object.keys(tipos).filter((t) => t !== 'LOJA').forEach((t) => sel.appendChild(new Option(t + ' — ' + tipos[t], t)));
+  }
+
+  function iniciar(api) {
+    app = api;
+    ligar();
+  }
+
+  return {
+    iniciar,
+    abrir: () => { preencherTipos(app.estado.dados.tipos); abrir(); },
+    fechar,
+    ativo: () => c.ativo,
+    podeSair,
+    contexto,
+    aposDesenhar,
+    sincronizar,
+    tecla,
+    gerarCodigo,
+  };
+})();
+</script>

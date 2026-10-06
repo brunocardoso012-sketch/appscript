@@ -44,6 +44,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
           Ajustar etiquetas
         </button>
+        <button id="btnConstruir" class="btn" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
+          Construir loja
+        </button>
         <button id="btnAtualizar" class="btn fantasma" type="button" title="Ler a planilha de novo">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
           Atualizar
@@ -79,6 +83,90 @@
 
     <main class="palco" id="palco">
       <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
+      <aside class="construtor" id="painelConstrutor" hidden aria-label="Construir loja">
+        <div class="cab-construtor">
+          <h2>Construir loja</h2>
+          <span id="cnsStatus"></span>
+        </div>
+        <p class="dica-construtor">Clique num móvel para selecionar e arraste no piso. Setas movem (→ +X, ↓ +Y; Shift = 5×).</p>
+
+        <section>
+          <h3>Loja · <span id="cnsPlanta"></span></h3>
+          <div class="campos tres">
+            <label>Largura (X)<input id="cnsLargura" type="number" step="0.5" min="1"></label>
+            <label>Profund. (Y)<input id="cnsProfundidade" type="number" step="0.5" min="1"></label>
+            <label>Alt. parede<input id="cnsAltura" type="number" step="0.1" min="0"></label>
+          </div>
+          <button id="cnsNovaPlanta" class="btn pequeno" type="button">+ Nova planta</button>
+        </section>
+
+        <section>
+          <h3>Imagem de referência</h3>
+          <div class="linha-botoes">
+            <button id="cnsImagem" class="btn pequeno" type="button">Escolher imagem…</button>
+            <button id="cnsTirarImagem" class="btn pequeno" type="button">Remover</button>
+          </div>
+          <input type="file" id="cnsArquivoImagem" accept="image/*" hidden>
+          <label class="campo-linha">Opacidade <input id="cnsOpacidade" type="range" min="0" max="100" value="45"></label>
+          <div class="campos tres">
+            <label>Zoom (%)<input id="cnsRefZoom" type="number" step="1" min="10" value="100"></label>
+            <label>Mover X (px)<input id="cnsRefX" type="number" step="5" value="0"></label>
+            <label>Mover Y (px)<input id="cnsRefY" type="number" step="5" value="0"></label>
+          </div>
+          <div class="linha-botoes">
+            <label class="opcao"><input id="cnsGrade" type="checkbox" checked> Grade no piso</label>
+            <label class="campo-linha">Passo
+              <select id="cnsPasso">
+                <option value="0.1">0,1</option>
+                <option value="0.25">0,25</option>
+                <option value="0.5" selected>0,5</option>
+                <option value="1">1</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section>
+          <h3>Móveis</h3>
+          <select id="cnsLista" size="7" aria-label="Móveis da planta"></select>
+          <div class="linha-botoes">
+            <button id="cnsNovo" class="btn pequeno" type="button">+ Novo</button>
+            <button id="cnsDuplicar" class="btn pequeno" type="button">Duplicar</button>
+            <button id="cnsExcluir" class="btn pequeno" type="button">Excluir</button>
+          </div>
+        </section>
+
+        <section id="cnsForm">
+          <h3>Móvel selecionado</h3>
+          <div class="campos dois">
+            <label>ID<input id="cnsId" type="text" autocomplete="off"></label>
+            <label>Tipo<select id="cnsTipo"></select></label>
+            <label class="largo">Descrição<input id="cnsDescricao" type="text" autocomplete="off"></label>
+          </div>
+          <div class="campos tres">
+            <label>X<input data-campo="x" type="number" step="0.1"></label>
+            <label>Y<input data-campo="y" type="number" step="0.1"></label>
+            <label>Elevação<input data-campo="z" type="number" step="0.1"></label>
+            <label>Largura<input data-campo="w" type="number" step="0.1" min="0.1"></label>
+            <label>Profund.<input data-campo="d" type="number" step="0.1" min="0.1"></label>
+            <label>Altura<input data-campo="h" type="number" step="0.1" min="0.1"></label>
+          </div>
+          <button id="cnsGirar" class="btn pequeno" type="button">Girar 90°</button>
+        </section>
+
+        <footer>
+          <div class="linha-botoes">
+            <button id="cnsSalvar" class="btn primario" type="button">Salvar planta</button>
+            <button id="cnsDescartar" class="btn" type="button">Descartar</button>
+          </div>
+          <div class="linha-botoes">
+            <button id="cnsBaixarCodigo" class="btn" type="button">Baixar código da loja</button>
+            <button id="cnsCarregarCodigo" class="btn fantasma" type="button">Carregar código…</button>
+          </div>
+          <input type="file" id="cnsArquivoCodigo" accept=".json,application/json" hidden>
+          <button id="cnsFechar" class="btn fantasma" type="button">Fechar construtor</button>
+        </footer>
+      </aside>
       <section class="vazio" id="telaConfig" hidden>
         <h2>Planilha ainda não configurada</h2>
         <p id="msgConfig"></p>
@@ -130,6 +218,7 @@
 
     <?!= include('Render'); ?>
     <?!= include('Planilha'); ?>
+    <?!= include('Construtor'); ?>
     <?!= include('App'); ?>
   </body>
 </html>

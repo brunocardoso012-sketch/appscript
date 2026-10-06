@@ -262,6 +262,23 @@ function salvarAjustesEtiquetas(planta, ajustes) {
   });
 }
 
+/**
+ * Grava uma planta inteira (dimensões da loja + móveis) na aba Layout,
+ * substituindo as linhas dessa planta. Usado pelo modo "Construir loja".
+ * @param {string} planta
+ * @param {{loja: {largura, profundidade, alturaParede}, moveis: Array<Object>}} layout
+ */
+function salvarLayout(planta, layout) {
+  const objetos = objetosLayoutDaPlanta_(planta, layout);
+  const ss = planilha_();
+  return comTrava_(function () {
+    const sh = ss.getSheetByName(CONFIG.ABAS.LAYOUT);
+    const existentes = sh ? sh.getDataRange().getValues() : valoresLayoutPadrao_();
+    escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), mesclarLinhas_(existentes, objetos, colunasLayout_()));
+    return { planta: normPlanta_(planta), moveis: objetos.length - 1 };
+  });
+}
+
 /* ======================= TRANSFORMAÇÃO (sem I/O) ========================== */
 
 /**
@@ -454,6 +471,38 @@ function montarPlantas_(linhas, aviso) {
 
   ordem.sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
   return ordem.map(function (id) { return mapa[id]; });
+}
+
+/**
+ * Valida o layout de uma planta vindo do modo "Construir loja" e devolve as
+ * linhas (objetos com as chaves de colunasLayout_), começando pela linha LOJA.
+ */
+function objetosLayoutDaPlanta_(planta, layout) {
+  planta = normPlanta_(planta);
+  if (!planta || planta === CONFIG.PLANTA_TODAS) throw new Error('Planta inválida.');
+  if (!layout || !layout.loja || !Array.isArray(layout.moveis)) throw new Error('Layout inválido.');
+  const n = function (v, padrao) { return Math.round(numero_(v, padrao) * 100) / 100; };
+  const loja = layout.loja;
+  const linhas = [{
+    planta: planta, movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA', x: 0, y: 0, z: 0,
+    largura: Math.max(1, n(loja.largura, 20)), profundidade: Math.max(1, n(loja.profundidade, 20)),
+    altura: Math.max(0, n(loja.alturaParede, 4.5)), ajusteX: 0, ajusteY: 0,
+  }];
+  const vistos = {};
+  layout.moveis.forEach(function (m, i) {
+    const id = normId_(m && m.id);
+    if (!id || id === 'LOJA') throw new Error('Móvel ' + (i + 1) + ': ID vazio ou inválido.');
+    if (vistos[id]) throw new Error('ID de móvel repetido: ' + id + '.');
+    vistos[id] = true;
+    if (!TIPOS_MOVEL[m.tipo] || m.tipo === 'LOJA') throw new Error('Móvel ' + id + ': tipo "' + m.tipo + '" inválido.');
+    linhas.push({
+      planta: planta, movel: id, descricao: texto_(m.descricao), tipo: m.tipo,
+      x: n(m.x, 0), y: n(m.y, 0), z: n(m.z, 0),
+      largura: Math.max(0.1, n(m.w, 1)), profundidade: Math.max(0.1, n(m.d, 1)), altura: Math.max(0.1, n(m.h, 1)),
+      ajusteX: Math.round(numero_(m.ajusteX, 0)), ajusteY: Math.round(numero_(m.ajusteY, 0)),
+    });
+  });
+  return linhas;
 }
 
 /**

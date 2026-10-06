@@ -371,6 +371,22 @@ const Render = (() => {
     caixa(g, P, { x: 0, y: -t, z: 0, w: W, d: t, h: H }, parede);
   }
 
+  /** Grade do piso (1 unidade; linha mais forte a cada 5) com a numeração dos eixos. */
+  function desenharGrade(pai, P, loja) {
+    const g = el('g', { class: 'grade', 'pointer-events': 'none' }, pai);
+    const W = loja.largura, D = loja.profundidade;
+    for (let x = 0; x <= W + 1e-6; x += 1) {
+      const forte = Math.round(x) % 5 === 0;
+      linha(g, P(x, 0, 0), P(x, D, 0), { stroke: forte ? '#9AA3AE' : '#C9CED4', 'stroke-width': forte ? 1 : 0.6 });
+      if (forte) texto(g, P(x, D, 0)[0] + 4, P(x, D, 0)[1] + 16, 'X ' + x, { 'font-size': 11, fill: '#5B6068', 'font-weight': 700 });
+    }
+    for (let y = 0; y <= D + 1e-6; y += 1) {
+      const forte = Math.round(y) % 5 === 0;
+      linha(g, P(0, y, 0), P(W, y, 0), { stroke: forte ? '#9AA3AE' : '#C9CED4', 'stroke-width': forte ? 1 : 0.6 });
+      if (forte) texto(g, P(W, y, 0)[0] + 6, P(W, y, 0)[1] + 14, 'Y ' + y, { 'font-size': 11, fill: '#5B6068', 'font-weight': 700 });
+    }
+  }
+
   /* ------------------------------ etiquetas ------------------------------- */
 
   function medirGrupo(etiquetas, simbolo, corPadrao) {
@@ -699,13 +715,15 @@ const Render = (() => {
     el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
 
     const planta = ctx.planta;
-    const { P } = criarProjecao(planta.loja);
+    const projecao = criarProjecao(planta.loja);
+    const { P } = projecao;
     const camadaPlanta = el('g', { class: 'camada-planta' }, svg);
     const camadaGuias = el('g', { class: 'camada-guias' }, svg);
     const camadaEtiquetas = el('g', { class: 'camada-etiquetas' }, svg);
     const camadaSobre = el('g', { class: 'camada-sobreposta' }, svg);
 
     desenharLoja(camadaPlanta, P, planta.loja);
+    if (ctx.grade) desenharGrade(camadaPlanta, P, planta.loja);
 
     const moveis = planta.moveis.filter((m) => m.tipo !== 'EXTRA');
     const extras = planta.moveis.filter((m) => m.tipo === 'EXTRA');
@@ -733,7 +751,11 @@ const Render = (() => {
       const m = b.movel;
       const i = info[m.id];
       const cores = i && !ehNeutro(i.marca) ? coresDe(i.marca, 'movel') : null;
-      const g = el('g', { class: 'movel', 'data-movel': m.id, opacity: apagado(m) ? 0.18 : 1 }, camadaPlanta);
+      const g = el('g', {
+        class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
+        'data-movel': m.id,
+        opacity: apagado(m) ? 0.18 : 1,
+      }, camadaPlanta);
       desenharPrimitiva(g, P, b, cores);
       const linhasDica = [m.id + (m.descricao ? ' — ' + m.descricao : '')];
       if (i) {
@@ -821,7 +843,20 @@ const Render = (() => {
       dica(gr.elemento, gr.id + (gr.movel.descricao ? ' — ' + gr.movel.descricao : ''));
     });
 
-    return { grupos };
+    // Imagem de referência (modo construção): por cima de tudo, semitransparente.
+    if (ctx.referencia && ctx.referencia.src) {
+      el('image', {
+        href: ctx.referencia.src,
+        x: ctx.referencia.dx || 0,
+        y: ctx.referencia.dy || 0,
+        width: TELA.w * (ctx.referencia.zoom || 1),
+        height: TELA.h * (ctx.referencia.zoom || 1),
+        preserveAspectRatio: 'xMidYMid meet', opacity: ctx.referencia.opacidade, 'pointer-events': 'none',
+        class: 'referencia',
+      }, svg);
+    }
+
+    return { grupos, escala: projecao.escala, P };
   }
 
   return { desenhar, TELA };

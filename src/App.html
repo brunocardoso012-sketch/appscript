@@ -133,6 +133,7 @@ const App = (() => {
     montarAbas();
     montarLegenda();
     montarAvisos(dados.avisos || []);
+    Construtor.sincronizar(plantaAtual());
     desenhar();
   }
 
@@ -241,9 +242,11 @@ const App = (() => {
   function trocarPlanta(id) {
     if (id === estado.planta) return;
     if (Object.keys(estado.ajustes).length && !window.confirm('Há ajustes de etiquetas não salvos nesta planta. Descartar?')) return;
+    if (!Construtor.podeSair()) return;
     estado.ajustes = {};
     estado.planta = id;
     memoria.gravar('planta', id);
+    Construtor.sincronizar(plantaAtual());
     montarAbas();
     atualizarBarraEdicao();
     desenhar();
@@ -252,8 +255,10 @@ const App = (() => {
   /* ------------------------------- desenho -------------------------------- */
 
   function desenhar() {
-    const planta = plantaAtual();
+    const construcao = Construtor.contexto();
+    const planta = construcao ? construcao.planta : plantaAtual();
     if (!planta) return;
+    svg.classList.toggle('construindo', !!construcao);
     const r = Render.desenhar(svg, {
       dados: estado.dados,
       planta,
@@ -263,7 +268,11 @@ const App = (() => {
       edicao: estado.edicao,
       obterMovimento: (m) => movimentoDe(estado.ciclo, planta.id, m.id),
       obterPaineis: () => paineisDe(estado.ciclo, planta.id),
+      selecionado: construcao ? construcao.selecionado : '',
+      grade: construcao ? construcao.grade : false,
+      referencia: construcao ? construcao.referencia : null,
     });
+    Construtor.aposDesenhar(r);
     estado.grupos = r.grupos;
     if (estado.edicao) ativarArraste();
   }
@@ -321,6 +330,8 @@ const App = (() => {
   }
 
   function alternarEdicao() {
+    if (!estado.edicao && Construtor.ativo()) Construtor.fechar();
+    if (!estado.edicao && Construtor.ativo()) return;
     if (estado.edicao && Object.keys(estado.ajustes).length && !window.confirm('Sair sem salvar os ajustes?')) return;
     estado.edicao = !estado.edicao;
     estado.ajustes = {};
@@ -487,6 +498,13 @@ const App = (() => {
     $('btnDescartar').addEventListener('click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
     $('btnSalvarAjustes').addEventListener('click', salvarAjustes);
     $('btnConfigurar').addEventListener('click', configurar);
+    $('btnConstruir').addEventListener('click', () => {
+      if (!estado.dados) return;
+      if (Construtor.ativo()) { Construtor.fechar(); return; }
+      if (estado.edicao) alternarEdicao();
+      if (estado.edicao) return; // usuário cancelou a saída do modo ajuste
+      Construtor.abrir();
+    });
     $('btnRestaurar').addEventListener('click', () => {
       if (window.confirm('Apagar os dados salvos neste navegador e voltar ao ciclo de exemplo?')) configurar();
     });
@@ -499,6 +517,7 @@ const App = (() => {
     document.addEventListener('keydown', (e) => {
       if (!estado.dados || e.altKey || e.ctrlKey || e.metaKey) return;
       if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
+      if (Construtor.ativo()) { Construtor.tecla(e); return; }
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       const ids = estado.dados.plantas.map((p) => p.id);
       const i = ids.indexOf(estado.planta) + (e.key === 'ArrowRight' ? 1 : -1);
@@ -507,6 +526,7 @@ const App = (() => {
   }
 
   ligarEventos();
+  Construtor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
   carregar();
 
   return { estado, carregar };
