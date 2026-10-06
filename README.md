@@ -42,16 +42,16 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 | Móvel | Como é desenhado | Na planilha |
 |---|---|---|
 | **Gôndola** (`GON-…`) | 4 espaços: **Ponta 1**, **Meio A**, **Meio B** e **Ponta 2**, com 4 níveis de prateleira. Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GON-01`) e uma por espaço: `GON-01/PONTA-1`, `GON-01/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GON-01/MEIO-B`, `GON-01/PONTA-2`. O espaço preenchido tem cor e etiquetas próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. |
-| **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 2,16). | Uma linha. |
-| **Móvel de fila** (`FILA-…`) | Bloco único retangular com 4 níveis (padrão 1,5 × 0,4 × 0,9). | Uma linha. |
+| **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 1,94). | Uma linha. |
+| **Móvel de fila** (`FILA-…`) | Bloco único retangular com 4 níveis (padrão 1,5 × 0,4 × 0,99). | Uma linha. |
 | **Móvel de parede** (`PAR-…`) | Estante encostada na parede, com prateleiras (padrão 4 × 1,1 × 3,2). | Uma linha. |
 | **Totem** (`TOTEM-…`) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
 | **PDV móvel** (`PDV-…`) | Cubo de vidro sobre rodapé escuro. | Uma linha. |
 | **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos lado a lado em cima e painel de vidro de duas lâminas ao fundo. | Uma linha. |
 | **Mesa destaque 3 frentes** (`MESA3-…`) | Igual à mesa destaque, com 3 nichos e painel de 3 lâminas (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
-| **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro). | Uma linha. |
+| **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); padrão 2,4 × 2,4 × 1,92. | Uma linha. |
 
-O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. Os tipos antigos do layout de exemplo (caixa, painel) continuam aparecendo, mas não são oferecidos na paleta. A gôndola tem por padrão a mesma altura da pirâmide (2,16).
+O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. Os tipos antigos do layout de exemplo (caixa, painel) continuam aparecendo, mas não são oferecidos na paleta. A gôndola tem por padrão a mesma altura da pirâmide (1,94).
 
 Durante a construção, os móveis aparecem **sem cor e sem etiquetas**, para o foco ficar no layout. Para conferir com o ciclo, marque *Mostrar cores e etiquetas do ciclo* em **Exibição e encaixe**.
 
