@@ -15,6 +15,7 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 
 ## O que ele faz
 
+- **Abre com a planta limpa** (sem cores, etiquetas nem caixas de destaque) até você escolher um ciclo no seletor; a opção *Sem ciclo (planta limpa)* volta a esse estado.
 - **Seletor de ciclo e abas por planta** (ER P, ER M, ER G e ER GG = plantas 01 a 04). As setas ← → do teclado trocam de planta.
 - **Móveis coloridos pela marca**, com as etiquetas (caixas de texto) de cada móvel, os símbolos ▶ ◆ Ⓔ e NEW, as caixas de destaque que apontam para um móvel, a lateral TV/rádio, (A), (C), as notas e a faixa Cestinhas / Espaço da Beleza / Cavalete.
 - **Botão "Baixar planilha base"**: gera um `.xlsx` com uma linha por móvel de cada planta, listas suspensas e cores por marca. Pode vir em branco ou já preenchido com um ciclo existente, para servir de ponto de partida do próximo.
