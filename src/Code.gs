@@ -365,7 +365,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
     idsPorPlanta[p.id] = {};
     p.moveis.forEach(function (m) {
       idsPorPlanta[p.id][m.id] = true;
-      espacosDoMovel_(m).forEach(function (e) { idsPorPlanta[p.id][m.id + '/' + e.id] = true; });
+      espacosAceitos_(m).forEach(function (e) { idsPorPlanta[p.id][m.id + '/' + e] = true; });
     });
   });
   const existeMovel = function (planta, id) {

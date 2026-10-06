@@ -56,6 +56,21 @@ const Planilha = (() => {
   const argb = (hex) => 'FF' + String(hex).replace('#', '').toUpperCase();
   const letra = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
   const nomeArquivo = (s) => String(s).replace(/[\\/:*?"<>|]+/g, '-').trim();
+  /**
+   * Espaços com linha na planilha. Gôndola: cada meio tem a linha do meio inteiro e a da
+   * 2ª metade — preencher a 2ª metade divide o meio em dois movimentos (a linha do meio
+   * passa a valer para a 1ª metade). Meio já dividido no Layout: as duas metades.
+   */
+  function espacosNaPlanilha(m) {
+    if (m.tipo !== 'GONDOLA') return Render.espacos(m);
+    const div = String(m.dividido || '').toUpperCase();
+    const meio = (l) => (div.indexOf(l) >= 0
+      ? [{ id: 'MEIO-' + l + '-1', nome: 'Meio ' + l + ' (metade 1)' }, { id: 'MEIO-' + l + '-2', nome: 'Meio ' + l + ' (metade 2)' }]
+      : [{ id: 'MEIO-' + l, nome: 'Meio ' + l + ' (inteiro, ou metade 1 se a metade 2 for preenchida)' },
+        { id: 'MEIO-' + l + '-2', nome: 'Meio ' + l + ' – metade 2 (preencha só para dividir o meio em dois)' }]);
+    return [{ id: 'LADO-A', nome: 'Lado A' }].concat(meio('A'), meio('B'), [{ id: 'LADO-B', nome: 'Lado B' }]);
+  }
+
   /** Coluna "Planta": o nome da planta (ER P…) quando houver; a importação aceita nome ou número. */
   const plantaNaPlanilha = (dados, id) => (dados.config.nomesPlantas || {})[id] || id;
 
@@ -148,9 +163,9 @@ const Planilha = (() => {
       '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto do móvel; "Marca Etiqueta N" define a cor de cada uma (vazio = cor do móvel). Pirâmide e mesa destaque mostram só 1 etiqueta (as colunas que não aparecem na planta ficam cinza).',
       '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
-      '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO).',
+      '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
       '6.2 A gôndola mostra uma etiqueta por bloco. Na linha da gôndola inteira: Etiqueta 1 = Lado A, Etiqueta 2 = Meio A, Etiqueta 3 = Meio B, Etiqueta 4 = Lado B ("A" é sempre o lado virado para quem olha a planta). A Etiqueta 1 da linha de um espaço substitui a etiqueta daquele bloco.',
-      '6.3 Balcão recepção (BLOCO-1 a 3), mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3) e móvel make (TESTEIRA-1 a 4) têm uma linha por bloco, com cor e etiqueta próprias. Blocos vizinhos com o mesmo texto e cor ficam com uma etiqueta só, no centro.',
+      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3) e móvel make (TESTEIRA-1 a 4) têm uma linha por bloco, com cor e etiqueta próprias. Blocos vizinhos com o mesmo texto e cor ficam com uma etiqueta só, no centro. O balcão recepção tem uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.',
       '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
       '8. Salve o arquivo e use o botão "Importar planilha" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',
       '9. Aba "' + abas.LAYOUT + '" (opcional): posição e tamanho dos móveis (X, Y, Largura, Profundidade, Altura). Ao importar, as plantas presentes nela são substituídas por inteiro.',
@@ -217,12 +232,16 @@ const Planilha = (() => {
         const lista = (ondeExiste[m.id] || []).filter((id) => plantas.findIndex((x) => x.id === id) >= plantas.indexOf(p));
         return lista.length > 1 ? ' · vale para ' + lista.map(nomeDe).join(', ') : '';
       };
+      const POR_POSICAO = {
+        GONDOLA: ' (gôndola inteira; Etiqueta 1–4 = Lado A, Meio A, Meio B, Lado B)',
+        VITRINE_L: ' (Etiqueta 1–3 = bloco 1, canto, bloco 3)',
+      };
       const linhasDoMovel = (m) => [{
         id: m.id,
-        descricao: m.descricao + (m.tipo === 'GONDOLA' ? ' (gôndola inteira; Etiqueta 1–4 = Lado A, Meio A, Meio B, Lado B)' : '') + valePara(m),
+        descricao: m.descricao + (POR_POSICAO[m.tipo] || '') + valePara(m),
         limite: porTipo[m.tipo] || max,
-        porPosicao: m.tipo === 'GONDOLA',
-      }].concat(Render.espacos(m).map((e) => ({ id: m.id + '/' + e.id, descricao: (m.descricao || m.id) + ' – ' + e.nome, limite: 1 })));
+        porPosicao: !!POR_POSICAO[m.tipo],
+      }].concat(espacosNaPlanilha(m).map((e) => ({ id: m.id + '/' + e.id, descricao: (m.descricao || m.id) + ' – ' + e.nome, limite: 1 })));
       // Móvel de atendimento não leva cor nem etiqueta: fica fora da planilha.
       p.moveis.filter((m) => !SEM_LINHA_NA_PLANILHA[m.tipo]).reduce((acc, m) => acc.concat(linhasDoMovel(m)), []).forEach((m) => {
         const info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;

@@ -262,7 +262,6 @@ const Render = (() => {
     if (m.tipo === 'MAKE') return numerados('TESTEIRA', 'Testeira', 4);
     if (m.tipo === 'MESA') return numerados('FRENTE', 'Frente', 2);
     if (m.tipo === 'MESA_3') return numerados('FRENTE', 'Frente', 3);
-    if (m.tipo === 'VITRINE_L') return [{ id: 'BLOCO-1', nome: 'Bloco 1' }, { id: 'BLOCO-2', nome: 'Bloco 2 (canto)' }, { id: 'BLOCO-3', nome: 'Bloco 3' }];
     if (m.tipo !== 'GONDOLA') return [];
     const div = String(m.dividido || '').toUpperCase();
     const lista = [{ id: 'LADO-A', nome: 'Lado A' }];
@@ -293,8 +292,9 @@ const Render = (() => {
     ['A', 'B'].forEach((lado) => {
       const v = lado === 'A' ? [C / 2, C] : [0, C / 2];
       faixa['MEIO-' + lado] = [p, L - p, v[0], v[1]];
-      faixa['MEIO-' + lado + '-1'] = [p, p + meio, v[0], v[1]];
-      faixa['MEIO-' + lado + '-2'] = [p + meio, L - p, v[0], v[1]];
+      // Metades com um vão entre elas, para a divisão ficar visível na planta.
+      faixa['MEIO-' + lado + '-1'] = [p, p + meio - 0.06, v[0], v[1]];
+      faixa['MEIO-' + lado + '-2'] = [p + meio + 0.06, L - p, v[0], v[1]];
     });
     return espacos(m).map((e) => {
       const [u0, u1, v0, v1] = faixa[e.id];
@@ -366,7 +366,7 @@ const Render = (() => {
     }));
   }
 
-  /** Ponto 3D (topo, no centro) de cada bloco de balcão, mesa e móvel make, na ordem de espacos(). */
+  /** Ponto 3D (topo, no centro) de cada bloco de mesa e móvel make, na ordem de espacos(). */
   function topoDosBlocos(m) {
     if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
       const [L, C] = eixos(m);
@@ -399,11 +399,11 @@ const Render = (() => {
       const c = cantoL(m);
       const xBraco = c.direita ? m.x + m.w - t : m.x;
       const yBraco = c.frente ? m.y + m.d - t : m.y;
-      const [b1, b2, b3] = espacos(m);
+      // 3 blocos (braço, canto, braço), todos com a cor do balcão; bloco = posição da etiqueta.
       return [
-        { x: xBraco, y: c.frente ? m.y : m.y + t, z: m.z, w: t, d: m.d - t, h: m.h, movel: m, espaco: b1 },
-        { x: xBraco, y: yBraco, z: m.z, w: t, d: t, h: m.h, movel: m, espaco: b2 },
-        { x: c.direita ? m.x : m.x + t, y: yBraco, z: m.z, w: m.w - t, d: t, h: m.h, movel: m, espaco: b3 },
+        { x: xBraco, y: c.frente ? m.y : m.y + t, z: m.z, w: t, d: m.d - t, h: m.h, movel: m, bloco: 1 },
+        { x: xBraco, y: yBraco, z: m.z, w: t, d: t, h: m.h, movel: m, bloco: 2 },
+        { x: c.direita ? m.x : m.x + t, y: yBraco, z: m.z, w: m.w - t, d: t, h: m.h, movel: m, bloco: 3 },
       ];
     }
     if (m.tipo === 'MAKE') {
@@ -547,9 +547,8 @@ const Render = (() => {
         break;
       }
       case 'PIRAMIDE': {
-        // 4 blocos iguais, um em cima do outro.
-        const h = b.h / 4;
-        for (let k = 0; k < 4; k++) caixa(pai, P, Object.assign({}, b, { z: b.z + k * h, h }), { cores, vidro: true });
+        // 4 blocos iguais, um em cima do outro (divisões tracejadas, como as prateleiras dos outros móveis).
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4 });
         break;
       }
       case 'FILA':
@@ -999,7 +998,17 @@ const Render = (() => {
     desenharLoja(camadaPlanta, P, planta.loja);
     if (ctx.grade) desenharGrade(camadaPlanta, P, planta.loja);
 
-    const moveis = planta.moveis.filter((m) => m.tipo !== 'EXTRA');
+    // Gôndola: um meio também fica dividido quando o ciclo tem linha para a 2ª (ou 1ª) metade dele.
+    const temLinha = (id) => {
+      const i = ctx.obterMovimento({ id });
+      return !!(i && (i.marca || i.etiquetas.length || i.simbolo));
+    };
+    const moveis = planta.moveis.filter((m) => m.tipo !== 'EXTRA').map((m) => {
+      if (m.tipo !== 'GONDOLA') return m;
+      const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
+        || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
+      return div === (m.dividido || '') ? m : Object.assign({}, m, { dividido: div });
+    });
     const extras = planta.moveis.filter((m) => m.tipo === 'EXTRA');
     const simbolosUsados = new Set();
 
@@ -1012,8 +1021,10 @@ const Render = (() => {
       espacos(m).forEach((e) => {
         const id = m.id + '/' + e.id;
         // Linha de espaço vazia (sem marca, etiqueta nem símbolo) não conta: vale a gôndola inteira.
-        const i = ctx.obterMovimento({ id });
-        infoEspaco[id] = i && (i.marca || i.etiquetas.length || i.simbolo) ? anotar(i) : null;
+        // Metade sem linha própria usa a linha do meio inteiro (MEIO-A-1 → MEIO-A).
+        const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
+        const i = [id, meio].filter(Boolean).map((x) => ctx.obterMovimento({ id: x })).find((x) => x && (x.marca || x.etiquetas.length || x.simbolo));
+        infoEspaco[id] = i ? anotar(i) : null;
       });
     });
     /** Espaço sem linha própria herda a linha da gôndola inteira. */
@@ -1118,6 +1129,16 @@ const Render = (() => {
         return;
       }
       const i = info[m.id];
+      if (m.tipo === 'VITRINE_L') {
+        // Balcão: Etiqueta 1, 2 e 3 da linha do balcão vão para o bloco 1, o canto e o bloco 3.
+        if (i) {
+          juntarIguais(primitivas(m).map((p) => {
+            const e = i.etiquetas.filter((x, k) => (x.posicao || k + 1) === p.bloco)[0];
+            return e ? { id: m.id + '/' + p.bloco, info: i, etiquetas: [e], simbolo: p.bloco === 1 ? i.simbolo : '', pontos: [[p.x + p.w / 2, p.y + p.d / 2, p.z + p.h]] } : null;
+          })).forEach(grupo);
+        }
+        return;
+      }
       if (i) novoGrupo(m.id, m, i, i.etiquetas.slice(0, limitePorTipo[m.tipo] || i.etiquetas.length), i.simbolo, ancoraDe(m), ajuste);
       // Blocos (balcão, mesas, testeiras do make): a linha própria do bloco mostra a Etiqueta 1 em cima
       // dele; blocos vizinhos com o mesmo texto e cor ficam com uma etiqueta só, no centro deles.
