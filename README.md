@@ -30,7 +30,7 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 
 | Para… | Faça |
 |---|---|
-| Adicionar um móvel | Clique no móvel na paleta (Gôndola, Pirâmide, Móvel de fila, Móvel de parede, Totem, PDV móvel, Mesa destaque, Mesa destaque 3 frentes, Balcão recepção, Móvel de atendimento, Parede O.U.i, Totem O.U.i, Ilha premium O.U.i, Móvel make). Ele aparece no centro da loja, já selecionado, com ID automático. |
+| Adicionar um móvel | Clique no móvel na paleta (Gôndola, Pirâmide, Móvel de fila, Móvel de parede, Totem, PDV móvel, Mesa destaque, Mesa destaque 3 frentes, Balcão recepção, Móvel de atendimento, Parede O.U.i, Totem O.U.i, Ilha premium O.U.i, Móvel make). Ele aparece no centro da loja, já selecionado, com ID automático: o nome do móvel e o próximo número livre (`GONDOLA 3`, `MOVEL DE FILA 2`…). |
 | Selecionar | Clique no móvel: ele fica com contorno laranja. Clique no piso vazio ou aperte <kbd>Esc</kbd> para desmarcar. |
 | Mover | Arraste o móvel (segure <kbd>Alt</kbd> para mover fino) ou use as setas (→ +X, ↓ +Y; <kbd>Shift</kbd> = 5×). No celular/tablet, arrastar um móvel não rola a página; para rolar, deslize no piso vazio ou fora da planta. |
 | Girar / duplicar / excluir | Use a barra preta que aparece sobre o móvel, ou <kbd>R</kbd>, <kbd>Ctrl</kbd>+<kbd>D</kbd> e <kbd>Delete</kbd>. Girar troca largura e fundo; no balcão recepção, muda o canto do L (4 posições). |
@@ -42,20 +42,20 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 
 | Móvel | Como é desenhado | Na planilha |
 |---|---|---|
-| **Gôndola** (`GON-…`) | 4 espaços: **Ponta 1**, **Meio A**, **Meio B** e **Ponta 2**, com 4 níveis de prateleira. Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GON-01`) e uma por espaço: `GON-01/PONTA-1`, `GON-01/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GON-01/MEIO-B`, `GON-01/PONTA-2`. O espaço preenchido tem cor e etiqueta próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. **Uma etiqueta por bloco:** na linha da gôndola inteira, Etiqueta 1 = Ponta 1, 2 = Meio A, 3 = Meio B e 4 = Ponta 2; a Etiqueta 1 da linha de um espaço substitui a daquele bloco. |
-| **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 1,94). | Uma linha, **1 etiqueta**. |
-| **Móvel de fila** (`FILA-…`) | Bloco único retangular com 3 níveis (padrão 1,5 × 0,4 × 1,46). | Uma linha. |
-| **Móvel de parede** (`PAR-…`) | Estante encostada na parede, com prateleiras (padrão 4 × 1,1 × 3,2). | Uma linha. |
-| **Totem** (`TOTEM-…`) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
-| **PDV móvel** (`PDV-…`) | Cubo de vidro sobre rodapé escuro (padrão 1,3 × 1,3 × 1,44). | Uma linha. |
-| **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 cartazes na frente, da largura das lâminas do fundo, subindo do chão até o topo dos nichos. | Uma linha, **1 etiqueta**. |
-| **Mesa destaque 3 frentes** (`MESA3-…`) | Estrutura com pernas, 3 nichos baixos em cima (mesma altura dos da mesa destaque), painel de 3 lâminas ao fundo e 3 cartazes na frente, iguais aos da mesa destaque (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
-| **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); 2 níveis; padrão 2,4 × 2,4 × 1,28. *Girar* muda o canto do L. | Uma linha. |
-| **Móvel de atendimento** (`CX-…`) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | Uma linha. |
-| **Parede O.U.i** (`OUI-…`) | Painel alto com moldura, para a parede (padrão 3,6 × 0,9 × 5). | Uma linha. |
-| **Totem O.U.i** (`OUI-…`) | Expositor de base quadrada com moldura, na altura da gôndola (padrão 0,8 × 0,8 × 1,94). | Uma linha. |
-| **Ilha premium O.U.i** (`ILHAOUI-…`) | Base com prateleiras e, centralizado em cima dela, painel alto com duas faixas verticais mais claras nas laterais (padrão 3 × 1,6 × 3). | Uma linha. |
-| **Móvel make** (`MAKE-…`) | Estante de parede com painel de fundo, montantes nas pontas, base com rodapé escuro, 5 prateleiras com a fileira de produtos na borda e **4 testeiras** no alto; o fundo fica do lado da parede (padrão 6 × 1,4 × 3,2). | Uma linha para o móvel e uma por testeira (`MAKE-01/TESTEIRA-1` … `TESTEIRA-4`), como nos espaços da gôndola: a testeira com linha própria usa a cor (e a Etiqueta 1) dela; sem linha, usa a do móvel. |
+| **Gôndola** (`GONDOLA 1`…) | 4 espaços: **Ponta 1**, **Meio A**, **Meio B** e **Ponta 2**, com 4 níveis de prateleira. Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GONDOLA 1`) e uma por espaço: `GONDOLA 1/PONTA-1`, `GONDOLA 1/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GONDOLA 1/MEIO-B`, `GONDOLA 1/PONTA-2`. O espaço preenchido tem cor e etiqueta próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. **Uma etiqueta por bloco:** na linha da gôndola inteira, Etiqueta 1 = Ponta 1, 2 = Meio A, 3 = Meio B e 4 = Ponta 2; a Etiqueta 1 da linha de um espaço substitui a daquele bloco. |
+| **Pirâmide** (`PIRAMIDE 1`…) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 1,94). | Uma linha, **1 etiqueta**. |
+| **Móvel de fila** (`MOVEL DE FILA 1`…) | Bloco único retangular com 3 níveis (padrão 1,5 × 0,4 × 1,46). | Uma linha. |
+| **Móvel de parede** (`MOVEL DE PAREDE 1`…) | Estante encostada na parede, com prateleiras (padrão 4 × 1,1 × 3,2). | Uma linha. |
+| **Totem** (`TOTEM 1`…) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
+| **PDV móvel** (`PDV MOVEL 1`…) | Cubo de vidro sobre rodapé escuro (padrão 1,3 × 1,3 × 1,44). | Uma linha. |
+| **Mesa destaque** (`MESA DESTAQUE 1`…) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 cartazes na frente, da largura das lâminas do fundo, subindo do chão até o topo dos nichos. | Uma linha, **1 etiqueta**. |
+| **Mesa destaque 3 frentes** (`MESA DESTAQUE 3 FRENTES 1`…) | Estrutura com pernas, 3 nichos baixos em cima (mesma altura dos da mesa destaque), painel de 3 lâminas ao fundo e 3 cartazes na frente, iguais aos da mesa destaque (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
+| **Balcão recepção** (`BALCAO RECEPCAO 1`…) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); 2 níveis; padrão 2,4 × 2,4 × 1,28. *Girar* muda o canto do L. | Uma linha. |
+| **Móvel de atendimento** (`MOVEL DE ATENDIMENTO 1`…) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | Uma linha. |
+| **Parede O.U.i** (`PAREDE OUI 1`…) | Painel alto com moldura, para a parede (padrão 3,6 × 0,9 × 5). | Uma linha. |
+| **Totem O.U.i** (`TOTEM OUI 1`…) | Expositor de base quadrada com moldura, na altura da gôndola (padrão 0,8 × 0,8 × 1,94). | Uma linha. |
+| **Ilha premium O.U.i** (`ILHA PREMIUM OUI 1`…) | Base com prateleiras e, centralizado em cima dela, painel alto com duas faixas verticais mais claras nas laterais (padrão 3 × 1,6 × 3). | Uma linha. |
+| **Móvel make** (`MOVEL MAKE 1`…) | Estante de parede com painel de fundo, montantes nas pontas, base com rodapé escuro, 5 prateleiras com a fileira de produtos na borda e **4 testeiras** no alto; o fundo fica do lado da parede (padrão 6 × 1,4 × 3,2). | Uma linha para o móvel e uma por testeira (`MOVEL MAKE 1/TESTEIRA-1` … `TESTEIRA-4`), como nos espaços da gôndola: a testeira com linha própria usa a cor (e a Etiqueta 1) dela; sem linha, usa a do móvel. |
 
 O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. A gôndola tem por padrão a mesma altura da pirâmide (1,94).
 
@@ -144,6 +144,14 @@ Também dá para editar direto nas abas do Google Sheets e clicar em **Atualizar
 
 **Regra da importação:** para cada par *Ciclo + Planta* presente no arquivo, as linhas antigas desse par são substituídas. Os outros ciclos e as outras plantas não são alterados.
 
+### Cascata entre as plantas (preencha cada móvel uma vez)
+
+As plantas seguem a ordem **ER P → ER M → ER G → ER GG**. O que é definido para um móvel numa planta vale também para o móvel com o **mesmo ID** nas plantas seguintes. Por isso a planilha base (com *Todas as plantas*) traz **cada móvel uma vez só**, na primeira planta que o tem, e a coluna *Móvel (referência)* diz para quais plantas ele vale. Para que uma planta maior seja diferente, acrescente uma linha com o mesmo *ID Móvel* e essa planta: ela passa a valer dali para a frente. O mesmo vale para os textos da aba Painéis (por seção).
+
+Os IDs são o nome do móvel e um número (`GONDOLA 1`, `PIRAMIDE 2`, `MOVEL DE FILA 3`, `MOVEL MAKE 1`…), numerados por tipo do fundo para a frente da loja; maiúsculas e acentos não importam (`Gôndola 1` = `GONDOLA 1`).
+
+Se você já tinha um ciclo próprio com os IDs antigos (`GON-01`, `PIR-02`…), troque os IDs na planilha pelos novos e importe de novo; o *Ciclo exemplo* é atualizado sozinho.
+
 ## Formato da planilha
 
 ### Aba `Movimentos` — o que muda a cada ciclo
@@ -151,7 +159,7 @@ Também dá para editar direto nas abas do Google Sheets e clicar em **Atualizar
 | Coluna | O que é |
 |---|---|
 | **Ciclo** | Nome do ciclo (ex.: `C15/2026`). Aparece no seletor. |
-| **Planta** | Nome da planta (`ER P`, `ER M`, `ER G`, `ER GG`), o número dela (`01`…`04`) ou `TODAS` (vale para todas as plantas que têm o móvel; a linha da planta específica tem prioridade). A planilha base vem com o nome. |
+| **Planta** | Nome da planta (`ER P`, `ER M`, `ER G`, `ER GG`), o número dela (`01`…`04`) ou `TODAS` (vale para todas as plantas que têm o móvel). A linha vale também para as plantas seguintes (cascata); a linha da própria planta tem prioridade. A planilha base vem com o nome. |
 | **ID Móvel** | Liga a linha ao desenho. **Não altere**, deve existir na aba Layout. |
 | Móvel (referência) | Só para orientação (ex.: *Ilha central – Botik*). |
 | **Marca do Móvel** | Cor do móvel: `BOT`, `QDB`, `EUD`, `OUI`, `MULTI`, `NEUTRO`. Aceita combinação (`BOT+QDB` gera degradê) ou cor livre (`#FF8800`). |
