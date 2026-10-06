@@ -1607,7 +1607,7 @@ function removerAbaPadraoVazia_(ss) {
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 7 };
+const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
 
 /**
  * Versão do ciclo de exemplo inteiro (Movimentos + Painéis, todas as plantas e TODAS).
@@ -1725,7 +1725,6 @@ const LAYOUT_PADRAO = {
       ['TOTEM OUI 1', 'Totem O.U.i 1', 'EXPOSITOR_OUI', 6.5, 16, 0.8, 0.8, 1.94],
       ['MOVEL DE PAREDE 1', 'Móvel de parede 1', 'GONDOLA_PAREDE', 0, -0.5, 4, 1.1, 3.2],
       ['MOVEL DE PAREDE 2', 'Móvel de parede 2', 'GONDOLA_PAREDE', 4, -0.5, 4, 1.1, 3.2],
-      ['MOVEL DE PAREDE 5', 'Móvel de parede 5', 'GONDOLA_PAREDE', 0, 0.5, 1.1, 4, 3.2],
       ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 7, 2.5, 1.6, 4, 1.94],
       ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 10.5, 2.5, 1.6, 4, 1.94],
       ['GONDOLA 4', 'Gôndola 4', 'GONDOLA', 3.5, 8, 1.6, 4, 1.94],
@@ -1747,7 +1746,7 @@ const LAYOUT_PADRAO = {
       ['MOVEL DE PAREDE 3', 'Móvel de parede 3', 'GONDOLA_PAREDE', 8, -0.5, 4, 1.1, 3.2],
       ['MOVEL DE FILA 1', 'Móvel de fila 1', 'FILA', 1.5, 13, 1.5, 0.4, 1.46],
       ['MOVEL DE ATENDIMENTO 1', 'Móvel de atendimento 1', 'CAIXA', 0, 13, 1.2, 1.8, 1.7],
-      ['MOVEL MAKE 1', 'Móvel make 1', 'MAKE', 0, 5, 1.4, 6, 3.2],
+      ['MOVEL MAKE 1', 'Móvel make 1', 'MAKE', 0, 3.5, 1.4, 6, 3.2],
       ['MOVEL DE PAREDE 4', 'Móvel de parede 4', 'GONDOLA_PAREDE', 12, -0.5, 4, 1.1, 3.2],
       ['ILHA PREMIUM OUI 1', 'Ilha premium O.U.i 1', 'ILHA_OUI', 13.5, 14, 3, 1.6, 3],
     ],
@@ -1821,7 +1820,6 @@ const EXEMPLO_MOVIMENTOS = {
     'GONDOLA 5': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'GONDOLA 6': ['EUD', [['EXAUSTÃO EUD', 'EUD']], 'MOVIMENTO'],
     'MOVEL DE PAREDE 4': ['NEUTRO', [['CUIDADOS (NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'MOVEL DE PAREDE 5': ['NEUTRO', [['PERF FEM', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'ILHA PREMIUM OUI 1': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
 };
