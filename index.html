@@ -1547,30 +1547,31 @@ function removerAbaPadraoVazia_(ss) {
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 6, '02': 5, '03': 2, '04': 3 };
+const VERSAO_MODELO_PLANTAS = { '01': 7, '02': 5, '03': 2, '04': 3 };
 
 const LAYOUT_PADRAO = {
-  // PLANTA 01 (ER P): layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06_2.json).
+  // PLANTA 01 (ER P): layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06_2.json, 2ª versão):
+  // loja 12 × 10 com móvel make na parede esquerda, móvel de atendimento e balcão girado.
   '01': {
     loja: [12, 10, 4.4],
     moveis: [
-      ['PAR-04', 'Parede do fundo 1', 'GONDOLA_PAREDE', 0, 0, 4, 1.1, 3.2],
-      ['PAR-01', 'Parede do fundo 2', 'GONDOLA_PAREDE', 4, 0, 4, 1.1, 3.2],
-      ['PAR-05', 'Parede do fundo 3', 'GONDOLA_PAREDE', 8, 0, 4, 1.1, 3.2],
-      ['PAR-03', 'Parede esquerda 1', 'GONDOLA_PAREDE', 0, 1, 1.1, 4, 3.2],
-      ['PAR-02', 'Parede esquerda 2', 'GONDOLA_PAREDE', 0, 5, 1.1, 4, 3.2],
-      ['GON-01', 'Gôndola', 'GONDOLA', 3, 2, 1.6, 4, 1.94],
-      ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 6.5, 3, 1.02, 1.02, 1.94],
-      ['PIR-01', 'Pirâmide 1', 'PIRAMIDE', 6.5, 5, 1.02, 1.02, 1.94],
-      ['MESA-01', 'Mesa destaque', 'MESA', 9, 3.5, 2.6, 1.4, 2.6],
-      ['PDV-01', 'PDV móvel', 'CUBO', 6, 7, 1.3, 1.3, 1.6],
-      ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 9.8, 7.3, 2.4, 2.4, 1.92],
-      ['FILA-01', 'Móvel de fila 1', 'FILA', 2, 7.5, 0.4, 1.5, 1.94],
-      ['FILA-02', 'Móvel de fila 2', 'FILA', 3.5, 7.5, 0.4, 1.5, 1.94],
-      ['TOTEM-01', 'Totem', 'TOTEM', 6.5, 8.5, 0.35, 1.5, 3.4],
+      ['PAR-04', 'Parede do fundo 1', 'GONDOLA_PAREDE', 3.5, 0, 4, 1.1, 3.2],
+      ['PAR-01', 'Parede do fundo 2', 'GONDOLA_PAREDE', 7.5, 0, 4, 1.1, 3.2],
+      ['PAR-03', 'Parede esquerda 1', 'GONDOLA_PAREDE', 0, 0, 4, 1.1, 3.2],
+      ['GON-01', 'Gôndola', 'GONDOLA', 2.5, 2, 1.6, 4, 1.94],
+      ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 6, 2.5, 1.02, 1.02, 1.94],
+      ['PIR-01', 'Pirâmide 1', 'PIRAMIDE', 6, 4.5, 1.02, 1.02, 1.94],
+      ['MESA-01', 'Mesa destaque', 'MESA', 8.5, 3.5, 2.6, 1.4, 2.6],
+      ['PDV-01', 'PDV móvel', 'CUBO', 5.5, 7, 1.3, 1.3, 1.6],
+      ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 9.5, 6.5, 2.4, 2.4, 1.92, 0, 0, 0, '', 90],
+      ['FILA-01', 'Móvel de fila 1', 'FILA', 2, 9.5, 1.5, 0.4, 1.94],
+      ['FILA-02', 'Móvel de fila 2', 'FILA', 2, 8, 1.5, 0.4, 1.94],
+      ['TOTEM-01', 'Totem', 'TOTEM', 6, 8.5, 0.35, 1.5, 3.4],
       ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
+      ['MAKE-01', 'Móvel make', 'MAKE', 0, 1.5, 0.6, 6, 3.2],
+      ['CX-01', 'Móvel de atendimento', 'CAIXA', 0, 8, 1.2, 1.8, 1.7],
     ],
   },
 
@@ -1726,9 +1727,13 @@ const EXEMPLO_MOVIMENTOS = {
   },
   '01': {
     'PAR-03': ['NEUTRO', [['CUIDADOS (NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'PAR-02': ['NEUTRO', [['PERF FEM', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'PAR-04': ['NEUTRO', [['PERF MASC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'PAR-01': ['NEUTRO', [['CUIDADOS (CBEM)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    'MAKE-01': ['NEUTRO', [['TESTEIRA MAKE MULTIPROMO', 'MULTI']]],
+    'MAKE-01/TESTEIRA-1': ['#1F1F1F'],
+    'MAKE-01/TESTEIRA-2': ['BOT'],
+    'MAKE-01/TESTEIRA-3': ['QDB'],
+    'MAKE-01/TESTEIRA-4': ['EUD'],
     'GON-01': ['BOT', [['BOTI PROMO', 'BOT'], ['BOTIK', 'BOT'], ['UOMINI HERO', 'BOT']], 'FIXO'],
     'GON-01/PONTA-2': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'MESA-01': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI']]],
