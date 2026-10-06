@@ -61,20 +61,31 @@ const App = (() => {
 
   const TODAS = () => estado.dados.config.plantaTodas;
 
-  function movimentoDe(ciclo, planta, id) {
-    const c = estado.dados.movimentos[ciclo] || {};
-    return (c[planta] && c[planta][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+  /**
+   * Cascata: a planta e, depois, as anteriores (da mais próxima para a menor) — o que é
+   * definido na ER P vale para ER M, ER G e ER GG, a não ser que a planta tenha linha própria.
+   */
+  function cascata(planta) {
+    const ids = estado.dados.plantas.map((p) => p.id);
+    const i = ids.indexOf(planta);
+    return i < 0 ? [planta] : ids.slice(0, i + 1).reverse();
   }
 
-  /** Painéis de uma planta: por seção, a planta específica substitui "TODAS". */
+  function movimentoDe(ciclo, planta, id) {
+    const c = estado.dados.movimentos[ciclo] || {};
+    const achada = cascata(planta).find((p) => c[p] && c[p][id]);
+    return (achada && c[achada][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+  }
+
+  /** Painéis de uma planta: por seção, vale a planta mais próxima na cascata que tiver a seção; senão "TODAS". */
   function paineisDe(ciclo, planta) {
     const c = estado.dados.paineis[ciclo] || {};
     const todas = c[TODAS()] || [];
-    const especificos = c[planta] || [];
     const out = {};
     Object.keys(estado.dados.secoes).forEach((s) => {
-      const daPlanta = especificos.filter((p) => p.secao === s);
-      out[s] = daPlanta.length ? daPlanta : todas.filter((p) => p.secao === s);
+      const daSecao = (p) => (c[p] || []).filter((x) => x.secao === s);
+      const achada = cascata(planta).find((p) => daSecao(p).length);
+      out[s] = achada ? daSecao(achada) : todas.filter((p) => p.secao === s);
     });
     return out;
   }

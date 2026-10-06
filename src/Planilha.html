@@ -149,7 +149,7 @@ const Planilha = (() => {
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
       '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GON-01/PONTA-1, GON-01/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO). O móvel make funciona igual, com as testeiras (ex.: MAKE-01/TESTEIRA-1 … TESTEIRA-4), cada uma com cor própria.',
       '6.2 A gôndola mostra uma etiqueta por bloco. Na linha da gôndola inteira: Etiqueta 1 = Ponta 1, Etiqueta 2 = Meio A, Etiqueta 3 = Meio B, Etiqueta 4 = Ponta 2. A Etiqueta 1 da linha de um espaço substitui a etiqueta daquele bloco.',
-      '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Planta = TODAS faz a linha valer para todas as plantas; uma linha da planta específica tem prioridade.',
+      '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
       '8. Salve o arquivo e use o botão "Importar planilha" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',
       '9. Aba "' + abas.LAYOUT + '" (opcional): posição e tamanho dos móveis (X, Y, Largura, Profundidade, Altura). Ao importar, as plantas presentes nela são substituídas por inteiro.',
     ].forEach(paragrafo);
@@ -196,20 +196,37 @@ const Planilha = (() => {
 
     const max = dados.config.maxEtiquetas;
     const porTipo = dados.config.etiquetasPorTipo || {};
+    const plantas = dados.plantas.filter((p) => op.plantas.indexOf(p.id) >= 0);
+    // Cascata (ER P → ER M → ER G → ER GG): com mais de uma planta, cada móvel entra uma vez só, na
+    // primeira planta que o tem, e vale para as seguintes. Uma planta seguinte só ganha linha própria
+    // se o ciclo copiado tiver algo diferente para ela.
+    const emCascata = plantas.length > 1;
+    const ondeExiste = {};
+    plantas.forEach((p) => p.moveis.forEach((m) => { (ondeExiste[m.id] = ondeExiste[m.id] || []).push(p.id); }));
+    const nomeDe = (id) => plantaNaPlanilha(dados, id);
+    const jaListado = {}; // ID → conteúdo (JSON) que as plantas seguintes herdam
     let faixa = 0;
-    dados.plantas.filter((p) => op.plantas.indexOf(p.id) >= 0).forEach((p) => {
+    plantas.forEach((p) => {
       const fundo = { type: 'pattern', pattern: 'solid', fgColor: { argb: FAIXAS_PLANTA[faixa++ % FAIXAS_PLANTA.length] } };
       // Gôndola: uma linha para ela inteira (etiqueta N = bloco N) + uma por espaço (ponta/meio), com 1 etiqueta cada.
       // limite = quantas etiquetas aparecem na planta (as outras colunas ficam cinza).
+      const valePara = (m) => {
+        if (!emCascata) return '';
+        const lista = (ondeExiste[m.id] || []).filter((id) => plantas.findIndex((x) => x.id === id) >= plantas.indexOf(p));
+        return lista.length > 1 ? ' · vale para ' + lista.map(nomeDe).join(', ') : '';
+      };
       const linhasDoMovel = (m) => [{
         id: m.id,
-        descricao: m.descricao + (m.tipo === 'GONDOLA' ? ' (gôndola inteira; Etiqueta 1–4 = Ponta 1, Meio A, Meio B, Ponta 2)' : ''),
+        descricao: m.descricao + (m.tipo === 'GONDOLA' ? ' (gôndola inteira; Etiqueta 1–4 = Ponta 1, Meio A, Meio B, Ponta 2)' : '') + valePara(m),
         limite: porTipo[m.tipo] || max,
         porPosicao: m.tipo === 'GONDOLA',
       }].concat(Render.espacos(m).map((e) => ({ id: m.id + '/' + e.id, descricao: (m.descricao || m.id) + ' – ' + e.nome, limite: 1 })));
       p.moveis.reduce((acc, m) => acc.concat(linhasDoMovel(m)), []).forEach((m) => {
-        const linha = { ciclo: op.ciclo, planta: plantaNaPlanilha(dados, p.id), movel: m.id, descricao: m.descricao };
         const info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;
+        const conteudo = JSON.stringify(info);
+        if (emCascata && m.id in jaListado && jaListado[m.id] === conteudo) return; // já vem da planta anterior
+        jaListado[m.id] = conteudo;
+        const linha = { ciclo: op.ciclo, planta: nomeDe(p.id), movel: m.id, descricao: m.descricao };
         if (info) {
           linha.marca = info.marca;
           // Só as etiquetas que aparecem na planta (na gôndola inteira, cada uma fica na coluna do seu bloco).

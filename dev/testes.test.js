@@ -33,7 +33,8 @@ test('layout padrão + ciclo de exemplo são lidos sem avisos', () => {
   assert.deepEqual(d.plantas.map((p) => p.nome), ['ER P', 'ER M', 'ER G', 'ER GG']);
   assert.deepEqual(d.ciclos, ['Ciclo exemplo']);
   assert.deepEqual(d.avisos, []);
-  assert.ok(d.movimentos['Ciclo exemplo'].TODAS['GON-01']);
+  assert.ok(d.movimentos['Ciclo exemplo'].TODAS['EXTRA-CESTINHAS']);
+  assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1']);
 });
 
 test('avisos para marca desconhecida e móvel inexistente', () => {
@@ -66,7 +67,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
     movimentos: [
       ['Planta', 'Ciclo', 'ID Móvel', 'Marca do Móvel', 'Etiqueta 1', 'Marca Etiqueta 1', 'Símbolo'],
       ['2', 'C15/2026', 'ilha-01', 'Eudora', 'OUTLET EUD', 'EUD', '▶'],
-      ['01', 'Ciclo exemplo', 'PIR-01', 'BOT+QDB', '10/2026', '', ''],
+      ['01', 'Ciclo exemplo', 'Pirâmide 1', 'BOT+QDB', '10/2026', '', ''],
       ['', '', '', '', '', '', ''],
     ],
     paineis: [
@@ -83,15 +84,15 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   const ilha = d2.movimentos['C15/2026']['02']['ILHA-01'];
   assert.equal(ilha.marca, 'EUD');
   assert.equal(ilha.simbolo, 'MOVIMENTO');
-  assert.deepEqual(Object.keys(d2.movimentos['Ciclo exemplo']['01']), ['PIR-01'], 'par (ciclo, planta) substituído');
-  assert.equal(d2.movimentos['Ciclo exemplo']['01']['PIR-01'].etiquetas[0].texto, '10/2026');
-  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 21, 'outras plantas intactas');
+  assert.deepEqual(Object.keys(d2.movimentos['Ciclo exemplo']['01']), ['PIRAMIDE 1'], 'par (ciclo, planta) substituído; ID sem acento');
+  assert.equal(d2.movimentos['Ciclo exemplo']['01']['PIRAMIDE 1'].etiquetas[0].texto, '10/2026');
+  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 7, 'outras plantas intactas');
   assert.equal(d2.paineis['C15/2026'].TODAS[0].secao, 'TV');
 
-  const aj = run("salvarAjustesEtiquetas('2', { 'PIR-01': { x: 40.4, y: -12 } })");
+  const aj = run("salvarAjustesEtiquetas('2', { 'PIRAMIDE 1': { x: 40.4, y: -12 } })");
   assert.equal(aj.atualizados, 1);
   const d3 = run('getDados()');
-  const pir = d3.plantas.find((p) => p.id === '02').moveis.find((m) => m.id === 'PIR-01');
+  const pir = d3.plantas.find((p) => p.id === '02').moveis.find((m) => m.id === 'PIRAMIDE 1');
   assert.equal(pir.ajusteX, 40);
   assert.equal(pir.ajusteY, -12);
 });
@@ -175,18 +176,18 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
     movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
     movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
-    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 9, '03': 5, '04': 6 }); // só a 02 pendente
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 10, '03': 6, '04': 7, _exemplo: 2 }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
-  assert.equal(r.versoes['02'], 8);
+  assert.equal(r.versoes['02'], 9);
   const ids = (planta) => r.abas.layout.slice(1).filter((l) => l[0] === planta).map((l) => l[1]);
-  assert.ok(!ids('02').includes('VELHO-01') && ids('02').includes('MESA-01') && ids('02').includes('LOJA'), 'planta 02 com o modelo novo');
+  assert.ok(!ids('02').includes('VELHO-01') && ids('02').includes('MESA DESTAQUE 1') && ids('02').includes('LOJA'), 'planta 02 com o modelo novo');
   assert.ok(ids('01').includes('MEU-01'), 'planta 01 intacta');
   const mov = r.abas.movimentos.slice(1).filter((l) => l[1] === '02');
-  assert.ok(mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'MESA-01'), 'exemplo da planta 02 atualizado');
+  assert.ok(mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'GONDOLA 2'), 'exemplo da planta 02 atualizado');
   assert.ok(!mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'VELHO-01'));
   assert.ok(mov.some((l) => l[0] === 'C9'), 'outros ciclos da planta 02 intactos');
-  const de_novo = run(`atualizarModelosPlantas_({ layout: valoresLayoutPadrao_(), movimentos: [] }, VERSAO_MODELO_PLANTAS)`);
+  const de_novo = run(`atualizarModelosPlantas_({ layout: valoresLayoutPadrao_(), movimentos: [] }, versoesAtuais_())`);
   assert.deepEqual(de_novo.plantas, [], 'não repete quando a versão já foi aplicada');
 });
 
@@ -194,10 +195,10 @@ test('etiquetas guardam a coluna de origem; planta aceita o nome', () => {
   const { run } = carregarGas();
   const d = run(`montarDados_(valoresLayoutPadrao_(), [
     ['Ciclo', 'Planta', 'ID Móvel', 'Etiqueta 1', 'Etiqueta 2', 'Etiqueta 3', 'Etiqueta 4'],
-    ['C1', 'ER P', 'GON-01', '', 'MEIO A', '', 'PONTA 2'],
+    ['C1', 'ER P', 'gôndola 1', '', 'MEIO A', '', 'PONTA 2'],
   ], null)`);
   assert.deepEqual(d.avisos, []);
-  const gon = d.movimentos.C1['01']['GON-01'];
+  const gon = d.movimentos.C1['01']['GONDOLA 1'];
   assert.deepEqual(gon.etiquetas.map((e) => [e.texto, e.posicao]), [['MEIO A', 2], ['PONTA 2', 4]]);
   assert.deepEqual(d.config.etiquetasPorTipo, { PIRAMIDE: 1, MESA: 1, GONDOLA: 4 });
 });
@@ -223,4 +224,22 @@ test('giro do balcão e testeiras do móvel make', () => {
     { id: 'BALCAO-01', tipo: 'VITRINE_L', x: 1, y: 1, w: 2, d: 2, h: 2, giro: 270 },
   ] })`);
   assert.equal(linhas[1].giro, 270);
+});
+
+test('ciclo de exemplo novo troca todas as linhas dele (e só dele)', () => {
+  const { run } = carregarGas();
+  const r = run(`atualizarModelosPlantas_({
+    layout: valoresLayoutPadrao_(),
+    movimentos: [colunasMovimentos_().map(function (c) { return c.titulo; }),
+      ['Ciclo exemplo', 'TODAS', 'GON-01', '', 'BOT'], ['C9', '01', 'GONDOLA 1', '', 'EUD']],
+    paineis: [colunasPaineis_().map(function (c) { return c.titulo; }),
+      ['Ciclo exemplo', 'TODAS', 'CALLOUT', 'velho', 'BOT', 'PAR-02'], ['C9', 'TODAS', 'NOTA', 'minha nota', '', '']],
+  }, { '01': 10, '02': 9, '03': 6, '04': 7, _exemplo: 1 })`);
+  assert.deepEqual(r.plantas, ['exemplo']);
+  assert.ok(!r.abas.movimentos.some((l) => l[2] === 'GON-01'), 'linha antiga do exemplo sai');
+  assert.ok(r.abas.movimentos.some((l) => l[0] === 'C9'), 'outro ciclo fica');
+  assert.ok(r.abas.movimentos.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'MOVEL MAKE 1'));
+  assert.ok(!r.abas.paineis.some((l) => l[3] === 'velho'));
+  assert.ok(r.abas.paineis.some((l) => l[3] === 'minha nota'));
+  assert.equal(run("normId_('Móvel de  fila 3')"), 'MOVEL DE FILA 3');
 });

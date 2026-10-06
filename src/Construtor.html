@@ -21,62 +21,62 @@ const Construtor = (() => {
   const COS30 = Math.cos(Math.PI / 6);
   const MAX_HISTORICO = 80;
 
-  /** Móveis oferecidos: nome, prefixo do ID, tamanho padrão [largura, fundo, altura] e ícone. */
+  /** Móveis oferecidos: nome (também é a base do ID: "Gôndola" → GONDOLA 1), tamanho padrão [largura, fundo, altura] e ícone. */
   const TIPOS = {
     GONDOLA: {
-      nome: 'Gôndola', prefixo: 'GON', tam: [4, 1.6, 1.94],
+      nome: 'Gôndola', tam: [4, 1.6, 1.94],
       icone: 'M2 8h20v9H2zM5 8v9M19 8v9M5 12.5h14M2 20h20',
     },
     PIRAMIDE: {
-      nome: 'Pirâmide', prefixo: 'PIR', tam: [1.02, 1.02, 1.94],
+      nome: 'Pirâmide', tam: [1.02, 1.02, 1.94],
       icone: 'M7 21V3h10v18zM7 7.5h10M7 12h10M7 16.5h10',
     },
     FILA: {
-      nome: 'Móvel de fila', prefixo: 'FILA', tam: [1.5, 0.4, 1.46],
+      nome: 'Móvel de fila', tam: [1.5, 0.4, 1.46],
       icone: 'M2 8h20v12H2zM2 11h20M2 14h20M2 17h20',
     },
     GONDOLA_PAREDE: {
-      nome: 'Móvel de parede', prefixo: 'PAR', tam: [4, 1.1, 3.2],
+      nome: 'Móvel de parede', tam: [4, 1.1, 3.2],
       icone: 'M3 21V3h18v18M3 8h18M3 13h18M3 18h18M10 3v18M17 3v18',
     },
     TOTEM: {
-      nome: 'Totem', prefixo: 'TOTEM', tam: [1.5, 0.35, 3.4],
+      nome: 'Totem', tam: [1.5, 0.35, 3.4],
       icone: 'M7 3v17M17 3v17M7 3h10M5 21h14M7 7h10v3H7zM7 12h10v3H7zM9 17h6',
     },
     CUBO: {
-      nome: 'PDV móvel', prefixo: 'PDV', tam: [1.3, 1.3, 1.44],
+      nome: 'PDV móvel', tam: [1.3, 1.3, 1.44],
       icone: 'M5 8l7-4 7 4v9l-7 4-7-4zM5 8l7 4 7-4M12 12v9M4 19l8 4 8-4',
     },
     MESA: {
-      nome: 'Mesa destaque', prefixo: 'MESA', tam: [2.6, 1.4, 2.6],
+      nome: 'Mesa destaque', tam: [2.6, 1.4, 2.6],
       icone: 'M4 3h7v9H4zM13 3h7v9h-7zM3 12h18v3H3zM5 15v6M19 15v6M7.5 15h3v6h-3zM13.5 15h3v6h-3z',
     },
     MESA_3: {
-      nome: 'Mesa destaque 3 frentes', prefixo: 'MESA3', tam: [3.9, 1.4, 2.6],
+      nome: 'Mesa destaque 3 frentes', tam: [3.9, 1.4, 2.6],
       icone: 'M2 3h6v9H2zM9 3h6v9H9zM16 3h6v9h-6zM1 12h22v3H1zM3 15v6M21 15v6',
     },
     VITRINE_L: {
-      nome: 'Balcão recepção', prefixo: 'BALCAO', tam: [2.4, 2.4, 1.28],
+      nome: 'Balcão recepção', tam: [2.4, 2.4, 1.28],
       icone: 'M14 3h6v18H4v-6h10z',
     },
     CAIXA: {
-      nome: 'Móvel de atendimento', prefixo: 'CX', tam: [1.8, 1.2, 1.7],
+      nome: 'Móvel de atendimento', tam: [1.8, 1.2, 1.7],
       icone: 'M3 12h18v9H3zM9 4h6v5H9zM12 9v3',
     },
     PAINEL: {
-      nome: 'Parede O.U.i', prefixo: 'OUI', tam: [3.6, 0.9, 5],
+      nome: 'Parede O.U.i', tam: [3.6, 0.9, 5],
       icone: 'M3 3h18v18H3zM6 6h12v12H6z',
     },
     EXPOSITOR_OUI: {
-      nome: 'Totem O.U.i', prefixo: 'OUI', tam: [0.8, 0.8, 1.94],
+      nome: 'Totem O.U.i', tam: [0.8, 0.8, 1.94],
       icone: 'M8 6h8v14H8zM10 9h4v8h-4zM6 21h12',
     },
     ILHA_OUI: {
-      nome: 'Ilha premium O.U.i', prefixo: 'ILHAOUI', tam: [3, 1.6, 3],
+      nome: 'Ilha premium O.U.i', tam: [3, 1.6, 3],
       icone: 'M2 13h20v8H2zM2 17h20M4 3h16v10M6 4v8M18 4v8',
     },
     MAKE: {
-      nome: 'Móvel make', prefixo: 'MAKE', tam: [6, 1.4, 3.2],
+      nome: 'Móvel make', tam: [6, 1.4, 3.2],
       icone: 'M3 2h4v4H3zM8 2h4v4H8zM13 2h4v4h-4zM18 2h3v4h-3zM3 6v15M21 6v15M3 10h18M3 14h18M3 18h18M3 21h18',
     },
   };
@@ -302,11 +302,16 @@ const Construtor = (() => {
 
   /* ------------------------------ ações ----------------------------------- */
 
-  function idLivre(prefixo) {
+  /** "Móvel de fila" → "MOVEL DE FILA" (mesma regra de normId_ no Code.gs, sem os pontos). */
+  const idDoNome = (nome) => String(nome).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\./g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+
+  /** Próximo número livre do tipo na planta: { id: "GONDOLA 3", descricao: "Gôndola 3" }. */
+  function idLivre(tipo) {
+    const nome = TIPOS[tipo] ? TIPOS[tipo].nome : nomeTipo(tipo);
+    const prefixo = idDoNome(nome);
     const ids = new Set(c.planta.moveis.map((m) => m.id));
     for (let i = 1; ; i++) {
-      const id = prefixo + '-' + (i < 10 ? '0' : '') + i;
-      if (!ids.has(id)) return id;
+      if (!ids.has(prefixo + ' ' + i)) return { id: prefixo + ' ' + i, descricao: nome + ' ' + i };
     }
   }
 
@@ -314,8 +319,9 @@ const Construtor = (() => {
     const t = TIPOS[tipo];
     const L = c.planta.loja;
     registrar();
+    const novo = idLivre(tipo);
     const m = {
-      id: idLivre(t.prefixo), descricao: '', tipo, dividido: '',
+      id: novo.id, descricao: novo.descricao, tipo, dividido: '',
       x: arred(Math.round((L.largura - t.tam[0]) / 2)), y: arred(Math.round((L.profundidade - t.tam[1]) / 2)), z: 0,
       w: t.tam[0], d: t.tam[1], h: t.tam[2], ajusteX: 0, ajusteY: 0,
     };
@@ -335,8 +341,8 @@ const Construtor = (() => {
     const m = movelSelecionado();
     if (!m) return;
     registrar();
-    const prefixo = m.id.replace(/-?\d+$/, '') || (TIPOS[m.tipo] || {}).prefixo || 'MOVEL';
-    const copia = Object.assign(clonar(m), { id: idLivre(prefixo), x: arred(m.x + 1), y: arred(m.y + 1), ajusteX: 0, ajusteY: 0 });
+    const novo = idLivre(m.tipo);
+    const copia = Object.assign(clonar(m), { id: novo.id, descricao: novo.descricao, x: arred(m.x + 1), y: arred(m.y + 1), ajusteX: 0, ajusteY: 0 });
     c.planta.moveis.push(copia);
     preencherLista();
     selecionar(copia.id);
@@ -707,7 +713,7 @@ const Construtor = (() => {
     });
     $('cnsId').addEventListener('change', (e) => {
       const m = movelSelecionado();
-      const novo = String(e.target.value).trim().toUpperCase().replace(/\s+/g, ' ');
+      const novo = idDoNome(e.target.value);
       if (!m || novo === m.id) return;
       if (!novo || novo === 'LOJA' || c.planta.moveis.some((x) => x.id === novo)) {
         app.erro(new Error('ID vazio ou já usado nesta planta.'));

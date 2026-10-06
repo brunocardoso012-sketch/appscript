@@ -15,7 +15,7 @@
       layout: valoresLayoutPadrao_(),
       movimentos: valoresMovimentosExemplo_(),
       paineis: valoresPaineisExemplo_(),
-      versoesModelo: Object.assign({}, VERSAO_MODELO_PLANTAS),
+      versoesModelo: versoesAtuais_(),
     };
   }
 
