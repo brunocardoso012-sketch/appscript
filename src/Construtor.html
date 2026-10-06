@@ -6,8 +6,8 @@
  *  - Ao abrir, a planta começa VAZIA (só os itens "Extra" ficam); o botão
  *    "Carregar móveis salvos" traz de volta o layout gravado. Fechar sem salvar
  *    não apaga nada.
- *  - Paleta "Adicionar móvel" (Gôndola, Pirâmide, Móvel de fila, Totem,
- *    PDV móvel, Mesa destaque, Balcão recepção): um clique
+ *  - Paleta "Adicionar móvel" (Gôndola, Pirâmide, Móvel de fila, Móvel de parede,
+ *    Totem, PDV móvel, Mesa destaque, Mesa destaque 3 frentes, Balcão recepção): um clique
  *    cria o móvel no centro da loja.
  *  - Clicar num móvel seleciona; arrastar move (Alt = movimento fino);
  *    clicar no piso vazio desmarca.
@@ -24,7 +24,7 @@ const Construtor = (() => {
   /** Móveis oferecidos: nome, prefixo do ID, tamanho padrão [largura, fundo, altura] e ícone. */
   const TIPOS = {
     GONDOLA: {
-      nome: 'Gôndola', prefixo: 'GON', tam: [4, 1.6, 3],
+      nome: 'Gôndola', prefixo: 'GON', tam: [4, 1.6, 2.16],
       icone: 'M2 8h20v9H2zM5 8v9M19 8v9M5 12.5h14M2 20h20',
     },
     PIRAMIDE: {
@@ -32,8 +32,12 @@ const Construtor = (() => {
       icone: 'M7 21V3h10v18zM7 7.5h10M7 12h10M7 16.5h10',
     },
     FILA: {
-      nome: 'Móvel de fila', prefixo: 'FILA', tam: [3, 0.8, 1.8],
+      nome: 'Móvel de fila', prefixo: 'FILA', tam: [1.5, 0.4, 0.9],
       icone: 'M2 8h20v12H2zM2 11h20M2 14h20M2 17h20',
+    },
+    GONDOLA_PAREDE: {
+      nome: 'Móvel de parede', prefixo: 'PAR', tam: [4, 1.1, 3.2],
+      icone: 'M3 21V3h18v18M3 8h18M3 13h18M3 18h18M10 3v18M17 3v18',
     },
     TOTEM: {
       nome: 'Totem', prefixo: 'TOTEM', tam: [1.5, 0.35, 3.4],
@@ -46,6 +50,10 @@ const Construtor = (() => {
     MESA: {
       nome: 'Mesa destaque', prefixo: 'MESA', tam: [2.6, 1.4, 2.6],
       icone: 'M4 3h7v9H4zM13 3h7v9h-7zM3 12h18v3H3zM5 15v6M19 15v6',
+    },
+    MESA_3: {
+      nome: 'Mesa destaque 3 frentes', prefixo: 'MESA3', tam: [3.9, 1.4, 2.6],
+      icone: 'M2 3h6v9H2zM9 3h6v9H9zM16 3h6v9h-6zM1 12h22v3H1zM3 15v6M21 15v6',
     },
     VITRINE_L: {
       nome: 'Balcão recepção', prefixo: 'BALCAO', tam: [3, 3, 2.4],

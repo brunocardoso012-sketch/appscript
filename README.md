@@ -29,7 +29,7 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 
 | Para… | Faça |
 |---|---|
-| Adicionar um móvel | Clique no móvel na paleta (Gôndola, Pirâmide, Móvel de fila, Totem, PDV móvel, Mesa destaque, Balcão recepção). Ele aparece no centro da loja, já selecionado, com ID automático. |
+| Adicionar um móvel | Clique no móvel na paleta (Gôndola, Pirâmide, Móvel de fila, Móvel de parede, Totem, PDV móvel, Mesa destaque, Mesa destaque 3 frentes, Balcão recepção). Ele aparece no centro da loja, já selecionado, com ID automático. |
 | Selecionar | Clique no móvel: ele fica com contorno laranja. Clique no piso vazio ou aperte <kbd>Esc</kbd> para desmarcar. |
 | Mover | Arraste o móvel (segure <kbd>Alt</kbd> para mover fino) ou use as setas (→ +X, ↓ +Y; <kbd>Shift</kbd> = 5×). |
 | Girar / duplicar / excluir | Use a barra preta que aparece sobre o móvel, ou <kbd>R</kbd>, <kbd>Ctrl</kbd>+<kbd>D</kbd> e <kbd>Delete</kbd>. |
@@ -43,13 +43,15 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 |---|---|---|
 | **Gôndola** (`GON-…`) | 4 espaços: **Ponta 1**, **Meio A**, **Meio B** e **Ponta 2**, com 4 níveis de prateleira. Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GON-01`) e uma por espaço: `GON-01/PONTA-1`, `GON-01/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GON-01/MEIO-B`, `GON-01/PONTA-2`. O espaço preenchido tem cor e etiquetas próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. |
 | **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 2,16). | Uma linha. |
-| **Móvel de fila** (`FILA-…`) | Bloco único retangular com 4 níveis. | Uma linha. |
+| **Móvel de fila** (`FILA-…`) | Bloco único retangular com 4 níveis (padrão 1,5 × 0,4 × 0,9). | Uma linha. |
+| **Móvel de parede** (`PAR-…`) | Estante encostada na parede, com prateleiras (padrão 4 × 1,1 × 3,2). | Uma linha. |
 | **Totem** (`TOTEM-…`) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
 | **PDV móvel** (`PDV-…`) | Cubo de vidro sobre rodapé escuro. | Uma linha. |
 | **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos lado a lado em cima e painel de vidro de duas lâminas ao fundo. | Uma linha. |
+| **Mesa destaque 3 frentes** (`MESA3-…`) | Igual à mesa destaque, com 3 nichos e painel de 3 lâminas (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
 | **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro). | Uma linha. |
 
-O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. Os tipos antigos do layout de exemplo (parede, caixa, painel) continuam aparecendo, mas não são oferecidos na paleta.
+O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. Os tipos antigos do layout de exemplo (caixa, painel) continuam aparecendo, mas não são oferecidos na paleta. A gôndola tem por padrão a mesma altura da pirâmide (2,16).
 
 Durante a construção, os móveis aparecem **sem cor e sem etiquetas**, para o foco ficar no layout. Para conferir com o ciclo, marque *Mostrar cores e etiquetas do ciclo* em **Exibição e encaixe**.
 
@@ -180,13 +182,13 @@ Cada linha é um móvel de uma planta. **Para criar uma planta nova, basta acres
 | Coluna | O que é |
 |---|---|
 | Planta, ID Móvel, Móvel (descrição) | Identificação. |
-| **Tipo** | `LOJA` (piso + paredes: Largura × Profundidade × altura da parede), `GONDOLA`, `PIRAMIDE`, `FILA`, `TOTEM`, `CUBO` (PDV móvel), `MESA` (mesa destaque), `VITRINE_L` (balcão recepção), `EXTRA` (item da faixa inferior direita, sem posição). Os tipos antigos `GONDOLA_PAREDE`, `PAINEL` e `CAIXA` continuam aceitos. |
+| **Tipo** | `LOJA` (piso + paredes: Largura × Profundidade × altura da parede), `GONDOLA`, `PIRAMIDE`, `FILA`, `TOTEM`, `CUBO` (PDV móvel), `MESA` (mesa destaque), `MESA_3` (mesa destaque 3 frentes), `GONDOLA_PAREDE` (móvel de parede), `VITRINE_L` (balcão recepção), `EXTRA` (item da faixa inferior direita, sem posição). Os tipos antigos `PAINEL` e `CAIXA` continuam aceitos. |
 | Meios divididos | Só para gôndola: vazio, `A`, `B` ou `AB`. |
 | X, Y, Elevação (Z) | Posição do canto do móvel mais próximo do fundo da loja (1 unidade ≈ 0,5 m). |
 | Largura (eixo X), Profundidade (eixo Y), Altura | Tamanho. |
 | Ajuste Etiqueta X / Y (px) | Preenchidos pelo botão *Salvar posições*. Zere para voltar ao posicionamento automático. |
 
-O layout que vem pronto é uma **aproximação** das 4 plantas de referência. Ajuste as coordenadas na aba Layout e clique em **Atualizar** para ver o resultado.
+O layout que vem pronto é uma **aproximação** das plantas de referência; a **PLANTA 02** já usa o layout montado no modo Construir loja. Ajuste as coordenadas na aba Layout e clique em **Atualizar** para ver o resultado.
 
 ## Personalização
 

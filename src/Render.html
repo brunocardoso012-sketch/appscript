@@ -325,26 +325,33 @@ const Render = (() => {
         caixa(pai, P, Object.assign({}, b, { z: b.z + r, h: b.h - r }), { cores, vidro: true });
         break;
       }
-      case 'MESA': {
-        // Mesa destaque: estrutura com pernas, 2 nichos lado a lado em cima e painel de vidro de duas lâminas ao fundo.
+      case 'MESA':
+      case 'MESA_3': {
+        // Mesa destaque: estrutura com pernas, 2 (ou 3) nichos lado a lado em cima
+        // e painel de vidro ao fundo com uma lâmina por nicho.
+        const n = m.tipo === 'MESA_3' ? 3 : 2;
         const [L, C] = eixos(b);
         const hBase = b.h * 0.32;
         const hNicho = b.h * 0.27;
         const painel = Math.min(0.15, C * 0.12);
         const fresta = Math.min(0.08, L * 0.04);
         const perna = Math.min(0.08, L * 0.05);
+        const passo = L / n;
         const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
-        caixa(pai, P, loc(0, L / 2 - fresta / 2, 0, painel, hBase, b.h), { cores, vidro: true });
-        caixa(pai, P, loc(L / 2 + fresta / 2, L, 0, painel, hBase, b.h), { cores, vidro: true });
+        for (let k = 0; k < n; k++) {
+          const u0 = k * passo + (k ? fresta / 2 : 0);
+          const u1 = (k + 1) * passo - (k < n - 1 ? fresta / 2 : 0);
+          caixa(pai, P, loc(u0, u1, 0, painel, hBase, b.h), { cores, vidro: true });
+        }
         [[0, painel], [L - perna, painel], [0, C - perna], [L - perna, C - perna]].forEach(([u, v]) => {
           caixa(pai, P, loc(u, u + perna, v, v + perna, 0, hBase - 0.06), { cores: [COR.metal] });
         });
         caixa(pai, P, loc(0, L, painel, C, hBase - 0.06, hBase), { cores: [COR.metal] });
         const v0 = painel + 0.05;
         const g = 0.03;
-        [0, L / 2].forEach((u) => {
-          caixa(pai, P, loc(u + g, u + L / 2 - g, v0 + g, C - g, hBase, hBase + hNicho), { cores, vidro: true });
-        });
+        for (let k = 0; k < n; k++) {
+          caixa(pai, P, loc(k * passo + g, (k + 1) * passo - g, v0 + g, C - g, hBase, hBase + hNicho), { cores, vidro: true });
+        }
         break;
       }
       case 'TOTEM': {

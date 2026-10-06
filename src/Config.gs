@@ -106,9 +106,10 @@ const TIPOS_MOVEL = {
   PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados',
   GONDOLA: 'Gôndola: 2 pontas + 2 meios (cada meio pode ser dividido em dois), 4 níveis de prateleira',
   FILA: 'Móvel de fila: bloco único retangular com 4 níveis',
-  GONDOLA_PAREDE: '(antigo) Gôndola de parede',
+  GONDOLA_PAREDE: 'Móvel de parede: estante encostada na parede, com prateleiras',
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
   MESA: 'Mesa destaque: 2 nichos sobre estrutura, com painel de vidro ao fundo',
+  MESA_3: 'Mesa destaque 3 frentes: 3 nichos sobre estrutura, com painel de vidro ao fundo',
   TOTEM: 'Totem: estrutura metálica com 3 painéis',
   PAINEL: '(antigo) Painel alto e fino',
   VITRINE_L: 'Balcão recepção: em "L", com os dois lados do mesmo tamanho',
@@ -117,7 +118,7 @@ const TIPOS_MOVEL = {
 };
 
 /** Tipos oferecidos no modo "Construir loja". */
-const TIPOS_CONSTRUCAO = ['GONDOLA', 'PIRAMIDE', 'FILA', 'TOTEM', 'CUBO', 'MESA', 'VITRINE_L'];
+const TIPOS_CONSTRUCAO = ['GONDOLA', 'PIRAMIDE', 'FILA', 'GONDOLA_PAREDE', 'TOTEM', 'CUBO', 'MESA', 'MESA_3', 'VITRINE_L'];
 
 /**
  * Espaços de uma gôndola. Na planilha, cada espaço é endereçado como

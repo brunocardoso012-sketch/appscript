@@ -81,7 +81,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.equal(ilha.simbolo, 'MOVIMENTO');
   assert.deepEqual(Object.keys(d2.movimentos['Ciclo exemplo']['01']), ['PIR-01'], 'par (ciclo, planta) substituído');
   assert.equal(d2.movimentos['Ciclo exemplo']['01']['PIR-01'].etiquetas[0].texto, '10/2026');
-  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 8, 'outras plantas intactas');
+  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 11, 'outras plantas intactas');
   assert.equal(d2.paineis['C15/2026'].TODAS[0].secao, 'TV');
 
   const aj = run("salvarAjustesEtiquetas('2', { 'PIR-01': { x: 40.4, y: -12 } })");
