@@ -378,9 +378,10 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
 /**
  * Espaços que mudam de móvel ao passar de uma planta para a seguinte na cascata.
  * A partir da planta "aPartirDe" (e nas seguintes), o espaço "para" mostra o que o
- * espaço "de" tinha na planta anterior, e o espaço "de" fica livre (branco, sem
- * etiqueta) para receber outro movimento. Uma linha própria na planilha (a partir
- * dessa planta) tem prioridade sobre a transferência.
+ * espaço "de" tinha na planta anterior (mesmo que tenha linha própria; ela só vale se
+ * a origem estiver vazia), e o espaço "de" fica livre (branco, sem etiqueta) para
+ * receber outro movimento. Linha da planta maior que repete o movimento transferido
+ * é ignorada no espaço de origem, para ele não aparecer nos dois móveis.
  * Vale para espaços de gôndola (LADO-A, MEIO-A, MEIO-B, LADO-B) e metades de meio.
  */
 const TRANSFERENCIAS = [
@@ -3839,7 +3840,7 @@ const Planilha = (() => {
         const i = dados.plantas.findIndex((x) => x.id === r.planta);
         const anterior = i > 0 ? plantaNaPlanilha(dados, dados.plantas[i - 1].id) : '';
         return 'a partir da ' + plantaNaPlanilha(dados, r.planta) + ', ' + r.para + ' mostra o que ' + r.de + ' tinha na ' + anterior;
-      }).join('; ') + '. Nessas plantas o espaço de origem fica livre (branco): preencha a linha dele com o novo movimento. Uma linha própria do espaço de destino tem prioridade sobre a transferência.',
+      }).join('; ') + '. Nessas plantas o espaço de destino recebe sempre o conteúdo da planta anterior (a linha própria dele só vale se a origem estiver vazia) e o espaço de origem fica livre (branco): preencha a linha dele com o novo movimento. Se a linha da planta maior repetir o movimento que foi transferido, ele é ignorado ali, para não aparecer nos dois móveis.',
     ] : []).concat(op.visualizador ? [
       // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.
       '8. Todos os ciclos ficam nesta mesma planilha. No primeiro ciclo, preencha o "Ciclo" nas linhas já prontas (linhas sem ciclo e sem conteúdo são ignoradas). Para criar um ciclo novo, copie as linhas de um ciclo existente (nas abas "' + abas.MOVIMENTOS + '" e "' + abas.PAINEIS + '"), cole no fim e troque o "Ciclo". Cada nome diferente de ciclo aparece no seletor do visualizador.',
@@ -3908,7 +3909,7 @@ const Planilha = (() => {
       .map((r) => {
         const i = dados.plantas.findIndex((x) => x.id === r.planta);
         const anterior = i > 0 ? nomeDe(dados.plantas[i - 1].id) : '';
-        if (id === r.para) return ' · VEM DE ' + r.de + ' da ' + anterior + ' (preencha só para trocar)';
+        if (id === r.para) return ' · VEM DE ' + r.de + ' da ' + anterior + ' (automático: para mudar, mude a ' + r.de + ' na ' + anterior + ')';
         if (id === r.de) return ' · ESPAÇO LIVRE: o que estava aqui na ' + anterior + ' foi para ' + r.para + '; preencha com o novo movimento';
         return '';
       }).join('');
@@ -5030,35 +5031,86 @@ const App = (() => {
 
   /**
    * Situação de um móvel (ou espaço) numa planta, seguindo a cascata. Com TRANSFERENCIAS
-   * (Config.gs), a partir da planta da regra o espaço "para" mostra o que o espaço "de"
-   * tinha na planta anterior, e o "de" fica livre (branco). O que vem de uma regra leva
-   * _regra.base: o valor que a planilha base deve usar (sem a transferência).
+   * (Config.gs), a partir da planta da regra:
+   *  - o espaço "para" mostra SEMPRE o que o espaço "de" tinha na planta anterior (mesmo que a
+   *    planta tenha linha própria para ele); só quando a origem está vazia vale a linha própria;
+   *  - o espaço "de" fica livre (branco) para outro movimento. Uma linha própria dele vale, mas o
+   *    que for cópia do conteúdo transferido (mesmas etiquetas) é descartado, para o mesmo
+   *    movimento não aparecer nos dois móveis.
+   * O que vem de uma regra leva _regra.base: o valor que a planilha base deve usar.
    */
   function movimentoDe(ciclo, planta, id) {
     const c = estado.dados.movimentos[ciclo] || {};
     const ids = estado.dados.plantas.map((p) => p.id);
     const pos = (p) => ids.indexOf(p);
     const regras = (estado.dados.config.transferencias || [])
-      .filter((r) => pos(r.planta) >= 0 && pos(r.planta) <= pos(planta));
+      .filter((r) => pos(r.planta) > 0 && pos(r.planta) <= pos(planta));
+    const anterior = (r) => ids[pos(r.planta) - 1];
     // "GONDOLA 3/MEIO-A-2" em relação a "GONDOLA 3/MEIO-A" → "-2"; outro ID → null.
     const sufixo = (x, base) => (x === base ? '' : x.indexOf(base + '-') === 0 ? x.slice(base.length) : null);
+
+    // Destino da transferência: o conteúdo da origem na planta anterior tem prioridade.
+    for (let j = 0; j < regras.length; j++) {
+      const s = sufixo(id, regras[j].para);
+      if (s === null) continue;
+      const t = transferido(ciclo, anterior(regras[j]), regras[j].de, s);
+      if (t) return t;
+    }
+
     const lista = cascata(planta);
     for (let k = 0; k < lista.length; k++) {
       const p = lista[k];
       const antes = regras.filter((r) => pos(p) < pos(r.planta)); // regras que separam p da planta pedida
+      const depois = regras.filter((r) => pos(p) >= pos(r.planta)); // linha própria de p, já com a regra valendo
       // Linha vazia de um espaço da transferência (como vem na planilha base) não conta como linha própria.
       const afetado = regras.some((r) => sufixo(id, r.para) !== null || sufixo(id, r.de) !== null);
-      if (c[p] && c[p][id] && (!afetado || temConteudo(c[p][id]))) return semBlocosTransferidos(c[p][id], id, antes);
+      if (c[p] && c[p][id] && (!afetado || temConteudo(c[p][id]))) {
+        return semCopias(ciclo, semBlocosTransferidos(c[p][id], id, antes), id, depois, anterior);
+      }
       for (let j = 0; j < antes.length; j++) {
         const r = antes[j];
-        const sPara = sufixo(id, r.para);
-        if (sPara !== null) return transferido(ciclo, p, r.de, sPara);
+        if (sufixo(id, r.para) !== null) return null; // origem vazia: usa a gôndola inteira
         // Espaço liberado: branco até receber outro movimento (as metades usam o meio inteiro).
         if (sufixo(id, r.de) === '') return { marca: 'NEUTRO', etiquetas: [], simbolo: '', observacao: '', _regra: { base: null } };
         if (sufixo(id, r.de) !== null) return null;
       }
     }
     return (c[TODAS()] && c[TODAS()][id]) || null;
+  }
+
+  /** Mesmos textos de etiqueta (ou, sem etiquetas, a mesma cor)? */
+  function mesmoConteudo(a, b) {
+    const textos = (i) => i.etiquetas.map((e) => String(e.texto).trim().toUpperCase()).sort().join('|');
+    if (!a || !b) return false;
+    return textos(a) || textos(b) ? textos(a) === textos(b) : a.marca === b.marca;
+  }
+
+  /**
+   * Linha própria de uma planta em que a transferência já vale: o que repete o conteúdo que foi
+   * para o outro móvel é descartado (o espaço de origem fica livre; na gôndola inteira, sai a
+   * etiqueta repetida do bloco que saiu).
+   */
+  function semCopias(ciclo, info, id, regras, anterior) {
+    let atual = info;
+    regras.forEach((r) => {
+      const t = () => transferido(ciclo, anterior(r), r.de, '');
+      if (id === r.de) {
+        if (mesmoConteudo(atual, t())) {
+          atual = { marca: 'NEUTRO', etiquetas: [], simbolo: '', observacao: '', _regra: { base: info._regra ? info._regra.base : info } };
+        }
+        return;
+      }
+      if (r.de.indexOf(id + '/') !== 0) return;
+      const n = BLOCOS_GONDOLA.indexOf(r.de.slice(id.length + 1)) + 1;
+      const tt = t();
+      if (n <= 0 || !tt) return;
+      const repetidos = tt.etiquetas.map((e) => String(e.texto).trim().toUpperCase());
+      const etiquetas = atual.etiquetas.filter((e, k) => (e.posicao || k + 1) !== n || repetidos.indexOf(String(e.texto).trim().toUpperCase()) < 0);
+      if (etiquetas.length !== atual.etiquetas.length) {
+        atual = Object.assign({}, atual, { etiquetas, _regra: { base: info._regra ? info._regra.base : info } });
+      }
+    });
+    return atual;
   }
 
   /** Linha da gôndola inteira vinda de antes da transferência: sem as etiquetas dos blocos que saíram. */

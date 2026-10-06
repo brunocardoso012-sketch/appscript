@@ -22,7 +22,7 @@ const ler = (...p) => fs.readFileSync(path.join(...p), 'utf8');
  * Versão mostrada no topo do app (ao lado de "Visualizador de plantas por ciclo"). Aumente a cada
  * entrega: assim dá para conferir, no App da Web, se a implantação já está com os arquivos novos.
  */
-const VERSAO = '2026.10.06-3';
+const VERSAO = '2026.10.06-4';
 
 /** Tira os trechos entre "// <so-app-completo>" e "// </so-app-completo>" (o ciclo de exemplo). */
 function semCicloExemplo(codigo) {

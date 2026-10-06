@@ -1,4 +1,4 @@
-/* Plano de Varejo · Visualizador — versão 2026.10.06-3 */
+/* Plano de Varejo · Visualizador — versão 2026.10.06-4 */
 /* ===== visualizador/fonte/Visualizador.gs ===== */
 /**
  * ============================================================================
@@ -24,7 +24,7 @@ const VISUALIZADOR = {
   /** Prefixo das propriedades do script que guardam as posições das etiquetas (uma por planta). */
   PROPRIEDADE_AJUSTES: 'AJUSTES_ETIQUETAS_',
   /** Versão deste arquivo (preenchida por dev/build-visualizador.js); aparece no topo do app. */
-  VERSAO: '2026.10.06-3',
+  VERSAO: '2026.10.06-4',
 };
 
 /* =============================== ENTRADA ================================== */
@@ -194,9 +194,10 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
 /**
  * Espaços que mudam de móvel ao passar de uma planta para a seguinte na cascata.
  * A partir da planta "aPartirDe" (e nas seguintes), o espaço "para" mostra o que o
- * espaço "de" tinha na planta anterior, e o espaço "de" fica livre (branco, sem
- * etiqueta) para receber outro movimento. Uma linha própria na planilha (a partir
- * dessa planta) tem prioridade sobre a transferência.
+ * espaço "de" tinha na planta anterior (mesmo que tenha linha própria; ela só vale se
+ * a origem estiver vazia), e o espaço "de" fica livre (branco, sem etiqueta) para
+ * receber outro movimento. Linha da planta maior que repete o movimento transferido
+ * é ignorada no espaço de origem, para ele não aparecer nos dois móveis.
  * Vale para espaços de gôndola (LADO-A, MEIO-A, MEIO-B, LADO-B) e metades de meio.
  */
 const TRANSFERENCIAS = [

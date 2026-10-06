@@ -176,7 +176,7 @@ const Planilha = (() => {
         const i = dados.plantas.findIndex((x) => x.id === r.planta);
         const anterior = i > 0 ? plantaNaPlanilha(dados, dados.plantas[i - 1].id) : '';
         return 'a partir da ' + plantaNaPlanilha(dados, r.planta) + ', ' + r.para + ' mostra o que ' + r.de + ' tinha na ' + anterior;
-      }).join('; ') + '. Nessas plantas o espaço de origem fica livre (branco): preencha a linha dele com o novo movimento. Uma linha própria do espaço de destino tem prioridade sobre a transferência.',
+      }).join('; ') + '. Nessas plantas o espaço de destino recebe sempre o conteúdo da planta anterior (a linha própria dele só vale se a origem estiver vazia) e o espaço de origem fica livre (branco): preencha a linha dele com o novo movimento. Se a linha da planta maior repetir o movimento que foi transferido, ele é ignorado ali, para não aparecer nos dois móveis.',
     ] : []).concat(op.visualizador ? [
       // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.
       '8. Todos os ciclos ficam nesta mesma planilha. No primeiro ciclo, preencha o "Ciclo" nas linhas já prontas (linhas sem ciclo e sem conteúdo são ignoradas). Para criar um ciclo novo, copie as linhas de um ciclo existente (nas abas "' + abas.MOVIMENTOS + '" e "' + abas.PAINEIS + '"), cole no fim e troque o "Ciclo". Cada nome diferente de ciclo aparece no seletor do visualizador.',
@@ -245,7 +245,7 @@ const Planilha = (() => {
       .map((r) => {
         const i = dados.plantas.findIndex((x) => x.id === r.planta);
         const anterior = i > 0 ? nomeDe(dados.plantas[i - 1].id) : '';
-        if (id === r.para) return ' · VEM DE ' + r.de + ' da ' + anterior + ' (preencha só para trocar)';
+        if (id === r.para) return ' · VEM DE ' + r.de + ' da ' + anterior + ' (automático: para mudar, mude a ' + r.de + ' na ' + anterior + ')';
         if (id === r.de) return ' · ESPAÇO LIVRE: o que estava aqui na ' + anterior + ' foi para ' + r.para + '; preencha com o novo movimento';
         return '';
       }).join('');
