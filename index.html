@@ -1500,36 +1500,26 @@ function removerAbaPadraoVazia_(ss) {
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '02': 2 };
+const VERSAO_MODELO_PLANTAS = { '01': 2, '02': 2 };
 
 const LAYOUT_PADRAO = {
+  // PLANTA 01: layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06.json),
+  // com gôndolas na altura da pirâmide e móveis de fila pela metade.
   '01': {
-    loja: [16, 14, 4.4], // largura (X), profundidade (Y), altura das paredes
+    loja: [16, 14, 4.4],
     moveis: [
-      ['PE-01', 'Parede esquerda – Cuidados (NSPA)', 'GONDOLA_PAREDE', 0, 0.2, 1.1, 3.3, 3.8],
-      ['PE-02', 'Parede esquerda – Perfumaria masculina', 'GONDOLA_PAREDE', 0, 3.5, 1.1, 3.3, 3.8],
-      ['PE-03', 'Parede esquerda – Perfumaria feminina', 'GONDOLA_PAREDE', 0, 6.8, 1.1, 3.3, 3.8],
-      ['PE-04', 'Parede esquerda – Maquiagem (testeira Make)', 'GONDOLA_PAREDE', 0, 10.1, 1.1, 3.7, 3.8],
-      ['PF-01', 'Parede fundo – Cuidados (CBEM)', 'GONDOLA_PAREDE', 1.2, 0, 3.6, 1.1, 3.8],
-      ['PF-02', 'Parede fundo – Outlet', 'GONDOLA_PAREDE', 4.8, 0, 3.8, 1.1, 3.8],
-      ['PF-03', 'Parede fundo – módulo 3', 'GONDOLA_PAREDE', 8.6, 0, 3.8, 1.1, 3.8],
-      ['PF-05', 'Parede fundo – módulo 4', 'GONDOLA_PAREDE', 12.4, 0, 3.5, 1.1, 3.8],
-      ['ILHA-06', 'Ilha central – cabeceira do fundo', 'GONDOLA', 5.2, 5, 0.6, 3, 2.16],
-      ['ILHA-01', 'Ilha central – Botik', 'GONDOLA', 5.8, 6.5, 2.4, 1.5, 2.16],
-      ['ILHA-02', 'Ilha central – Uomini', 'GONDOLA', 8.2, 6.5, 2.2, 1.5, 2.16],
-      ['ILHA-03', 'Ilha central – lado do fundo (QDB)', 'GONDOLA', 5.8, 5, 4.6, 1.5, 2.16],
-      ['ILHA-05', 'Ilha central – cabeceira frente (O.U.i)', 'GONDOLA', 10.4, 5, 0.7, 3, 2.16],
-      ['ILHA-04', 'Ilha central – topo multimarca', 'GONDOLA', 5.8, 5, 4.6, 3, 0.4, 2.16],
-      ['GON-01', 'Gôndola esquerda – lado A (Itens fixos)', 'GONDOLA', 2.6, 7.6, 3, 1, 2.16],
-      ['GON-02', 'Gôndola esquerda – lado B (Curto prazo)', 'GONDOLA', 2.6, 8.6, 3, 1, 2.16],
-      ['CX-01', 'Caixa 1', 'CAIXA', 2.4, 12.2, 1.8, 1.2, 1.7],
-      ['CX-02', 'Caixa 2', 'CAIXA', 4.5, 12.2, 1.8, 1.2, 1.7],
-      ['TOTEM-01', 'Totem próximo aos caixas', 'TOTEM', 7.2, 12.4, 1.5, 0.35, 3.4],
-      ['CUBO-SIAGE', 'PDV móvel Siàge', 'CUBO', 8.4, 10.2, 1.3, 1.3, 1.6],
-      ['MESA-VM', 'Mesa destaque VM permanente', 'MESA', 10.6, 8.6, 2.4, 1.4, 2.6],
-      ['VITRINE', 'Balcão recepção (entrada)', 'VITRINE_L', 11.2, 10.8, 3, 3, 2.4],
-      ['PIR-01', 'Pirâmide 1 (principais oportunidades)', 'PIRAMIDE', 13.12, 3.72, 0.96, 0.96, 2.16],
-      ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 13.92, 7.12, 0.96, 0.96, 2.16],
+      ['GON-01', 'Gôndola 1', 'GONDOLA', 3, 2.5, 1.6, 4, 2.16],
+      ['GON-02', 'Gôndola 2', 'GONDOLA', 6.5, 3, 1.6, 4, 2.16],
+      ['PIR-01', 'Pirâmide 1', 'PIRAMIDE', 10, 3, 1.02, 1.02, 2.16],
+      ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 13, 3, 1.02, 1.02, 2.16],
+      ['PIR-03', 'Pirâmide 3', 'PIRAMIDE', 10, 6, 1.02, 1.02, 2.16],
+      ['PIR-04', 'Pirâmide 4', 'PIRAMIDE', 13, 6, 1.02, 1.02, 2.16],
+      ['MESA-01', 'Mesa destaque', 'MESA', 10, 8.5, 2.6, 1.4, 2.6],
+      ['FILA-02', 'Móvel de fila 2', 'FILA', 2.25, 8.2, 1.5, 0.4, 0.9],
+      ['FILA-01', 'Móvel de fila 1', 'FILA', 2.25, 10.7, 1.5, 0.4, 0.9],
+      ['PDV-01', 'PDV móvel', 'CUBO', 8, 10.5, 1.3, 1.3, 1.6],
+      ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 12.5, 10.5, 3, 3, 2.4],
+      ['TOTEM-01', 'Totem', 'TOTEM', 8.5, 12.5, 0.35, 1.5, 3.4],
       ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
@@ -1705,10 +1695,20 @@ const EXEMPLO_MOVIMENTOS = {
     'EXTRA-CAVALETE': ['NEUTRO', [['SIÀGE ULTIMATE', 'EUD']]],
   },
   '01': {
-    'ILHA-02': ['BOT', [['UOMINI', 'BOT']]],
-    'ILHA-05': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
-    'CX-01': ['NEUTRO', []],
-    'CX-02': ['NEUTRO', []],
+    'GON-01': ['MULTI', [['ITENS FIXOS', 'MULTI']], 'FIXO'],
+    'GON-01/PONTA-2': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
+    'GON-02': ['EUD', [['OUTLET EUD', 'EUD'], ['PERFUMARIA', 'EUD']], 'MOVIMENTO'],
+    'GON-02/PONTA-2': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'PIR-03': ['BOT', [['BOTI PROMO', 'BOT'], ['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
+    'PIR-04': ['MULTI', [['CURTO PRAZO', 'MULTI'], ['+PEC REGIONAL', 'MULTI']], 'FIXO'],
+    'MESA-01': ['MULTI', [
+      ['VM PERMANENTE MULTI PROMO', 'MULTI'], ['UOMINI GLORIFICADO', 'BOT'],
+      ['SIÀGE GLORIFICADO', 'EUD'], ['VERSO: LÇTO EGEO', 'BOT+QDB'],
+    ]],
+    'FILA-01': ['BOT', [['BOTIPROMO', 'BOT']]],
+    'FILA-02': ['EUD', [['OUTLET EUD', 'EUD']]],
+    'PDV-01': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
+    'BALCAO-01': ['BOT', [['LÇTO EGEO', 'BOT+QDB']]],
   },
   '02': {
     'GON-01': ['MULTI', [['ITENS FIXOS', 'MULTI']], 'FIXO'],

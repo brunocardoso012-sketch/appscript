@@ -171,7 +171,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
     movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
     movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
-    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, {});
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 2 }); // 01 já atualizada
   })()`);
   assert.deepEqual(r.plantas, ['02']);
   assert.equal(r.versoes['02'], 2);
@@ -182,6 +182,6 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
   assert.ok(mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'MESA-01'), 'exemplo da planta 02 atualizado');
   assert.ok(!mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'VELHO-01'));
   assert.ok(mov.some((l) => l[0] === 'C9'), 'outros ciclos da planta 02 intactos');
-  const de_novo = run(`atualizarModelosPlantas_({ layout: valoresLayoutPadrao_(), movimentos: [] }, { '02': 2 })`);
+  const de_novo = run(`atualizarModelosPlantas_({ layout: valoresLayoutPadrao_(), movimentos: [] }, VERSAO_MODELO_PLANTAS)`);
   assert.deepEqual(de_novo.plantas, [], 'não repete quando a versão já foi aplicada');
 });
