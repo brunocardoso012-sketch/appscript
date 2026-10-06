@@ -140,8 +140,8 @@ test('importar aba Layout substitui só as plantas presentes e mantém números'
 
 test('gôndola: espaços, divisão dos meios e IDs de espaço na planilha', () => {
   const { run } = carregarGas();
-  assert.deepEqual(run("espacosDoMovel_({ tipo: 'GONDOLA', dividido: '' })").map((e) => e.id), ['PONTA-1', 'MEIO-A', 'MEIO-B', 'PONTA-2']);
-  assert.deepEqual(run("espacosDoMovel_({ tipo: 'GONDOLA', dividido: 'A' })").map((e) => e.id), ['PONTA-1', 'MEIO-A-1', 'MEIO-A-2', 'MEIO-B', 'PONTA-2']);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'GONDOLA', dividido: '' })").map((e) => e.id), ['LADO-A', 'MEIO-A', 'MEIO-B', 'LADO-B']);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'GONDOLA', dividido: 'A' })").map((e) => e.id), ['LADO-A', 'MEIO-A-1', 'MEIO-A-2', 'MEIO-B', 'LADO-B']);
   assert.deepEqual(run("espacosDoMovel_({ tipo: 'PIRAMIDE' })"), []);
   assert.equal(run("normDivisao_('a e b')"), 'AB');
   assert.equal(run("normDivisao_('sim')"), 'AB');
@@ -176,7 +176,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
     movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
     movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
-    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 10, '03': 6, '04': 7, _exemplo: 2 }); // só a 02 pendente
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 10, '03': 6, '04': 7, _exemplo: 3 }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
   assert.equal(r.versoes['02'], 9);
@@ -242,4 +242,19 @@ test('ciclo de exemplo novo troca todas as linhas dele (e só dele)', () => {
   assert.ok(!r.abas.paineis.some((l) => l[3] === 'velho'));
   assert.ok(r.abas.paineis.some((l) => l[3] === 'minha nota'));
   assert.equal(run("normId_('Móvel de  fila 3')"), 'MOVEL DE FILA 3');
+});
+
+test('blocos do balcão e das mesas; nomes antigos dos lados da gôndola', () => {
+  const { run } = carregarGas();
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'VITRINE_L' })").map((e) => e.id), ['BLOCO-1', 'BLOCO-2', 'BLOCO-3']);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'MESA' })").map((e) => e.id), ['FRENTE-1', 'FRENTE-2']);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'MESA_3' })").map((e) => e.id), ['FRENTE-1', 'FRENTE-2', 'FRENTE-3']);
+  const d = run(`montarDados_(valoresLayoutPadrao_(), [
+    ['Ciclo', 'Planta', 'ID Móvel', 'Marca do Móvel'],
+    ['C1', 'ER P', 'GONDOLA 1/PONTA-2', 'QDB'],
+    ['C1', 'ER P', 'BALCAO RECEPCAO 1/BLOCO-2', 'EUD'],
+    ['C1', 'ER P', 'MESA DESTAQUE 1/FRENTE-2', 'BOT'],
+  ], null)`);
+  assert.deepEqual(d.avisos, []);
+  assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(), ['BALCAO RECEPCAO 1/BLOCO-2', 'GONDOLA 1/LADO-A', 'MESA DESTAQUE 1/FRENTE-2']);
 });

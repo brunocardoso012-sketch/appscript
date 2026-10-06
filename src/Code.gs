@@ -388,7 +388,8 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
     lido.linhas.forEach(function (l) {
       const ciclo = texto_(l.ciclo);
       const planta = normPlanta_(l.planta);
-      const id = normId_(l.movel);
+      // Nomes antigos dos lados da gôndola: Ponta 2 era o lado da frente (A), Ponta 1 o de trás (B).
+      const id = normId_(l.movel).replace(/\/PONTA-2$/, '/LADO-A').replace(/\/PONTA-1$/, '/LADO-B');
       const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
       if (!ciclo || !planta || !id) {
         aviso(onde + ': Ciclo, Planta e ID Móvel são obrigatórios — linha ignorada.');
