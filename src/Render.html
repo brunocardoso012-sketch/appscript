@@ -175,16 +175,16 @@ const Render = (() => {
   /* --------------------------- caixas (móveis) ---------------------------- */
 
   /**
-   * Desenha uma caixa isométrica.
-   * est: { cores, vidro, prateleiras, modulo, gradeTopo, moldura }
+   * Desenha uma caixa isométrica, sempre opaca (cores sobrepostas confundiam a leitura).
+   * est: { cores, vidro, prateleiras, modulo, gradeTopo, moldura } — vidro só deixa as linhas
+   * internas tracejadas, para lembrar o material.
    */
   function caixa(pai, P, b, est) {
     const x0 = b.x, x1 = b.x + b.w, y0 = b.y, y1 = b.y + b.d, z0 = b.z, z1 = b.z + b.h;
     const neutro = !est.cores;
     const base = est.cores || [est.corNeutra || COR.neutro];
     const contorno = neutro ? COR.contornoNeutro : COR.contorno;
-    const opacidade = !neutro && est.vidro ? 0.84 : 1;
-    const comum = { stroke: contorno, 'stroke-width': neutro ? 1 : 1.3, 'stroke-linejoin': 'round', 'fill-opacity': opacidade };
+    const comum = { stroke: contorno, 'stroke-width': neutro ? 1 : 1.3, 'stroke-linejoin': 'round' };
 
     const esq = [P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)]; // face y = y1
     const dir = [P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)]; // face x = x1
@@ -196,16 +196,8 @@ const Render = (() => {
     const detalhe = neutro
       ? { stroke: COR.prateleiraNeutra, 'stroke-width': 1 }
       : est.vidro
-        ? { stroke: contorno, 'stroke-width': 1.1, 'stroke-dasharray': '5 4', opacity: 0.85 }
+        ? { stroke: misturar(base[0], '#000000', 0.35), 'stroke-width': 1, 'stroke-dasharray': '5 4' }
         : { stroke: misturar(base[0], '#000000', 0.35), 'stroke-width': 1 };
-
-    // Arestas escondidas (efeito vidro).
-    if (!neutro && est.vidro) {
-      const oculto = { stroke: contorno, 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: 0.45 };
-      linha(pai, P(x0, y0, z0), P(x0, y0, z1), oculto);
-      linha(pai, P(x0, y0, z0), P(x1, y0, z0), oculto);
-      linha(pai, P(x0, y0, z0), P(x0, y1, z0), oculto);
-    }
 
     // Prateleiras.
     const n = est.prateleiras || 0;
