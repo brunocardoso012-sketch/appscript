@@ -46,14 +46,14 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 | **Móvel de fila** (`FILA-…`) | Bloco único retangular com 3 níveis (padrão 1,5 × 0,4 × 1,46). | Uma linha. |
 | **Móvel de parede** (`PAR-…`) | Estante encostada na parede, com prateleiras (padrão 4 × 1,1 × 3,2). | Uma linha. |
 | **Totem** (`TOTEM-…`) | Estrutura metálica (base, montantes e travessa), tela perfurada embaixo e 3 painéis na cor da marca. | Uma linha. |
-| **PDV móvel** (`PDV-…`) | Cubo de vidro sobre rodapé escuro. | Uma linha. |
+| **PDV móvel** (`PDV-…`) | Cubo de vidro sobre rodapé escuro (padrão 1,3 × 1,3 × 1,44). | Uma linha. |
 | **Mesa destaque** (`MESA-…`) | Estrutura com pernas, 2 nichos baixos lado a lado em cima, painel de vidro de duas lâminas ao fundo e 2 cartazes na frente, da largura das lâminas do fundo, subindo do chão até o topo dos nichos. | Uma linha, **1 etiqueta**. |
 | **Mesa destaque 3 frentes** (`MESA3-…`) | Estrutura com pernas, 3 nichos baixos em cima (mesma altura dos da mesa destaque), painel de 3 lâminas ao fundo e 3 cartazes na frente, iguais aos da mesa destaque (padrão 3,9 × 1,4 × 2,6). | Uma linha. |
 | **Balcão recepção** (`BALCAO-…`) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); 2 níveis; padrão 2,4 × 2,4 × 1,28. *Girar* muda o canto do L. | Uma linha. |
 | **Móvel de atendimento** (`CX-…`) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | Uma linha. |
 | **Parede O.U.i** (`OUI-…`) | Painel alto com moldura, para a parede (padrão 3,6 × 0,9 × 5). | Uma linha. |
 | **Totem O.U.i** (`OUI-…`) | Expositor de base quadrada com moldura, na altura da gôndola (padrão 0,8 × 0,8 × 1,94). | Uma linha. |
-| **Ilha premium O.U.i** (`ILHAOUI-…`) | Base com prateleiras e, atrás, painel alto com duas faixas verticais mais claras nas laterais (padrão 3 × 1,6 × 3). | Uma linha. |
+| **Ilha premium O.U.i** (`ILHAOUI-…`) | Base com prateleiras e, centralizado em cima dela, painel alto com duas faixas verticais mais claras nas laterais (padrão 3 × 1,6 × 3). | Uma linha. |
 | **Móvel make** (`MAKE-…`) | Estante de parede com painel de fundo, montantes nas pontas, base com rodapé escuro, 5 prateleiras com a fileira de produtos na borda e **4 testeiras** no alto; o fundo fica do lado da parede (padrão 6 × 1,4 × 3,2). | Uma linha para o móvel e uma por testeira (`MAKE-01/TESTEIRA-1` … `TESTEIRA-4`), como nos espaços da gôndola: a testeira com linha própria usa a cor (e a Etiqueta 1) dela; sem linha, usa a do móvel. |
 
 O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. A gôndola tem por padrão a mesma altura da pirâmide (1,94).

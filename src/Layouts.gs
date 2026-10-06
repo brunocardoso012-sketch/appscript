@@ -22,7 +22,7 @@
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 8, '02': 7, '03': 4, '04': 4 };
+const VERSAO_MODELO_PLANTAS = { '01': 9, '02': 8, '03': 5, '04': 5 };
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja" (arquivo layout-plantas-2026-10-06_2.json, 2ª versão):
@@ -37,7 +37,7 @@ const LAYOUT_PADRAO = {
       ['PIR-02', 'Pirâmide 2', 'PIRAMIDE', 6, 2.5, 1.02, 1.02, 1.94],
       ['PIR-01', 'Pirâmide 1', 'PIRAMIDE', 6, 4.5, 1.02, 1.02, 1.94],
       ['MESA-01', 'Mesa destaque', 'MESA', 8.5, 3.5, 2.6, 1.4, 2.6],
-      ['PDV-01', 'PDV móvel', 'CUBO', 5.5, 7, 1.3, 1.3, 1.6],
+      ['PDV-01', 'PDV móvel', 'CUBO', 5.5, 7, 1.3, 1.3, 1.44],
       ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 9.5, 6.5, 2.4, 2.4, 1.28, 0, 0, 0, '', 90],
       ['FILA-01', 'Móvel de fila 1', 'FILA', 2, 9.5, 1.5, 0.4, 1.46],
       ['FILA-02', 'Móvel de fila 2', 'FILA', 2, 8, 1.5, 0.4, 1.46],
@@ -62,7 +62,7 @@ const LAYOUT_PADRAO = {
       ['MESA-01', 'Mesa destaque', 'MESA', 11.5, 7.5, 2.6, 1.4, 2.6],
       ['FILA-02', 'Móvel de fila 2', 'FILA', 2.5, 10.5, 1.5, 0.4, 1.46],
       ['FILA-01', 'Móvel de fila 1', 'FILA', 2.5, 12.5, 1.5, 0.4, 1.46],
-      ['PDV-01', 'PDV móvel', 'CUBO', 8, 11, 1.3, 1.3, 1.6],
+      ['PDV-01', 'PDV móvel', 'CUBO', 8, 11, 1.3, 1.3, 1.44],
       ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 13.5, 11, 2.4, 2.4, 1.28, 0, 0, 0, '', 90],
       ['TOTEM-01', 'Totem', 'TOTEM', 8.5, 12.5, 0.35, 1.5, 3.4],
       ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
@@ -92,7 +92,7 @@ const LAYOUT_PADRAO = {
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
       ['PIR-01', 'Pirâmide 1', 'PIRAMIDE', 12.5, 2.5, 1.02, 1.02, 1.94],
       ['GON-01', 'Gôndola 1', 'GONDOLA', 3, 2.5, 1.6, 4, 1.94],
-      ['PDV-01', 'PDV móvel', 'CUBO', 6.5, 12, 1.3, 1.3, 1.6],
+      ['PDV-01', 'PDV móvel', 'CUBO', 6.5, 12, 1.3, 1.3, 1.44],
       ['BALCAO-01', 'Balcão recepção', 'VITRINE_L', 11.5, 12.5, 2.4, 2.4, 1.28, 0, 0, 0, '', 90],
       ['CX-01', 'Móvel de atendimento 1', 'CAIXA', 0, 13, 1.2, 1.8, 1.7],
       ['OUI-01', 'Parede O.U.i', 'PAINEL', 9.5, 0, 3.6, 0.8, 4.5],
@@ -129,7 +129,7 @@ const LAYOUT_PADRAO = {
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
       ['PIR-01', '', 'PIRAMIDE', 14.5, 2.5, 1.02, 1.02, 1.94],
       ['GON-01', '', 'GONDOLA', 3.5, 2.5, 1.6, 4, 1.94],
-      ['PDV-01', '', 'CUBO', 8.5, 17, 1.3, 1.3, 1.6],
+      ['PDV-01', '', 'CUBO', 8.5, 17, 1.3, 1.3, 1.44],
       ['BALCAO-01', '', 'VITRINE_L', 14.5, 17.5, 2.4, 2.4, 1.28],
       ['CX-01', '', 'CAIXA', 0, 17, 1.2, 1.8, 1.7],
       ['OUI-01', '', 'PAINEL', 12.5, 0, 3.6, 0.8, 4.5],
