@@ -259,6 +259,7 @@ const App = (() => {
     const planta = construcao ? construcao.planta : plantaAtual();
     if (!planta) return;
     svg.classList.toggle('construindo', !!construcao);
+    const semConteudo = !!construcao && !construcao.mostrarCiclo;
     const r = Render.desenhar(svg, {
       dados: estado.dados,
       planta,
@@ -266,8 +267,13 @@ const App = (() => {
       filtro: estado.filtro,
       ajustes: estado.ajustes,
       edicao: estado.edicao,
-      obterMovimento: (m) => movimentoDe(estado.ciclo, planta.id, m.id),
-      obterPaineis: () => paineisDe(estado.ciclo, planta.id),
+      // No modo construção os móveis ficam sem cor e sem etiqueta (a menos que se peça para mostrar o ciclo).
+      obterMovimento: (m) => (semConteudo ? null : movimentoDe(estado.ciclo, planta.id, m.id)),
+      obterPaineis: () => {
+        const p = paineisDe(estado.ciclo, planta.id);
+        if (semConteudo) p.CALLOUT = [];
+        return p;
+      },
       selecionado: construcao ? construcao.selecionado : '',
       grade: construcao ? construcao.grade : false,
       referencia: construcao ? construcao.referencia : null,

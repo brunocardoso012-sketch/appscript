@@ -42,17 +42,19 @@ Clique em **Construir loja** para abrir o editor ao lado da planta.
 | Móvel | Como é desenhado | Na planilha |
 |---|---|---|
 | **Gôndola** (`GON-…`) | 4 espaços: **Ponta 1**, **Meio A**, **Meio B** e **Ponta 2**, com 4 níveis de prateleira. Cada meio pode ser dividido em dois (*Dividir o meio A/B em dois*). | Uma linha para a gôndola inteira (`GON-01`) e uma por espaço: `GON-01/PONTA-1`, `GON-01/MEIO-A` (ou `MEIO-A-1` e `MEIO-A-2` quando dividido), `GON-01/MEIO-B`, `GON-01/PONTA-2`. O espaço preenchido tem cor e etiquetas próprias; o espaço vazio usa a linha da gôndola inteira. Para deixar um espaço branco, use `NEUTRO`. |
-| **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro. | Uma linha. |
+| **Pirâmide** (`PIR-…`) | 4 blocos iguais, um em cima do outro (padrão 1,02 × 1,02 × 2,16). | Uma linha. |
 | **Móvel de fila** (`FILA-…`) | Bloco único retangular com 4 níveis. | Uma linha. |
 
 O Meio A é o lado voltado para quem olha a planta; a Ponta 1 fica no lado do fundo da loja. Os tipos antigos do layout de exemplo (parede, caixa, mesa…) continuam aparecendo, mas não são mais oferecidos na paleta.
+
+Durante a construção, os móveis aparecem **sem cor e sem etiquetas**, para o foco ficar no layout. Para conferir com o ciclo, marque *Mostrar cores e etiquetas do ciclo* em **Exibição e encaixe**.
 
 Seções recolhidas no painel:
 
 - **Lista de móveis:** para achar um móvel escondido atrás de outro, ou os itens "Extra", que ficam fora da planta.
 - **Tamanho da loja e plantas:** largura, fundo e altura das paredes; **+ Criar nova planta**.
 - **Imagem de referência:** coloque a tela original da planta por cima, semitransparente, para "decalcar". Ajuste transparência, zoom e posição até alinhar.
-- **Grade e encaixe:** grade numerada no piso e o passo do arraste.
+- **Exibição e encaixe:** grade numerada no piso, mostrar ou não as cores do ciclo, e o passo do arraste.
 
 **Baixar código da loja** gera `layout-plantas-AAAA-MM-DD.json` com o layout de todas as plantas, no mesmo formato de [`src/Layouts.gs`](src/Layouts.gs). Mande esse arquivo para virar o layout padrão do projeto. **Carregar código…** aplica um arquivo desses de volta.
 

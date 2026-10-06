@@ -24,7 +24,7 @@ const Construtor = (() => {
       icone: 'M2 8h20v9H2zM5 8v9M19 8v9M5 12.5h14M2 20h20',
     },
     PIRAMIDE: {
-      nome: 'Pirâmide', prefixo: 'PIR', tam: [1.7, 1.7, 3.6],
+      nome: 'Pirâmide', prefixo: 'PIR', tam: [1.02, 1.02, 2.16],
       icone: 'M7 21V3h10v18zM7 7.5h10M7 12h10M7 16.5h10',
     },
     FILA: {
@@ -40,6 +40,7 @@ const Construtor = (() => {
     selecionado: '',
     historico: [], // fotos (JSON) antes de cada alteração — para desfazer
     grade: true,
+    mostrarCiclo: false, // na construção os móveis ficam sem cor e sem etiqueta
     passo: 0.5,
     referencias: {}, // planta → {src, opacidade, zoom, dx, dy}
     escala: 1,
@@ -56,7 +57,10 @@ const Construtor = (() => {
 
   function contexto() {
     if (!c.ativo || !c.planta) return null;
-    return { planta: c.planta, selecionado: c.selecionado, grade: c.grade, referencia: c.referencias[c.planta.id] || null };
+    return {
+      planta: c.planta, selecionado: c.selecionado, grade: c.grade, mostrarCiclo: c.mostrarCiclo,
+      referencia: c.referencias[c.planta.id] || null,
+    };
   }
 
   function aposDesenhar(r) {
@@ -648,6 +652,7 @@ const Construtor = (() => {
       $(id).addEventListener('change', () => gravarReferencia(c.planta.id));
     });
     $('cnsGrade').addEventListener('change', (e) => { c.grade = e.target.checked; redesenhar(); });
+    $('cnsMostrarCiclo').addEventListener('change', (e) => { c.mostrarCiclo = e.target.checked; redesenhar(); });
     $('cnsPasso').addEventListener('change', (e) => { c.passo = Number(e.target.value); });
 
     $('cnsDesfazer').addEventListener('click', desfazer);
