@@ -123,7 +123,7 @@ const TIPOS_MOVEL = {
   LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
   PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados (1 etiqueta)',
   GONDOLA: 'Gôndola: 2 pontas + 2 meios (cada meio pode ser dividido em dois), 4 níveis de prateleira, 1 etiqueta por bloco',
-  FILA: 'Móvel de fila: bloco único retangular com 4 níveis, na altura da gôndola',
+  FILA: 'Móvel de fila: bloco único retangular com 3 níveis',
   GONDOLA_PAREDE: 'Móvel de parede: estante encostada na parede, com prateleiras',
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
   MESA: 'Mesa destaque: 2 nichos baixos sobre estrutura, painel de vidro ao fundo e 2 painéis na frente, embaixo (1 etiqueta)',
