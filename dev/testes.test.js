@@ -134,7 +134,7 @@ test('importar aba Layout substitui só as plantas presentes e mantém números'
   assert.deepEqual(p2.loja, { largura: 30, profundidade: 25, alturaParede: 5 });
   assert.equal(p2.moveis.length, 1);
   assert.equal(p2.moveis[0].x, 3);
-  assert.equal(d.plantas.find((p) => p.id === '03').moveis.length, 29, 'outras plantas intactas');
+  assert.equal(d.plantas.find((p) => p.id === '03').moveis.length, 31, 'outras plantas intactas');
   assert.ok(r.avisos.some((a) => /não existe no Layout/.test(a)) === false, 'sem avisos de movimentos (não importados)');
 });
 
@@ -175,7 +175,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
     movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
     movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
-    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 11, '03': 6, '04': 7, _exemplo: 4 }); // só a 02 pendente
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 11, '03': 7, '04': 7, _exemplo: 4 }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
   assert.equal(r.versoes['02'], 10);
@@ -233,7 +233,7 @@ test('ciclo de exemplo novo troca todas as linhas dele (e só dele)', () => {
       ['Ciclo exemplo', 'TODAS', 'GON-01', '', 'BOT'], ['C9', '01', 'GONDOLA 1', '', 'EUD']],
     paineis: [colunasPaineis_().map(function (c) { return c.titulo; }),
       ['Ciclo exemplo', 'TODAS', 'CALLOUT', 'velho', 'BOT', 'PAR-02'], ['C9', 'TODAS', 'NOTA', 'minha nota', '', '']],
-  }, { '01': 11, '02': 10, '03': 6, '04': 7, _exemplo: 1 })`);
+  }, { '01': 11, '02': 10, '03': 7, '04': 7, _exemplo: 1 })`);
   assert.deepEqual(r.plantas, ['exemplo']);
   assert.ok(!r.abas.movimentos.some((l) => l[2] === 'GON-01'), 'linha antiga do exemplo sai');
   assert.ok(r.abas.movimentos.some((l) => l[0] === 'C9'), 'outro ciclo fica');

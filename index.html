@@ -1607,7 +1607,7 @@ function removerAbaPadraoVazia_(ss) {
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 6, '04': 7 };
+const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 7 };
 
 /**
  * Versão do ciclo de exemplo inteiro (Movimentos + Painéis, todas as plantas e TODAS).
@@ -1684,11 +1684,10 @@ const LAYOUT_PADRAO = {
       ['PDV MOVEL 1', 'PDV móvel 1', 'CUBO', 6.5, 12, 1.3, 1.3, 1.44],
       ['BALCAO RECEPCAO 1', 'Balcão recepção 1', 'VITRINE_L', 11.5, 12.5, 2.4, 2.4, 1.28, 0, 0, 0, '', 90],
       ['MOVEL DE ATENDIMENTO 3', 'Móvel de atendimento 3', 'CAIXA', 0, 13, 1.2, 1.8, 1.7],
-      ['PAREDE OUI 1', 'Parede O.U.i 1', 'PAINEL', 9.5, 0, 3.6, 0.8, 4.5],
+      ['PAREDE OUI 1', 'Parede O.U.i 1', 'PAINEL', 11, 0.5, 3, 0.8, 4.5],
       ['MOVEL DE FILA 6', 'Móvel de fila 6', 'FILA', 3.5, 13, 1.5, 0.4, 1.46],
       ['TOTEM OUI 1', 'Totem O.U.i 1', 'EXPOSITOR_OUI', 7, 10.4, 0.8, 0.8, 1.94],
-      ['MOVEL DE PAREDE 1', 'Móvel de parede 1', 'GONDOLA_PAREDE', 0, -0.5, 4, 1.1, 3.2],
-      ['MOVEL DE PAREDE 2', 'Móvel de parede 2', 'GONDOLA_PAREDE', 4, -0.5, 4, 1.1, 3.2],
+      ['MOVEL DE PAREDE 1', 'Móvel de parede 1', 'GONDOLA_PAREDE', 0.5, 0, 2.5, 1.1, 3.2],
       ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 6, 2.5, 1.6, 4, 1.94],
       ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 9, 2.5, 1.6, 4, 1.94],
       ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 12.5, 4.5, 1.02, 1.02, 1.94],
@@ -1703,8 +1702,11 @@ const LAYOUT_PADRAO = {
       ['MOVEL DE FILA 2', 'Móvel de fila 2', 'FILA', 3.5, 9, 1.5, 0.4, 1.46],
       ['MESA DESTAQUE 3 FRENTES 1', 'Mesa destaque 3 frentes 1', 'MESA_3', 9, 9, 3.9, 1.4, 2.6],
       ['TOTEM 1', 'Totem 1', 'TOTEM', 7.5, 14, 0.35, 1.5, 3.4],
-      ['MOVEL MAKE 1', 'Móvel make 1', 'MAKE', -0.5, 1, 1.4, 6, 3.2],
+      ['MOVEL MAKE 1', 'Móvel make 1', 'MAKE', -0.5, 1.5, 1.4, 6, 3.2],
       ['MOVEL DE ATENDIMENTO 1', 'Móvel de atendimento 1', 'CAIXA', 0, 9, 1.2, 1.8, 1.7],
+      ['MOVEL DE PAREDE 2', 'Móvel de parede 2', 'GONDOLA_PAREDE', 3, 0, 2.5, 1.1, 3.2],
+      ['MOVEL DE PAREDE 3', 'Móvel de parede 3', 'GONDOLA_PAREDE', 5.5, 0, 2.5, 1.1, 3.2],
+      ['MOVEL DE PAREDE 4', 'Móvel de parede 4', 'GONDOLA_PAREDE', 8, 0, 2.5, 1.1, 3.2],
     ],
   },
   // PLANTA 04 (ER GG): layout montado no modo "Construir loja".
