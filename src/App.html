@@ -326,9 +326,9 @@ const App = (() => {
   const ZOOM_MAX = 6;
 
   /**
-   * Aproxima a planta mudando o viewBox do slide. As etiquetas e caixas de destaque encolhem
-   * na mesma proporção (em volta do ponto da linha-guia), então continuam pequenas na tela
-   * e deixam ver os móveis. No modo construção o zoom fica desligado.
+   * Aproxima a planta mudando o viewBox do slide. As etiquetas crescem junto com a planta (para
+   * ler melhor); as caixas de destaque encolhem na mesma proporção (em volta do ponto da
+   * linha-guia) e continuam do mesmo tamanho na tela. No modo construção o zoom fica desligado.
    */
   function aplicarZoom() {
     const z = estado.zoom;
@@ -477,8 +477,7 @@ const App = (() => {
           const p = pontoSvg(e);
           dx = p.x - inicio.x;
           dy = p.y - inicio.y;
-          // A etiqueta está dentro do envoltório encolhido pelo zoom: compensa para ela seguir o dedo.
-          alvo.setAttribute('transform', 'translate(' + dx * estado.zoom.k + ',' + dy * estado.zoom.k + ')');
+          alvo.setAttribute('transform', 'translate(' + dx + ',' + dy + ')');
         };
         const soltar = () => {
           alvo.removeEventListener('pointermove', mover);

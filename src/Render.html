@@ -785,8 +785,9 @@ const Render = (() => {
   }
 
   /**
-   * Envoltório das etiquetas para o zoom da tela: com zoom, a aplicação encolhe o envoltório
-   * em volta de (px, py) para a etiqueta continuar do mesmo tamanho na tela, sem soltar da linha-guia.
+   * Envoltório das caixas de destaque para o zoom da tela: com zoom, a aplicação encolhe o envoltório
+   * em volta de (px, py) para a caixa continuar do mesmo tamanho na tela, sem soltar da linha-guia.
+   * (As etiquetas dos móveis crescem com o zoom, junto com a planta.)
    */
   function pivoZoom(pai, px, py) {
     return el('g', { class: 'etq-zoom', 'data-px': px, 'data-py': py }, pai);
@@ -1229,8 +1230,7 @@ const Render = (() => {
     posicionar(grupos, obstaculos);
     grupos.forEach((gr) => {
       desenharGuia(camadaGuias, gr, gr.ancora, false);
-      const pivo = pontoDaGuia(gr, gr.ancora);
-      gr.elemento = desenharGrupo(pivoZoom(camadaEtiquetas, pivo[0], pivo[1]), gr, {
+      gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
         class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : ''),
       });
       dica(gr.elemento, gr.id + (gr.movel.descricao ? ' — ' + gr.movel.descricao : ''));

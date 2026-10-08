@@ -302,27 +302,46 @@
   .dialogo input[type="text"], .dialogo select { width: 100%; }
   .opcao { display: flex; align-items: center; gap: 8px; color: var(--texto); font-size: 13px; padding: 3px 0; cursor: pointer; }
   .rodape-dialogo { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-  /* estratégia do móvel (clique no móvel) */
-  .dialogo-movel { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
-  .mv-corpo { display: flex; gap: 18px; align-items: flex-start; }
-  .mv-desenho { flex: 0 0 220px; width: 220px; height: 200px; background: #f3efea; border-radius: 8px; }
-  .mv-estrategia { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-  .mv-bloco { border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; }
-  .mv-bloco h3 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); }
-  .mv-linha { display: flex; gap: 10px; align-items: baseline; font-size: 13px; padding: 2px 0; }
-  .mv-rotulo { flex: 0 0 82px; color: var(--texto-2); font-size: 12px; }
-  .mv-marca { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
-  .mv-marca i { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, .2); align-self: center; }
-  .mv-etiquetas ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
-  .mv-etiquetas li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-  .mv-pos { font-size: 11px; color: var(--texto-2); min-width: 64px; }
-  .mv-etiqueta { color: #fff; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 2px; white-space: pre-line; }
-  .mv-marca-etq { font-size: 11px; color: var(--texto-2); }
+  /* estratégia do móvel (clique no móvel): ocupa a tela inteira */
+  .tela-movel {
+    border: 0; padding: 0; margin: 0;
+    width: 100vw; height: 100vh; max-width: none; max-height: none;
+    background: var(--superficie); color: var(--texto);
+  }
+  .tela-movel::backdrop { background: var(--superficie); }
+  .tela-movel form { height: 100%; display: flex; flex-direction: column; }
+  .mv-topo {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    padding: 18px clamp(16px, 4vw, 48px); border-bottom: 1px solid var(--borda);
+  }
+  .mv-topo h2 { margin: 0; font-size: clamp(22px, 2.4vw, 32px); }
+  .mv-topo p { margin: 2px 0 0; color: var(--texto-2); font-size: 15px; }
+  .mv-corpo { flex: 1 1 auto; min-height: 0; display: flex; }
+  .mv-desenho { flex: 0 0 42%; height: 100%; background: #f3efea; }
+  .mv-estrategia {
+    flex: 1 1 auto; min-width: 0; overflow: auto;
+    padding: 8px clamp(16px, 4vw, 56px) 40px;
+  }
+  .mv-bloco { padding: 22px 0; border-bottom: 1px solid var(--borda); }
+  .mv-bloco:last-child { border-bottom: 0; }
+  .mv-bloco h3 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; color: var(--texto-2); }
+  .mv-linha { display: flex; gap: 16px; align-items: baseline; font-size: 18px; padding: 5px 0; }
+  .mv-rotulo { flex: 0 0 120px; color: var(--texto-2); font-size: 14px; }
+  .mv-marca { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; }
+  .mv-marca i { width: 20px; height: 20px; border-radius: 4px; border: 1px solid rgba(0, 0, 0, .2); align-self: center; }
+  .mv-etiquetas ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .mv-etiquetas li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+  .mv-pos { font-size: 14px; color: var(--texto-2); min-width: 120px; }
+  .mv-etiqueta { color: #fff; font-weight: 700; font-size: 20px; padding: 6px 14px; border-radius: 3px; white-space: pre-line; }
+  .mv-marca-etq { font-size: 14px; color: var(--texto-2); }
   .mv-obs { white-space: pre-line; }
-  .mv-vazio { color: var(--texto-2); font-style: italic; margin: 0; font-size: 13px; }
-  @media (max-width: 600px) {
-    .mv-corpo { flex-direction: column; align-items: stretch; }
-    .mv-desenho { width: 100%; flex-basis: auto; }
+  .mv-vazio { color: var(--texto-2); font-style: italic; margin: 0; font-size: 16px; }
+  @media (max-width: 760px) {
+    .mv-corpo { flex-direction: column; overflow: auto; }
+    .mv-desenho { flex: 0 0 auto; height: 38vh; width: 100%; }
+    .mv-estrategia { overflow: visible; }
+    .mv-linha { flex-wrap: wrap; gap: 4px 12px; }
+    .mv-rotulo { flex-basis: 100%; }
   }
 
   .lista-avisos { max-height: 240px; overflow: auto; font-size: 12px; color: #7a4b00; padding-left: 18px; }
@@ -2385,16 +2404,18 @@ function valoresPaineisExemplo_() {
       </form>
     </dialog>
 
-    <dialog id="dlgMovel" class="dialogo dialogo-movel">
+    <dialog id="dlgMovel" class="tela-movel">
       <form method="dialog">
-        <h2 id="mvTitulo"></h2>
-        <p class="sub" id="mvSub"></p>
+        <header class="mv-topo">
+          <div>
+            <h2 id="mvTitulo"></h2>
+            <p id="mvSub"></p>
+          </div>
+          <button class="btn" value="ok" type="submit" title="Fechar (Esc)">Fechar ✕</button>
+        </header>
         <div class="mv-corpo">
           <svg id="mvDesenho" class="mv-desenho" role="img" aria-label="Desenho do móvel"></svg>
           <div id="mvEstrategia" class="mv-estrategia"></div>
-        </div>
-        <div class="rodape-dialogo">
-          <button class="btn primario" value="ok" type="submit">Fechar</button>
         </div>
       </form>
     </dialog>
@@ -3205,8 +3226,9 @@ const Render = (() => {
   }
 
   /**
-   * Envoltório das etiquetas para o zoom da tela: com zoom, a aplicação encolhe o envoltório
-   * em volta de (px, py) para a etiqueta continuar do mesmo tamanho na tela, sem soltar da linha-guia.
+   * Envoltório das caixas de destaque para o zoom da tela: com zoom, a aplicação encolhe o envoltório
+   * em volta de (px, py) para a caixa continuar do mesmo tamanho na tela, sem soltar da linha-guia.
+   * (As etiquetas dos móveis crescem com o zoom, junto com a planta.)
    */
   function pivoZoom(pai, px, py) {
     return el('g', { class: 'etq-zoom', 'data-px': px, 'data-py': py }, pai);
@@ -3649,8 +3671,7 @@ const Render = (() => {
     posicionar(grupos, obstaculos);
     grupos.forEach((gr) => {
       desenharGuia(camadaGuias, gr, gr.ancora, false);
-      const pivo = pontoDaGuia(gr, gr.ancora);
-      gr.elemento = desenharGrupo(pivoZoom(camadaEtiquetas, pivo[0], pivo[1]), gr, {
+      gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
         class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : ''),
       });
       dica(gr.elemento, gr.id + (gr.movel.descricao ? ' — ' + gr.movel.descricao : ''));
@@ -5255,9 +5276,9 @@ const App = (() => {
   const ZOOM_MAX = 6;
 
   /**
-   * Aproxima a planta mudando o viewBox do slide. As etiquetas e caixas de destaque encolhem
-   * na mesma proporção (em volta do ponto da linha-guia), então continuam pequenas na tela
-   * e deixam ver os móveis. No modo construção o zoom fica desligado.
+   * Aproxima a planta mudando o viewBox do slide. As etiquetas crescem junto com a planta (para
+   * ler melhor); as caixas de destaque encolhem na mesma proporção (em volta do ponto da
+   * linha-guia) e continuam do mesmo tamanho na tela. No modo construção o zoom fica desligado.
    */
   function aplicarZoom() {
     const z = estado.zoom;
@@ -5406,8 +5427,7 @@ const App = (() => {
           const p = pontoSvg(e);
           dx = p.x - inicio.x;
           dy = p.y - inicio.y;
-          // A etiqueta está dentro do envoltório encolhido pelo zoom: compensa para ela seguir o dedo.
-          alvo.setAttribute('transform', 'translate(' + dx * estado.zoom.k + ',' + dy * estado.zoom.k + ')');
+          alvo.setAttribute('transform', 'translate(' + dx + ',' + dy + ')');
         };
         const soltar = () => {
           alvo.removeEventListener('pointermove', mover);

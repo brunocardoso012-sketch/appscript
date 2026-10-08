@@ -271,16 +271,18 @@
       </form>
     </dialog>
 
-    <dialog id="dlgMovel" class="dialogo dialogo-movel">
+    <dialog id="dlgMovel" class="tela-movel">
       <form method="dialog">
-        <h2 id="mvTitulo"></h2>
-        <p class="sub" id="mvSub"></p>
+        <header class="mv-topo">
+          <div>
+            <h2 id="mvTitulo"></h2>
+            <p id="mvSub"></p>
+          </div>
+          <button class="btn" value="ok" type="submit" title="Fechar (Esc)">Fechar ✕</button>
+        </header>
         <div class="mv-corpo">
           <svg id="mvDesenho" class="mv-desenho" role="img" aria-label="Desenho do móvel"></svg>
           <div id="mvEstrategia" class="mv-estrategia"></div>
-        </div>
-        <div class="rodape-dialogo">
-          <button class="btn primario" value="ok" type="submit">Fechar</button>
         </div>
       </form>
     </dialog>
