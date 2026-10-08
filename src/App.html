@@ -13,6 +13,7 @@ const App = (() => {
     edicao: false,
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
     grupos: [],
+    zoom: { k: 1, x: 0, y: 0 }, // zoom da tela: fator e canto de cima à esquerda da área visível (unidades do slide)
   };
   const $ = (id) => document.getElementById(id);
   const svg = $('slide');
@@ -273,6 +274,7 @@ const App = (() => {
     if (!Editor.podeSair()) return;
     estado.ajustes = {};
     estado.planta = id;
+    estado.zoom = { k: 1, x: 0, y: 0 };
     memoria.gravar('planta', id);
     Editor.sincronizar(plantaAtual());
     montarAbas();
@@ -316,6 +318,138 @@ const App = (() => {
     Editor.aposDesenhar(r);
     estado.grupos = r.grupos;
     if (estado.edicao) ativarArraste();
+    aplicarZoom();
+  }
+
+  /* --------------------------------- zoom --------------------------------- */
+
+  const ZOOM_MAX = 6;
+
+  /**
+   * Aproxima a planta mudando o viewBox do slide. As etiquetas e caixas de destaque encolhem
+   * na mesma proporção (em volta do ponto da linha-guia), então continuam pequenas na tela
+   * e deixam ver os móveis. No modo construção o zoom fica desligado.
+   */
+  function aplicarZoom() {
+    const z = estado.zoom;
+    const ativo = !Editor.contexto();
+    if (!ativo) Object.assign(z, { k: 1, x: 0, y: 0 });
+    const W = Render.TELA.w;
+    const H = Render.TELA.h;
+    const w = W / z.k;
+    const h = H / z.k;
+    z.x = Math.max(0, Math.min(z.x, W - w));
+    z.y = Math.max(0, Math.min(z.y, H - h));
+    svg.setAttribute('viewBox', [z.x, z.y, w, h].join(' '));
+    svg.style.setProperty('--zoom', z.k);
+    svg.classList.toggle('com-zoom', z.k > 1);
+    const s = 1 / z.k;
+    svg.querySelectorAll('.etq-zoom').forEach((g) => {
+      if (z.k === 1) { g.removeAttribute('transform'); return; }
+      const px = +g.getAttribute('data-px');
+      const py = +g.getAttribute('data-py');
+      g.setAttribute('transform', 'translate(' + px + ',' + py + ') scale(' + s + ') translate(' + -px + ',' + -py + ')');
+    });
+    if ($('zoomControles')) {
+      $('zoomControles').hidden = !ativo || !estado.dados;
+      $('zoomNivel').textContent = Math.round(z.k * 100) + '%';
+      $('zoomMenos').disabled = z.k <= 1;
+      $('zoomMais').disabled = z.k >= ZOOM_MAX;
+    }
+  }
+
+  /** Zoom para o fator k, mantendo parado o ponto (cx, cy) do slide (por padrão, o centro da área visível). */
+  function zoomPara(k, cx, cy) {
+    const z = estado.zoom;
+    const novo = Math.max(1, Math.min(ZOOM_MAX, k));
+    if (cx === undefined) {
+      cx = z.x + Render.TELA.w / z.k / 2;
+      cy = z.y + Render.TELA.h / z.k / 2;
+    }
+    z.x = cx - (cx - z.x) * (z.k / novo);
+    z.y = cy - (cy - z.y) * (z.k / novo);
+    z.k = novo;
+    aplicarZoom();
+  }
+
+  /** Roda do mouse, arrastar para mover a planta aproximada e pinça com dois dedos. */
+  function ligarZoom() {
+    svg.addEventListener('wheel', (ev) => {
+      if (!estado.dados || Editor.contexto()) return;
+      ev.preventDefault();
+      const p = pontoSvg(ev);
+      zoomPara(estado.zoom.k * Math.exp(-ev.deltaY * (ev.deltaMode ? 0.05 : 0.0015)), p.x, p.y);
+    }, { passive: false });
+
+    const toques = new Map(); // pointerId → {x, y} na tela
+    let gesto = null;
+    svg.addEventListener('pointerdown', (ev) => {
+      if (!estado.dados || Editor.contexto() || ev.button > 0) return;
+      if (estado.edicao && ev.target.closest('.arrastavel')) return; // arrastando uma etiqueta
+      toques.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      gesto = { movel: false, zoom: Object.assign({}, estado.zoom), toques: new Map(toques) };
+    });
+    svg.addEventListener('pointermove', (ev) => {
+      if (!gesto || !toques.has(ev.pointerId)) return;
+      toques.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      // Captura só quando vira arraste: capturar no pointerdown tiraria o alvo do clique no móvel.
+      const capturar = () => toques.forEach((_, id) => { try { svg.setPointerCapture(id); } catch (e) { /* ponteiro já solto */ } });
+      const r = svg.getBoundingClientRect();
+      const porPx = Render.TELA.w / gesto.zoom.k / r.width; // unidades do slide por pixel, no início do gesto
+      const pts = Array.from(toques.values());
+      const ini = Array.from(gesto.toques.values());
+      if (pts.length >= 2 && ini.length >= 2) {
+        const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        const meio = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+        const m0 = meio(ini[0], ini[1]);
+        const m1 = meio(pts[0], pts[1]);
+        const k = Math.max(1, Math.min(ZOOM_MAX, gesto.zoom.k * dist(pts[0], pts[1]) / dist(ini[0], ini[1])));
+        // O ponto do slide que estava sob o meio dos dedos continua sob o meio dos dedos.
+        const cx = gesto.zoom.x + (m0.x - r.left) * porPx;
+        const cy = gesto.zoom.y + (m0.y - r.top) * porPx;
+        const porPxNovo = Render.TELA.w / k / r.width;
+        Object.assign(estado.zoom, { k, x: cx - (m1.x - r.left) * porPxNovo, y: cy - (m1.y - r.top) * porPxNovo });
+        gesto.movel = true;
+        capturar();
+        aplicarZoom();
+        return;
+      }
+      const dx = ev.clientX - ini[0].x;
+      const dy = ev.clientY - ini[0].y;
+      if (!gesto.movel && Math.hypot(dx, dy) < 5) return;
+      gesto.movel = true;
+      if (gesto.zoom.k === 1) return;
+      capturar();
+      svg.classList.add('arrastando');
+      Object.assign(estado.zoom, { x: gesto.zoom.x - dx * porPx, y: gesto.zoom.y - dy * porPx });
+      aplicarZoom();
+    });
+    const soltar = (ev) => {
+      if (!toques.has(ev.pointerId)) return;
+      toques.delete(ev.pointerId);
+      svg.classList.remove('arrastando');
+      if (!gesto) return;
+      if (gesto.movel) gesto.ignorarClique = true;
+      // Ao tirar um dedo da pinça, o dedo que ficou recomeça o arraste dali.
+      if (toques.size) {
+        gesto = { movel: true, ignorarClique: true, zoom: Object.assign({}, estado.zoom), toques: new Map(toques) };
+      } else {
+        const fim = gesto;
+        setTimeout(() => { if (gesto === fim) gesto = null; }, 0);
+      }
+    };
+    svg.addEventListener('pointerup', soltar);
+    svg.addEventListener('pointercancel', soltar);
+
+    // Clique (sem arrastar) num móvel ou na etiqueta dele: mostra a estratégia do móvel.
+    svg.addEventListener('click', (ev) => {
+      const arrastou = gesto && gesto.ignorarClique;
+      gesto = null;
+      if (arrastou || !estado.dados || Editor.contexto()) return;
+      if (estado.edicao && ev.target.closest('.arrastavel')) return;
+      const alvo = ev.target.closest('[data-movel]');
+      if (alvo) abrirMovel(alvo.getAttribute('data-movel').split('/')[0]);
+    });
   }
 
   /* --------------------------- ajuste de etiquetas ------------------------- */
@@ -343,7 +477,8 @@ const App = (() => {
           const p = pontoSvg(e);
           dx = p.x - inicio.x;
           dy = p.y - inicio.y;
-          alvo.setAttribute('transform', 'translate(' + dx + ',' + dy + ')');
+          // A etiqueta está dentro do envoltório encolhido pelo zoom: compensa para ela seguir o dedo.
+          alvo.setAttribute('transform', 'translate(' + dx * estado.zoom.k + ',' + dy * estado.zoom.k + ')');
         };
         const soltar = () => {
           alvo.removeEventListener('pointermove', mover);
@@ -407,6 +542,158 @@ const App = (() => {
       erro(e);
     } finally {
       carregando(false);
+    }
+  }
+
+  /* ------------------------- estratégia do móvel -------------------------- */
+
+  /** O que cada "Etiqueta N" da linha do móvel inteiro quer dizer, nos tipos em que ela vai para um bloco. */
+  const POSICOES_ETIQUETA = {
+    GONDOLA: ['Lado A', 'Meio A', 'Meio B', 'Lado B'],
+    TOTEM: ['Painel 1 (de cima)', 'Painel 2 (do meio)', 'Painel 3 (de baixo)'],
+    VITRINE_L: ['Bloco 1', 'Canto', 'Bloco 3'],
+  };
+
+  function novo(tag, classe, conteudo, pai) {
+    const n = document.createElement(tag);
+    if (classe) n.className = classe;
+    if (conteudo !== undefined && conteudo !== null) n.textContent = conteudo;
+    if (pai) pai.appendChild(n);
+    return n;
+  }
+
+  /** Cor (para o quadradinho / etiqueta) de um valor de marca: "BOT", "BOT+QDB" ou "#FF8800". */
+  function corDaMarca(valor, tipo) {
+    const cores = String(valor || '').split('+').map((p) => p.trim()).map((p) => {
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(p)) return p;
+      const m = estado.dados.marcas[p];
+      return m ? m[tipo] : null;
+    }).filter(Boolean);
+    if (!cores.length) return estado.dados.marcas.NEUTRO ? estado.dados.marcas.NEUTRO[tipo] : '#4A4A4A';
+    return cores.length === 1 ? cores[0] : 'linear-gradient(90deg, ' + cores.join(', ') + ')';
+  }
+
+  const nomeDaMarca = (valor) => String(valor).split('+').map((p) => {
+    const m = estado.dados.marcas[p.trim()];
+    return m ? m.nome : p.trim();
+  }).join(' + ');
+
+  /** Bloco da tela com o que uma linha da planilha define (marca, símbolo, etiquetas, observação). */
+  function blocoEstrategia(pai, titulo, i, opcoes) {
+    const op = opcoes || {};
+    const sec = novo('section', 'mv-bloco', null, pai);
+    novo('h3', null, titulo, sec);
+    if (!i) {
+      novo('p', 'mv-vazio', op.vazio || 'Sem linha neste ciclo.', sec);
+      return;
+    }
+    const marca = novo('div', 'mv-linha', null, sec);
+    novo('span', 'mv-rotulo', 'Marca', marca);
+    if (i.marca) {
+      const sw = novo('span', 'mv-marca', null, marca);
+      novo('i', null, null, sw).style.background = corDaMarca(i.marca, 'movel');
+      novo('span', null, nomeDaMarca(i.marca), sw);
+    } else {
+      novo('span', 'mv-vazio', '— (branco)', marca);
+    }
+    if (i.simbolo) {
+      const sim = novo('div', 'mv-linha', null, sec);
+      novo('span', 'mv-rotulo', 'Símbolo', sim);
+      const d = estado.dados.simbolos[i.simbolo];
+      novo('span', null, ({ MOVIMENTO: '▶ ', FIXO: '◆ ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
+    }
+    const etiquetas = i.etiquetas.slice(0, op.limite || i.etiquetas.length);
+    const lista = novo('div', 'mv-linha mv-etiquetas', null, sec);
+    novo('span', 'mv-rotulo', 'Etiquetas', lista);
+    if (!etiquetas.length) novo('span', 'mv-vazio', 'nenhuma', lista);
+    const ul = etiquetas.length ? novo('ul', null, null, lista) : null;
+    etiquetas.forEach((e, k) => {
+      const li = novo('li', null, null, ul);
+      const n = e.posicao || k + 1;
+      const onde = op.posicoes && op.posicoes[n - 1];
+      novo('span', 'mv-pos', onde || 'Etiqueta ' + n, li);
+      const marcaEtq = e.marca || (i.marca && i.marca !== 'NEUTRO' ? i.marca : '');
+      const chip = novo('span', 'mv-etiqueta', e.texto, li);
+      chip.style.background = corDaMarca(marcaEtq, 'etiqueta');
+      if (e.marca && e.marca !== i.marca) novo('span', 'mv-marca-etq', nomeDaMarca(e.marca), li);
+    });
+    if (i.observacao) {
+      const obs = novo('div', 'mv-linha', null, sec);
+      novo('span', 'mv-rotulo', 'Observação', obs);
+      novo('span', 'mv-obs', i.observacao, obs);
+    }
+  }
+
+  /** Desenho só do móvel (com as cores reais do ciclo, sem o filtro de marca), recortado nele. */
+  function desenharMovelSozinho(alvo, planta, id) {
+    Render.desenhar(alvo, Object.assign(contextoDesenho(), {
+      filtro: '', somentePlanta: true, edicao: false, selecionado: '', grade: false, referencia: null, ajustes: {},
+    }));
+    // Os degradês têm ids (grad0, grad1…) que se repetem no slide principal: renomeia os deste desenho.
+    alvo.querySelectorAll('linearGradient').forEach((g) => {
+      const antigo = g.id;
+      g.id = 'mv-' + antigo;
+      alvo.querySelectorAll('[fill="url(#' + antigo + ')"]').forEach((n) => n.setAttribute('fill', 'url(#mv-' + antigo + ')'));
+    });
+    const camada = alvo.querySelector('.camada-planta');
+    Array.from(alvo.children).forEach((n) => { if (n !== camada && n.tagName.toLowerCase() !== 'defs') n.remove(); });
+    Array.from(camada.children).forEach((n) => { if (n.getAttribute('data-movel') !== id) n.remove(); });
+    if (!camada.children.length) return false;
+    const bb = camada.getBBox();
+    const m = Math.max(bb.width, bb.height) * 0.12 + 4;
+    alvo.setAttribute('viewBox', [bb.x - m, bb.y - m, bb.width + m * 2, bb.height + m * 2].join(' '));
+    return true;
+  }
+
+  /** Clique no móvel: abre a tela com a estratégia do ciclo para ele (móvel inteiro e cada espaço). */
+  function abrirMovel(id) {
+    const planta = plantaAtual();
+    const m = planta && planta.moveis.find((x) => x.id === id);
+    if (!m) return;
+    const dlg = $('dlgMovel');
+    const ciclo = estado.ciclo;
+    const linha = (x) => (ciclo ? movimentoDe(ciclo, planta.id, x) : null);
+    const temLinha = (x) => { const i = linha(x); return !!(i && (i.marca || i.etiquetas.length || i.simbolo)); };
+    const tipo = (estado.dados.tipos && estado.dados.tipos[m.tipo]) || m.tipo;
+
+    $('mvTitulo').textContent = m.id;
+    const simples = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    const descricao = simples(m.descricao) === simples(m.id) ? '' : m.descricao;
+    $('mvSub').textContent = [descricao, String(tipo).split(':')[0], planta.nome, ciclo || 'sem ciclo selecionado'].filter(Boolean).join(' · ');
+    const corpo = $('mvEstrategia');
+    corpo.innerHTML = '';
+    if (!ciclo) {
+      novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver a estratégia deste móvel.', corpo);
+    } else {
+      const config = estado.dados.config || {};
+      blocoEstrategia(corpo, 'Móvel inteiro', linha(m.id), {
+        vazio: 'Sem linha neste ciclo: o móvel fica branco (neutro).',
+        limite: (config.etiquetasPorTipo || {})[m.tipo],
+        posicoes: POSICOES_ETIQUETA[m.tipo],
+      });
+      // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
+      let mov = m;
+      if (m.tipo === 'GONDOLA') {
+        const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
+          || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
+        mov = Object.assign({}, m, { dividido: div });
+      }
+      Render.espacos(mov).forEach((e) => {
+        const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
+        const propria = [m.id + '/' + e.id, meio].filter(Boolean).find(temLinha);
+        blocoEstrategia(corpo, e.nome, propria ? linha(propria) : null, {
+          vazio: 'Sem linha própria: usa a do móvel inteiro.',
+          limite: (config.etiquetasPorBloco || {})[m.tipo] || 1,
+        });
+      });
+    }
+    dlg.showModal();
+    // O desenho precisa da tela visível para medir o móvel (getBBox).
+    const desenho = $('mvDesenho');
+    try {
+      desenho.hidden = !desenharMovelSozinho(desenho, planta, m.id);
+    } catch (e) {
+      desenho.hidden = true;
     }
   }
 
@@ -510,7 +797,11 @@ const App = (() => {
    */
   function svgParaPng(modo) {
     if (modo !== 'planta') {
-      return { clone: svg.cloneNode(true), caixa: { x: 0, y: 0, w: Render.TELA.w, h: Render.TELA.h } };
+      // O PNG sai sempre com o slide inteiro, sem o zoom da tela.
+      const clone = svg.cloneNode(true);
+      clone.setAttribute('viewBox', '0 0 ' + Render.TELA.w + ' ' + Render.TELA.h);
+      clone.querySelectorAll('.etq-zoom').forEach((g) => g.removeAttribute('transform'));
+      return { clone, caixa: { x: 0, y: 0, w: Render.TELA.w, h: Render.TELA.h } };
     }
     const ns = 'http://www.w3.org/2000/svg';
     const temp = document.createElementNS(ns, 'svg');
@@ -590,6 +881,9 @@ const App = (() => {
     ao('btnPng', 'click', () => estado.dados && abrirDialogoPng());
     ao('dlgPng', 'close', baixarPng);
     ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
+    ao('zoomMais', 'click', () => zoomPara(estado.zoom.k * 1.5));
+    ao('zoomMenos', 'click', () => zoomPara(estado.zoom.k / 1.5));
+    ao('zoomNivel', 'click', () => zoomPara(1));
     ao('btnAutoOrganizar', 'click', autoOrganizar);
     ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
     ao('btnSalvarAjustes', 'click', salvarAjustes);
@@ -615,6 +909,9 @@ const App = (() => {
       if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
       if (Editor.ativo()) { Editor.tecla(e); return; }
       if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === '+' || e.key === '=') { zoomPara(estado.zoom.k * 1.5); return; }
+      if (e.key === '-' || e.key === '_') { zoomPara(estado.zoom.k / 1.5); return; }
+      if (e.key === '0') { zoomPara(1); return; }
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       const ids = estado.dados.plantas.map((p) => p.id);
       const i = ids.indexOf(estado.planta) + (e.key === 'ArrowRight' ? 1 : -1);
@@ -623,6 +920,7 @@ const App = (() => {
   }
 
   ligarEventos();
+  ligarZoom();
   Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
   carregar();
 

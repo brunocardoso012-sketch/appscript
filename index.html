@@ -115,6 +115,9 @@
     padding: 8px 16px 0;
   }
   .legenda { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .zoom { display: inline-flex; gap: 4px; align-items: center; margin-left: auto; }
+  .zoom .btn { min-width: 32px; justify-content: center; }
+  .zoom #zoomNivel { min-width: 56px; font-variant-numeric: tabular-nums; }
   .legenda .rotulo { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); margin-right: 4px; }
   .chip {
     display: inline-flex;
@@ -175,6 +178,13 @@
     box-shadow: var(--sombra);
     user-select: none;
   }
+  #slide:not(.construindo) { touch-action: none; }
+  #slide:not(.construindo) .movel,
+  #slide:not(.construindo) .grupo-etiquetas:not(.arrastavel) { cursor: pointer; }
+  #slide.com-zoom.arrastando, #slide.com-zoom.arrastando * { cursor: grabbing; }
+  /* Com zoom, as linhas-guia não engrossam (as etiquetas também mantêm o tamanho na tela). */
+  #slide .camada-guias line { stroke-width: calc(1.3px / var(--zoom, 1)); }
+  #slide .camada-guias circle { r: calc(4px / var(--zoom, 1)); stroke-width: calc(1.3px / var(--zoom, 1)); }
   #slide .movel:hover polygon { stroke-width: 2.2; }
   #slide .arrastavel { cursor: grab; }
   #slide .arrastavel:hover rect { stroke: #111; stroke-width: 1.5; }
@@ -292,6 +302,29 @@
   .dialogo input[type="text"], .dialogo select { width: 100%; }
   .opcao { display: flex; align-items: center; gap: 8px; color: var(--texto); font-size: 13px; padding: 3px 0; cursor: pointer; }
   .rodape-dialogo { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  /* estratégia do móvel (clique no móvel) */
+  .dialogo-movel { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+  .mv-corpo { display: flex; gap: 18px; align-items: flex-start; }
+  .mv-desenho { flex: 0 0 220px; width: 220px; height: 200px; background: #f3efea; border-radius: 8px; }
+  .mv-estrategia { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .mv-bloco { border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; }
+  .mv-bloco h3 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); }
+  .mv-linha { display: flex; gap: 10px; align-items: baseline; font-size: 13px; padding: 2px 0; }
+  .mv-rotulo { flex: 0 0 82px; color: var(--texto-2); font-size: 12px; }
+  .mv-marca { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+  .mv-marca i { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, .2); align-self: center; }
+  .mv-etiquetas ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+  .mv-etiquetas li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+  .mv-pos { font-size: 11px; color: var(--texto-2); min-width: 64px; }
+  .mv-etiqueta { color: #fff; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 2px; white-space: pre-line; }
+  .mv-marca-etq { font-size: 11px; color: var(--texto-2); }
+  .mv-obs { white-space: pre-line; }
+  .mv-vazio { color: var(--texto-2); font-style: italic; margin: 0; font-size: 13px; }
+  @media (max-width: 600px) {
+    .mv-corpo { flex-direction: column; align-items: stretch; }
+    .mv-desenho { width: 100%; flex-basis: auto; }
+  }
+
   .lista-avisos { max-height: 240px; overflow: auto; font-size: 12px; color: #7a4b00; padding-left: 18px; }
   .lista-avisos:empty { display: none; }
 
@@ -2150,6 +2183,11 @@ function valoresPaineisExemplo_() {
 
     <div class="faixa">
       <div class="legenda" id="legenda" aria-label="Marcas"></div>
+      <div class="zoom" id="zoomControles" hidden title="Zoom: role o mouse sobre a planta, use a pinça no celular ou as teclas + e −. Com zoom, arraste para mover. Clique num móvel para ver a estratégia dele.">
+        <button id="zoomMenos" class="btn pequeno" type="button" aria-label="Diminuir zoom">−</button>
+        <button id="zoomNivel" class="btn pequeno fantasma" type="button" title="Voltar a 100% (tecla 0)">100%</button>
+        <button id="zoomMais" class="btn pequeno" type="button" aria-label="Aumentar zoom">+</button>
+      </div>
       <div class="aviso-local" id="avisoLocal" hidden>
         <span>Modo local: os dados ficam salvos só neste navegador.</span>
         <button id="btnRestaurar" class="btn pequeno fantasma" type="button">Restaurar exemplo</button>
@@ -2343,6 +2381,20 @@ function valoresPaineisExemplo_() {
         <div class="rodape-dialogo">
           <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
           <button class="btn primario" value="baixar" type="submit">Baixar PNG</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="dlgMovel" class="dialogo dialogo-movel">
+      <form method="dialog">
+        <h2 id="mvTitulo"></h2>
+        <p class="sub" id="mvSub"></p>
+        <div class="mv-corpo">
+          <svg id="mvDesenho" class="mv-desenho" role="img" aria-label="Desenho do móvel"></svg>
+          <div id="mvEstrategia" class="mv-estrategia"></div>
+        </div>
+        <div class="rodape-dialogo">
+          <button class="btn primario" value="ok" type="submit">Fechar</button>
         </div>
       </form>
     </dialog>
@@ -3147,10 +3199,22 @@ const Render = (() => {
       .forEach((g) => { acomodar(g); ocupados.push(g); });
   }
 
+  /** Ponto da caixa mais perto da âncora: de onde sai a linha-guia. */
+  function pontoDaGuia(rect, ancora) {
+    return [Math.max(rect.x, Math.min(ancora[0], rect.x + rect.w)), Math.max(rect.y, Math.min(ancora[1], rect.y + rect.h))];
+  }
+
+  /**
+   * Envoltório das etiquetas para o zoom da tela: com zoom, a aplicação encolhe o envoltório
+   * em volta de (px, py) para a etiqueta continuar do mesmo tamanho na tela, sem soltar da linha-guia.
+   */
+  function pivoZoom(pai, px, py) {
+    return el('g', { class: 'etq-zoom', 'data-px': px, 'data-py': py }, pai);
+  }
+
   /** Linha-guia do grupo até o ponto do móvel (quando o grupo ficou longe). */
   function desenharGuia(pai, rect, ancora, forcar) {
-    const px = Math.max(rect.x, Math.min(ancora[0], rect.x + rect.w));
-    const py = Math.max(rect.y, Math.min(ancora[1], rect.y + rect.h));
+    const [px, py] = pontoDaGuia(rect, ancora);
     const dist = Math.hypot(px - ancora[0], py - ancora[1]);
     if (!forcar && dist < 14) return;
     linha(pai, [px, py], ancora, { stroke: '#3A3A3A', 'stroke-width': 1.3 });
@@ -3362,7 +3426,9 @@ const Render = (() => {
   }
 
   function desenharCallout(pai, c) {
-    const g = el('g', { class: 'callout' }, pai);
+    // Com zoom, a caixa encolhe em volta do ponto de onde sai a linha-guia (ou do centro de cima).
+    const px = c.alvo ? Math.max(c.x + 12, Math.min(c.alvo[0], c.x + c.w - 12)) : c.x + c.w / 2;
+    const g = el('g', { class: 'callout' }, pivoZoom(pai, px, c.y + (c.alvo ? c.h : 0)));
     el('rect', { x: c.x, y: c.y, width: c.w, height: c.h, fill: tinta(c.cores, 0), stroke: misturar(c.cores[0], '#000000', 0.25), 'stroke-width': 1 }, g);
     c.linhas.forEach((l, k) => texto(g, c.x + CALLOUT.pad, c.y + CALLOUT.pad + CALLOUT.lh * (k + 1) - 4, l, {
       'font-size': CALLOUT.fonte, 'font-weight': 700, fill: '#FFFFFF',
@@ -3583,7 +3649,8 @@ const Render = (() => {
     posicionar(grupos, obstaculos);
     grupos.forEach((gr) => {
       desenharGuia(camadaGuias, gr, gr.ancora, false);
-      gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
+      const pivo = pontoDaGuia(gr, gr.ancora);
+      gr.elemento = desenharGrupo(pivoZoom(camadaEtiquetas, pivo[0], pivo[1]), gr, {
         class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : ''),
       });
       dica(gr.elemento, gr.id + (gr.movel.descricao ? ' — ' + gr.movel.descricao : ''));
@@ -4875,6 +4942,7 @@ const App = (() => {
     edicao: false,
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
     grupos: [],
+    zoom: { k: 1, x: 0, y: 0 }, // zoom da tela: fator e canto de cima à esquerda da área visível (unidades do slide)
   };
   const $ = (id) => document.getElementById(id);
   const svg = $('slide');
@@ -5135,6 +5203,7 @@ const App = (() => {
     if (!Editor.podeSair()) return;
     estado.ajustes = {};
     estado.planta = id;
+    estado.zoom = { k: 1, x: 0, y: 0 };
     memoria.gravar('planta', id);
     Editor.sincronizar(plantaAtual());
     montarAbas();
@@ -5178,6 +5247,138 @@ const App = (() => {
     Editor.aposDesenhar(r);
     estado.grupos = r.grupos;
     if (estado.edicao) ativarArraste();
+    aplicarZoom();
+  }
+
+  /* --------------------------------- zoom --------------------------------- */
+
+  const ZOOM_MAX = 6;
+
+  /**
+   * Aproxima a planta mudando o viewBox do slide. As etiquetas e caixas de destaque encolhem
+   * na mesma proporção (em volta do ponto da linha-guia), então continuam pequenas na tela
+   * e deixam ver os móveis. No modo construção o zoom fica desligado.
+   */
+  function aplicarZoom() {
+    const z = estado.zoom;
+    const ativo = !Editor.contexto();
+    if (!ativo) Object.assign(z, { k: 1, x: 0, y: 0 });
+    const W = Render.TELA.w;
+    const H = Render.TELA.h;
+    const w = W / z.k;
+    const h = H / z.k;
+    z.x = Math.max(0, Math.min(z.x, W - w));
+    z.y = Math.max(0, Math.min(z.y, H - h));
+    svg.setAttribute('viewBox', [z.x, z.y, w, h].join(' '));
+    svg.style.setProperty('--zoom', z.k);
+    svg.classList.toggle('com-zoom', z.k > 1);
+    const s = 1 / z.k;
+    svg.querySelectorAll('.etq-zoom').forEach((g) => {
+      if (z.k === 1) { g.removeAttribute('transform'); return; }
+      const px = +g.getAttribute('data-px');
+      const py = +g.getAttribute('data-py');
+      g.setAttribute('transform', 'translate(' + px + ',' + py + ') scale(' + s + ') translate(' + -px + ',' + -py + ')');
+    });
+    if ($('zoomControles')) {
+      $('zoomControles').hidden = !ativo || !estado.dados;
+      $('zoomNivel').textContent = Math.round(z.k * 100) + '%';
+      $('zoomMenos').disabled = z.k <= 1;
+      $('zoomMais').disabled = z.k >= ZOOM_MAX;
+    }
+  }
+
+  /** Zoom para o fator k, mantendo parado o ponto (cx, cy) do slide (por padrão, o centro da área visível). */
+  function zoomPara(k, cx, cy) {
+    const z = estado.zoom;
+    const novo = Math.max(1, Math.min(ZOOM_MAX, k));
+    if (cx === undefined) {
+      cx = z.x + Render.TELA.w / z.k / 2;
+      cy = z.y + Render.TELA.h / z.k / 2;
+    }
+    z.x = cx - (cx - z.x) * (z.k / novo);
+    z.y = cy - (cy - z.y) * (z.k / novo);
+    z.k = novo;
+    aplicarZoom();
+  }
+
+  /** Roda do mouse, arrastar para mover a planta aproximada e pinça com dois dedos. */
+  function ligarZoom() {
+    svg.addEventListener('wheel', (ev) => {
+      if (!estado.dados || Editor.contexto()) return;
+      ev.preventDefault();
+      const p = pontoSvg(ev);
+      zoomPara(estado.zoom.k * Math.exp(-ev.deltaY * (ev.deltaMode ? 0.05 : 0.0015)), p.x, p.y);
+    }, { passive: false });
+
+    const toques = new Map(); // pointerId → {x, y} na tela
+    let gesto = null;
+    svg.addEventListener('pointerdown', (ev) => {
+      if (!estado.dados || Editor.contexto() || ev.button > 0) return;
+      if (estado.edicao && ev.target.closest('.arrastavel')) return; // arrastando uma etiqueta
+      toques.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      gesto = { movel: false, zoom: Object.assign({}, estado.zoom), toques: new Map(toques) };
+    });
+    svg.addEventListener('pointermove', (ev) => {
+      if (!gesto || !toques.has(ev.pointerId)) return;
+      toques.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      // Captura só quando vira arraste: capturar no pointerdown tiraria o alvo do clique no móvel.
+      const capturar = () => toques.forEach((_, id) => { try { svg.setPointerCapture(id); } catch (e) { /* ponteiro já solto */ } });
+      const r = svg.getBoundingClientRect();
+      const porPx = Render.TELA.w / gesto.zoom.k / r.width; // unidades do slide por pixel, no início do gesto
+      const pts = Array.from(toques.values());
+      const ini = Array.from(gesto.toques.values());
+      if (pts.length >= 2 && ini.length >= 2) {
+        const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        const meio = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+        const m0 = meio(ini[0], ini[1]);
+        const m1 = meio(pts[0], pts[1]);
+        const k = Math.max(1, Math.min(ZOOM_MAX, gesto.zoom.k * dist(pts[0], pts[1]) / dist(ini[0], ini[1])));
+        // O ponto do slide que estava sob o meio dos dedos continua sob o meio dos dedos.
+        const cx = gesto.zoom.x + (m0.x - r.left) * porPx;
+        const cy = gesto.zoom.y + (m0.y - r.top) * porPx;
+        const porPxNovo = Render.TELA.w / k / r.width;
+        Object.assign(estado.zoom, { k, x: cx - (m1.x - r.left) * porPxNovo, y: cy - (m1.y - r.top) * porPxNovo });
+        gesto.movel = true;
+        capturar();
+        aplicarZoom();
+        return;
+      }
+      const dx = ev.clientX - ini[0].x;
+      const dy = ev.clientY - ini[0].y;
+      if (!gesto.movel && Math.hypot(dx, dy) < 5) return;
+      gesto.movel = true;
+      if (gesto.zoom.k === 1) return;
+      capturar();
+      svg.classList.add('arrastando');
+      Object.assign(estado.zoom, { x: gesto.zoom.x - dx * porPx, y: gesto.zoom.y - dy * porPx });
+      aplicarZoom();
+    });
+    const soltar = (ev) => {
+      if (!toques.has(ev.pointerId)) return;
+      toques.delete(ev.pointerId);
+      svg.classList.remove('arrastando');
+      if (!gesto) return;
+      if (gesto.movel) gesto.ignorarClique = true;
+      // Ao tirar um dedo da pinça, o dedo que ficou recomeça o arraste dali.
+      if (toques.size) {
+        gesto = { movel: true, ignorarClique: true, zoom: Object.assign({}, estado.zoom), toques: new Map(toques) };
+      } else {
+        const fim = gesto;
+        setTimeout(() => { if (gesto === fim) gesto = null; }, 0);
+      }
+    };
+    svg.addEventListener('pointerup', soltar);
+    svg.addEventListener('pointercancel', soltar);
+
+    // Clique (sem arrastar) num móvel ou na etiqueta dele: mostra a estratégia do móvel.
+    svg.addEventListener('click', (ev) => {
+      const arrastou = gesto && gesto.ignorarClique;
+      gesto = null;
+      if (arrastou || !estado.dados || Editor.contexto()) return;
+      if (estado.edicao && ev.target.closest('.arrastavel')) return;
+      const alvo = ev.target.closest('[data-movel]');
+      if (alvo) abrirMovel(alvo.getAttribute('data-movel').split('/')[0]);
+    });
   }
 
   /* --------------------------- ajuste de etiquetas ------------------------- */
@@ -5205,7 +5406,8 @@ const App = (() => {
           const p = pontoSvg(e);
           dx = p.x - inicio.x;
           dy = p.y - inicio.y;
-          alvo.setAttribute('transform', 'translate(' + dx + ',' + dy + ')');
+          // A etiqueta está dentro do envoltório encolhido pelo zoom: compensa para ela seguir o dedo.
+          alvo.setAttribute('transform', 'translate(' + dx * estado.zoom.k + ',' + dy * estado.zoom.k + ')');
         };
         const soltar = () => {
           alvo.removeEventListener('pointermove', mover);
@@ -5269,6 +5471,158 @@ const App = (() => {
       erro(e);
     } finally {
       carregando(false);
+    }
+  }
+
+  /* ------------------------- estratégia do móvel -------------------------- */
+
+  /** O que cada "Etiqueta N" da linha do móvel inteiro quer dizer, nos tipos em que ela vai para um bloco. */
+  const POSICOES_ETIQUETA = {
+    GONDOLA: ['Lado A', 'Meio A', 'Meio B', 'Lado B'],
+    TOTEM: ['Painel 1 (de cima)', 'Painel 2 (do meio)', 'Painel 3 (de baixo)'],
+    VITRINE_L: ['Bloco 1', 'Canto', 'Bloco 3'],
+  };
+
+  function novo(tag, classe, conteudo, pai) {
+    const n = document.createElement(tag);
+    if (classe) n.className = classe;
+    if (conteudo !== undefined && conteudo !== null) n.textContent = conteudo;
+    if (pai) pai.appendChild(n);
+    return n;
+  }
+
+  /** Cor (para o quadradinho / etiqueta) de um valor de marca: "BOT", "BOT+QDB" ou "#FF8800". */
+  function corDaMarca(valor, tipo) {
+    const cores = String(valor || '').split('+').map((p) => p.trim()).map((p) => {
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(p)) return p;
+      const m = estado.dados.marcas[p];
+      return m ? m[tipo] : null;
+    }).filter(Boolean);
+    if (!cores.length) return estado.dados.marcas.NEUTRO ? estado.dados.marcas.NEUTRO[tipo] : '#4A4A4A';
+    return cores.length === 1 ? cores[0] : 'linear-gradient(90deg, ' + cores.join(', ') + ')';
+  }
+
+  const nomeDaMarca = (valor) => String(valor).split('+').map((p) => {
+    const m = estado.dados.marcas[p.trim()];
+    return m ? m.nome : p.trim();
+  }).join(' + ');
+
+  /** Bloco da tela com o que uma linha da planilha define (marca, símbolo, etiquetas, observação). */
+  function blocoEstrategia(pai, titulo, i, opcoes) {
+    const op = opcoes || {};
+    const sec = novo('section', 'mv-bloco', null, pai);
+    novo('h3', null, titulo, sec);
+    if (!i) {
+      novo('p', 'mv-vazio', op.vazio || 'Sem linha neste ciclo.', sec);
+      return;
+    }
+    const marca = novo('div', 'mv-linha', null, sec);
+    novo('span', 'mv-rotulo', 'Marca', marca);
+    if (i.marca) {
+      const sw = novo('span', 'mv-marca', null, marca);
+      novo('i', null, null, sw).style.background = corDaMarca(i.marca, 'movel');
+      novo('span', null, nomeDaMarca(i.marca), sw);
+    } else {
+      novo('span', 'mv-vazio', '— (branco)', marca);
+    }
+    if (i.simbolo) {
+      const sim = novo('div', 'mv-linha', null, sec);
+      novo('span', 'mv-rotulo', 'Símbolo', sim);
+      const d = estado.dados.simbolos[i.simbolo];
+      novo('span', null, ({ MOVIMENTO: '▶ ', FIXO: '◆ ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
+    }
+    const etiquetas = i.etiquetas.slice(0, op.limite || i.etiquetas.length);
+    const lista = novo('div', 'mv-linha mv-etiquetas', null, sec);
+    novo('span', 'mv-rotulo', 'Etiquetas', lista);
+    if (!etiquetas.length) novo('span', 'mv-vazio', 'nenhuma', lista);
+    const ul = etiquetas.length ? novo('ul', null, null, lista) : null;
+    etiquetas.forEach((e, k) => {
+      const li = novo('li', null, null, ul);
+      const n = e.posicao || k + 1;
+      const onde = op.posicoes && op.posicoes[n - 1];
+      novo('span', 'mv-pos', onde || 'Etiqueta ' + n, li);
+      const marcaEtq = e.marca || (i.marca && i.marca !== 'NEUTRO' ? i.marca : '');
+      const chip = novo('span', 'mv-etiqueta', e.texto, li);
+      chip.style.background = corDaMarca(marcaEtq, 'etiqueta');
+      if (e.marca && e.marca !== i.marca) novo('span', 'mv-marca-etq', nomeDaMarca(e.marca), li);
+    });
+    if (i.observacao) {
+      const obs = novo('div', 'mv-linha', null, sec);
+      novo('span', 'mv-rotulo', 'Observação', obs);
+      novo('span', 'mv-obs', i.observacao, obs);
+    }
+  }
+
+  /** Desenho só do móvel (com as cores reais do ciclo, sem o filtro de marca), recortado nele. */
+  function desenharMovelSozinho(alvo, planta, id) {
+    Render.desenhar(alvo, Object.assign(contextoDesenho(), {
+      filtro: '', somentePlanta: true, edicao: false, selecionado: '', grade: false, referencia: null, ajustes: {},
+    }));
+    // Os degradês têm ids (grad0, grad1…) que se repetem no slide principal: renomeia os deste desenho.
+    alvo.querySelectorAll('linearGradient').forEach((g) => {
+      const antigo = g.id;
+      g.id = 'mv-' + antigo;
+      alvo.querySelectorAll('[fill="url(#' + antigo + ')"]').forEach((n) => n.setAttribute('fill', 'url(#mv-' + antigo + ')'));
+    });
+    const camada = alvo.querySelector('.camada-planta');
+    Array.from(alvo.children).forEach((n) => { if (n !== camada && n.tagName.toLowerCase() !== 'defs') n.remove(); });
+    Array.from(camada.children).forEach((n) => { if (n.getAttribute('data-movel') !== id) n.remove(); });
+    if (!camada.children.length) return false;
+    const bb = camada.getBBox();
+    const m = Math.max(bb.width, bb.height) * 0.12 + 4;
+    alvo.setAttribute('viewBox', [bb.x - m, bb.y - m, bb.width + m * 2, bb.height + m * 2].join(' '));
+    return true;
+  }
+
+  /** Clique no móvel: abre a tela com a estratégia do ciclo para ele (móvel inteiro e cada espaço). */
+  function abrirMovel(id) {
+    const planta = plantaAtual();
+    const m = planta && planta.moveis.find((x) => x.id === id);
+    if (!m) return;
+    const dlg = $('dlgMovel');
+    const ciclo = estado.ciclo;
+    const linha = (x) => (ciclo ? movimentoDe(ciclo, planta.id, x) : null);
+    const temLinha = (x) => { const i = linha(x); return !!(i && (i.marca || i.etiquetas.length || i.simbolo)); };
+    const tipo = (estado.dados.tipos && estado.dados.tipos[m.tipo]) || m.tipo;
+
+    $('mvTitulo').textContent = m.id;
+    const simples = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    const descricao = simples(m.descricao) === simples(m.id) ? '' : m.descricao;
+    $('mvSub').textContent = [descricao, String(tipo).split(':')[0], planta.nome, ciclo || 'sem ciclo selecionado'].filter(Boolean).join(' · ');
+    const corpo = $('mvEstrategia');
+    corpo.innerHTML = '';
+    if (!ciclo) {
+      novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver a estratégia deste móvel.', corpo);
+    } else {
+      const config = estado.dados.config || {};
+      blocoEstrategia(corpo, 'Móvel inteiro', linha(m.id), {
+        vazio: 'Sem linha neste ciclo: o móvel fica branco (neutro).',
+        limite: (config.etiquetasPorTipo || {})[m.tipo],
+        posicoes: POSICOES_ETIQUETA[m.tipo],
+      });
+      // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
+      let mov = m;
+      if (m.tipo === 'GONDOLA') {
+        const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
+          || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
+        mov = Object.assign({}, m, { dividido: div });
+      }
+      Render.espacos(mov).forEach((e) => {
+        const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
+        const propria = [m.id + '/' + e.id, meio].filter(Boolean).find(temLinha);
+        blocoEstrategia(corpo, e.nome, propria ? linha(propria) : null, {
+          vazio: 'Sem linha própria: usa a do móvel inteiro.',
+          limite: (config.etiquetasPorBloco || {})[m.tipo] || 1,
+        });
+      });
+    }
+    dlg.showModal();
+    // O desenho precisa da tela visível para medir o móvel (getBBox).
+    const desenho = $('mvDesenho');
+    try {
+      desenho.hidden = !desenharMovelSozinho(desenho, planta, m.id);
+    } catch (e) {
+      desenho.hidden = true;
     }
   }
 
@@ -5372,7 +5726,11 @@ const App = (() => {
    */
   function svgParaPng(modo) {
     if (modo !== 'planta') {
-      return { clone: svg.cloneNode(true), caixa: { x: 0, y: 0, w: Render.TELA.w, h: Render.TELA.h } };
+      // O PNG sai sempre com o slide inteiro, sem o zoom da tela.
+      const clone = svg.cloneNode(true);
+      clone.setAttribute('viewBox', '0 0 ' + Render.TELA.w + ' ' + Render.TELA.h);
+      clone.querySelectorAll('.etq-zoom').forEach((g) => g.removeAttribute('transform'));
+      return { clone, caixa: { x: 0, y: 0, w: Render.TELA.w, h: Render.TELA.h } };
     }
     const ns = 'http://www.w3.org/2000/svg';
     const temp = document.createElementNS(ns, 'svg');
@@ -5452,6 +5810,9 @@ const App = (() => {
     ao('btnPng', 'click', () => estado.dados && abrirDialogoPng());
     ao('dlgPng', 'close', baixarPng);
     ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
+    ao('zoomMais', 'click', () => zoomPara(estado.zoom.k * 1.5));
+    ao('zoomMenos', 'click', () => zoomPara(estado.zoom.k / 1.5));
+    ao('zoomNivel', 'click', () => zoomPara(1));
     ao('btnAutoOrganizar', 'click', autoOrganizar);
     ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
     ao('btnSalvarAjustes', 'click', salvarAjustes);
@@ -5477,6 +5838,9 @@ const App = (() => {
       if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
       if (Editor.ativo()) { Editor.tecla(e); return; }
       if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === '+' || e.key === '=') { zoomPara(estado.zoom.k * 1.5); return; }
+      if (e.key === '-' || e.key === '_') { zoomPara(estado.zoom.k / 1.5); return; }
+      if (e.key === '0') { zoomPara(1); return; }
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       const ids = estado.dados.plantas.map((p) => p.id);
       const i = ids.indexOf(estado.planta) + (e.key === 'ArrowRight' ? 1 : -1);
@@ -5485,6 +5849,7 @@ const App = (() => {
   }
 
   ligarEventos();
+  ligarZoom();
   Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
   carregar();
 

@@ -69,6 +69,11 @@
 
     <div class="faixa">
       <div class="legenda" id="legenda" aria-label="Marcas"></div>
+      <div class="zoom" id="zoomControles" hidden title="Zoom: role o mouse sobre a planta, use a pinça no celular ou as teclas + e −. Com zoom, arraste para mover. Clique num móvel para ver a estratégia dele.">
+        <button id="zoomMenos" class="btn pequeno" type="button" aria-label="Diminuir zoom">−</button>
+        <button id="zoomNivel" class="btn pequeno fantasma" type="button" title="Voltar a 100% (tecla 0)">100%</button>
+        <button id="zoomMais" class="btn pequeno" type="button" aria-label="Aumentar zoom">+</button>
+      </div>
       <div class="aviso-local" id="avisoLocal" hidden>
         <span>Modo local: os dados ficam salvos só neste navegador.</span>
         <button id="btnRestaurar" class="btn pequeno fantasma" type="button">Restaurar exemplo</button>
@@ -262,6 +267,20 @@
         <div class="rodape-dialogo">
           <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
           <button class="btn primario" value="baixar" type="submit">Baixar PNG</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="dlgMovel" class="dialogo dialogo-movel">
+      <form method="dialog">
+        <h2 id="mvTitulo"></h2>
+        <p class="sub" id="mvSub"></p>
+        <div class="mv-corpo">
+          <svg id="mvDesenho" class="mv-desenho" role="img" aria-label="Desenho do móvel"></svg>
+          <div id="mvEstrategia" class="mv-estrategia"></div>
+        </div>
+        <div class="rodape-dialogo">
+          <button class="btn primario" value="ok" type="submit">Fechar</button>
         </div>
       </form>
     </dialog>

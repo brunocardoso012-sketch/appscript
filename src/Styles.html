@@ -109,6 +109,9 @@
     padding: 8px 16px 0;
   }
   .legenda { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .zoom { display: inline-flex; gap: 4px; align-items: center; margin-left: auto; }
+  .zoom .btn { min-width: 32px; justify-content: center; }
+  .zoom #zoomNivel { min-width: 56px; font-variant-numeric: tabular-nums; }
   .legenda .rotulo { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); margin-right: 4px; }
   .chip {
     display: inline-flex;
@@ -169,6 +172,13 @@
     box-shadow: var(--sombra);
     user-select: none;
   }
+  #slide:not(.construindo) { touch-action: none; }
+  #slide:not(.construindo) .movel,
+  #slide:not(.construindo) .grupo-etiquetas:not(.arrastavel) { cursor: pointer; }
+  #slide.com-zoom.arrastando, #slide.com-zoom.arrastando * { cursor: grabbing; }
+  /* Com zoom, as linhas-guia não engrossam (as etiquetas também mantêm o tamanho na tela). */
+  #slide .camada-guias line { stroke-width: calc(1.3px / var(--zoom, 1)); }
+  #slide .camada-guias circle { r: calc(4px / var(--zoom, 1)); stroke-width: calc(1.3px / var(--zoom, 1)); }
   #slide .movel:hover polygon { stroke-width: 2.2; }
   #slide .arrastavel { cursor: grab; }
   #slide .arrastavel:hover rect { stroke: #111; stroke-width: 1.5; }
@@ -286,6 +296,29 @@
   .dialogo input[type="text"], .dialogo select { width: 100%; }
   .opcao { display: flex; align-items: center; gap: 8px; color: var(--texto); font-size: 13px; padding: 3px 0; cursor: pointer; }
   .rodape-dialogo { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  /* estratégia do móvel (clique no móvel) */
+  .dialogo-movel { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+  .mv-corpo { display: flex; gap: 18px; align-items: flex-start; }
+  .mv-desenho { flex: 0 0 220px; width: 220px; height: 200px; background: #f3efea; border-radius: 8px; }
+  .mv-estrategia { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .mv-bloco { border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; }
+  .mv-bloco h3 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); }
+  .mv-linha { display: flex; gap: 10px; align-items: baseline; font-size: 13px; padding: 2px 0; }
+  .mv-rotulo { flex: 0 0 82px; color: var(--texto-2); font-size: 12px; }
+  .mv-marca { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+  .mv-marca i { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, .2); align-self: center; }
+  .mv-etiquetas ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+  .mv-etiquetas li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+  .mv-pos { font-size: 11px; color: var(--texto-2); min-width: 64px; }
+  .mv-etiqueta { color: #fff; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 2px; white-space: pre-line; }
+  .mv-marca-etq { font-size: 11px; color: var(--texto-2); }
+  .mv-obs { white-space: pre-line; }
+  .mv-vazio { color: var(--texto-2); font-style: italic; margin: 0; font-size: 13px; }
+  @media (max-width: 600px) {
+    .mv-corpo { flex-direction: column; align-items: stretch; }
+    .mv-desenho { width: 100%; flex-basis: auto; }
+  }
+
   .lista-avisos { max-height: 240px; overflow: auto; font-size: 12px; color: #7a4b00; padding-left: 18px; }
   .lista-avisos:empty { display: none; }
 
