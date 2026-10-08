@@ -13,6 +13,7 @@ const App = (() => {
     edicao: false,
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
     grupos: [],
+    painelEspaco: false, // painel "Espaço por marca" aberto
     zoom: { k: 1, x: 0, y: 0 }, // zoom da tela: fator e canto de cima à esquerda da área visível (unidades do slide)
   };
   const $ = (id) => document.getElementById(id);
@@ -319,6 +320,7 @@ const App = (() => {
     estado.grupos = r.grupos;
     if (estado.edicao) ativarArraste();
     aplicarZoom();
+    atualizarEspaco();
   }
 
   /* --------------------------------- zoom --------------------------------- */
@@ -387,15 +389,16 @@ const App = (() => {
       if (!estado.dados || Editor.contexto() || ev.button > 0) return;
       if (estado.edicao && ev.target.closest('.arrastavel')) return; // arrastando uma etiqueta
       toques.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-      gesto = { movel: false, zoom: Object.assign({}, estado.zoom), toques: new Map(toques) };
+      gesto = { movel: false, zoom: Object.assign({}, estado.zoom), ctm: svg.getScreenCTM(), toques: new Map(toques) };
     });
     svg.addEventListener('pointermove', (ev) => {
       if (!gesto || !toques.has(ev.pointerId)) return;
       toques.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       // Captura só quando vira arraste: capturar no pointerdown tiraria o alvo do clique no móvel.
       const capturar = () => toques.forEach((_, id) => { try { svg.setPointerCapture(id); } catch (e) { /* ponteiro já solto */ } });
-      const r = svg.getBoundingClientRect();
-      const porPx = Render.TELA.w / gesto.zoom.k / r.width; // unidades do slide por pixel, no início do gesto
+      // O slide ocupa a área toda e o desenho fica centralizado nela: converte pela matriz do início do gesto.
+      const porPx = 1 / gesto.ctm.a; // unidades do slide por pixel
+      const origem = { x: gesto.ctm.e + gesto.zoom.x * gesto.ctm.a, y: gesto.ctm.f + gesto.zoom.y * gesto.ctm.d }; // canto do zoom na tela
       const pts = Array.from(toques.values());
       const ini = Array.from(gesto.toques.values());
       if (pts.length >= 2 && ini.length >= 2) {
@@ -405,10 +408,10 @@ const App = (() => {
         const m1 = meio(pts[0], pts[1]);
         const k = Math.max(1, Math.min(ZOOM_MAX, gesto.zoom.k * dist(pts[0], pts[1]) / dist(ini[0], ini[1])));
         // O ponto do slide que estava sob o meio dos dedos continua sob o meio dos dedos.
-        const cx = gesto.zoom.x + (m0.x - r.left) * porPx;
-        const cy = gesto.zoom.y + (m0.y - r.top) * porPx;
-        const porPxNovo = Render.TELA.w / k / r.width;
-        Object.assign(estado.zoom, { k, x: cx - (m1.x - r.left) * porPxNovo, y: cy - (m1.y - r.top) * porPxNovo });
+        const cx = gesto.zoom.x + (m0.x - origem.x) * porPx;
+        const cy = gesto.zoom.y + (m0.y - origem.y) * porPx;
+        const porPxNovo = porPx * gesto.zoom.k / k;
+        Object.assign(estado.zoom, { k, x: cx - (m1.x - origem.x) * porPxNovo, y: cy - (m1.y - origem.y) * porPxNovo });
         gesto.movel = true;
         capturar();
         aplicarZoom();
@@ -432,7 +435,7 @@ const App = (() => {
       if (gesto.movel) gesto.ignorarClique = true;
       // Ao tirar um dedo da pinça, o dedo que ficou recomeça o arraste dali.
       if (toques.size) {
-        gesto = { movel: true, ignorarClique: true, zoom: Object.assign({}, estado.zoom), toques: new Map(toques) };
+        gesto = { movel: true, ignorarClique: true, zoom: Object.assign({}, estado.zoom), ctm: svg.getScreenCTM(), toques: new Map(toques) };
       } else {
         const fim = gesto;
         setTimeout(() => { if (gesto === fim) gesto = null; }, 0);
@@ -542,6 +545,206 @@ const App = (() => {
     } finally {
       carregando(false);
     }
+  }
+
+  /* ------------------------ espaço por marca (painel) ---------------------- */
+
+  /** Nome curto de cada tipo de movimento (símbolo) no painel; '' = linha sem símbolo. */
+  const NOMES_MOVIMENTO = { MOVIMENTO: '▶ Movimento', FIXO: '◆ Espaço fixo', EXPOSICAO: 'Ⓔ Exposição', NOVO: 'NEW Novidade', '': 'Sem símbolo' };
+  const COR_SEM_MARCA = '#C4C4C4';
+  const COR_OUTRA = '#8A8A8A';
+
+  /**
+   * Espaço de cada parte da planta no ciclo, em metros lineares de frente:
+   *  - gôndola: cada lado vale a largura dela, cada meio o comprimento (metade = meio comprimento);
+   *  - mesas: o comprimento dividido pelas frentes; móvel make: dividido pelas 4 testeiras;
+   *  - totem: a largura dividida pelos 3 painéis; balcão em L: os dois braços;
+   *  - demais móveis: o lado maior. Móvel de atendimento e itens fora da planta não contam.
+   * Cada parte usa a linha própria (espaço da gôndola, frente, painel, testeira) ou, sem ela, a do móvel.
+   * @return {Array<{movel, espaco, frente: number, marcas: string[], simbolo: string}>}
+   */
+  function partesDeEspaco(planta, ciclo) {
+    const linha = (x) => movimentoDe(ciclo, planta.id, x);
+    const valida = (i) => !!(i && (i.marca || i.etiquetas.length || i.simbolo));
+    const marcasDe = (valor) => {
+      if (!valor || valor === 'NEUTRO') return ['NEUTRO'];
+      return String(valor).split('+').map((p) => p.trim()).map((p) => (estado.dados.marcas[p] ? p : 'OUTRA'));
+    };
+    const partes = [];
+    const parte = (m, espaco, frente, i) => partes.push({
+      movel: m, espaco, frente, marcas: marcasDe(i && i.marca), simbolo: (i && i.simbolo) || '',
+    });
+    planta.moveis.forEach((m) => {
+      if (m.tipo === 'EXTRA' || m.tipo === 'CAIXA') return;
+      const geral = linha(m.id);
+      const L = Math.max(m.w, m.d);
+      const C = Math.min(m.w, m.d);
+      const propria = (id) => {
+        const meio = /^MEIO-[AB]-\d$/.test(id) ? m.id + '/' + id.slice(0, 6) : null;
+        const achada = [m.id + '/' + id, meio].filter(Boolean).find((x) => valida(linha(x)));
+        return achada ? linha(achada) : null;
+      };
+      if (m.tipo === 'GONDOLA') {
+        const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
+          || valida(linha(m.id + '/MEIO-' + l + '-2')) || valida(linha(m.id + '/MEIO-' + l + '-1'))).join('');
+        Render.espacos(Object.assign({}, m, { dividido: div })).forEach((e) => {
+          const frente = /^LADO/.test(e.id) ? C : /-\d$/.test(e.id) ? L / 2 : L;
+          parte(m, e, frente, propria(e.id) || geral);
+        });
+        return;
+      }
+      if (m.tipo === 'TOTEM') {
+        // Painel sem linha própria: a "Marca Etiqueta N" da linha do totem (como na planta), senão a do totem.
+        Render.espacos(m).forEach((e, k) => {
+          const et = geral && geral.etiquetas.filter((x, j) => (x.posicao || j + 1) === k + 1)[0];
+          const i = propria(e.id) || (et && et.marca ? Object.assign({}, geral, { marca: et.marca }) : geral);
+          parte(m, e, L / 3, i);
+        });
+        return;
+      }
+      const blocos = Render.espacos(m);
+      if (blocos.length) {
+        blocos.forEach((e) => parte(m, e, L / blocos.length, propria(e.id) || geral));
+        return;
+      }
+      parte(m, null, m.tipo === 'VITRINE_L' ? m.w + m.d : L, geral);
+    });
+    return partes;
+  }
+
+  /** Totais por marca, por tipo de movimento e cruzados (combinação de marcas divide o espaço igualmente). */
+  function resumoDeEspaco(partes) {
+    const r = { total: 0, porMarca: {}, porMovimento: {}, cruzado: {}, espacosPorMarca: {}, moveis: new Set() };
+    partes.forEach((p) => {
+      r.total += p.frente;
+      r.moveis.add(p.movel.id);
+      const fatia = p.frente / p.marcas.length;
+      p.marcas.forEach((mc) => {
+        r.porMarca[mc] = (r.porMarca[mc] || 0) + fatia;
+        r.espacosPorMarca[mc] = (r.espacosPorMarca[mc] || 0) + 1 / p.marcas.length;
+        r.cruzado[p.simbolo] = r.cruzado[p.simbolo] || {};
+        r.cruzado[p.simbolo][mc] = (r.cruzado[p.simbolo][mc] || 0) + fatia;
+      });
+      r.porMovimento[p.simbolo] = (r.porMovimento[p.simbolo] || 0) + p.frente;
+    });
+    return r;
+  }
+
+  const metros = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' m';
+  const porcento = (v, total) => (total ? Math.round((v / total) * 100) : 0) + '%';
+
+  /** Marcas na ordem fixa da configuração; depois outras cores e, por último, "Sem marca". */
+  function ordemDasMarcas() {
+    return Object.keys(estado.dados.marcas).filter((c) => c !== 'NEUTRO').concat(['OUTRA', 'NEUTRO']);
+  }
+  const nomeMarcaPainel = (c) => (c === 'NEUTRO' ? 'Sem marca' : c === 'OUTRA' ? 'Outras cores' : estado.dados.marcas[c].nome);
+  const corMarcaPainel = (c) => (c === 'NEUTRO' ? COR_SEM_MARCA : c === 'OUTRA' ? COR_OUTRA : estado.dados.marcas[c].etiqueta);
+
+  function alternarFiltro(cod) {
+    if (cod === 'NEUTRO' || cod === 'OUTRA') return;
+    estado.filtro = estado.filtro === cod ? '' : cod;
+    montarLegenda();
+    desenhar();
+  }
+
+  /** Painel "Espaço por marca": quanto da ER vai para cada marca e cada tipo de movimento no ciclo. */
+  function atualizarEspaco() {
+    const painel = $('painelEspaco');
+    if (!painel) return;
+    const planta = plantaAtual();
+    const aberto = estado.painelEspaco && !!planta && !Editor.contexto();
+    painel.hidden = !aberto;
+    document.body.classList.toggle('com-painel-espaco', aberto);
+    if ($('btnEspaco')) $('btnEspaco').setAttribute('aria-pressed', String(!!estado.painelEspaco));
+    if (!aberto) return;
+    $('espSub').textContent = planta.nome + (estado.ciclo ? ' · ' + estado.ciclo : '');
+    const corpo = $('espCorpo');
+    corpo.innerHTML = '';
+    if (!estado.ciclo) {
+      novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver como o espaço está dividido.', corpo);
+      return;
+    }
+    const r = resumoDeEspaco(partesDeEspaco(planta, estado.ciclo));
+    const marcas = ordemDasMarcas().filter((c) => r.porMarca[c] || (c !== 'OUTRA' && c !== 'NEUTRO'));
+    const atenuar = (c) => (estado.filtro && c !== estado.filtro ? ' atenuado' : '');
+
+    // Números principais.
+    const topo = novo('div', 'esp-numeros', null, corpo);
+    [[metros(r.total), 'de frente'], [String(Math.round(Object.values(r.espacosPorMarca).reduce((a, b) => a + b, 0))), 'espaços'], [String(r.moveis.size), 'móveis']]
+      .forEach(([v, rot]) => { const d = novo('div', null, null, topo); novo('strong', null, v, d); novo('span', null, rot, d); });
+
+    // Por marca.
+    novo('h3', null, 'Por marca', corpo);
+    const lista = novo('div', 'esp-lista', null, corpo);
+    marcas.forEach((c) => {
+      const v = r.porMarca[c] || 0;
+      const linha = novo('button', 'esp-linha' + atenuar(c), null, lista);
+      linha.type = 'button';
+      linha.title = nomeMarcaPainel(c) + ': ' + metros(v) + ' (' + porcento(v, r.total) + ')' + (c === 'NEUTRO' || c === 'OUTRA' ? '' : ' · clique para destacar na planta');
+      const nome = novo('span', 'esp-nome', null, linha);
+      novo('i', null, null, nome).style.background = corMarcaPainel(c);
+      novo('span', null, nomeMarcaPainel(c), nome);
+      novo('span', 'esp-valor', metros(v), linha);
+      novo('span', 'esp-pct', porcento(v, r.total), linha);
+      const trilho = novo('span', 'esp-trilho', null, linha);
+      const barra = novo('span', 'esp-barra', null, trilho);
+      barra.style.width = (r.total ? (v / r.total) * 100 : 0) + '%';
+      barra.style.background = corMarcaPainel(c);
+      const n = r.espacosPorMarca[c] || 0;
+      novo('span', 'esp-qtd', (Math.round(n * 10) / 10).toLocaleString('pt-BR') + (n === 1 ? ' espaço' : ' espaços'), linha);
+      linha.addEventListener('click', () => alternarFiltro(c));
+    });
+
+    // Por tipo de movimento: barra empilhada pelas marcas.
+    novo('h3', null, 'Por tipo de movimento', corpo);
+    const tipos = Object.keys(estado.dados.simbolos).concat(['']).filter((t) => r.porMovimento[t]);
+    const maior = Math.max.apply(null, tipos.map((t) => r.porMovimento[t]).concat([0]));
+    const mov = novo('div', 'esp-lista', null, corpo);
+    tipos.forEach((t) => {
+      const v = r.porMovimento[t];
+      const linha = novo('div', 'esp-linha', null, mov);
+      const d = estado.dados.simbolos[t];
+      if (d) linha.title = d.descricao;
+      novo('span', 'esp-nome', NOMES_MOVIMENTO[t] || t, linha);
+      novo('span', 'esp-valor', metros(v), linha);
+      novo('span', 'esp-pct', porcento(v, r.total), linha);
+      const trilho = novo('span', 'esp-trilho', null, linha);
+      const pilha = novo('span', 'esp-pilha', null, trilho);
+      pilha.style.width = (maior ? (v / maior) * 100 : 0) + '%';
+      marcas.forEach((c) => {
+        const x = (r.cruzado[t] || {})[c];
+        if (!x) return;
+        const seg = novo('span', 'esp-seg' + atenuar(c), null, pilha);
+        seg.style.flexGrow = x;
+        seg.style.background = corMarcaPainel(c);
+        seg.title = (NOMES_MOVIMENTO[t] || t) + ' · ' + nomeMarcaPainel(c) + ': ' + metros(x) + ' (' + porcento(x, v) + ' do tipo)';
+      });
+    });
+
+    // Tabela marca × movimento (os números exatos).
+    novo('h3', null, 'Marca × tipo de movimento (m de frente)', corpo);
+    const caixa = novo('div', 'esp-tabela', null, corpo);
+    const tabela = novo('table', null, null, caixa);
+    const cab = novo('tr', null, null, novo('thead', null, null, tabela));
+    novo('th', null, 'Marca', cab);
+    tipos.forEach((t) => novo('th', null, NOMES_MOVIMENTO[t] || t, cab));
+    novo('th', null, 'Total', cab);
+    const tb = novo('tbody', null, null, tabela);
+    const num = (v) => (v ? v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '—');
+    marcas.forEach((c) => {
+      const tr = novo('tr', atenuar(c).trim(), null, tb);
+      const th = novo('th', null, null, tr);
+      novo('i', null, null, th).style.background = corMarcaPainel(c);
+      th.appendChild(document.createTextNode(nomeMarcaPainel(c)));
+      tipos.forEach((t) => novo('td', null, num((r.cruzado[t] || {})[c]), tr));
+      novo('td', 'total', num(r.porMarca[c]), tr);
+    });
+    const tf = novo('tr', null, null, novo('tfoot', null, null, tabela));
+    novo('th', null, 'Total', tf);
+    tipos.forEach((t) => novo('td', null, num(r.porMovimento[t]), tf));
+    novo('td', 'total', num(r.total), tf);
+
+    novo('p', 'esp-nota', 'Metros lineares de frente: na gôndola, cada lado vale a largura e cada meio o comprimento; mesas, totem e móvel make dividem o comprimento entre as frentes, painéis e testeiras. Combinações de marcas (BOT+QDB) dividem o espaço igualmente. O móvel de atendimento e os itens fora da planta não contam.', corpo);
   }
 
   /* ------------------------- estratégia do móvel -------------------------- */
@@ -880,6 +1083,12 @@ const App = (() => {
     ao('btnPng', 'click', () => estado.dados && abrirDialogoPng());
     ao('dlgPng', 'close', baixarPng);
     ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
+    ao('btnEspaco', 'click', () => {
+      estado.painelEspaco = !estado.painelEspaco;
+      memoria.gravar('painelEspaco', estado.painelEspaco ? '1' : '0');
+      atualizarEspaco();
+    });
+    ao('espFechar', 'click', () => $('btnEspaco').click());
     ao('zoomMais', 'click', () => zoomPara(estado.zoom.k * 1.5));
     ao('zoomMenos', 'click', () => zoomPara(estado.zoom.k / 1.5));
     ao('zoomNivel', 'click', () => zoomPara(1));
@@ -918,6 +1127,9 @@ const App = (() => {
     });
   }
 
+  // Painel de espaço: lembra a última escolha; na primeira vez, abre em telas largas.
+  const prefEspaco = memoria.ler('painelEspaco');
+  estado.painelEspaco = prefEspaco ? prefEspaco === '1' : window.innerWidth >= 1200;
   ligarEventos();
   ligarZoom();
   Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
