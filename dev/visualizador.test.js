@@ -38,7 +38,7 @@ test('visualizador lê os ciclos da planilha vinculada, com o layout do código'
   assert.deepEqual(d.ciclos, ['Ciclo exemplo']);
   assert.deepEqual(d.avisos, []);
   assert.deepEqual(d.plantas.map((p) => p.nome), ['ER P', 'ER M', 'ER G', 'ER GG']);
-  assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1']);
+  assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1/LADO-A']);
   assert.ok(d.paineis['Ciclo exemplo'].TODAS.some((p) => p.secao === 'CALLOUT'));
   assert.equal(d.planilhaUrl, 'https://docs.google.com/spreadsheets/d/TESTE');
 });

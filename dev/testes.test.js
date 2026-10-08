@@ -34,7 +34,7 @@ test('layout padrão + ciclo de exemplo são lidos sem avisos', () => {
   assert.deepEqual(d.ciclos, ['Ciclo exemplo']);
   assert.deepEqual(d.avisos, []);
   assert.ok(d.movimentos['Ciclo exemplo'].TODAS['EXTRA-CESTINHAS']);
-  assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1']);
+  assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1/LADO-A']);
 });
 
 test('avisos para marca desconhecida e móvel inexistente', () => {
@@ -86,7 +86,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.equal(ilha.simbolo, 'MOVIMENTO');
   assert.deepEqual(Object.keys(d2.movimentos['Ciclo exemplo']['01']), ['PIRAMIDE 1'], 'par (ciclo, planta) substituído; ID sem acento');
   assert.equal(d2.movimentos['Ciclo exemplo']['01']['PIRAMIDE 1'].etiquetas[0].texto, '10/2026');
-  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 8, 'outras plantas intactas');
+  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 10, 'outras plantas intactas');
   assert.equal(d2.paineis['C15/2026'].TODAS[0].secao, 'TV');
 
   const aj = run("salvarAjustesEtiquetas('2', { 'PIRAMIDE 1': { x: 40.4, y: -12 } })");
@@ -152,7 +152,7 @@ test('gôndola: espaços, divisão dos meios e IDs de espaço na planilha', () =
     ['01', 'GON-01', 'GONDOLA', 5, 5, 4, 1.6, 3, 'A'],
   ], [
     ['Ciclo', 'Planta', 'ID Móvel', 'Marca do Móvel'],
-    ['C1', '01', 'GON-01', 'BOT'],
+    ['C1', '01', 'GON-01/LADO-A', 'BOT'],
     ['C1', '01', 'GON-01/MEIO-A-2', 'EUD'],
     ['C1', '01', 'GON-01/MEIO-A', 'EUD'],
   ], null)`);
@@ -175,7 +175,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
     movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
     movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
-    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 11, '03': 7, '04': 8, _exemplo: 6 }); // só a 02 pendente
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 11, '03': 7, '04': 8, _exemplo: 7 }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
   assert.equal(r.versoes['02'], 10);
@@ -183,7 +183,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
   assert.ok(!ids('02').includes('VELHO-01') && ids('02').includes('MESA DESTAQUE 1') && ids('02').includes('LOJA'), 'planta 02 com o modelo novo');
   assert.ok(ids('01').includes('MEU-01'), 'planta 01 intacta');
   const mov = r.abas.movimentos.slice(1).filter((l) => l[1] === '02');
-  assert.ok(mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'GONDOLA 2'), 'exemplo da planta 02 atualizado');
+  assert.ok(mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'GONDOLA 2/LADO-A'), 'exemplo da planta 02 atualizado');
   assert.ok(!mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'VELHO-01'));
   assert.ok(mov.some((l) => l[0] === 'C9'), 'outros ciclos da planta 02 intactos');
   const de_novo = run(`atualizarModelosPlantas_({ layout: valoresLayoutPadrao_(), movimentos: [] }, versoesAtuais_())`);
@@ -194,12 +194,14 @@ test('etiquetas guardam a coluna de origem; planta aceita o nome', () => {
   const { run } = carregarGas();
   const d = run(`montarDados_(valoresLayoutPadrao_(), [
     ['Ciclo', 'Planta', 'ID Móvel', 'Etiqueta 1', 'Etiqueta 2', 'Etiqueta 3', 'Etiqueta 4'],
-    ['C1', 'ER P', 'gôndola 1', '', 'MEIO A', '', 'PONTA 2'],
+    ['C1', 'ER P', 'balcão recepção 1', '', 'CANTO', '', ''],
+    ['C1', 'ER P', 'pirâmide 1', 'A', '', '', 'D'],
   ], null)`);
   assert.deepEqual(d.avisos, []);
-  const gon = d.movimentos.C1['01']['GONDOLA 1'];
-  assert.deepEqual(gon.etiquetas.map((e) => [e.texto, e.posicao]), [['MEIO A', 2], ['PONTA 2', 4]]);
-  assert.deepEqual(d.config.etiquetasPorTipo, { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 }, 'pirâmide e mesas mostram até 4');
+  const balcao = d.movimentos.C1['01']['BALCAO RECEPCAO 1'];
+  assert.deepEqual(balcao.etiquetas.map((e) => [e.texto, e.posicao]), [['CANTO', 2]]);
+  assert.deepEqual(d.movimentos.C1['01']['PIRAMIDE 1'].etiquetas.map((e) => e.posicao), [1, 4]);
+  assert.deepEqual(d.config.etiquetasPorTipo, { VITRINE_L: 3 }, 'pirâmide mostra até 4');
   assert.deepEqual(d.config.etiquetasPorBloco, { GONDOLA: 4, MESA: 4, MESA_3: 4 });
 });
 
@@ -238,7 +240,7 @@ test('ciclo de exemplo novo troca todas as linhas dele (e só dele)', () => {
   assert.deepEqual(r.plantas, ['exemplo']);
   assert.ok(!r.abas.movimentos.some((l) => l[2] === 'GON-01'), 'linha antiga do exemplo sai');
   assert.ok(r.abas.movimentos.some((l) => l[0] === 'C9'), 'outro ciclo fica');
-  assert.ok(r.abas.movimentos.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'MOVEL MAKE 1'));
+  assert.ok(r.abas.movimentos.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'MOVEL MAKE 1/TESTEIRA-2'));
   assert.ok(!r.abas.paineis.some((l) => l[3] === 'velho'));
   assert.ok(r.abas.paineis.some((l) => l[3] === 'minha nota'));
   assert.equal(run("normId_('Móvel de  fila 3')"), 'MOVEL DE FILA 3');
@@ -286,4 +288,21 @@ test('IDs de espaço aceitam variações de digitação', () => {
   assert.deepEqual(d.avisos, []);
   assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(),
     ['GONDOLA 1/LADO-A', 'GONDOLA 1/MEIO-A-2', 'MESA DESTAQUE 1/FRENTE-2', 'TOTEM 1/PAINEL-1', 'TOTEM 1/PAINEL-2']);
+});
+
+test('gôndola, mesas, totem e móvel make: linha do móvel inteiro é ignorada (só valem os espaços)', () => {
+  const { run } = carregarGas();
+  const d = run(`montarDados_(valoresLayoutPadrao_(), [
+    ['Ciclo', 'Planta', 'ID Móvel', 'Marca do Móvel', 'Etiqueta 1'],
+    ['C1', 'ER P', 'GONDOLA 1', 'BOT', 'X'],
+    ['C1', 'ER P', 'TOTEM 1', 'BOT', 'Y'],
+    ['C1', 'ER P', 'MESA DESTAQUE 1', 'EUD', ''],
+    ['C1', 'ER P', 'MOVEL MAKE 1', 'QDB', ''],
+    ['C1', 'ER P', 'GONDOLA 1/MEIO-B', 'BOT', 'Z'],
+    ['C1', 'ER P', 'PIRAMIDE 1', 'EUD', 'P'],
+  ], null)`);
+  assert.equal(d.avisos.length, 4);
+  assert.ok(d.avisos.every((a) => /linha do móvel inteiro ignorada/.test(a)));
+  assert.match(d.avisos[0], /GONDOLA 1\/LADO-A/);
+  assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(), ['GONDOLA 1/MEIO-B', 'PIRAMIDE 1']);
 });

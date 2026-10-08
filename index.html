@@ -532,22 +532,19 @@ const CONFIG = {
 const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
 
 /**
- * Quantas etiquetas a linha do móvel inteiro mostra (as outras colunas "Etiqueta N"
- * são ignoradas). Tipos que não aparecem aqui mostram até CONFIG.MAX_ETIQUETAS
- * (pirâmide e mesas: até 4, empilhadas).
- * Gôndola: na linha da gôndola inteira, Etiqueta 1 = Lado A, 2 = Meio A, 3 = Meio B
- * e 4 = Lado B (uma por bloco); a linha de um espaço (GONDOLA 1/MEIO-A…) substitui
- * as etiquetas daquele bloco (veja ETIQUETAS_POR_BLOCO).
+ * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
+ * "Etiqueta N" são ignoradas). Tipos que não aparecem aqui mostram até
+ * CONFIG.MAX_ETIQUETAS (pirâmide: até 4, empilhadas).
  * Balcão recepção: uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.
- * Totem: Etiqueta 1, 2 e 3 vão para o painel 1 (o de cima), 2 e 3, e a "Marca Etiqueta N"
- * pinta o painel N; a linha de um painel (TOTEM 1/PAINEL-2…) tem prioridade.
+ * Gôndola, mesas, totem e móvel make não têm linha do móvel inteiro: cada espaço tem a
+ * sua (veja ETIQUETAS_POR_BLOCO).
  */
-const ETIQUETAS_POR_TIPO = { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 };
+const ETIQUETAS_POR_TIPO = { VITRINE_L: 3 };
 
 /**
- * Quantas etiquetas a linha de um bloco mostra em cima dele (GONDOLA 1/LADO-A,
+ * Quantas etiquetas a linha de um espaço mostra em cima dele (GONDOLA 1/LADO-A,
  * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
- * (totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
+ * (painéis do totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
  * mesmas etiquetas (texto e cor) viram uma pilha só, centralizada.
  */
 const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
@@ -663,7 +660,8 @@ const TIPOS_CONSTRUCAO = [
  *  - móvel make: Testeira 1 a 4.
  * Na planilha, cada espaço é endereçado como "<ID do móvel>/<espaço>", ex.:
  * GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A-2, MESA DESTAQUE 1/FRENTE-2.
- * Uma linha só com o ID do móvel vale para todos os espaços sem linha própria.
+ * Móvel com espaços é preenchido só espaço por espaço: a linha só com o ID do móvel
+ * é ignorada (espaço sem linha fica branco).
  * (A página tem uma cópia desta regra em Render.espacos.)
  * @param {{tipo: string, dividido: string}} m  dividido = '', 'A', 'B' ou 'AB'
  * @return {Array<{id: string, nome: string}>}
@@ -793,10 +791,12 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
   }
   const plantas = montarPlantas_(linhasLayout, aviso);
   const idsPorPlanta = {};
+  const comEspacos = {}; // ID dos móveis preenchidos por espaço (gôndola, mesas, totem, móvel make)
   plantas.forEach(function (p) {
     idsPorPlanta[p.id] = {};
     p.moveis.forEach(function (m) {
       idsPorPlanta[p.id][m.id] = true;
+      if (espacosDoMovel_(m).length) comEspacos[m.id] = true;
       espacosAceitos_(m).forEach(function (e) { idsPorPlanta[p.id][m.id + '/' + e] = true; });
     });
   });
@@ -805,6 +805,14 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
       return plantas.some(function (p) { return idsPorPlanta[p.id][id]; });
     }
     return !!(idsPorPlanta[planta] && idsPorPlanta[planta][id]);
+  };
+
+  const movelDe = function (id) {
+    for (let i = 0; i < plantas.length; i++) {
+      const m = plantas[i].moveis.filter(function (x) { return x.id === id; })[0];
+      if (m) return m;
+    }
+    return null;
   };
 
   const ciclos = [];
@@ -831,6 +839,9 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
         aviso(onde + ': planta "' + planta + '" não existe no Layout.');
       } else if (!existeMovel(planta, id)) {
         aviso(onde + ': móvel "' + id + '" não existe no Layout da planta ' + planta + '.');
+      } else if (comEspacos[id]) {
+        aviso(onde + ': "' + id + '" é preenchido por espaço (ex.: ' + id + '/' + espacosDoMovel_(movelDe(id))[0].id + ') — linha do móvel inteiro ignorada.');
+        return;
       }
       const etiquetas = [];
       for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
@@ -1809,7 +1820,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 6;
+const VERSAO_EXEMPLO = 7;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -1954,8 +1965,8 @@ const LAYOUT_PADRAO = {
  *  Cascata: o que é definido numa planta vale também para as seguintes
  *  (ER P → ER M → ER G → ER GG), então cada móvel aparece só na primeira planta
  *  que o tem. Uma linha da própria planta tem prioridade; "TODAS" vale para todas.
- *  Pirâmide e mesa destaque mostram 1 etiqueta; na gôndola inteira, as
- *  etiquetas 1–4 vão para Ponta 1, Meio A, Meio B e Ponta 2 (ETIQUETAS_POR_TIPO).
+ *  Gôndola, mesas, totem e móvel make são preenchidos espaço por espaço
+ *  (GONDOLA 1/LADO-A, MESA DESTAQUE 1/FRENTE-1, TOTEM 1/PAINEL-1…), sem linha do móvel inteiro.
  * ------------------------------------------------------------------------ */
 
 const EXEMPLO_CICLO = 'Ciclo exemplo';
@@ -1971,28 +1982,32 @@ const EXEMPLO_MOVIMENTOS = {
     'MOVEL DE PAREDE 2': ['NEUTRO', [['PERF MASC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 3': ['NEUTRO', [['CUIDADOS (CBEM)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 4': ['NEUTRO', [['PERF FEM', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'GONDOLA 1': ['BOT', [['', ''], ['BOTIK', 'BOT'], ['UOMINI HERO', 'BOT'], ['BOTI PROMO', 'BOT']], 'FIXO'],
     'GONDOLA 1/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']]],
+    'GONDOLA 1/MEIO-A': ['BOT', [['BOTIK', 'BOT']], 'FIXO'],
+    'GONDOLA 1/MEIO-B': ['BOT', [['UOMINI HERO', 'BOT']], 'FIXO'],
+    'GONDOLA 1/LADO-B': ['BOT', [['BOTI PROMO', 'BOT']], 'FIXO'],
     'PIRAMIDE 1': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'PIRAMIDE 2': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT']]],
-    'MESA DESTAQUE 1': ['MULTI'],
     'MESA DESTAQUE 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
     'MESA DESTAQUE 1/FRENTE-2': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
     'PDV MOVEL 1': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
     'BALCAO RECEPCAO 1': ['BOT', [['LÇTO EGEO', 'BOT+QDB'], ['JUICY MOOD', 'QDB'], ['SIÀGE ULTIMATE', 'EUD']]],
     'MOVEL DE FILA 1': ['EUD', [['OUTLET EUD', 'EUD']]],
     'MOVEL DE FILA 2': ['BOT', [['BOTIPROMO', 'BOT']]],
-    'TOTEM 1': ['BOT', [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT'], ['LIQUIDA QDB', 'QDB']]],
-    'MOVEL MAKE 1': ['NEUTRO', [['TESTEIRA MAKE MULTIPROMO', 'MULTI']]],
+    'TOTEM 1/PAINEL-1': ['BOT', [['LÇTO UOMINI', 'BOT']]],
+    'TOTEM 1/PAINEL-2': ['BOT', [['BOTIPROMO', 'BOT']]],
+    'TOTEM 1/PAINEL-3': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'MOVEL MAKE 1/TESTEIRA-1': ['#1F1F1F'],
     'MOVEL MAKE 1/TESTEIRA-2': ['BOT', [['BOTIPROMO MAKE B.', 'BOT']]],
     'MOVEL MAKE 1/TESTEIRA-3': ['BOT', [['BOTIPROMO MAKE B.', 'BOT']]],
     'MOVEL MAKE 1/TESTEIRA-4': ['EUD'],
   },
   '02': {
-    'GONDOLA 2': ['EUD', [['', ''], ['PERFUMARIA', 'EUD'], ['CUIDADOS', 'EUD'], ['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
     'GONDOLA 2/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']], 'MOVIMENTO'],
     'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
+    'GONDOLA 2/MEIO-B': ['EUD', [['CUIDADOS', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 2/LADO-B': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
     'PIRAMIDE 3': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'MOVEL DE FILA 3': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 4': ['QDB', [['LIQUIDA QDB', 'QDB']]],
@@ -2000,10 +2015,12 @@ const EXEMPLO_MOVIMENTOS = {
     'TOTEM OUI 1': ['OUI', [['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
   '03': {
-    'GONDOLA 3': ['MULTI', [['MULTI PROMO', 'MULTI'], ['CURTO PRAZO', 'MULTI'], ['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
+    'GONDOLA 3/LADO-A': ['MULTI', [['MULTI PROMO', 'MULTI']], 'MOVIMENTO'],
+    'GONDOLA 3/MEIO-A': ['MULTI', [['CURTO PRAZO', 'MULTI']], 'MOVIMENTO'],
+    'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
+    'GONDOLA 3/LADO-B': ['MULTI', [], 'MOVIMENTO'],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 8': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'MESA DESTAQUE 3 FRENTES 1': ['MULTI'],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-2': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-3': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
@@ -2011,9 +2028,18 @@ const EXEMPLO_MOVIMENTOS = {
   '04': {
     'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']], 'MOVIMENTO'],
     'PIRAMIDE 5': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
-    'GONDOLA 4': ['OUI', [['EXAUSTÃO OUI', 'OUI']], 'MOVIMENTO'],
-    'GONDOLA 5': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'GONDOLA 6': ['EUD', [['EXAUSTÃO EUD', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 4/LADO-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']], 'MOVIMENTO'],
+    'GONDOLA 4/MEIO-A': ['OUI', [], 'MOVIMENTO'],
+    'GONDOLA 4/MEIO-B': ['OUI', [], 'MOVIMENTO'],
+    'GONDOLA 4/LADO-B': ['OUI', [], 'MOVIMENTO'],
+    'GONDOLA 5/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 5/MEIO-A': ['QDB'],
+    'GONDOLA 5/MEIO-B': ['QDB'],
+    'GONDOLA 5/LADO-B': ['QDB'],
+    'GONDOLA 6/LADO-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 6/MEIO-A': ['EUD', [], 'MOVIMENTO'],
+    'GONDOLA 6/MEIO-B': ['EUD', [], 'MOVIMENTO'],
+    'GONDOLA 6/LADO-B': ['EUD', [], 'MOVIMENTO'],
     'MOVEL DE PAREDE 4': ['NEUTRO', [['CUIDADOS (NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'ILHA PREMIUM OUI 1': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
@@ -2084,7 +2110,7 @@ function valoresMovimentosExemplo_() {
     Object.keys(moveis).forEach(function (id) {
       const m = moveis[id];
       const o = {
-        ciclo: EXEMPLO_CICLO, planta: planta, movel: id, descricao: descricoes[id] || '',
+        ciclo: EXEMPLO_CICLO, planta: planta, movel: id, descricao: descricoes[id.split('/')[0]] || '',
         marca: m[0], simbolo: m[2] || '', observacao: '',
       };
       (m[1] || []).slice(0, CONFIG.MAX_ETIQUETAS).forEach(function (e, i) {
@@ -2883,42 +2909,20 @@ const Render = (() => {
     });
   }
 
-  /** Blocos da gôndola na ordem das colunas Etiqueta 1…4 da linha da gôndola inteira. */
-  const BLOCOS_GONDOLA = ['LADO-A', 'MEIO-A', 'MEIO-B', 'LADO-B'];
-
   /**
-   * Etiquetas da gôndola, por bloco. A linha do espaço (GONDOLA 1/MEIO-A…) mostra as
-   * próprias etiquetas (até "limite", empilhadas); sem elas, o bloco mostra a etiqueta da linha da gôndola inteira
-   * na posição dele (Etiqueta 1 = Lado A, 2 = Meio A, 3 = Meio B, 4 = Lado B). As
-   * metades de um meio dividido que usam a mesma etiqueta da gôndola mostram uma só,
-   * no centro do meio. O símbolo da gôndola inteira vai só na primeira etiqueta dela.
-   * @return {Array<{id, info, etiquetas, simbolo, topo: number[]}>} topo = ponto 3D (x, y, z) da âncora
+   * Etiquetas da gôndola, por espaço: cada espaço mostra as etiquetas da própria linha
+   * (GONDOLA 1/MEIO-A…), até "limite", empilhadas em cima dele. A metade sem linha própria
+   * usa a do meio (MEIO-A-1 → MEIO-A); metades iguais viram uma pilha só (juntarIguais).
+   * @return {Array<{id, info, etiquetas, simbolo, pontos}|null>} na ordem dos espaços (null = sem etiqueta)
    */
-  function etiquetasGondola(m, geral, infoEspaco, limite) {
-    const lista = [];
-    const porBloco = {};
-    let simboloGeral = geral ? geral.simbolo : '';
-    caixasGondola(m).forEach((b) => {
+  function etiquetasGondola(m, infoEspaco, limite) {
+    return caixasGondola(m).map((b) => {
       const id = m.id + '/' + b.espaco.id;
-      const topo = [b.x + b.w / 2, b.y + b.d / 2, b.z + b.h];
       const proprio = infoEspaco[id];
-      if (proprio && proprio.etiquetas.length) {
-        lista.push({ id, info: proprio, etiquetas: proprio.etiquetas.slice(0, limite || 1), simbolo: proprio.simbolo, pontos: [topo] });
-        return;
-      }
-      const bloco = b.espaco.id.replace(/^(MEIO-[AB])-\d$/, '$1');
-      if (porBloco[bloco]) {
-        porBloco[bloco].pontos.push(topo);
-        return;
-      }
-      const n = BLOCOS_GONDOLA.indexOf(bloco) + 1;
-      const e = geral ? geral.etiquetas.filter((x, k) => (x.posicao || k + 1) === n)[0] : null;
-      if (!e) return;
-      porBloco[bloco] = { id: m.id + '/' + bloco, info: geral, etiquetas: [e], simbolo: simboloGeral, pontos: [topo] };
-      simboloGeral = '';
-      lista.push(porBloco[bloco]);
+      return proprio && proprio.etiquetas.length
+        ? { id, info: proprio, etiquetas: proprio.etiquetas.slice(0, limite || 1), simbolo: proprio.simbolo, pontos: [[b.x + b.w / 2, b.y + b.d / 2, b.z + b.h]] }
+        : null;
     });
-    return lista;
   }
 
   /**
@@ -3642,21 +3646,19 @@ const Render = (() => {
     const infoEspaco = {}; // "GON-01/MEIO-A" → linha própria do espaço
     const anotar = (i) => { if (i && i.simbolo) simbolosUsados.add(i.simbolo); return i; };
     moveis.concat(extras).forEach((m) => {
-      info[m.id] = anotar(ctx.obterMovimento(m));
+      // Móvel com espaços (gôndola, mesas, totem, móvel make) é preenchido só espaço por espaço:
+      // não tem linha do móvel inteiro. Os demais têm uma linha só.
+      info[m.id] = espacos(m).length ? null : anotar(ctx.obterMovimento(m));
       espacos(m).forEach((e) => {
         const id = m.id + '/' + e.id;
-        // Linha de espaço vazia (sem marca, etiqueta nem símbolo) não conta: vale a gôndola inteira.
-        // Metade sem linha própria usa a linha do meio inteiro (MEIO-A-1 → MEIO-A).
+        // Linha de espaço vazia (sem marca, etiqueta nem símbolo) não conta: o espaço fica branco.
+        // Metade sem linha própria usa a linha do meio (MEIO-A-1 → MEIO-A).
         const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
         const i = [id, meio].filter(Boolean).map((x) => ctx.obterMovimento({ id: x })).find((x) => x && (x.marca || x.etiquetas.length || x.simbolo));
         infoEspaco[id] = i ? anotar(i) : null;
       });
     });
-    /** Espaço sem linha própria herda a linha da gôndola inteira. */
-    const infoDe = (b) => (b.espaco && infoEspaco[b.movel.id + '/' + b.espaco.id]) || info[b.movel.id];
-
-    /** Etiqueta da coluna N da linha (posicao = número da coluna "Etiqueta N"). */
-    const etiquetaNaPosicao = (x, n) => (x ? x.etiquetas.filter((e, k) => (e.posicao || k + 1) === n)[0] : null);
+    const infoDe = (b) => (b.espaco ? infoEspaco[b.movel.id + '/' + b.espaco.id] : info[b.movel.id]);
 
     // Móveis, na ordem de pintura.
     const prims = [];
@@ -3666,18 +3668,8 @@ const Render = (() => {
       const i = infoDe(b);
       const corInfo = (x) => (x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);
       const cores = corInfo(i);
-      // Mesas: um só desenho, mas cada frente com a cor da própria linha (ou a da mesa inteira).
-      if (m.tipo === 'MESA' || m.tipo === 'MESA_3') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id] || i));
-      // Totem: painel com linha própria (TOTEM 1/PAINEL-N) usa a cor dela; senão, a "Marca Etiqueta N"
-      // da linha do totem inteiro (a etiqueta N vai para o painel N); senão, a cor do totem.
-      if (m.tipo === 'TOTEM') {
-        b.coresBlocos = espacos(m).map((e, k) => {
-          const proprio = infoEspaco[m.id + '/' + e.id];
-          if (proprio) return corInfo(proprio);
-          const et = etiquetaNaPosicao(i, k + 1);
-          return (et && !ehNeutro(et.marca) && coresDe(et.marca, 'movel', true)) || corInfo(i);
-        });
-      }
+      // Mesas e totem: um só desenho, mas cada frente / painel com a cor da própria linha.
+      if (m.tipo === 'MESA' || m.tipo === 'MESA_3' || m.tipo === 'TOTEM') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id]));
       const g = el('g', {
         class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
         'data-movel': m.id,
@@ -3685,8 +3677,15 @@ const Render = (() => {
       }, camadaPlanta);
       desenharPrimitiva(g, P, b, cores);
       const linhasDica = [m.id + (b.espaco ? '/' + b.espaco.id + ' (' + b.espaco.nome + ')' : '') + (m.descricao ? ' — ' + m.descricao : '')];
-      if (i) {
-        linhasDica.push('Marca: ' + (i.marca ? i.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—'));
+      const nomeMarca = (x) => (x.marca ? x.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—');
+      if (!b.espaco && espacos(m).length) {
+        // Mesa, totem e corpo do móvel make: um desenho só, com o que cada espaço tem.
+        espacos(m).forEach((e) => {
+          const x = infoEspaco[m.id + '/' + e.id];
+          linhasDica.push(e.nome + ': ' + (x ? nomeMarca(x) + x.etiquetas.map((et) => ' • ' + et.texto).join('') : 'sem movimento'));
+        });
+      } else if (i) {
+        linhasDica.push('Marca: ' + nomeMarca(i));
         i.etiquetas.forEach((e) => linhasDica.push('• ' + e.texto));
         if (i.observacao) linhasDica.push('Obs.: ' + i.observacao);
       } else {
@@ -3759,28 +3758,10 @@ const Render = (() => {
       const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
       const grupo = (e) => novoGrupo(e.id, m, e.info, e.etiquetas, e.simbolo, P(e.topo[0], e.topo[1], e.topo[2]), ajuste, e.aoLado);
       if (m.tipo === 'GONDOLA') {
-        juntarIguais(etiquetasGondola(m, info[m.id], infoEspaco, limitePorBloco.GONDOLA)).forEach(grupo);
+        juntarIguais(etiquetasGondola(m, infoEspaco, limitePorBloco.GONDOLA)).forEach(grupo);
         return;
       }
       const i = info[m.id];
-      if (m.tipo === 'TOTEM') {
-        // Totem: uma etiqueta por painel, ao lado do totem com linha-guia. Vale a linha do painel
-        // (TOTEM 1/PAINEL-N); sem ela, a Etiqueta N da linha do totem inteiro (1 = painel de cima).
-        let simbolo = i ? i.simbolo : '';
-        juntarIguais(topoDosBlocos(m).map((bl, k) => {
-          const id = m.id + '/' + bl.espaco.id;
-          const ie = infoEspaco[id];
-          if (ie && ie.etiquetas.length) {
-            return { id, info: ie, etiquetas: ie.etiquetas.slice(0, limitePorBloco.TOTEM || 1), simbolo: ie.simbolo, pontos: [bl.topo], aoLado: true };
-          }
-          const e = etiquetaNaPosicao(i, k + 1);
-          if (!e) return null;
-          const s = simbolo;
-          simbolo = '';
-          return { id, info: i, etiquetas: [e], simbolo: s, pontos: [bl.topo], aoLado: true };
-        })).forEach(grupo);
-        return;
-      }
       if (m.tipo === 'VITRINE_L') {
         // Balcão: Etiqueta 1, 2 e 3 da linha do balcão vão para o bloco 1, o canto e o bloco 3.
         if (i) {
@@ -3792,9 +3773,9 @@ const Render = (() => {
         return;
       }
       if (i) novoGrupo(m.id, m, i, i.etiquetas.slice(0, limitePorTipo[m.tipo] || i.etiquetas.length), i.simbolo, ancoraDe(m), ajuste);
-      // Blocos (mesas, painéis do totem, testeiras do make): a linha própria do bloco mostra as etiquetas
-      // dela em cima do bloco (até ETIQUETAS_POR_BLOCO; senão só a 1); blocos vizinhos com as mesmas
-      // etiquetas ficam com uma pilha só, no centro deles.
+      // Blocos (mesas, painéis do totem, testeiras do make): a linha do bloco mostra as etiquetas dela em
+      // cima do bloco (até ETIQUETAS_POR_BLOCO; senão só a 1) — no totem, ao lado do painel, com linha-guia;
+      // blocos vizinhos com as mesmas etiquetas ficam com uma pilha só, no centro deles.
       juntarIguais(topoDosBlocos(m).map((bl) => {
         const id = m.id + '/' + bl.espaco.id;
         const ie = infoEspaco[id];
@@ -3898,19 +3879,17 @@ const Planilha = (() => {
   const letra = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
   const nomeArquivo = (s) => String(s).replace(/[\\/:*?"<>|]+/g, '-').trim();
   /**
-   * Espaços com linha na planilha. Gôndola: cada meio tem a linha do meio inteiro e a da
-   * 2ª metade — preencher a 2ª metade divide o meio em dois movimentos (a linha do meio
-   * passa a valer para a 1ª metade). Meio já dividido no Layout: as duas metades.
+   * Espaços com linha na planilha (gôndola, mesas, totem e móvel make não têm linha do móvel
+   * inteiro). Gôndola: cada meio tem a linha do meio e a da 2ª metade — preencher a 2ª metade
+   * divide o meio em dois movimentos (a linha do meio passa a valer para a 1ª metade). Meio já
+   * dividido no Layout: as duas metades.
    */
   function espacosNaPlanilha(m) {
-    // Totem: a linha do totem inteiro já tem uma etiqueta e uma cor por painel (Etiqueta / Marca
-    // Etiqueta 1–3); as linhas TOTEM 1/PAINEL-N continuam aceitas, mas não entram na planilha base.
-    if (m.tipo === 'TOTEM') return [];
     if (m.tipo !== 'GONDOLA') return Render.espacos(m);
     const div = String(m.dividido || '').toUpperCase();
     const meio = (l) => (div.indexOf(l) >= 0
       ? [{ id: 'MEIO-' + l + '-1', nome: 'Meio ' + l + ' (metade 1)' }, { id: 'MEIO-' + l + '-2', nome: 'Meio ' + l + ' (metade 2)' }]
-      : [{ id: 'MEIO-' + l, nome: 'Meio ' + l + ' (inteiro, ou metade 1 se a metade 2 for preenchida)' },
+      : [{ id: 'MEIO-' + l, nome: 'Meio ' + l + ' (ou metade 1, se a metade 2 for preenchida)' },
         { id: 'MEIO-' + l + '-2', nome: 'Meio ' + l + ' – metade 2 (preencha só para dividir o meio em dois)' }]);
     return [{ id: 'LADO-A', nome: 'Lado A' }].concat(meio('A'), meio('B'), [{ id: 'LADO-B', nome: 'Lado B' }]);
   }
@@ -4003,14 +3982,14 @@ const Planilha = (() => {
     [
       '1. Na aba "' + abas.MOVIMENTOS + '", cada linha é um móvel de uma planta. NÃO altere "Planta" nem "ID Móvel": eles ligam a linha ao desenho.',
       '2. Preencha "Ciclo" em todas as linhas com o nome do ciclo (ex.: C15/2026). É esse nome que aparece no seletor de ciclos.',
-      '3. "Marca do Móvel" define a cor do móvel na planta. Deixe vazio (ou NEUTRO) para o móvel aparecer branco.',
-      '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto do móvel; "Marca Etiqueta N" define a cor de cada uma (vazio = cor do móvel). Pirâmide e mesa destaque mostram até 4 etiquetas, empilhadas (as colunas que não aparecem na planta ficam cinza).',
+      '3. "Marca do Móvel" define a cor do móvel (ou do espaço) na planta. Deixe vazio (ou NEUTRO) para ele aparecer branco.',
+      '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto; "Marca Etiqueta N" define a cor de cada uma (vazio = cor da linha). Pirâmide e cada espaço da gôndola e das mesas mostram até 4 etiquetas, empilhadas (as colunas que não aparecem na planta ficam cinza).',
       '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
-      '6.1 Gôndolas têm uma linha para a gôndola inteira e uma por espaço (ex.: GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A). Espaço preenchido tem prioridade; espaço vazio usa a linha da gôndola inteira (para deixar um espaço branco, use NEUTRO). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
-      '6.2 Etiquetas da gôndola. Na linha da gôndola inteira: Etiqueta 1 = Lado A, Etiqueta 2 = Meio A, Etiqueta 3 = Meio B, Etiqueta 4 = Lado B ("A" é sempre o lado virado para quem olha a planta). A linha de um espaço mostra até 4 etiquetas empilhadas em cima daquele bloco (Etiqueta 1 a 4) e substitui a etiqueta que viria da gôndola inteira.',
-      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3) e móvel make (TESTEIRA-1 a 4) têm uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada testeira, 1. Bloco sem linha própria usa a cor do móvel inteiro. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só, no centro. O balcão recepção tem uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.',
-      '6.4 Totem: na linha do totem, Etiqueta 1, 2 e 3 vão para o painel de cima, o do meio e o de baixo (cada uma ao lado do seu painel), e a "Marca Etiqueta N" pinta o painel N. Painel sem etiqueta usa a "Marca do Móvel". Se preferir, uma linha TOTEM 1/PAINEL-1 (a 3) define cor e etiqueta de um painel e tem prioridade.',
+      '6.1 Gôndola, mesas, totem e móvel make são preenchidos espaço por espaço: não há linha do móvel inteiro (se houver, ela é ignorada). Espaço sem linha fica branco.',
+      '6.2 Gôndola: uma linha por espaço — GONDOLA 1/LADO-A, MEIO-A, MEIO-B e LADO-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas empilhadas em cima dele. Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
+      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só, no centro. As etiquetas do totem ficam ao lado do painel, com linha-guia.',
+      '6.4 Móveis de um espaço só (pirâmide, móvel de fila, móvel de parede, PDV, O.U.i…) têm uma linha. O balcão recepção tem uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.',
       '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
     ].concat(op.visualizador ? [
       // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.
@@ -4076,7 +4055,7 @@ const Planilha = (() => {
     let faixa = 0;
     plantas.forEach((p) => {
       const fundo = { type: 'pattern', pattern: 'solid', fgColor: { argb: FAIXAS_PLANTA[faixa++ % FAIXAS_PLANTA.length] } };
-      // Gôndola: uma linha para ela inteira (etiqueta N = bloco N) + uma por espaço (ponta/meio), com 1 etiqueta cada.
+      // Móvel com espaços (gôndola, mesas, totem, make): só uma linha por espaço; os demais, uma linha.
       // limite = quantas etiquetas aparecem na planta (as outras colunas ficam cinza).
       const valePara = (m) => {
         if (!emCascata) return '';
@@ -4084,16 +4063,24 @@ const Planilha = (() => {
         return lista.length > 1 ? ' · vale para ' + lista.map(nomeDe).join(', ') : '';
       };
       const POR_POSICAO = {
-        GONDOLA: ' (gôndola inteira; Etiqueta 1–4 = Lado A, Meio A, Meio B, Lado B)',
         VITRINE_L: ' (Etiqueta 1–3 = bloco 1, canto, bloco 3)',
-        TOTEM: ' (Etiqueta 1–3 = painel de cima, do meio e de baixo; Marca Etiqueta N = cor do painel N)',
       };
-      const linhasDoMovel = (m) => [{
-        id: m.id,
-        descricao: m.descricao + (POR_POSICAO[m.tipo] || '') + valePara(m),
-        limite: porTipo[m.tipo] || max,
-        porPosicao: !!POR_POSICAO[m.tipo],
-      }].concat(espacosNaPlanilha(m).map((e) => ({ id: m.id + '/' + e.id, descricao: (m.descricao || m.id) + ' – ' + e.nome, limite: porBloco[m.tipo] || 1 })));
+      const linhasDoMovel = (m) => {
+        const espacos = espacosNaPlanilha(m);
+        if (espacos.length) {
+          return espacos.map((e, k) => ({
+            id: m.id + '/' + e.id,
+            descricao: (m.descricao || m.id) + ' – ' + e.nome + (k ? '' : valePara(m)),
+            limite: porBloco[m.tipo] || 1,
+          }));
+        }
+        return [{
+          id: m.id,
+          descricao: m.descricao + (POR_POSICAO[m.tipo] || '') + valePara(m),
+          limite: porTipo[m.tipo] || max,
+          porPosicao: !!POR_POSICAO[m.tipo],
+        }];
+      };
       // Móvel de atendimento não leva cor nem etiqueta: fica fora da planilha.
       p.moveis.filter((m) => !SEM_LINHA_NA_PLANILHA[m.tipo]).reduce((acc, m) => acc.concat(linhasDoMovel(m)), []).forEach((m) => {
         const info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;
@@ -4103,7 +4090,7 @@ const Planilha = (() => {
         const linha = { ciclo: op.ciclo, planta: nomeDe(p.id), movel: m.id, descricao: m.descricao };
         if (info) {
           linha.marca = info.marca;
-          // Só as etiquetas que aparecem na planta (na gôndola inteira, cada uma fica na coluna do seu bloco).
+          // Só as etiquetas que aparecem na planta (no balcão, cada uma fica na coluna do seu bloco).
           const usadas = m.porPosicao
             ? info.etiquetas.filter((e, i) => (e.posicao || i + 1) <= m.limite)
             : info.etiquetas.slice(0, m.limite);
@@ -5676,7 +5663,7 @@ const App = (() => {
    *  - mesas: o comprimento dividido pelas frentes; móvel make: dividido pelas 4 testeiras;
    *  - totem: a largura dividida pelos 3 painéis; balcão em L: os dois braços;
    *  - demais móveis: o lado maior. Móvel de atendimento e itens fora da planta não contam.
-   * Cada parte usa a linha própria (espaço da gôndola, frente, painel, testeira) ou, sem ela, a do móvel.
+   * Gôndola, mesas, totem e móvel make: cada parte usa a linha do próprio espaço (sem ela, fica sem marca).
    * @return {Array<{movel, espaco, frente: number, marcas: string[], simbolo: string}>}
    */
   function partesDeEspaco(planta, ciclo) {
@@ -5692,7 +5679,6 @@ const App = (() => {
     });
     planta.moveis.forEach((m) => {
       if (m.tipo === 'EXTRA' || m.tipo === 'CAIXA') return;
-      const geral = linha(m.id);
       const L = Math.max(m.w, m.d);
       const C = Math.min(m.w, m.d);
       const propria = (id) => {
@@ -5705,25 +5691,16 @@ const App = (() => {
           || valida(linha(m.id + '/MEIO-' + l + '-2')) || valida(linha(m.id + '/MEIO-' + l + '-1'))).join('');
         Render.espacos(Object.assign({}, m, { dividido: div })).forEach((e) => {
           const frente = /^LADO/.test(e.id) ? C : /-\d$/.test(e.id) ? L / 2 : L;
-          parte(m, e, frente, propria(e.id) || geral);
+          parte(m, e, frente, propria(e.id));
         });
         return;
       }
-      if (m.tipo === 'TOTEM') {
-        // Painel sem linha própria: a "Marca Etiqueta N" da linha do totem (como na planta), senão a do totem.
-        Render.espacos(m).forEach((e, k) => {
-          const et = geral && geral.etiquetas.filter((x, j) => (x.posicao || j + 1) === k + 1)[0];
-          const i = propria(e.id) || (et && et.marca ? Object.assign({}, geral, { marca: et.marca }) : geral);
-          parte(m, e, L / 3, i);
-        });
-        return;
-      }
-      const blocos = Render.espacos(m);
+      const blocos = Render.espacos(m); // frentes das mesas, painéis do totem, testeiras do make
       if (blocos.length) {
-        blocos.forEach((e) => parte(m, e, L / blocos.length, propria(e.id) || geral));
+        blocos.forEach((e) => parte(m, e, L / blocos.length, propria(e.id)));
         return;
       }
-      parte(m, null, m.tipo === 'VITRINE_L' ? m.w + m.d : L, geral);
+      parte(m, null, m.tipo === 'VITRINE_L' ? m.w + m.d : L, linha(m.id));
     });
     return partes;
   }
@@ -5865,10 +5842,8 @@ const App = (() => {
 
   /* ------------------------- estratégia do móvel -------------------------- */
 
-  /** O que cada "Etiqueta N" da linha do móvel inteiro quer dizer, nos tipos em que ela vai para um bloco. */
+  /** O que cada "Etiqueta N" da linha do móvel quer dizer, nos tipos em que ela vai para um bloco. */
   const POSICOES_ETIQUETA = {
-    GONDOLA: ['Lado A', 'Meio A', 'Meio B', 'Lado B'],
-    TOTEM: ['Painel 1 (de cima)', 'Painel 2 (do meio)', 'Painel 3 (de baixo)'],
     VITRINE_L: ['Bloco 1', 'Canto', 'Bloco 3'],
   };
 
@@ -5958,91 +5933,71 @@ const App = (() => {
   }
 
   /**
-   * Colunas do planograma do móvel (mesmas regras da planta): uma por espaço da gôndola (com as
-   * próprias etiquetas, ou a Etiqueta N da gôndola inteira), por frente da mesa e por bloco do balcão;
-   * o totem tem uma coluna com um painel por linha; os demais, uma coluna só. Colunas vizinhas que
-   * herdam a mesma linha do móvel inteiro viram uma só.
-   * @return {{n, rotulos, colunas: Array<{nome, peso, celulas}>, testeiras}|null}
+   * Colunas do planograma do móvel (mesmas regras da planta): uma por espaço da gôndola e por frente
+   * da mesa, cada uma com as etiquetas da linha do próprio espaço; uma por bloco do balcão (Etiqueta N
+   * da linha dele); o totem tem uma coluna com um painel por linha; o móvel make, as testeiras por
+   * cima e o corpo sem marca; os demais, uma coluna só com a linha do móvel.
+   * @return {{n, rotulos, colunas: Array<{nome, peso, marca, celulas}>, testeiras}|null}
    */
   function planogramaDe(m, mov, linha, temLinha) {
     const config = estado.dados.config || {};
     const limBloco = (config.etiquetasPorBloco || {})[m.tipo] || 1;
-    const geral = linha(m.id);
-    const naPosicao = (i, n) => (i ? i.etiquetas.filter((e, k) => (e.posicao || k + 1) === n) : []);
-    /** Linha própria do espaço (a metade sem linha usa a do meio inteiro). */
+    /** Linha própria do espaço (a metade sem linha usa a do meio). */
     const propriaDe = (e) => {
       const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
       const id = [m.id + '/' + e.id, meio].filter(Boolean).find(temLinha);
       return id ? linha(id) : null;
     };
-    /** Etiqueta pronta para o planograma: texto e cor (a da marca dela ou a da linha de onde veio). */
+    /** Etiqueta pronta para o planograma: texto e marca (a dela ou a da linha). */
     const etq = (e, i) => ({ texto: e.texto, marca: e.marca || (i && i.marca !== 'NEUTRO' ? i.marca : '') });
-    const coluna = (nome, peso, n, i, etiquetas, chave) => ({
-      nome, peso, marca: i ? i.marca : '', chave,
+    const coluna = (nome, peso, n, i, etiquetas) => ({
+      nome, peso, marca: i ? i.marca : '',
       celulas: dividirPrateleiras(n, etiquetas.map((e) => etq(e, i))),
     });
+    const doEspaco = (e) => {
+      const p = propriaDe(e);
+      return { p, etiquetas: p ? p.etiquetas.slice(0, limBloco) : [] };
+    };
     const n = Render.PRATELEIRAS[m.tipo] || 1;
-    let colunas;
-    let rotulos = Array.from({ length: n }, (_, k) => String(k + 1));
-    let testeiras = null;
-    const todas = (i, lim) => (i ? i.etiquetas.slice(0, lim || i.etiquetas.length) : []);
+    const rotulos = Array.from({ length: n }, (_, k) => String(k + 1));
     if (m.tipo === 'CAIXA') return null;
     if (m.tipo === 'GONDOLA') {
-      const pos = { 'LADO-A': 1, 'MEIO-A': 2, 'MEIO-B': 3, 'LADO-B': 4 };
-      colunas = Render.caixasGondola(mov).map((b) => {
-        const e = b.espaco;
-        const p = propriaDe(e);
-        const peso = Math.max(b.w, b.d);
-        if (p && p.etiquetas.length) return coluna(e.nome, peso, n, p, p.etiquetas.slice(0, limBloco));
-        const i = p || geral;
-        return coluna(e.nome, peso, n, i, naPosicao(geral, pos[e.id.slice(0, 6)]), p ? null : 'geral' + pos[e.id.slice(0, 6)]);
+      const colunas = Render.caixasGondola(mov).map((b) => {
+        const { p, etiquetas } = doEspaco(b.espaco);
+        return coluna(b.espaco.nome, Math.max(b.w, b.d), n, p, etiquetas);
       });
-    } else if (m.tipo === 'TOTEM') {
-      // Uma coluna, um painel por linha (1 = o de cima): a linha do painel, senão a Etiqueta N do totem.
-      rotulos = ['Painel 1', 'Painel 2', 'Painel 3'];
-      const celulas = Render.espacos(m).map((e, k) => {
-        const p = propriaDe(e);
-        if (p) return { de: k, ate: k + 1, marca: p.marca, etiquetas: p.etiquetas.slice(0, limBloco).map((x) => etq(x, p)) };
-        const et = naPosicao(geral, k + 1);
-        const marca = (et[0] && et[0].marca) || (geral ? geral.marca : '');
-        return { de: k, ate: k + 1, marca, etiquetas: et.map((x) => ({ texto: x.texto, marca: x.marca || (marca !== 'NEUTRO' ? marca : '') })) };
-      });
-      colunas = [{ nome: 'Totem', peso: 1, marca: geral ? geral.marca : '', celulas }];
-      return { n: 3, rotulos, colunas, testeiras };
-    } else if (m.tipo === 'VITRINE_L') {
-      colunas = ['Bloco 1', 'Canto', 'Bloco 3'].map((nome, k) => coluna(nome, k === 1 ? 0.6 : 1, n, geral, naPosicao(geral, k + 1)));
-    } else if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
-      // Cada frente tem um nicho: a frente com linha própria usa as etiquetas dela; sem, a mesa inteira.
-      rotulos = ['Nicho'];
-      colunas = Render.espacos(m).map((e) => {
-        const p = propriaDe(e);
-        return p ? coluna(e.nome, 1, 1, p, p.etiquetas.slice(0, limBloco)) : coluna(e.nome, 1, 1, geral, todas(geral, (config.etiquetasPorTipo || {})[m.tipo]), 'geral');
-      });
-      return { n: 1, rotulos, colunas: juntarColunas(colunas), testeiras };
-    } else {
-      if (m.tipo === 'MAKE') {
-        testeiras = Render.espacos(m).map((e) => {
-          const p = propriaDe(e) || geral;
-          return { nome: e.nome, marca: p ? p.marca : '', etiquetas: p ? p.etiquetas.slice(0, 1).map((x) => etq(x, p)) : [] };
-        });
-      }
-      colunas = [coluna('Móvel inteiro', 1, n, geral, todas(geral, (config.etiquetasPorTipo || {})[m.tipo]))];
+      return { n, rotulos, colunas, testeiras: null };
     }
-    return { n, rotulos, colunas: juntarColunas(colunas), testeiras };
-  }
-
-  /** Colunas vizinhas que herdam a mesma linha do móvel inteiro (mesma chave) viram uma só. */
-  function juntarColunas(colunas) {
-    return colunas.reduce((acc, c) => {
-      const ant = acc[acc.length - 1];
-      if (ant && c.chave && ant.chave === c.chave) {
-        ant.nome += ' + ' + c.nome;
-        ant.peso += c.peso;
-      } else {
-        acc.push(Object.assign({}, c));
-      }
-      return acc;
-    }, []);
+    if (m.tipo === 'TOTEM') {
+      // Uma coluna, um painel por linha (1 = o de cima), cada um com a linha do próprio painel.
+      const celulas = Render.espacos(m).map((e, k) => {
+        const { p, etiquetas } = doEspaco(e);
+        return { de: k, ate: k + 1, marca: p ? p.marca : '', etiquetas: etiquetas.map((x) => etq(x, p)) };
+      });
+      return { n: 3, rotulos: ['Painel 1', 'Painel 2', 'Painel 3'], colunas: [{ nome: 'Totem', peso: 1, marca: '', celulas }], testeiras: null };
+    }
+    if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
+      const colunas = Render.espacos(m).map((e) => {
+        const { p, etiquetas } = doEspaco(e);
+        return coluna(e.nome, 1, 1, p, etiquetas);
+      });
+      return { n: 1, rotulos: ['Nicho'], colunas, testeiras: null };
+    }
+    if (m.tipo === 'MAKE') {
+      const testeiras = Render.espacos(m).map((e) => {
+        const p = propriaDe(e);
+        return { nome: e.nome, marca: p ? p.marca : '', etiquetas: p ? p.etiquetas.slice(0, 1).map((x) => etq(x, p)) : [] };
+      });
+      return { n, rotulos, colunas: [coluna('Prateleiras', 1, n, null, [])], testeiras };
+    }
+    const geral = linha(m.id);
+    const posicoes = POSICOES_ETIQUETA[m.tipo];
+    if (posicoes) { // balcão: Etiqueta N = bloco N
+      const naPosicao = (k) => (geral ? geral.etiquetas.filter((e, j) => (e.posicao || j + 1) === k + 1) : []);
+      return { n, rotulos, colunas: posicoes.map((nome, k) => coluna(nome, k === 1 ? 0.6 : 1, n, geral, naPosicao(k))), testeiras: null };
+    }
+    const lim = (config.etiquetasPorTipo || {})[m.tipo];
+    return { n, rotulos, colunas: [coluna('Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };
   }
 
   /** Seção "Planograma" da tela do móvel: as prateleiras de cada espaço, com a cor e as etiquetas de cada uma. */
@@ -6098,7 +6053,7 @@ const App = (() => {
     novo('p', 'pg-nota', plano.rotulos[0] === 'Painel 1'
       ? 'Painel 1 é o de cima. Cada painel tem a cor e a etiqueta da própria linha (ou da Etiqueta N do totem).'
       : plano.n > 1
-        ? 'Prateleira 1 é a de cima. As etiquetas de cada espaço dividem as prateleiras na ordem (Etiqueta 1 em cima), cada uma com a cor da marca dela.'
+        ? 'Prateleira 1 é a de cima. As etiquetas de cada espaço dividem as prateleiras na ordem (Etiqueta 1 em cima), cada uma com a cor da marca dela.' + (plano.testeiras ? ' As prateleiras do móvel make não levam marca: cada testeira tem a sua.' : '')
         : 'As etiquetas de cada espaço, com a cor da marca de cada uma.', sec);
   }
 
@@ -6123,7 +6078,7 @@ const App = (() => {
     return true;
   }
 
-  /** Clique no móvel: abre a tela com a estratégia do ciclo para ele (móvel inteiro e cada espaço). */
+  /** Clique no móvel: abre a tela com a estratégia do ciclo para ele (a linha do móvel ou a de cada espaço). */
   function abrirMovel(id) {
     const planta = plantaAtual();
     const m = planta && planta.moveis.find((x) => x.id === id);
@@ -6153,16 +6108,19 @@ const App = (() => {
       }
       const plano = planogramaDe(m, mov, linha, temLinha);
       if (plano) blocoPlanograma(corpo, plano);
-      blocoEstrategia(corpo, 'Móvel inteiro', linha(m.id), {
-        vazio: 'Sem linha neste ciclo: o móvel fica branco (neutro).',
-        limite: (config.etiquetasPorTipo || {})[m.tipo],
-        posicoes: POSICOES_ETIQUETA[m.tipo],
-      });
+      // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.
+      if (!Render.espacos(mov).length) {
+        blocoEstrategia(corpo, 'Móvel', linha(m.id), {
+          vazio: 'Sem linha neste ciclo: o móvel fica branco (neutro).',
+          limite: (config.etiquetasPorTipo || {})[m.tipo],
+          posicoes: POSICOES_ETIQUETA[m.tipo],
+        });
+      }
       Render.espacos(mov).forEach((e) => {
         const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
         const propria = [m.id + '/' + e.id, meio].filter(Boolean).find(temLinha);
         blocoEstrategia(corpo, e.nome, propria ? linha(propria) : null, {
-          vazio: 'Sem linha própria: usa a do móvel inteiro.',
+          vazio: 'Sem linha neste ciclo: o espaço fica branco (neutro).',
           limite: (config.etiquetasPorBloco || {})[m.tipo] || 1,
         });
       });

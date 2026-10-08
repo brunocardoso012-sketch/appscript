@@ -31,22 +31,19 @@ const CONFIG = {
 const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
 
 /**
- * Quantas etiquetas a linha do móvel inteiro mostra (as outras colunas "Etiqueta N"
- * são ignoradas). Tipos que não aparecem aqui mostram até CONFIG.MAX_ETIQUETAS
- * (pirâmide e mesas: até 4, empilhadas).
- * Gôndola: na linha da gôndola inteira, Etiqueta 1 = Lado A, 2 = Meio A, 3 = Meio B
- * e 4 = Lado B (uma por bloco); a linha de um espaço (GONDOLA 1/MEIO-A…) substitui
- * as etiquetas daquele bloco (veja ETIQUETAS_POR_BLOCO).
+ * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
+ * "Etiqueta N" são ignoradas). Tipos que não aparecem aqui mostram até
+ * CONFIG.MAX_ETIQUETAS (pirâmide: até 4, empilhadas).
  * Balcão recepção: uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.
- * Totem: Etiqueta 1, 2 e 3 vão para o painel 1 (o de cima), 2 e 3, e a "Marca Etiqueta N"
- * pinta o painel N; a linha de um painel (TOTEM 1/PAINEL-2…) tem prioridade.
+ * Gôndola, mesas, totem e móvel make não têm linha do móvel inteiro: cada espaço tem a
+ * sua (veja ETIQUETAS_POR_BLOCO).
  */
-const ETIQUETAS_POR_TIPO = { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 };
+const ETIQUETAS_POR_TIPO = { VITRINE_L: 3 };
 
 /**
- * Quantas etiquetas a linha de um bloco mostra em cima dele (GONDOLA 1/LADO-A,
+ * Quantas etiquetas a linha de um espaço mostra em cima dele (GONDOLA 1/LADO-A,
  * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
- * (totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
+ * (painéis do totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
  * mesmas etiquetas (texto e cor) viram uma pilha só, centralizada.
  */
 const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
@@ -162,7 +159,8 @@ const TIPOS_CONSTRUCAO = [
  *  - móvel make: Testeira 1 a 4.
  * Na planilha, cada espaço é endereçado como "<ID do móvel>/<espaço>", ex.:
  * GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A-2, MESA DESTAQUE 1/FRENTE-2.
- * Uma linha só com o ID do móvel vale para todos os espaços sem linha própria.
+ * Móvel com espaços é preenchido só espaço por espaço: a linha só com o ID do móvel
+ * é ignorada (espaço sem linha fica branco).
  * (A página tem uma cópia desta regra em Render.espacos.)
  * @param {{tipo: string, dividido: string}} m  dividido = '', 'A', 'B' ou 'AB'
  * @return {Array<{id: string, nome: string}>}

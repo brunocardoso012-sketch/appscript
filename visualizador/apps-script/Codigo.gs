@@ -188,22 +188,19 @@ const CONFIG = {
 const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
 
 /**
- * Quantas etiquetas a linha do móvel inteiro mostra (as outras colunas "Etiqueta N"
- * são ignoradas). Tipos que não aparecem aqui mostram até CONFIG.MAX_ETIQUETAS
- * (pirâmide e mesas: até 4, empilhadas).
- * Gôndola: na linha da gôndola inteira, Etiqueta 1 = Lado A, 2 = Meio A, 3 = Meio B
- * e 4 = Lado B (uma por bloco); a linha de um espaço (GONDOLA 1/MEIO-A…) substitui
- * as etiquetas daquele bloco (veja ETIQUETAS_POR_BLOCO).
+ * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
+ * "Etiqueta N" são ignoradas). Tipos que não aparecem aqui mostram até
+ * CONFIG.MAX_ETIQUETAS (pirâmide: até 4, empilhadas).
  * Balcão recepção: uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.
- * Totem: Etiqueta 1, 2 e 3 vão para o painel 1 (o de cima), 2 e 3, e a "Marca Etiqueta N"
- * pinta o painel N; a linha de um painel (TOTEM 1/PAINEL-2…) tem prioridade.
+ * Gôndola, mesas, totem e móvel make não têm linha do móvel inteiro: cada espaço tem a
+ * sua (veja ETIQUETAS_POR_BLOCO).
  */
-const ETIQUETAS_POR_TIPO = { GONDOLA: 4, VITRINE_L: 3, TOTEM: 3 };
+const ETIQUETAS_POR_TIPO = { VITRINE_L: 3 };
 
 /**
- * Quantas etiquetas a linha de um bloco mostra em cima dele (GONDOLA 1/LADO-A,
+ * Quantas etiquetas a linha de um espaço mostra em cima dele (GONDOLA 1/LADO-A,
  * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
- * (totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
+ * (painéis do totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
  * mesmas etiquetas (texto e cor) viram uma pilha só, centralizada.
  */
 const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
@@ -319,7 +316,8 @@ const TIPOS_CONSTRUCAO = [
  *  - móvel make: Testeira 1 a 4.
  * Na planilha, cada espaço é endereçado como "<ID do móvel>/<espaço>", ex.:
  * GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A-2, MESA DESTAQUE 1/FRENTE-2.
- * Uma linha só com o ID do móvel vale para todos os espaços sem linha própria.
+ * Móvel com espaços é preenchido só espaço por espaço: a linha só com o ID do móvel
+ * é ignorada (espaço sem linha fica branco).
  * (A página tem uma cópia desta regra em Render.espacos.)
  * @param {{tipo: string, dividido: string}} m  dividido = '', 'A', 'B' ou 'AB'
  * @return {Array<{id: string, nome: string}>}
@@ -449,7 +447,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 6;
+const VERSAO_EXEMPLO = 7;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -594,8 +592,8 @@ const LAYOUT_PADRAO = {
  *  Cascata: o que é definido numa planta vale também para as seguintes
  *  (ER P → ER M → ER G → ER GG), então cada móvel aparece só na primeira planta
  *  que o tem. Uma linha da própria planta tem prioridade; "TODAS" vale para todas.
- *  Pirâmide e mesa destaque mostram 1 etiqueta; na gôndola inteira, as
- *  etiquetas 1–4 vão para Ponta 1, Meio A, Meio B e Ponta 2 (ETIQUETAS_POR_TIPO).
+ *  Gôndola, mesas, totem e móvel make são preenchidos espaço por espaço
+ *  (GONDOLA 1/LADO-A, MESA DESTAQUE 1/FRENTE-1, TOTEM 1/PAINEL-1…), sem linha do móvel inteiro.
  * ------------------------------------------------------------------------ */
 
 const EXEMPLO_CICLO = 'Ciclo exemplo';
@@ -611,28 +609,32 @@ const EXEMPLO_MOVIMENTOS = {
     'MOVEL DE PAREDE 2': ['NEUTRO', [['PERF MASC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 3': ['NEUTRO', [['CUIDADOS (CBEM)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 4': ['NEUTRO', [['PERF FEM', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'GONDOLA 1': ['BOT', [['', ''], ['BOTIK', 'BOT'], ['UOMINI HERO', 'BOT'], ['BOTI PROMO', 'BOT']], 'FIXO'],
     'GONDOLA 1/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']]],
+    'GONDOLA 1/MEIO-A': ['BOT', [['BOTIK', 'BOT']], 'FIXO'],
+    'GONDOLA 1/MEIO-B': ['BOT', [['UOMINI HERO', 'BOT']], 'FIXO'],
+    'GONDOLA 1/LADO-B': ['BOT', [['BOTI PROMO', 'BOT']], 'FIXO'],
     'PIRAMIDE 1': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'PIRAMIDE 2': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT']]],
-    'MESA DESTAQUE 1': ['MULTI'],
     'MESA DESTAQUE 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
     'MESA DESTAQUE 1/FRENTE-2': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
     'PDV MOVEL 1': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
     'BALCAO RECEPCAO 1': ['BOT', [['LÇTO EGEO', 'BOT+QDB'], ['JUICY MOOD', 'QDB'], ['SIÀGE ULTIMATE', 'EUD']]],
     'MOVEL DE FILA 1': ['EUD', [['OUTLET EUD', 'EUD']]],
     'MOVEL DE FILA 2': ['BOT', [['BOTIPROMO', 'BOT']]],
-    'TOTEM 1': ['BOT', [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT'], ['LIQUIDA QDB', 'QDB']]],
-    'MOVEL MAKE 1': ['NEUTRO', [['TESTEIRA MAKE MULTIPROMO', 'MULTI']]],
+    'TOTEM 1/PAINEL-1': ['BOT', [['LÇTO UOMINI', 'BOT']]],
+    'TOTEM 1/PAINEL-2': ['BOT', [['BOTIPROMO', 'BOT']]],
+    'TOTEM 1/PAINEL-3': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'MOVEL MAKE 1/TESTEIRA-1': ['#1F1F1F'],
     'MOVEL MAKE 1/TESTEIRA-2': ['BOT', [['BOTIPROMO MAKE B.', 'BOT']]],
     'MOVEL MAKE 1/TESTEIRA-3': ['BOT', [['BOTIPROMO MAKE B.', 'BOT']]],
     'MOVEL MAKE 1/TESTEIRA-4': ['EUD'],
   },
   '02': {
-    'GONDOLA 2': ['EUD', [['', ''], ['PERFUMARIA', 'EUD'], ['CUIDADOS', 'EUD'], ['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
     'GONDOLA 2/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']], 'MOVIMENTO'],
     'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
+    'GONDOLA 2/MEIO-B': ['EUD', [['CUIDADOS', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 2/LADO-B': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
     'PIRAMIDE 3': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'MOVEL DE FILA 3': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 4': ['QDB', [['LIQUIDA QDB', 'QDB']]],
@@ -640,10 +642,12 @@ const EXEMPLO_MOVIMENTOS = {
     'TOTEM OUI 1': ['OUI', [['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
   '03': {
-    'GONDOLA 3': ['MULTI', [['MULTI PROMO', 'MULTI'], ['CURTO PRAZO', 'MULTI'], ['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
+    'GONDOLA 3/LADO-A': ['MULTI', [['MULTI PROMO', 'MULTI']], 'MOVIMENTO'],
+    'GONDOLA 3/MEIO-A': ['MULTI', [['CURTO PRAZO', 'MULTI']], 'MOVIMENTO'],
+    'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
+    'GONDOLA 3/LADO-B': ['MULTI', [], 'MOVIMENTO'],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 8': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'MESA DESTAQUE 3 FRENTES 1': ['MULTI'],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-2': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-3': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
@@ -651,9 +655,18 @@ const EXEMPLO_MOVIMENTOS = {
   '04': {
     'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']], 'MOVIMENTO'],
     'PIRAMIDE 5': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
-    'GONDOLA 4': ['OUI', [['EXAUSTÃO OUI', 'OUI']], 'MOVIMENTO'],
-    'GONDOLA 5': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'GONDOLA 6': ['EUD', [['EXAUSTÃO EUD', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 4/LADO-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']], 'MOVIMENTO'],
+    'GONDOLA 4/MEIO-A': ['OUI', [], 'MOVIMENTO'],
+    'GONDOLA 4/MEIO-B': ['OUI', [], 'MOVIMENTO'],
+    'GONDOLA 4/LADO-B': ['OUI', [], 'MOVIMENTO'],
+    'GONDOLA 5/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 5/MEIO-A': ['QDB'],
+    'GONDOLA 5/MEIO-B': ['QDB'],
+    'GONDOLA 5/LADO-B': ['QDB'],
+    'GONDOLA 6/LADO-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 6/MEIO-A': ['EUD', [], 'MOVIMENTO'],
+    'GONDOLA 6/MEIO-B': ['EUD', [], 'MOVIMENTO'],
+    'GONDOLA 6/LADO-B': ['EUD', [], 'MOVIMENTO'],
     'MOVEL DE PAREDE 4': ['NEUTRO', [['CUIDADOS (NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'ILHA PREMIUM OUI 1': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
@@ -724,7 +737,7 @@ function valoresMovimentosExemplo_() {
     Object.keys(moveis).forEach(function (id) {
       const m = moveis[id];
       const o = {
-        ciclo: EXEMPLO_CICLO, planta: planta, movel: id, descricao: descricoes[id] || '',
+        ciclo: EXEMPLO_CICLO, planta: planta, movel: id, descricao: descricoes[id.split('/')[0]] || '',
         marca: m[0], simbolo: m[2] || '', observacao: '',
       };
       (m[1] || []).slice(0, CONFIG.MAX_ETIQUETAS).forEach(function (e, i) {
@@ -780,10 +793,12 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
   }
   const plantas = montarPlantas_(linhasLayout, aviso);
   const idsPorPlanta = {};
+  const comEspacos = {}; // ID dos móveis preenchidos por espaço (gôndola, mesas, totem, móvel make)
   plantas.forEach(function (p) {
     idsPorPlanta[p.id] = {};
     p.moveis.forEach(function (m) {
       idsPorPlanta[p.id][m.id] = true;
+      if (espacosDoMovel_(m).length) comEspacos[m.id] = true;
       espacosAceitos_(m).forEach(function (e) { idsPorPlanta[p.id][m.id + '/' + e] = true; });
     });
   });
@@ -792,6 +807,14 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
       return plantas.some(function (p) { return idsPorPlanta[p.id][id]; });
     }
     return !!(idsPorPlanta[planta] && idsPorPlanta[planta][id]);
+  };
+
+  const movelDe = function (id) {
+    for (let i = 0; i < plantas.length; i++) {
+      const m = plantas[i].moveis.filter(function (x) { return x.id === id; })[0];
+      if (m) return m;
+    }
+    return null;
   };
 
   const ciclos = [];
@@ -818,6 +841,9 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
         aviso(onde + ': planta "' + planta + '" não existe no Layout.');
       } else if (!existeMovel(planta, id)) {
         aviso(onde + ': móvel "' + id + '" não existe no Layout da planta ' + planta + '.');
+      } else if (comEspacos[id]) {
+        aviso(onde + ': "' + id + '" é preenchido por espaço (ex.: ' + id + '/' + espacosDoMovel_(movelDe(id))[0].id + ') — linha do móvel inteiro ignorada.');
+        return;
       }
       const etiquetas = [];
       for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {

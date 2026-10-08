@@ -29,10 +29,12 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
   }
   const plantas = montarPlantas_(linhasLayout, aviso);
   const idsPorPlanta = {};
+  const comEspacos = {}; // ID dos móveis preenchidos por espaço (gôndola, mesas, totem, móvel make)
   plantas.forEach(function (p) {
     idsPorPlanta[p.id] = {};
     p.moveis.forEach(function (m) {
       idsPorPlanta[p.id][m.id] = true;
+      if (espacosDoMovel_(m).length) comEspacos[m.id] = true;
       espacosAceitos_(m).forEach(function (e) { idsPorPlanta[p.id][m.id + '/' + e] = true; });
     });
   });
@@ -41,6 +43,14 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
       return plantas.some(function (p) { return idsPorPlanta[p.id][id]; });
     }
     return !!(idsPorPlanta[planta] && idsPorPlanta[planta][id]);
+  };
+
+  const movelDe = function (id) {
+    for (let i = 0; i < plantas.length; i++) {
+      const m = plantas[i].moveis.filter(function (x) { return x.id === id; })[0];
+      if (m) return m;
+    }
+    return null;
   };
 
   const ciclos = [];
@@ -67,6 +77,9 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
         aviso(onde + ': planta "' + planta + '" não existe no Layout.');
       } else if (!existeMovel(planta, id)) {
         aviso(onde + ': móvel "' + id + '" não existe no Layout da planta ' + planta + '.');
+      } else if (comEspacos[id]) {
+        aviso(onde + ': "' + id + '" é preenchido por espaço (ex.: ' + id + '/' + espacosDoMovel_(movelDe(id))[0].id + ') — linha do móvel inteiro ignorada.');
+        return;
       }
       const etiquetas = [];
       for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
