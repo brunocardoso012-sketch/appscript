@@ -14,12 +14,16 @@
 const Render = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   const FONTE = 'Arial, Helvetica, sans-serif';
+  // Etiquetas: fonte arredondada (Nunito, carregada no <head>; no PNG ela vai embutida no SVG).
+  const FONTE_ETQ = "Nunito, 'Segoe UI', Arial, sans-serif";
   const COS30 = Math.cos(Math.PI / 6);
 
   const TELA = { w: 1920, h: 1080, fundo: '#F3EFEA' };
   const REGIAO_PLANTA = { x: 500, y: 70, w: 1400, h: 950 };
   const LIMITES = { x0: 470, y0: 8, x1: 1912, y1: 1072 };
-  const ETQ = { fonte: 12, lh: 14, padX: 7, padY: 4, gap: 3, maxTexto: 190, simbolo: 20 };
+  const ETQ = { fonte: 12.5, lh: 15, padX: 10, padY: 4, gap: 4, maxTexto: 190, simbolo: 20, raio: 9 };
+  // Quantas prateleiras (níveis) cada tipo de móvel tem: o desenho e o planograma da tela do móvel usam esta tabela.
+  const PRATELEIRAS = { GONDOLA: 4, PIRAMIDE: 4, FILA: 3, GONDOLA_PAREDE: 5, VITRINE_L: 2, ILHA_OUI: 3, MAKE: 5 };
   const CALLOUT = { fonte: 12.5, lh: 16, pad: 9, maxW: 360 };
   const COR = {
     contorno: '#1C1C1C',
@@ -83,20 +87,20 @@ const Render = (() => {
   }
 
   const medidor = document.createElement('canvas').getContext('2d');
-  function largura(txt, tam, peso, estilo) {
-    medidor.font = (estilo || 'normal') + ' ' + (peso || 700) + ' ' + tam + 'px ' + FONTE;
+  function largura(txt, tam, peso, estilo, fonte) {
+    medidor.font = (estilo || 'normal') + ' ' + (peso || 700) + ' ' + tam + 'px ' + (fonte || FONTE);
     return medidor.measureText(txt).width;
   }
 
   /** Quebra o texto em linhas que caibam em maxW (respeita quebras de linha). */
-  function quebrar(txt, maxW, tam, peso) {
+  function quebrar(txt, maxW, tam, peso, fonte) {
     const linhas = [];
     String(txt).split('\n').forEach((par) => {
       if (!par.trim()) { linhas.push(''); return; }
       let atual = '';
       par.trim().split(/\s+/).forEach((palavra) => {
         const tentativa = atual ? atual + ' ' + palavra : palavra;
-        if (!atual || largura(tentativa, tam, peso) <= maxW) atual = tentativa;
+        if (!atual || largura(tentativa, tam, peso, 'normal', fonte) <= maxW) atual = tentativa;
         else { linhas.push(atual); atual = palavra; }
       });
       linhas.push(atual);
@@ -451,7 +455,7 @@ const Render = (() => {
     const m = b.movel;
     switch (m.tipo) {
       case 'GONDOLA_PAREDE':
-        caixa(pai, P, b, { cores, prateleiras: 5, modulo: 2.2 });
+        caixa(pai, P, b, { cores, prateleiras: PRATELEIRAS.GONDOLA_PAREDE, modulo: 2.2 });
         break;
       case 'CUBO': {
         // Cubo de vidro sobre um rodapé escuro.
@@ -529,7 +533,7 @@ const Render = (() => {
         const rodape = Math.min(0.12, b.h * 0.05);
         const hBase = b.h * 0.14;
         const montante = Math.min(0.06, L * 0.02);
-        const n = 5;
+        const n = PRATELEIRAS.MAKE;
         caixa(pai, P, loc(0, L, 0, fundo, 0, b.h), { cores, modulo: 1.5 });
         caixa(pai, P, loc(0, montante, fundo, C * 0.92, hBase, b.h), { cores: [COR.metal] });
         caixa(pai, P, loc(montante, L - montante, fundo, C, 0, rodape), { cores: [COR.rodape] });
@@ -552,7 +556,7 @@ const Render = (() => {
         const hBase = b.h * 0.4;
         const prof = C * 0.3;
         const clara = cores ? cores.map((c) => misturar(c, '#FFFFFF', 0.35)) : null;
-        caixa(pai, P, loc(0, L, 0, C, 0, hBase), { cores, vidro: true, prateleiras: 3, modulo: L / 3 });
+        caixa(pai, P, loc(0, L, 0, C, 0, hBase), { cores, vidro: true, prateleiras: PRATELEIRAS.ILHA_OUI, modulo: L / 3 });
         const v0 = (C - prof) / 2;
         caixa(pai, P, loc(L * 0.04, L * 0.96, v0, v0 + prof, hBase, b.h), { cores, vidro: true });
         [[0.1, 0.24], [0.76, 0.9]].forEach(([u0, u1]) => {
@@ -565,7 +569,7 @@ const Render = (() => {
         caixa(pai, P, b, { cores, moldura: true });
         break;
       case 'VITRINE_L':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: PRATELEIRAS.VITRINE_L });
         break;
       case 'CAIXA': {
         // Móvel de atendimento: balcão com a tela preta em cima, no lado do fundo (acompanha o giro).
@@ -577,14 +581,14 @@ const Render = (() => {
       }
       case 'PIRAMIDE': {
         // 4 blocos iguais, um em cima do outro (divisões tracejadas, como as prateleiras dos outros móveis).
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: PRATELEIRAS.PIRAMIDE });
         break;
       }
       case 'FILA':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3, modulo: 1.5 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: PRATELEIRAS.FILA, modulo: 1.5 });
         break;
       default: // GONDOLA (cada espaço é uma caixa) e tipos desconhecidos
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: PRATELEIRAS.GONDOLA });
     }
   }
 
@@ -681,8 +685,8 @@ const Render = (() => {
 
   function medirGrupo(etiquetas, simbolo, corPadrao) {
     const itens = etiquetas.map((e) => {
-      const linhas = quebrar(e.texto, ETQ.maxTexto, ETQ.fonte, 700);
-      const w = Math.max.apply(null, linhas.map((l) => largura(l, ETQ.fonte, 700))) + ETQ.padX * 2;
+      const linhas = quebrar(e.texto, ETQ.maxTexto, ETQ.fonte, 800, FONTE_ETQ);
+      const w = Math.max.apply(null, linhas.map((l) => largura(l, ETQ.fonte, 800, 'normal', FONTE_ETQ))) + ETQ.padX * 2;
       return {
         linhas,
         w,
@@ -718,14 +722,24 @@ const Render = (() => {
     return g;
   }
 
+  /** Retângulo arredondado de etiqueta: pílula numa linha, cantos suaves em várias; borda um pouco mais escura. */
+  function fundoEtiqueta(pai, x, y, w, h, cores) {
+    return el('rect', {
+      x, y, width: w, height: h, rx: Math.min(ETQ.raio, h / 2), fill: tinta(cores, 0),
+      stroke: misturar(cores[0], '#000000', 0.2), 'stroke-width': 0.8,
+    }, pai);
+  }
+
   function desenharGrupo(pai, gr, attrs) {
-    const g = el('g', Object.assign({ 'data-movel': gr.id }, attrs), pai);
+    // data-movel-base: o móvel da etiqueta (para destacar as etiquetas dele ao passar o mouse no móvel).
+    const g = el('g', Object.assign({ 'data-movel': gr.id, 'data-movel-base': gr.movel.id, filter: 'url(#sombraEtq)' }, attrs), pai);
     let y = gr.y;
     gr.itens.forEach((it, i) => {
-      el('rect', { x: gr.x, y, width: gr.wEtq, height: it.h, fill: tinta(it.cores, 0), rx: 1.5 }, g);
+      fundoEtiqueta(g, gr.x, y, gr.wEtq, it.h, it.cores);
       it.linhas.forEach((l, k) => {
-        texto(g, gr.x + gr.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.2, l, {
-          'font-size': ETQ.fonte, 'font-weight': 700, fill: '#FFFFFF', 'text-anchor': 'middle',
+        texto(g, gr.x + gr.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6, l, {
+          'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
+          fill: '#FFFFFF', 'text-anchor': 'middle',
         });
       });
       if (i === 0 && gr.simbolo) desenharSimbolo(g, gr.simbolo, gr.x + gr.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2);
@@ -794,10 +808,11 @@ const Render = (() => {
   }
 
   /** Linha-guia do grupo até o ponto do móvel (quando o grupo ficou longe). */
-  function desenharGuia(pai, rect, ancora, forcar) {
+  function desenharGuia(pai, rect, ancora, forcar, movelId) {
     const [px, py] = pontoDaGuia(rect, ancora);
     const dist = Math.hypot(px - ancora[0], py - ancora[1]);
     if (!forcar && dist < 14) return;
+    if (movelId) pai = el('g', { class: 'guia', 'data-movel-base': movelId }, pai);
     linha(pai, [px, py], ancora, { stroke: '#3A3A3A', 'stroke-width': 1.3 });
     el('circle', { cx: ancora[0], cy: ancora[1], r: 4, fill: '#FFFFFF', stroke: '#3A3A3A', 'stroke-width': 1.3 }, pai);
   }
@@ -828,7 +843,7 @@ const Render = (() => {
 
   function listaLateral(pai, itens, x, y, w, alturaMin) {
     const medidos = itens.map((it) => {
-      const linhas = quebrar(it.texto, w - 8, 11, 700);
+      const linhas = quebrar(it.texto, w - 12, 11, 800, FONTE_ETQ);
       return { it, linhas, h: Math.max(23, linhas.length * 13 + 10) };
     });
     let total = medidos.reduce((s, m) => s + m.h, 0) + 6 * (medidos.length - 1);
@@ -837,9 +852,9 @@ const Render = (() => {
     medidos.forEach((m) => {
       const h = m.h + extra;
       const cores = coresDe(m.it.marca, 'etiqueta') || [COR.etiquetaPadrao];
-      el('rect', { x, y: cy, width: w, height: h, fill: tinta(cores, 0) }, pai);
+      fundoEtiqueta(pai, x, cy, w, h, cores);
       const y0 = cy + h / 2 - (m.linhas.length * 13) / 2 + 10;
-      m.linhas.forEach((l, k) => texto(pai, x + 4, y0 + k * 13, l, { 'font-size': 11, 'font-weight': 700, fill: '#fff' }));
+      m.linhas.forEach((l, k) => texto(pai, x + 6, y0 + k * 13, l, { 'font-family': FONTE_ETQ, 'font-size': 11, 'font-weight': 800, fill: '#fff' }));
       cy += h + 6;
     });
     return Math.max(total + extra * medidos.length, alturaMin || 0);
@@ -966,10 +981,10 @@ const Render = (() => {
       let cy = y + 28;
       etiquetas.slice(0, 3).forEach((e) => {
         const cores = coresDe(e.marca, 'etiqueta', true) || coresDe(info.marca, 'etiqueta', true) || corEtiquetaPadrao(true);
-        const linhas = quebrar(e.texto, 116, 10, 700).slice(0, 2);
+        const linhas = quebrar(e.texto, 110, 10, 800, FONTE_ETQ).slice(0, 2);
         const hh = linhas.length * 11 + 5;
-        el('rect', { x: x0 + 76, y: cy, width: 120, height: hh, fill: tinta(cores, 0) }, gs);
-        linhas.forEach((l, k) => texto(gs, x0 + 136, cy + 10 + k * 11, l, { 'font-size': 10, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' }));
+        fundoEtiqueta(gs, x0 + 76, cy, 120, hh, cores);
+        linhas.forEach((l, k) => texto(gs, x0 + 136, cy + 10 + k * 11, l, { 'font-family': FONTE_ETQ, 'font-size': 10, 'font-weight': 800, fill: '#fff', 'text-anchor': 'middle' }));
         cy += hh + 3;
       });
       if (!etiquetas.length) texto(gs, x0 + 136, y + 50, '—', { 'font-size': 14, fill: '#AAA', 'text-anchor': 'middle' });
@@ -1034,6 +1049,8 @@ const Render = (() => {
     defs = el('defs', null, svg);
     const filtro = el('filter', { id: 'sombra', x: '-10%', y: '-10%', width: '120%', height: '130%' }, defs);
     el('feDropShadow', { dx: 0, dy: 3, stdDeviation: 4, 'flood-color': '#000', 'flood-opacity': 0.18 }, filtro);
+    const sombraEtq = el('filter', { id: 'sombraEtq', x: '-20%', y: '-30%', width: '140%', height: '170%' }, defs);
+    el('feDropShadow', { dx: 0, dy: 1.2, stdDeviation: 1.3, 'flood-color': '#000', 'flood-opacity': 0.22 }, sombraEtq);
     if (!ctx.somentePlanta) el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
 
     const planta = ctx.planta;
@@ -1229,7 +1246,7 @@ const Render = (() => {
     });
     posicionar(grupos, obstaculos);
     grupos.forEach((gr) => {
-      desenharGuia(camadaGuias, gr, gr.ancora, false);
+      desenharGuia(camadaGuias, gr, gr.ancora, false, gr.movel.id);
       gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
         class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : ''),
       });
@@ -1258,6 +1275,6 @@ const Render = (() => {
     return { grupos, escala: projecao.escala, P };
   }
 
-  return { desenhar, espacos, TELA };
+  return { desenhar, espacos, caixasGondola, TELA, PRATELEIRAS, FONTE_ETQ };
 })();
 </script>

@@ -4,6 +4,10 @@
     <base target="_top">
     <meta charset="utf-8">
     <title>Plano de Varejo · Plantas</title>
+    <!-- Fonte das etiquetas (no PNG ela vai embutida; sem internet, usa Segoe UI / Arial). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap">
     <style>
   :root {
     --fundo: #f3f4f6;
@@ -18,6 +22,7 @@
     --raio: 8px;
     --sombra: 0 1px 2px rgba(0, 0, 0, .06), 0 4px 16px rgba(0, 0, 0, .06);
     --fonte: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --fonte-etq: Nunito, "Segoe UI", Arial, sans-serif; /* a mesma das etiquetas da planta */
   }
 
   * { box-sizing: border-box; }
@@ -238,6 +243,16 @@
   #slide .camada-guias line { stroke-width: calc(1.3px / var(--zoom, 1)); }
   #slide .camada-guias circle { r: calc(4px / var(--zoom, 1)); stroke-width: calc(1.3px / var(--zoom, 1)); }
   #slide .movel:hover polygon { stroke-width: 2.2; }
+  /* Mouse sobre um móvel: as etiquetas dele crescem um pouco e ganham contorno branco; as dos outros ficam mais claras. */
+  #slide .grupo-etiquetas { transform-box: fill-box; transform-origin: center; transition: transform .15s ease, opacity .15s ease; }
+  #slide .camada-guias .guia { transition: opacity .15s ease; }
+  #slide.destacando .grupo-etiquetas:not(.destaque),
+  #slide.destacando .camada-guias .guia:not(.destaque) { opacity: .6; }
+  #slide.destacando .grupo-etiquetas.destaque { transform: scale(1.08); }
+  #slide.destacando .grupo-etiquetas.destaque rect { stroke: #fff; stroke-width: 1.6; }
+  #slide.destacando .camada-guias .guia.destaque line { stroke: #111; stroke-width: calc(2px / var(--zoom, 1)); }
+  #slide.destacando .movel.destaque polygon { stroke-width: 2.2; }
+  @media (prefers-reduced-motion: reduce) { #slide .grupo-etiquetas { transition: none; } }
   #slide .arrastavel { cursor: grab; }
   #slide .arrastavel:hover rect { stroke: #111; stroke-width: 1.5; }
   #slide .arrastavel:active { cursor: grabbing; }
@@ -384,7 +399,37 @@
   .mv-etiquetas ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   .mv-etiquetas li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
   .mv-pos { font-size: 14px; color: var(--texto-2); min-width: 120px; }
-  .mv-etiqueta { color: #fff; font-weight: 700; font-size: 20px; padding: 6px 14px; border-radius: 3px; white-space: pre-line; }
+  .mv-etiqueta {
+    color: #fff; font: 800 19px/1.25 var(--fonte-etq); letter-spacing: .2px; padding: 6px 16px; border-radius: 14px;
+    white-space: pre-line; box-shadow: 0 1px 3px rgba(0, 0, 0, .2), inset 0 0 0 1px rgba(0, 0, 0, .12);
+  }
+  /* planograma: prateleiras de cada espaço (1 = a de cima), com a cor e as etiquetas de cada uma */
+  .pg { overflow-x: auto; padding-bottom: 4px; }
+  .pg-grade { display: grid; column-gap: 8px; min-width: min-content; }
+  .pg-rot { align-self: center; padding-right: 10px; font-size: 12px; color: var(--texto-2); text-align: right; white-space: nowrap; }
+  .pg-celula {
+    position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px;
+    padding: 8px 8px 12px;
+    background: linear-gradient(rgba(255, 255, 255, .78), rgba(255, 255, 255, .78)), var(--cor); /* cor clara da marca */
+    border-left: 2px solid #8a8f96; border-right: 2px solid #8a8f96;
+  }
+  .pg-celula.neutra { background: var(--cor); }
+  .pg-tabua { align-self: end; height: 6px; border-radius: 2px; background: #5d6168; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); position: relative; z-index: 1; pointer-events: none; }
+  .pg-etq {
+    position: relative; z-index: 2; /* por cima das tábuas */
+    max-width: 100%; color: #fff; font: 800 14px/1.25 var(--fonte-etq); letter-spacing: .15px; text-align: center;
+    padding: 4px 12px; border-radius: 12px; white-space: pre-line; overflow-wrap: anywhere;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .2), inset 0 0 0 1px rgba(0, 0, 0, .12);
+  }
+  .pg-etq.neutra { background: #4a4a4a; }
+  .pg-sem { position: relative; z-index: 2; font-size: 12px; font-style: italic; color: var(--texto-2); }
+  .pg-nome { padding-top: 6px; font-size: 12px; font-weight: 600; text-align: center; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); }
+  .pg-testeiras { display: flex; gap: 4px; margin-bottom: 8px; }
+  .pg-testeira { flex: 1 1 0; min-width: 0; display: flex; justify-content: center; align-items: center; padding: 6px; border-radius: 6px; background: #ECEAE6; }
+  .pg-testeira .pg-etq { box-shadow: none; padding: 2px 6px; font-size: 13px; background: transparent !important; }
+  .pg-testeira .pg-sem { color: rgba(255, 255, 255, .8); }
+  .pg-testeira.neutra .pg-sem { color: var(--texto-2); }
+  .pg-nota { margin: 10px 0 0; font-size: 13px; color: var(--texto-2); }
   .mv-marca-etq { font-size: 14px; color: var(--texto-2); }
   .mv-obs { white-space: pre-line; }
   .mv-vazio { color: var(--texto-2); font-style: italic; margin: 0; font-size: 16px; }
@@ -599,12 +644,16 @@
 const Render = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   const FONTE = 'Arial, Helvetica, sans-serif';
+  // Etiquetas: fonte arredondada (Nunito, carregada no <head>; no PNG ela vai embutida no SVG).
+  const FONTE_ETQ = "Nunito, 'Segoe UI', Arial, sans-serif";
   const COS30 = Math.cos(Math.PI / 6);
 
   const TELA = { w: 1920, h: 1080, fundo: '#F3EFEA' };
   const REGIAO_PLANTA = { x: 500, y: 70, w: 1400, h: 950 };
   const LIMITES = { x0: 470, y0: 8, x1: 1912, y1: 1072 };
-  const ETQ = { fonte: 12, lh: 14, padX: 7, padY: 4, gap: 3, maxTexto: 190, simbolo: 20 };
+  const ETQ = { fonte: 12.5, lh: 15, padX: 10, padY: 4, gap: 4, maxTexto: 190, simbolo: 20, raio: 9 };
+  // Quantas prateleiras (níveis) cada tipo de móvel tem: o desenho e o planograma da tela do móvel usam esta tabela.
+  const PRATELEIRAS = { GONDOLA: 4, PIRAMIDE: 4, FILA: 3, GONDOLA_PAREDE: 5, VITRINE_L: 2, ILHA_OUI: 3, MAKE: 5 };
   const CALLOUT = { fonte: 12.5, lh: 16, pad: 9, maxW: 360 };
   const COR = {
     contorno: '#1C1C1C',
@@ -668,20 +717,20 @@ const Render = (() => {
   }
 
   const medidor = document.createElement('canvas').getContext('2d');
-  function largura(txt, tam, peso, estilo) {
-    medidor.font = (estilo || 'normal') + ' ' + (peso || 700) + ' ' + tam + 'px ' + FONTE;
+  function largura(txt, tam, peso, estilo, fonte) {
+    medidor.font = (estilo || 'normal') + ' ' + (peso || 700) + ' ' + tam + 'px ' + (fonte || FONTE);
     return medidor.measureText(txt).width;
   }
 
   /** Quebra o texto em linhas que caibam em maxW (respeita quebras de linha). */
-  function quebrar(txt, maxW, tam, peso) {
+  function quebrar(txt, maxW, tam, peso, fonte) {
     const linhas = [];
     String(txt).split('\n').forEach((par) => {
       if (!par.trim()) { linhas.push(''); return; }
       let atual = '';
       par.trim().split(/\s+/).forEach((palavra) => {
         const tentativa = atual ? atual + ' ' + palavra : palavra;
-        if (!atual || largura(tentativa, tam, peso) <= maxW) atual = tentativa;
+        if (!atual || largura(tentativa, tam, peso, 'normal', fonte) <= maxW) atual = tentativa;
         else { linhas.push(atual); atual = palavra; }
       });
       linhas.push(atual);
@@ -1036,7 +1085,7 @@ const Render = (() => {
     const m = b.movel;
     switch (m.tipo) {
       case 'GONDOLA_PAREDE':
-        caixa(pai, P, b, { cores, prateleiras: 5, modulo: 2.2 });
+        caixa(pai, P, b, { cores, prateleiras: PRATELEIRAS.GONDOLA_PAREDE, modulo: 2.2 });
         break;
       case 'CUBO': {
         // Cubo de vidro sobre um rodapé escuro.
@@ -1114,7 +1163,7 @@ const Render = (() => {
         const rodape = Math.min(0.12, b.h * 0.05);
         const hBase = b.h * 0.14;
         const montante = Math.min(0.06, L * 0.02);
-        const n = 5;
+        const n = PRATELEIRAS.MAKE;
         caixa(pai, P, loc(0, L, 0, fundo, 0, b.h), { cores, modulo: 1.5 });
         caixa(pai, P, loc(0, montante, fundo, C * 0.92, hBase, b.h), { cores: [COR.metal] });
         caixa(pai, P, loc(montante, L - montante, fundo, C, 0, rodape), { cores: [COR.rodape] });
@@ -1137,7 +1186,7 @@ const Render = (() => {
         const hBase = b.h * 0.4;
         const prof = C * 0.3;
         const clara = cores ? cores.map((c) => misturar(c, '#FFFFFF', 0.35)) : null;
-        caixa(pai, P, loc(0, L, 0, C, 0, hBase), { cores, vidro: true, prateleiras: 3, modulo: L / 3 });
+        caixa(pai, P, loc(0, L, 0, C, 0, hBase), { cores, vidro: true, prateleiras: PRATELEIRAS.ILHA_OUI, modulo: L / 3 });
         const v0 = (C - prof) / 2;
         caixa(pai, P, loc(L * 0.04, L * 0.96, v0, v0 + prof, hBase, b.h), { cores, vidro: true });
         [[0.1, 0.24], [0.76, 0.9]].forEach(([u0, u1]) => {
@@ -1150,7 +1199,7 @@ const Render = (() => {
         caixa(pai, P, b, { cores, moldura: true });
         break;
       case 'VITRINE_L':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 2 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: PRATELEIRAS.VITRINE_L });
         break;
       case 'CAIXA': {
         // Móvel de atendimento: balcão com a tela preta em cima, no lado do fundo (acompanha o giro).
@@ -1162,14 +1211,14 @@ const Render = (() => {
       }
       case 'PIRAMIDE': {
         // 4 blocos iguais, um em cima do outro (divisões tracejadas, como as prateleiras dos outros móveis).
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: PRATELEIRAS.PIRAMIDE });
         break;
       }
       case 'FILA':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 3, modulo: 1.5 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: PRATELEIRAS.FILA, modulo: 1.5 });
         break;
       default: // GONDOLA (cada espaço é uma caixa) e tipos desconhecidos
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: 4 });
+        caixa(pai, P, b, { cores, vidro: true, prateleiras: PRATELEIRAS.GONDOLA });
     }
   }
 
@@ -1266,8 +1315,8 @@ const Render = (() => {
 
   function medirGrupo(etiquetas, simbolo, corPadrao) {
     const itens = etiquetas.map((e) => {
-      const linhas = quebrar(e.texto, ETQ.maxTexto, ETQ.fonte, 700);
-      const w = Math.max.apply(null, linhas.map((l) => largura(l, ETQ.fonte, 700))) + ETQ.padX * 2;
+      const linhas = quebrar(e.texto, ETQ.maxTexto, ETQ.fonte, 800, FONTE_ETQ);
+      const w = Math.max.apply(null, linhas.map((l) => largura(l, ETQ.fonte, 800, 'normal', FONTE_ETQ))) + ETQ.padX * 2;
       return {
         linhas,
         w,
@@ -1303,14 +1352,24 @@ const Render = (() => {
     return g;
   }
 
+  /** Retângulo arredondado de etiqueta: pílula numa linha, cantos suaves em várias; borda um pouco mais escura. */
+  function fundoEtiqueta(pai, x, y, w, h, cores) {
+    return el('rect', {
+      x, y, width: w, height: h, rx: Math.min(ETQ.raio, h / 2), fill: tinta(cores, 0),
+      stroke: misturar(cores[0], '#000000', 0.2), 'stroke-width': 0.8,
+    }, pai);
+  }
+
   function desenharGrupo(pai, gr, attrs) {
-    const g = el('g', Object.assign({ 'data-movel': gr.id }, attrs), pai);
+    // data-movel-base: o móvel da etiqueta (para destacar as etiquetas dele ao passar o mouse no móvel).
+    const g = el('g', Object.assign({ 'data-movel': gr.id, 'data-movel-base': gr.movel.id, filter: 'url(#sombraEtq)' }, attrs), pai);
     let y = gr.y;
     gr.itens.forEach((it, i) => {
-      el('rect', { x: gr.x, y, width: gr.wEtq, height: it.h, fill: tinta(it.cores, 0), rx: 1.5 }, g);
+      fundoEtiqueta(g, gr.x, y, gr.wEtq, it.h, it.cores);
       it.linhas.forEach((l, k) => {
-        texto(g, gr.x + gr.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.2, l, {
-          'font-size': ETQ.fonte, 'font-weight': 700, fill: '#FFFFFF', 'text-anchor': 'middle',
+        texto(g, gr.x + gr.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6, l, {
+          'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
+          fill: '#FFFFFF', 'text-anchor': 'middle',
         });
       });
       if (i === 0 && gr.simbolo) desenharSimbolo(g, gr.simbolo, gr.x + gr.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2);
@@ -1379,10 +1438,11 @@ const Render = (() => {
   }
 
   /** Linha-guia do grupo até o ponto do móvel (quando o grupo ficou longe). */
-  function desenharGuia(pai, rect, ancora, forcar) {
+  function desenharGuia(pai, rect, ancora, forcar, movelId) {
     const [px, py] = pontoDaGuia(rect, ancora);
     const dist = Math.hypot(px - ancora[0], py - ancora[1]);
     if (!forcar && dist < 14) return;
+    if (movelId) pai = el('g', { class: 'guia', 'data-movel-base': movelId }, pai);
     linha(pai, [px, py], ancora, { stroke: '#3A3A3A', 'stroke-width': 1.3 });
     el('circle', { cx: ancora[0], cy: ancora[1], r: 4, fill: '#FFFFFF', stroke: '#3A3A3A', 'stroke-width': 1.3 }, pai);
   }
@@ -1413,7 +1473,7 @@ const Render = (() => {
 
   function listaLateral(pai, itens, x, y, w, alturaMin) {
     const medidos = itens.map((it) => {
-      const linhas = quebrar(it.texto, w - 8, 11, 700);
+      const linhas = quebrar(it.texto, w - 12, 11, 800, FONTE_ETQ);
       return { it, linhas, h: Math.max(23, linhas.length * 13 + 10) };
     });
     let total = medidos.reduce((s, m) => s + m.h, 0) + 6 * (medidos.length - 1);
@@ -1422,9 +1482,9 @@ const Render = (() => {
     medidos.forEach((m) => {
       const h = m.h + extra;
       const cores = coresDe(m.it.marca, 'etiqueta') || [COR.etiquetaPadrao];
-      el('rect', { x, y: cy, width: w, height: h, fill: tinta(cores, 0) }, pai);
+      fundoEtiqueta(pai, x, cy, w, h, cores);
       const y0 = cy + h / 2 - (m.linhas.length * 13) / 2 + 10;
-      m.linhas.forEach((l, k) => texto(pai, x + 4, y0 + k * 13, l, { 'font-size': 11, 'font-weight': 700, fill: '#fff' }));
+      m.linhas.forEach((l, k) => texto(pai, x + 6, y0 + k * 13, l, { 'font-family': FONTE_ETQ, 'font-size': 11, 'font-weight': 800, fill: '#fff' }));
       cy += h + 6;
     });
     return Math.max(total + extra * medidos.length, alturaMin || 0);
@@ -1551,10 +1611,10 @@ const Render = (() => {
       let cy = y + 28;
       etiquetas.slice(0, 3).forEach((e) => {
         const cores = coresDe(e.marca, 'etiqueta', true) || coresDe(info.marca, 'etiqueta', true) || corEtiquetaPadrao(true);
-        const linhas = quebrar(e.texto, 116, 10, 700).slice(0, 2);
+        const linhas = quebrar(e.texto, 110, 10, 800, FONTE_ETQ).slice(0, 2);
         const hh = linhas.length * 11 + 5;
-        el('rect', { x: x0 + 76, y: cy, width: 120, height: hh, fill: tinta(cores, 0) }, gs);
-        linhas.forEach((l, k) => texto(gs, x0 + 136, cy + 10 + k * 11, l, { 'font-size': 10, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' }));
+        fundoEtiqueta(gs, x0 + 76, cy, 120, hh, cores);
+        linhas.forEach((l, k) => texto(gs, x0 + 136, cy + 10 + k * 11, l, { 'font-family': FONTE_ETQ, 'font-size': 10, 'font-weight': 800, fill: '#fff', 'text-anchor': 'middle' }));
         cy += hh + 3;
       });
       if (!etiquetas.length) texto(gs, x0 + 136, y + 50, '—', { 'font-size': 14, fill: '#AAA', 'text-anchor': 'middle' });
@@ -1619,6 +1679,8 @@ const Render = (() => {
     defs = el('defs', null, svg);
     const filtro = el('filter', { id: 'sombra', x: '-10%', y: '-10%', width: '120%', height: '130%' }, defs);
     el('feDropShadow', { dx: 0, dy: 3, stdDeviation: 4, 'flood-color': '#000', 'flood-opacity': 0.18 }, filtro);
+    const sombraEtq = el('filter', { id: 'sombraEtq', x: '-20%', y: '-30%', width: '140%', height: '170%' }, defs);
+    el('feDropShadow', { dx: 0, dy: 1.2, stdDeviation: 1.3, 'flood-color': '#000', 'flood-opacity': 0.22 }, sombraEtq);
     if (!ctx.somentePlanta) el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
 
     const planta = ctx.planta;
@@ -1814,7 +1876,7 @@ const Render = (() => {
     });
     posicionar(grupos, obstaculos);
     grupos.forEach((gr) => {
-      desenharGuia(camadaGuias, gr, gr.ancora, false);
+      desenharGuia(camadaGuias, gr, gr.ancora, false, gr.movel.id);
       gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
         class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : ''),
       });
@@ -1843,7 +1905,7 @@ const Render = (() => {
     return { grupos, escala: projecao.escala, P };
   }
 
-  return { desenhar, espacos, TELA };
+  return { desenhar, espacos, caixasGondola, TELA, PRATELEIRAS, FONTE_ETQ };
 })();
 </script>
 
@@ -2165,6 +2227,7 @@ const App = (() => {
     if (!ctx) return;
     svg.classList.toggle('construindo', !!Editor.contexto());
     const r = Render.desenhar(svg, ctx);
+    destacarMovel('');
     Editor.aposDesenhar(r);
     estado.grupos = r.grupos;
     if (estado.edicao) ativarArraste();
@@ -2302,6 +2365,36 @@ const App = (() => {
       const alvo = ev.target.closest('[data-movel]');
       if (alvo) abrirMovel(alvo.getAttribute('data-movel').split('/')[0]);
     });
+  }
+
+  /* ------------------------- destaque ao passar o mouse --------------------- */
+
+  let destacado = ''; // móvel com as etiquetas destacadas ('' = nenhum)
+
+  /** Destaca de leve as etiquetas (e linhas-guia) do móvel; as dos outros ficam um pouco apagadas. */
+  function destacarMovel(id) {
+    if (id === destacado) return;
+    destacado = id;
+    svg.classList.toggle('destacando', !!id);
+    svg.querySelectorAll('.destaque').forEach((n) => n.classList.remove('destaque'));
+    if (!id) return;
+    svg.querySelectorAll('[data-movel-base], .movel').forEach((n) => {
+      if ((n.getAttribute('data-movel-base') || n.getAttribute('data-movel')) === id) n.classList.add('destaque');
+    });
+  }
+
+  /** Mouse sobre um móvel (ou uma etiqueta dele): destaca as etiquetas que estão nele. */
+  function ligarDestaque() {
+    svg.addEventListener('pointerover', (ev) => {
+      // Fora do mouse (toque), no ajuste de etiquetas e na construção não há destaque.
+      if (ev.pointerType !== 'mouse' || estado.edicao || Editor.contexto() || svg.classList.contains('arrastando')) {
+        destacarMovel('');
+        return;
+      }
+      const alvo = ev.target.closest('.movel, .grupo-etiquetas');
+      destacarMovel(alvo ? alvo.getAttribute('data-movel-base') || alvo.getAttribute('data-movel') : '');
+    });
+    svg.addEventListener('pointerleave', () => destacarMovel(''));
   }
 
   /* --------------------------- ajuste de etiquetas ------------------------- */
@@ -2675,6 +2768,166 @@ const App = (() => {
     }
   }
 
+  /* ------------------------------ planograma ------------------------------ */
+
+  /**
+   * Divide as prateleiras de uma coluna entre as etiquetas, na ordem (a 1ª fica em cima).
+   * Menos etiquetas que prateleiras: cada etiqueta ocupa um grupo de prateleiras seguidas;
+   * mais etiquetas que prateleiras: cada prateleira recebe mais de uma.
+   * @return {Array<{de, ate, etiquetas}>} de/ate = índices das prateleiras (0 = a de cima; ate exclusivo)
+   */
+  function dividirPrateleiras(n, etiquetas) {
+    const k = etiquetas.length;
+    if (!k) return [{ de: 0, ate: n, etiquetas: [] }];
+    if (k <= n) return etiquetas.map((e, i) => ({ de: Math.floor((i * n) / k), ate: Math.floor(((i + 1) * n) / k), etiquetas: [e] }));
+    return Array.from({ length: n }, (_, j) => ({ de: j, ate: j + 1, etiquetas: etiquetas.slice(Math.floor((j * k) / n), Math.floor(((j + 1) * k) / n)) }));
+  }
+
+  /**
+   * Colunas do planograma do móvel (mesmas regras da planta): uma por espaço da gôndola (com as
+   * próprias etiquetas, ou a Etiqueta N da gôndola inteira), por frente da mesa e por bloco do balcão;
+   * o totem tem uma coluna com um painel por linha; os demais, uma coluna só. Colunas vizinhas que
+   * herdam a mesma linha do móvel inteiro viram uma só.
+   * @return {{n, rotulos, colunas: Array<{nome, peso, celulas}>, testeiras}|null}
+   */
+  function planogramaDe(m, mov, linha, temLinha) {
+    const config = estado.dados.config || {};
+    const limBloco = (config.etiquetasPorBloco || {})[m.tipo] || 1;
+    const geral = linha(m.id);
+    const naPosicao = (i, n) => (i ? i.etiquetas.filter((e, k) => (e.posicao || k + 1) === n) : []);
+    /** Linha própria do espaço (a metade sem linha usa a do meio inteiro). */
+    const propriaDe = (e) => {
+      const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
+      const id = [m.id + '/' + e.id, meio].filter(Boolean).find(temLinha);
+      return id ? linha(id) : null;
+    };
+    /** Etiqueta pronta para o planograma: texto e cor (a da marca dela ou a da linha de onde veio). */
+    const etq = (e, i) => ({ texto: e.texto, marca: e.marca || (i && i.marca !== 'NEUTRO' ? i.marca : '') });
+    const coluna = (nome, peso, n, i, etiquetas, chave) => ({
+      nome, peso, marca: i ? i.marca : '', chave,
+      celulas: dividirPrateleiras(n, etiquetas.map((e) => etq(e, i))),
+    });
+    const n = Render.PRATELEIRAS[m.tipo] || 1;
+    let colunas;
+    let rotulos = Array.from({ length: n }, (_, k) => String(k + 1));
+    let testeiras = null;
+    const todas = (i, lim) => (i ? i.etiquetas.slice(0, lim || i.etiquetas.length) : []);
+    if (m.tipo === 'CAIXA') return null;
+    if (m.tipo === 'GONDOLA') {
+      const pos = { 'LADO-A': 1, 'MEIO-A': 2, 'MEIO-B': 3, 'LADO-B': 4 };
+      colunas = Render.caixasGondola(mov).map((b) => {
+        const e = b.espaco;
+        const p = propriaDe(e);
+        const peso = Math.max(b.w, b.d);
+        if (p && p.etiquetas.length) return coluna(e.nome, peso, n, p, p.etiquetas.slice(0, limBloco));
+        const i = p || geral;
+        return coluna(e.nome, peso, n, i, naPosicao(geral, pos[e.id.slice(0, 6)]), p ? null : 'geral' + pos[e.id.slice(0, 6)]);
+      });
+    } else if (m.tipo === 'TOTEM') {
+      // Uma coluna, um painel por linha (1 = o de cima): a linha do painel, senão a Etiqueta N do totem.
+      rotulos = ['Painel 1', 'Painel 2', 'Painel 3'];
+      const celulas = Render.espacos(m).map((e, k) => {
+        const p = propriaDe(e);
+        if (p) return { de: k, ate: k + 1, marca: p.marca, etiquetas: p.etiquetas.slice(0, limBloco).map((x) => etq(x, p)) };
+        const et = naPosicao(geral, k + 1);
+        const marca = (et[0] && et[0].marca) || (geral ? geral.marca : '');
+        return { de: k, ate: k + 1, marca, etiquetas: et.map((x) => ({ texto: x.texto, marca: x.marca || (marca !== 'NEUTRO' ? marca : '') })) };
+      });
+      colunas = [{ nome: 'Totem', peso: 1, marca: geral ? geral.marca : '', celulas }];
+      return { n: 3, rotulos, colunas, testeiras };
+    } else if (m.tipo === 'VITRINE_L') {
+      colunas = ['Bloco 1', 'Canto', 'Bloco 3'].map((nome, k) => coluna(nome, k === 1 ? 0.6 : 1, n, geral, naPosicao(geral, k + 1)));
+    } else if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
+      // Cada frente tem um nicho: a frente com linha própria usa as etiquetas dela; sem, a mesa inteira.
+      rotulos = ['Nicho'];
+      colunas = Render.espacos(m).map((e) => {
+        const p = propriaDe(e);
+        return p ? coluna(e.nome, 1, 1, p, p.etiquetas.slice(0, limBloco)) : coluna(e.nome, 1, 1, geral, todas(geral, (config.etiquetasPorTipo || {})[m.tipo]), 'geral');
+      });
+      return { n: 1, rotulos, colunas: juntarColunas(colunas), testeiras };
+    } else {
+      if (m.tipo === 'MAKE') {
+        testeiras = Render.espacos(m).map((e) => {
+          const p = propriaDe(e) || geral;
+          return { nome: e.nome, marca: p ? p.marca : '', etiquetas: p ? p.etiquetas.slice(0, 1).map((x) => etq(x, p)) : [] };
+        });
+      }
+      colunas = [coluna('Móvel inteiro', 1, n, geral, todas(geral, (config.etiquetasPorTipo || {})[m.tipo]))];
+    }
+    return { n, rotulos, colunas: juntarColunas(colunas), testeiras };
+  }
+
+  /** Colunas vizinhas que herdam a mesma linha do móvel inteiro (mesma chave) viram uma só. */
+  function juntarColunas(colunas) {
+    return colunas.reduce((acc, c) => {
+      const ant = acc[acc.length - 1];
+      if (ant && c.chave && ant.chave === c.chave) {
+        ant.nome += ' + ' + c.nome;
+        ant.peso += c.peso;
+      } else {
+        acc.push(Object.assign({}, c));
+      }
+      return acc;
+    }, []);
+  }
+
+  /** Seção "Planograma" da tela do móvel: as prateleiras de cada espaço, com a cor e as etiquetas de cada uma. */
+  function blocoPlanograma(pai, plano) {
+    const sec = novo('section', 'mv-bloco mv-plano', null, pai);
+    novo('h3', null, 'Planograma · como as prateleiras estão divididas', sec);
+    const fundo = (marca) => (marca && marca !== 'NEUTRO' ? corDaMarca(marca, 'etiqueta') : '');
+    const caixa = novo('div', 'pg', null, sec);
+    const grade = novo('div', 'pg-grade', null, caixa);
+    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(120px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
+    const linhaTopo = plano.testeiras ? 1 : 0;
+    grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(58px, auto)) auto';
+    const pos = (n, col, row, rowFim) => {
+      n.style.gridColumn = String(col);
+      n.style.gridRow = row + (rowFim ? ' / ' + rowFim : '');
+      return n;
+    };
+    const conteudo = (cel, etiquetas) => {
+      if (!etiquetas.length) { novo('span', 'pg-sem', 'sem etiqueta', cel); return; }
+      etiquetas.forEach((e) => {
+        const chip = novo('span', 'pg-etq', e.texto, cel);
+        const cor = fundo(e.marca);
+        if (cor) chip.style.background = cor;
+        else chip.classList.add('neutra');
+      });
+    };
+    if (plano.testeiras) {
+      pos(novo('span', 'pg-rot', 'Testeiras', grade), 1, 1);
+      const faixa = pos(novo('div', 'pg-testeiras', null, grade), '2 / -1', 1);
+      plano.testeiras.forEach((t) => {
+        const cel = novo('div', 'pg-testeira', null, faixa);
+        cel.title = t.nome;
+        const cor = fundo(t.marca);
+        if (cor) cel.style.background = cor;
+        else cel.classList.add('neutra');
+        conteudo(cel, t.etiquetas);
+      });
+    }
+    plano.rotulos.forEach((r, k) => pos(novo('span', 'pg-rot', r, grade), 1, linhaTopo + k + 1));
+    plano.colunas.forEach((c, ci) => {
+      const col = ci + 2;
+      c.celulas.forEach((cel) => {
+        const n = pos(novo('div', 'pg-celula', null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);
+        const cor = fundo(cel.etiquetas.length ? cel.etiquetas[0].marca : cel.marca || c.marca);
+        n.style.setProperty('--cor', cor || '#ECEAE6');
+        if (!cor) n.classList.add('neutra');
+        conteudo(n, cel.etiquetas);
+      });
+      // Tábuas das prateleiras (por cima das cores, no pé de cada nível).
+      for (let k = 0; k < plano.n; k++) pos(novo('i', 'pg-tabua', null, grade), col, linhaTopo + k + 1);
+      pos(novo('span', 'pg-nome', c.nome, grade), col, linhaTopo + plano.n + 1);
+    });
+    novo('p', 'pg-nota', plano.rotulos[0] === 'Painel 1'
+      ? 'Painel 1 é o de cima. Cada painel tem a cor e a etiqueta da própria linha (ou da Etiqueta N do totem).'
+      : plano.n > 1
+        ? 'Prateleira 1 é a de cima. As etiquetas de cada espaço dividem as prateleiras na ordem (Etiqueta 1 em cima), cada uma com a cor da marca dela.'
+        : 'As etiquetas de cada espaço, com a cor da marca de cada uma.', sec);
+  }
+
   /** Desenho só do móvel (com as cores reais do ciclo, sem o filtro de marca), recortado nele. */
   function desenharMovelSozinho(alvo, planta, id) {
     Render.desenhar(alvo, Object.assign(contextoDesenho(), {
@@ -2717,11 +2970,6 @@ const App = (() => {
       novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver a estratégia deste móvel.', corpo);
     } else {
       const config = estado.dados.config || {};
-      blocoEstrategia(corpo, 'Móvel inteiro', linha(m.id), {
-        vazio: 'Sem linha neste ciclo: o móvel fica branco (neutro).',
-        limite: (config.etiquetasPorTipo || {})[m.tipo],
-        posicoes: POSICOES_ETIQUETA[m.tipo],
-      });
       // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
       let mov = m;
       if (m.tipo === 'GONDOLA') {
@@ -2729,6 +2977,13 @@ const App = (() => {
           || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
         mov = Object.assign({}, m, { dividido: div });
       }
+      const plano = planogramaDe(m, mov, linha, temLinha);
+      if (plano) blocoPlanograma(corpo, plano);
+      blocoEstrategia(corpo, 'Móvel inteiro', linha(m.id), {
+        vazio: 'Sem linha neste ciclo: o móvel fica branco (neutro).',
+        limite: (config.etiquetasPorTipo || {})[m.tipo],
+        posicoes: POSICOES_ETIQUETA[m.tipo],
+      });
       Render.espacos(mov).forEach((e) => {
         const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
         const propria = [m.id + '/' + e.id, meio].filter(Boolean).find(temLinha);
@@ -2879,6 +3134,41 @@ const App = (() => {
     }
   }
 
+  const URL_FONTE_ETQ = 'https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap';
+  let fonteEmbutida = null;
+
+  /**
+   * @font-face da fonte das etiquetas com os arquivos embutidos (data:), para o PNG sair com a mesma
+   * fonte da tela (uma imagem SVG não carrega arquivos de fora). Sem internet, o PNG usa Arial.
+   */
+  function cssFonteEmbutida() {
+    if (!fonteEmbutida) {
+      const paraDataUrl = (blob) => new Promise((ok, falha) => {
+        const r = new FileReader();
+        r.onload = () => ok(r.result);
+        r.onerror = falha;
+        r.readAsDataURL(blob);
+      });
+      fonteEmbutida = (async () => {
+        const css = await (await fetch(URL_FONTE_ETQ)).text();
+        // Só os blocos "latin" e "latin-ext" (os acentos do português estão neles).
+        const blocos = css.split(/(?=\/\*)/).filter((b) => /^\/\*\s*latin(-ext)?\s*\*\//.test(b));
+        const partes = await Promise.all(blocos.map(async (b) => {
+          const url = (b.match(/url\(([^)]+)\)/) || [])[1];
+          if (!url) return '';
+          const dados = await paraDataUrl(await (await fetch(url.replace(/['"]/g, ''))).blob());
+          return b.replace(url, '"' + dados + '"');
+        }));
+        return partes.join('\n');
+      })().catch((e) => {
+        console.warn('PNG sem a fonte das etiquetas embutida:', e);
+        fonteEmbutida = null;
+        return '';
+      });
+    }
+    return fonteEmbutida;
+  }
+
   async function baixarPng() {
     const dlg = $('dlgPng');
     if (dlg.returnValue !== 'baixar') return;
@@ -2892,6 +3182,12 @@ const App = (() => {
       clone.setAttribute('width', caixa.w);
       clone.setAttribute('height', caixa.h);
       clone.querySelectorAll('title').forEach((t) => t.remove());
+      const css = await cssFonteEmbutida();
+      if (css) {
+        const estilo = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+        estilo.textContent = css;
+        clone.insertBefore(estilo, clone.firstChild);
+      }
       const xml = new XMLSerializer().serializeToString(clone);
       const img = new Image();
       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
@@ -2981,6 +3277,14 @@ const App = (() => {
   estado.painelEspaco = prefEspaco ? prefEspaco === '1' : window.innerWidth >= 1200;
   ligarEventos();
   ligarZoom();
+  ligarDestaque();
+  // A fonte das etiquetas (Nunito) pode chegar depois do primeiro desenho: quando ela carregar, redesenha,
+  // para o tamanho das etiquetas ser medido com a fonte certa.
+  if (document.fonts && document.fonts.load) {
+    Promise.all(['700 12px Nunito', '800 12px Nunito'].map((f) => document.fonts.load(f)))
+      .then(() => { if (estado.dados) desenhar(); })
+      .catch(() => { /* sem a fonte: as etiquetas usam a reserva (Segoe UI / Arial) */ });
+  }
   Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
   carregar();
 

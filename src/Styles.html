@@ -12,6 +12,7 @@
     --raio: 8px;
     --sombra: 0 1px 2px rgba(0, 0, 0, .06), 0 4px 16px rgba(0, 0, 0, .06);
     --fonte: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --fonte-etq: Nunito, "Segoe UI", Arial, sans-serif; /* a mesma das etiquetas da planta */
   }
 
   * { box-sizing: border-box; }
@@ -232,6 +233,16 @@
   #slide .camada-guias line { stroke-width: calc(1.3px / var(--zoom, 1)); }
   #slide .camada-guias circle { r: calc(4px / var(--zoom, 1)); stroke-width: calc(1.3px / var(--zoom, 1)); }
   #slide .movel:hover polygon { stroke-width: 2.2; }
+  /* Mouse sobre um móvel: as etiquetas dele crescem um pouco e ganham contorno branco; as dos outros ficam mais claras. */
+  #slide .grupo-etiquetas { transform-box: fill-box; transform-origin: center; transition: transform .15s ease, opacity .15s ease; }
+  #slide .camada-guias .guia { transition: opacity .15s ease; }
+  #slide.destacando .grupo-etiquetas:not(.destaque),
+  #slide.destacando .camada-guias .guia:not(.destaque) { opacity: .6; }
+  #slide.destacando .grupo-etiquetas.destaque { transform: scale(1.08); }
+  #slide.destacando .grupo-etiquetas.destaque rect { stroke: #fff; stroke-width: 1.6; }
+  #slide.destacando .camada-guias .guia.destaque line { stroke: #111; stroke-width: calc(2px / var(--zoom, 1)); }
+  #slide.destacando .movel.destaque polygon { stroke-width: 2.2; }
+  @media (prefers-reduced-motion: reduce) { #slide .grupo-etiquetas { transition: none; } }
   #slide .arrastavel { cursor: grab; }
   #slide .arrastavel:hover rect { stroke: #111; stroke-width: 1.5; }
   #slide .arrastavel:active { cursor: grabbing; }
@@ -378,7 +389,37 @@
   .mv-etiquetas ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   .mv-etiquetas li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
   .mv-pos { font-size: 14px; color: var(--texto-2); min-width: 120px; }
-  .mv-etiqueta { color: #fff; font-weight: 700; font-size: 20px; padding: 6px 14px; border-radius: 3px; white-space: pre-line; }
+  .mv-etiqueta {
+    color: #fff; font: 800 19px/1.25 var(--fonte-etq); letter-spacing: .2px; padding: 6px 16px; border-radius: 14px;
+    white-space: pre-line; box-shadow: 0 1px 3px rgba(0, 0, 0, .2), inset 0 0 0 1px rgba(0, 0, 0, .12);
+  }
+  /* planograma: prateleiras de cada espaço (1 = a de cima), com a cor e as etiquetas de cada uma */
+  .pg { overflow-x: auto; padding-bottom: 4px; }
+  .pg-grade { display: grid; column-gap: 8px; min-width: min-content; }
+  .pg-rot { align-self: center; padding-right: 10px; font-size: 12px; color: var(--texto-2); text-align: right; white-space: nowrap; }
+  .pg-celula {
+    position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px;
+    padding: 8px 8px 12px;
+    background: linear-gradient(rgba(255, 255, 255, .78), rgba(255, 255, 255, .78)), var(--cor); /* cor clara da marca */
+    border-left: 2px solid #8a8f96; border-right: 2px solid #8a8f96;
+  }
+  .pg-celula.neutra { background: var(--cor); }
+  .pg-tabua { align-self: end; height: 6px; border-radius: 2px; background: #5d6168; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); position: relative; z-index: 1; pointer-events: none; }
+  .pg-etq {
+    position: relative; z-index: 2; /* por cima das tábuas */
+    max-width: 100%; color: #fff; font: 800 14px/1.25 var(--fonte-etq); letter-spacing: .15px; text-align: center;
+    padding: 4px 12px; border-radius: 12px; white-space: pre-line; overflow-wrap: anywhere;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .2), inset 0 0 0 1px rgba(0, 0, 0, .12);
+  }
+  .pg-etq.neutra { background: #4a4a4a; }
+  .pg-sem { position: relative; z-index: 2; font-size: 12px; font-style: italic; color: var(--texto-2); }
+  .pg-nome { padding-top: 6px; font-size: 12px; font-weight: 600; text-align: center; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); }
+  .pg-testeiras { display: flex; gap: 4px; margin-bottom: 8px; }
+  .pg-testeira { flex: 1 1 0; min-width: 0; display: flex; justify-content: center; align-items: center; padding: 6px; border-radius: 6px; background: #ECEAE6; }
+  .pg-testeira .pg-etq { box-shadow: none; padding: 2px 6px; font-size: 13px; background: transparent !important; }
+  .pg-testeira .pg-sem { color: rgba(255, 255, 255, .8); }
+  .pg-testeira.neutra .pg-sem { color: var(--texto-2); }
+  .pg-nota { margin: 10px 0 0; font-size: 13px; color: var(--texto-2); }
   .mv-marca-etq { font-size: 14px; color: var(--texto-2); }
   .mv-obs { white-space: pre-line; }
   .mv-vazio { color: var(--texto-2); font-style: italic; margin: 0; font-size: 16px; }
