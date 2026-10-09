@@ -26,7 +26,7 @@ const Render = (() => {
   const PRATELEIRAS = { GONDOLA: 4, PIRAMIDE: 4, FILA: 3, GONDOLA_PAREDE: 5, VITRINE_L: 2, ILHA_OUI: 3, MAKE: 5 };
   // Móveis que mostram o número (do fim do ID: "MOVEL DE FILA 3" → 3) numa plaquinha na planta.
   const NUMERADOS = ['PIRAMIDE', 'GONDOLA', 'FILA'];
-  const NUMERO = { raio: 9, fonte: 11.5 };
+  const NUMERO = { lado: 18, fonte: 11.5 };
   const CALLOUT = { fonte: 12.5, lh: 16, pad: 9, maxW: 360 };
   const COR = {
     contorno: '#1C1C1C',
@@ -574,20 +574,30 @@ const Render = (() => {
   }
 
   /**
-   * Plaquinha redonda com o número do móvel, no pé da face da frente mais comprida (na gôndola,
-   * a da ponta A). Branca com contorno escuro, como a ponta das linhas-guia. Devolve o retângulo
-   * ocupado na tela (obstáculo para as etiquetas).
+   * Plaquinha quadrada com o número do móvel, em perspectiva, colada na face da frente mais comprida
+   * e centralizada nela (na gôndola, na ponta A), um pouco acima do pé. Fundo preto, número branco.
+   * Devolve o retângulo ocupado na tela (obstáculo para as etiquetas).
    */
-  function desenharNumero(pai, P, b, numero, escala) {
-    const z = b.z + NUMERO.raio / escala + 0.08;
-    const [cx, cy] = b.w >= b.d ? P(b.x + b.w / 2, b.y + b.d, z) : P(b.x + b.w, b.y + b.d / 2, z);
-    const r = numero.length > 1 ? NUMERO.raio + 1.5 : NUMERO.raio;
+  function desenharNumero(pai, P, m, numero, escala) {
+    const a = (numero.length > 1 ? NUMERO.lado + 4 : NUMERO.lado) / 2 / escala; // meio lado, em unidades da loja
+    const zc = m.z + Math.max(m.h * 0.3, a + 0.1);
+    // Face y = y1 (senão, face x = x1). Gôndola: a face da ponta A (a comprida fica atrás da gôndola vizinha).
+    const naFrente = m.tipo === 'GONDOLA' ? m.w < m.d : m.w >= m.d;
+    const xc = m.x + m.w / 2, yc = m.y + m.d / 2;
+    const ponto = (s, t) => (naFrente ? P(xc + s, m.y + m.d, zc + t) : P(m.x + m.w, yc - s, zc + t));
+    const cantos = [ponto(-a, a), ponto(a, a), ponto(a, -a), ponto(-a, -a)];
+    const [cx, cy] = ponto(0, 0);
     const g = el('g', { class: 'numero-movel' }, pai);
-    el('circle', { cx, cy, r, fill: '#FFFFFF', stroke: '#3A3A3A', 'stroke-width': 1.2 }, g);
-    texto(g, cx, cy + NUMERO.fonte * 0.36, numero, {
-      'font-family': FONTE_ETQ, 'font-size': NUMERO.fonte, 'font-weight': 800, fill: '#2B2B2B', 'text-anchor': 'middle',
+    poligono(g, cantos, { fill: '#111111', stroke: '#111111', 'stroke-width': 0.8, 'stroke-linejoin': 'round' });
+    // O texto acompanha a face: "deitado" na mesma inclinação da planta.
+    const k = NUMERO.lado * 0.62 / NUMERO.fonte;
+    const txt = el('g', { transform: 'matrix(' + [COS30 * k, (naFrente ? 0.5 : -0.5) * k, 0, k, cx, cy].join(',') + ')' }, g);
+    texto(txt, 0, NUMERO.fonte * 0.36, numero, {
+      'font-family': FONTE_ETQ, 'font-size': NUMERO.fonte, 'font-weight': 800, fill: '#FFFFFF', 'text-anchor': 'middle',
     });
-    return { x: cx - r, y: cy - r, w: 2 * r, h: 2 * r };
+    const xs = cantos.map((c) => c[0]), ys = cantos.map((c) => c[1]);
+    const x0 = Math.min.apply(null, xs), y0 = Math.min.apply(null, ys);
+    return { x: x0, y: y0, w: Math.max.apply(null, xs) - x0, h: Math.max.apply(null, ys) - y0 };
   }
 
   /** Ordenação de pintura (o que está atrás é desenhado primeiro). */
@@ -1095,19 +1105,19 @@ const Render = (() => {
     });
     const infoDe = (b) => (b.espaco ? infoEspaco[b.movel.id + '/' + b.espaco.id] : info[b.movel.id]);
 
-    // Numeração (pirâmide, gôndola e móvel de fila): plaquinha no pé da face da frente, desenhada junto
+    // Numeração (pirâmide, gôndola e móvel de fila): plaquinha na face da frente, desenhada junto
     // com o móvel (o que está na frente o cobre, como o resto da planta); as etiquetas desviam dela.
     const numeros = [];
-    const numeroDe = (b) => {
-      if (NUMERADOS.indexOf(b.movel.tipo) < 0) return '';
-      if (b.movel.tipo === 'GONDOLA' && (!b.espaco || b.espaco.id !== 'LADO-A')) return ''; // na ponta A
-      const n = /(\d+)\s*$/.exec(b.movel.id);
+    const numeroDe = (m) => {
+      if (NUMERADOS.indexOf(m.tipo) < 0) return '';
+      const n = /(\d+)\s*$/.exec(m.id);
       return n ? String(Number(n[1])) : '';
     };
 
     // Móveis, na ordem de pintura.
     const prims = [];
-    moveis.forEach((m) => primitivas(m).forEach((p) => prims.push(p)));
+    const faltam = {}; // primitivas ainda por pintar de cada móvel (a plaquinha vai com a última)
+    moveis.forEach((m) => primitivas(m).forEach((p) => { prims.push(p); faltam[m.id] = (faltam[m.id] || 0) + 1; }));
     ordenar(prims, P).forEach((b) => {
       const m = b.movel;
       const i = infoDe(b);
@@ -1121,8 +1131,8 @@ const Render = (() => {
         'data-espaco': b.espaco ? b.espaco.id : null,
       }, camadaPlanta);
       desenharPrimitiva(g, P, b, cores);
-      const numero = numeroDe(b);
-      if (numero) numeros.push(desenharNumero(g, P, b, numero, projecao.escala));
+      const numero = --faltam[m.id] === 0 ? numeroDe(m) : '';
+      if (numero) numeros.push(desenharNumero(g, P, m, numero, projecao.escala));
       const linhasDica = [m.id + (b.espaco ? '/' + b.espaco.id + ' (' + b.espaco.nome + ')' : '') + (m.descricao ? ' — ' + m.descricao : '')];
       const nomeMarca = (x) => (x.marca ? x.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—');
       if (!b.espaco && espacos(m).length) {
