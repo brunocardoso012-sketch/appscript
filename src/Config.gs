@@ -12,6 +12,7 @@ const CONFIG = {
     MOVIMENTOS: 'Movimentos',
     PAINEIS: 'Painéis',
     LAYOUT: 'Layout',
+    COMENTARIOS: 'Comentários',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -21,6 +22,15 @@ const CONFIG = {
   PROPRIEDADE_PLANILHA: 'SPREADSHEET_ID',
   /** Planta coringa: linhas com esse valor valem para todas as plantas. */
   PLANTA_TODAS: 'TODAS',
+};
+
+/**
+ * Senhas de acesso à validação da estratégia (botão "Validação"), uma por papel.
+ * Provisórias: no futuro virão da planilha (troque em senhasDeAcesso_, Validacao.gs).
+ */
+const SENHAS_ACESSO = {
+  VALIDADOR: '1234',
+  CONSTRUTOR: '1234',
 };
 
 /**

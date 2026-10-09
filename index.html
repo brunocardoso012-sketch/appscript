@@ -441,6 +441,68 @@
     .mv-rotulo { flex-basis: 100%; }
   }
 
+  /* ---------- validação da estratégia ---------- */
+  .btn .badge {
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #E8590C; color: #fff;
+    font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+  }
+  .acesso-papeis { border: 0; padding: 0; margin: 0 0 12px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .acesso-papeis legend { padding: 0; margin-bottom: 4px; font-size: 12px; color: var(--texto-2); }
+  .acesso-campo { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 12px; color: var(--texto-2); }
+  .dialogo input[type="password"], .acesso-campo input { width: 100%; font: inherit; font-size: 14px; color: var(--texto); padding: 7px 9px; border: 1px solid var(--borda); border-radius: var(--raio); }
+  .acesso-erro { margin: 0 0 8px; color: #b42318; font-size: 13px; }
+  .val-quem { display: flex; align-items: center; gap: 10px; margin: 14px 0 4px; }
+  .val-quem > div { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+  .val-quem strong { font-size: 13px; }
+  .val-quem span { color: var(--texto-2); font-size: 12px; }
+  .val-avatar {
+    flex: 0 0 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    background: #fde6d8; color: #9a3a06 !important; font-weight: 700; font-size: 13px !important;
+  }
+  .val-dica { color: var(--texto-2); font-size: 12px; margin: 12px 0 0; }
+  .val-novo { margin-top: 6px; }
+  .val-novo textarea, .val-responder textarea {
+    width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-size: 13px; padding: 8px 10px;
+    border: 1px solid var(--borda); border-radius: var(--raio); background: var(--superficie); color: var(--texto);
+  }
+  .val-alvo { display: flex; gap: 6px; margin-bottom: 6px; }
+  .val-alvo select { flex: 1 1 auto; min-width: 0; }
+  .val-acoes { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+  .val-filtros { display: flex; gap: 6px; margin: 18px 0 10px; flex-wrap: wrap; }
+  .btn.ativo { background: #fff4ec; border-color: #E8590C; color: #9a3a06; }
+  .btn.perigo { color: #b42318; }
+  .val-cartao {
+    border: 1px solid var(--borda); border-left: 3px solid #E8590C; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
+    background: var(--superficie); transition: box-shadow .2s;
+  }
+  .val-cartao.resolvido { border-left-color: #3E9D6B; opacity: .85; }
+  .val-cartao.focado { box-shadow: 0 0 0 2px #E8590C; }
+  .val-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .val-movel {
+    font: 600 12px var(--fonte); color: var(--texto); background: #f1efec; border: 0; border-radius: 6px; padding: 3px 8px;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+  }
+  .val-movel.geral { cursor: default; color: var(--texto-2); }
+  .val-status { flex: 0 0 auto; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding: 2px 8px; border-radius: 9px; }
+  .val-status.aberto { background: #fde6d8; color: #9a3a06; }
+  .val-status.resolvido { background: #dff1e7; color: #1f6b43; }
+  .val-msg { padding: 6px 0; }
+  .val-msg + .val-msg { border-top: 1px dashed var(--borda); }
+  .val-msg.construtor { padding-left: 12px; }
+  .val-meta { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; font-size: 12px; }
+  .val-meta span { color: var(--texto-2); }
+  .val-msg p { margin: 3px 0 0; white-space: pre-line; font-size: 13px; line-height: 1.45; }
+  .val-responder { margin-top: 6px; }
+  .val-outras { display: flex; flex-wrap: wrap; gap: 6px; }
+  .mv-validacao[hidden] { display: none; }
+  .mv-validacao .val-cartao { max-width: 760px; }
+  .mv-validacao .val-msg p { font-size: 16px; }
+  .mv-validacao .val-novo { max-width: 760px; }
+  #slide .marcador-comentario { cursor: pointer; }
+  #slide .marcador-comentario:hover circle { fill: #c2410c; }
+  body.escolhendo-movel #slide .movel { cursor: crosshair; }
+  body.escolhendo-movel #slide .movel:hover polygon { stroke: #E8590C; stroke-width: 2.6; }
+
   .lista-avisos { max-height: 240px; overflow: auto; font-size: 12px; color: #7a4b00; padding-left: 18px; }
   .lista-avisos:empty { display: none; }
 
@@ -490,7 +552,8 @@
 
   /* Telas estreitas: o painel de espaço vai para baixo da planta. */
   @media (max-width: 900px) {
-    body.com-painel-espaco .palco { flex-direction: column; }
+    body.com-painel-espaco .palco, body.com-painel-validacao .palco { flex-direction: column; }
+    body.com-painel-validacao #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     body.com-painel-espaco #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     .painel-espaco { flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--borda); overflow: visible; }
     .esp-topo { position: static; }
@@ -513,6 +576,7 @@ const CONFIG = {
     MOVIMENTOS: 'Movimentos',
     PAINEIS: 'Painéis',
     LAYOUT: 'Layout',
+    COMENTARIOS: 'Comentários',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -522,6 +586,15 @@ const CONFIG = {
   PROPRIEDADE_PLANILHA: 'SPREADSHEET_ID',
   /** Planta coringa: linhas com esse valor valem para todas as plantas. */
   PLANTA_TODAS: 'TODAS',
+};
+
+/**
+ * Senhas de acesso à validação da estratégia (botão "Validação"), uma por papel.
+ * Provisórias: no futuro virão da planilha (troque em senhasDeAcesso_, Validacao.gs).
+ */
+const SENHAS_ACESSO = {
+  VALIDADOR: '1234',
+  CONSTRUTOR: '1234',
 };
 
 /**
@@ -1260,6 +1333,28 @@ function getDados() {
   dados.planilhaUrl = ss.getUrl();
   dados.precisaConfigurar = !ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS);
   return dados;
+}
+
+/* ======================== VALIDAÇÃO DA ESTRATÉGIA ========================= */
+
+/** Confere papel, nome e senha da validação. @return {{papel, autor, nomePapel}} */
+function entrarValidacao(acesso) {
+  const quem = conferirAcesso_(acesso);
+  return { papel: quem.papel, autor: quem.autor, nomePapel: PAPEIS_ACESSO[quem.papel] };
+}
+
+/** Todos os comentários (com as respostas), para quem entrou na validação. */
+function getComentarios(acesso) {
+  conferirAcesso_(acesso);
+  return comentariosDeValores_(lerComentariosDaPlanilha_(planilha_()));
+}
+
+/**
+ * Cria, responde, resolve / reabre ou exclui um comentário (veja aplicarAcaoComentario_).
+ * @return {Array} comentários atualizados
+ */
+function salvarComentario(acesso, pedido) {
+  return executarComentario_(planilha_(), acesso, pedido);
 }
 
 /**
@@ -2134,6 +2229,252 @@ function valoresPaineisExemplo_() {
   return linhas;
 }
 
+/* ===== src/Validacao.gs ===== */
+/**
+ * ============================================================================
+ *  VALIDAÇÃO DA ESTRATÉGIA (comentários do validador para o construtor)
+ * ============================================================================
+ *  O validador comenta a estratégia de um ciclo (numa planta ou num móvel); o
+ *  construtor da estratégia vê, responde e marca como resolvido. Cada acesso
+ *  pede o papel e a senha (SENHAS_ACESSO, em Config.gs), conferidos aqui a cada
+ *  gravação.
+ *
+ *  Os comentários ficam na aba "Comentários" (uma linha por mensagem; as
+ *  respostas apontam para o comentário na coluna "Responde a"). Este arquivo só
+ *  tem regras, sem ler nem gravar nada: quem lê e grava a aba é o Code.gs, o
+ *  Visualizador.gs e, na versão web, o web/backend-local.js.
+ */
+
+const PAPEIS_ACESSO = {
+  VALIDADOR: 'Validador',
+  CONSTRUTOR: 'Construtor da estratégia',
+};
+
+const STATUS_COMENTARIO = { ABERTO: 'ABERTO', RESOLVIDO: 'RESOLVIDO' };
+
+/** Colunas da aba Comentários (mesmo formato das outras abas: titulo, chave, apelidos). */
+function colunasComentarios_() {
+  return [
+    { titulo: 'ID', chave: 'id', obrigatoria: true, texto: true },
+    { titulo: 'Responde a', chave: 'pai', texto: true },
+    { titulo: 'Ciclo', chave: 'ciclo', texto: true },
+    { titulo: 'Planta', chave: 'planta', texto: true },
+    { titulo: 'ID Móvel', chave: 'movel', texto: true },
+    { titulo: 'Papel', chave: 'papel', texto: true },
+    { titulo: 'Autor', chave: 'autor', texto: true },
+    { titulo: 'Data', chave: 'data', texto: true },
+    { titulo: 'Texto', chave: 'texto', obrigatoria: true, texto: true },
+    { titulo: 'Status', chave: 'status', texto: true },
+  ];
+}
+
+/**
+ * Senhas de cada papel. Por enquanto vêm de SENHAS_ACESSO (Config.gs); este é o
+ * único lugar a mudar quando elas passarem a ser lidas da planilha.
+ */
+function senhasDeAcesso_() {
+  return SENHAS_ACESSO;
+}
+
+/**
+ * Confere papel e senha. @return {{papel: string, autor: string}} ou lança erro.
+ * @param {{papel: string, senha: string, nome: string}} acesso
+ */
+function conferirAcesso_(acesso) {
+  const a = acesso || {};
+  const papel = String(a.papel || '').toUpperCase();
+  if (!PAPEIS_ACESSO[papel]) throw new Error('Escolha se você é validador ou construtor da estratégia.');
+  const senha = senhasDeAcesso_()[papel];
+  if (!senha || String(a.senha || '') !== String(senha)) throw new Error('Senha incorreta.');
+  const autor = String(a.nome || '').trim().slice(0, 60);
+  if (!autor) throw new Error('Informe o seu nome.');
+  return { papel: papel, autor: autor };
+}
+
+/** Matriz vazia da aba (só o cabeçalho). */
+function valoresComentariosVazios_() {
+  return [colunasComentarios_().map(function (c) { return c.titulo; })];
+}
+
+/**
+ * Comentários da aba, já com as respostas dentro de cada um (ordem de criação).
+ * @return {Array<{id, ciclo, planta, movel, papel, autor, data, texto, status, respostas: Array}>}
+ */
+function comentariosDeValores_(valores) {
+  if (!valores || !valores.length) return [];
+  const lido = objetosDeValores_(valores, colunasComentarios_());
+  const porId = {};
+  const lista = [];
+  const respostas = [];
+  lido.linhas.forEach(function (l) {
+    const c = {
+      id: texto_(l.id),
+      ciclo: texto_(l.ciclo),
+      planta: normPlanta_(l.planta),
+      movel: l.movel ? normId_(l.movel) : '',
+      papel: String(texto_(l.papel)).toUpperCase(),
+      autor: texto_(l.autor),
+      data: texto_(l.data),
+      texto: texto_(l.texto),
+    };
+    if (!c.id || !c.texto) return;
+    const pai = texto_(l.pai);
+    if (pai) {
+      c.pai = pai;
+      respostas.push(c);
+      return;
+    }
+    c.status = String(texto_(l.status)).toUpperCase() === STATUS_COMENTARIO.RESOLVIDO ? STATUS_COMENTARIO.RESOLVIDO : STATUS_COMENTARIO.ABERTO;
+    c.respostas = [];
+    porId[c.id] = c;
+    lista.push(c);
+  });
+  respostas.forEach(function (r) { if (porId[r.pai]) porId[r.pai].respostas.push(r); });
+  return lista;
+}
+
+/**
+ * Aplica uma ação aos comentários e devolve a matriz nova da aba (sem gravar nada).
+ *  - novo:      { acao: 'novo', ciclo, planta, movel?, texto }   — só o validador;
+ *  - responder: { acao: 'responder', id, texto }                 — os dois papéis;
+ *  - status:    { acao: 'status', id, status: ABERTO|RESOLVIDO } — o construtor resolve;
+ *               o validador resolve ou reabre;
+ *  - excluir:   { acao: 'excluir', id }                          — só o validador (com as respostas).
+ * @param {Array<Array>} valores  matriz atual da aba (com cabeçalho), ou vazia
+ * @param {{papel, autor}} quem   resultado de conferirAcesso_
+ * @param {Object} pedido
+ * @param {Date=} agora
+ * @return {{valores: Array<Array>, id: string}}
+ */
+function aplicarAcaoComentario_(valores, quem, pedido, agora) {
+  const p = pedido || {};
+  const cols = colunasComentarios_();
+  const base = valores && valores.length ? valores : valoresComentariosVazios_();
+  const cab = base[0].map(chave_);
+  const idx = {};
+  cols.forEach(function (c) { idx[c.chave] = acharColuna_(cab, c); });
+  // Aba sem alguma coluna (editada à mão): recria com o cabeçalho certo, mantendo os dados.
+  if (cols.some(function (c) { return idx[c.chave] < 0; })) {
+    const objetos = objetosDeValores_(base, cols).linhas;
+    return aplicarAcaoComentario_(
+      valoresComentariosVazios_().concat(objetos.map(function (o) { return cols.map(function (c) { return o[c.chave] || ''; }); })),
+      quem, p, agora
+    );
+  }
+  const linhas = base.map(function (r) { return r.slice(); });
+  const largura = linhas[0].length;
+  const linhaDe = function (id) {
+    for (let i = 1; i < linhas.length; i++) if (texto_(linhas[i][idx.id]) === id && !texto_(linhas[i][idx.pai])) return i;
+    return -1;
+  };
+  const textoDe = function (t) {
+    const s = String(t || '').trim();
+    if (!s) throw new Error('Escreva o comentário.');
+    return s.slice(0, 2000);
+  };
+  const data = formatarDataComentario_(agora || new Date());
+  const novoId = 'C' + (agora || new Date()).getTime().toString(36).toUpperCase() + Math.floor(Math.random() * 1296).toString(36).toUpperCase();
+  const nova = function (o) {
+    const r = [];
+    for (let k = 0; k < largura; k++) r.push('');
+    cols.forEach(function (c) { if (o[c.chave] !== undefined) r[idx[c.chave]] = o[c.chave]; });
+    linhas.push(r);
+  };
+  const exigirComentario = function () {
+    const i = linhaDe(String(p.id || ''));
+    if (i < 0) throw new Error('Comentário não encontrado (pode ter sido excluído). Clique em Atualizar.');
+    return i;
+  };
+
+  if (p.acao === 'novo') {
+    if (quem.papel !== 'VALIDADOR') throw new Error('Só o validador cria comentários.');
+    const ciclo = String(p.ciclo || '').trim();
+    const planta = normPlanta_(p.planta);
+    if (!ciclo || !planta) throw new Error('Escolha o ciclo e a planta do comentário.');
+    nova({
+      id: novoId, pai: '', ciclo: ciclo, planta: nomePlanta_(planta), movel: p.movel ? normId_(p.movel) : '',
+      papel: quem.papel, autor: quem.autor, data: data, texto: textoDe(p.texto), status: STATUS_COMENTARIO.ABERTO,
+    });
+    return { valores: linhas, id: novoId };
+  }
+  if (p.acao === 'responder') {
+    const i = exigirComentario();
+    nova({
+      id: novoId, pai: texto_(linhas[i][idx.id]), ciclo: linhas[i][idx.ciclo], planta: linhas[i][idx.planta], movel: linhas[i][idx.movel],
+      papel: quem.papel, autor: quem.autor, data: data, texto: textoDe(p.texto), status: '',
+    });
+    return { valores: linhas, id: novoId };
+  }
+  if (p.acao === 'status') {
+    const i = exigirComentario();
+    const status = String(p.status || '').toUpperCase();
+    if (!STATUS_COMENTARIO[status]) throw new Error('Status inválido.');
+    if (status === STATUS_COMENTARIO.ABERTO && quem.papel !== 'VALIDADOR') throw new Error('Só o validador reabre um comentário.');
+    linhas[i][idx.status] = status;
+    return { valores: linhas, id: texto_(linhas[i][idx.id]) };
+  }
+  if (p.acao === 'excluir') {
+    if (quem.papel !== 'VALIDADOR') throw new Error('Só o validador exclui comentários.');
+    const i = exigirComentario();
+    const id = texto_(linhas[i][idx.id]);
+    return {
+      valores: linhas.filter(function (r, k) { return k === 0 || (texto_(r[idx.id]) !== id && texto_(r[idx.pai]) !== id); }),
+      id: id,
+    };
+  }
+  throw new Error('Ação inválida.');
+}
+
+/** "09/10/2026 14:05" (horário do servidor / navegador). */
+function formatarDataComentario_(d) {
+  const p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+  return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+}
+
+/* ----------------------- leitura e gravação da aba ----------------------- */
+/* (Só no Apps Script: Code.gs e Visualizador.gs usam estas duas funções.)   */
+
+/** Matriz da aba Comentários (valores exibidos), ou a matriz vazia se a aba não existe. */
+function lerComentariosDaPlanilha_(ss) {
+  const sh = ss.getSheetByName(CONFIG.ABAS.COMENTARIOS);
+  if (!sh || sh.getLastRow() < 1) return valoresComentariosVazios_();
+  return sh.getDataRange().getDisplayValues();
+}
+
+/** Grava a matriz inteira na aba Comentários (cria a aba se não existir), tudo como texto. */
+function gravarComentariosNaPlanilha_(ss, valores) {
+  let sh = ss.getSheetByName(CONFIG.ABAS.COMENTARIOS);
+  if (!sh) {
+    sh = ss.insertSheet(CONFIG.ABAS.COMENTARIOS);
+    sh.setFrozenRows(1);
+  }
+  const largura = valores[0].length;
+  sh.clearContents();
+  if (sh.getMaxColumns() < largura) sh.insertColumnsAfter(sh.getMaxColumns(), largura - sh.getMaxColumns());
+  if (sh.getMaxRows() < valores.length) sh.insertRowsAfter(sh.getMaxRows(), valores.length - sh.getMaxRows());
+  const faixa = sh.getRange(1, 1, valores.length, largura);
+  faixa.setNumberFormat('@');
+  faixa.setValues(valores);
+  sh.getRange(1, 1, 1, largura).setFontWeight('bold');
+}
+
+/**
+ * Executa um pedido da página com a trava do script: confere o acesso, lê a aba,
+ * aplica a ação e grava. @return {Array} comentários atualizados
+ */
+function executarComentario_(ss, acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  const trava = LockService.getScriptLock();
+  trava.waitLock(30000);
+  try {
+    const r = aplicarAcaoComentario_(lerComentariosDaPlanilha_(ss), quem, pedido);
+    gravarComentariosNaPlanilha_(ss, r.valores);
+    return comentariosDeValores_(r.valores);
+  } finally {
+    trava.releaseLock();
+  }
+}
+
 /**
  * ============================================================================
  *  BACKEND LOCAL (versão estática, ex.: netli.fyi / Netlify)
@@ -2214,6 +2555,25 @@ function valoresPaineisExemplo_() {
       abas.layout = mesclarLinhas_(abas.layout, objetos, colunasLayout_());
       gravar(abas);
       return { planta: normPlanta_(planta), moveis: objetos.length - 1 };
+    },
+
+    entrarValidacao(acesso) {
+      const quem = conferirAcesso_(acesso);
+      return { papel: quem.papel, autor: quem.autor, nomePapel: PAPEIS_ACESSO[quem.papel] };
+    },
+
+    getComentarios(acesso) {
+      conferirAcesso_(acesso);
+      return comentariosDeValores_(ler().comentarios || valoresComentariosVazios_());
+    },
+
+    salvarComentario(acesso, pedido) {
+      const quem = conferirAcesso_(acesso);
+      const abas = ler();
+      const r = aplicarAcaoComentario_(abas.comentarios || valoresComentariosVazios_(), quem, pedido);
+      abas.comentarios = r.valores;
+      gravar(abas);
+      return comentariosDeValores_(r.valores);
     },
 
     salvarAjustesEtiquetas(planta, ajustes) {
@@ -2310,6 +2670,11 @@ function valoresPaineisExemplo_() {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7H3"/></svg>
           Espaço por marca
         </button>
+        <button id="btnValidacao" class="btn" type="button" aria-pressed="false" title="Validação da estratégia (pede senha)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z"/><path d="m8.5 12 2.3 2.3L15.5 9.5"/></svg>
+          Validação
+          <span class="badge" id="valBadge" hidden></span>
+        </button>
         <button id="btnEditar" class="btn" type="button" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
           Ajustar etiquetas
@@ -2371,6 +2736,16 @@ function valoresPaineisExemplo_() {
           <button id="espFechar" class="btn fantasma pequeno" type="button" title="Fechar o painel">✕</button>
         </header>
         <div id="espCorpo" class="esp-corpo"></div>
+      </aside>
+      <aside class="painel-espaco painel-validacao" id="painelValidacao" hidden aria-label="Validação da estratégia">
+        <header class="esp-topo">
+          <div>
+            <h2>Validação</h2>
+            <span id="valSub"></span>
+          </div>
+          <button id="valFechar" class="btn fantasma pequeno" type="button" title="Fechar o painel">✕</button>
+        </header>
+        <div id="valCorpo" class="esp-corpo val-corpo"></div>
       </aside>
       <!-- so-app-completo -->
       <aside class="construtor" id="painelConstrutor" hidden aria-label="Construir loja">
@@ -2576,6 +2951,25 @@ function valoresPaineisExemplo_() {
       </form>
     </dialog>
     <!-- /so-app-completo -->
+
+    <dialog id="dlgAcesso" class="dialogo">
+      <form id="formAcesso">
+        <h2>Validação da estratégia</h2>
+        <p class="sub">O validador comenta a estratégia do ciclo; o construtor da estratégia vê os comentários, responde e marca como resolvido.</p>
+        <fieldset class="acesso-papeis">
+          <legend>Entrar como</legend>
+          <label class="opcao"><input type="radio" name="papel" value="VALIDADOR" checked> Validador</label>
+          <label class="opcao"><input type="radio" name="papel" value="CONSTRUTOR"> Construtor da estratégia</label>
+        </fieldset>
+        <label class="acesso-campo">Seu nome <input type="text" id="acessoNome" autocomplete="name" maxlength="60" required></label>
+        <label class="acesso-campo">Senha <input type="password" id="acessoSenha" autocomplete="current-password" required></label>
+        <p class="acesso-erro" id="acessoErro" role="alert" hidden></p>
+        <div class="rodape-dialogo">
+          <button class="btn" id="acessoCancelar" type="button">Cancelar</button>
+          <button class="btn primario" id="acessoEntrar" type="submit">Entrar</button>
+        </div>
+      </form>
+    </dialog>
 
     <div class="carregando" id="carregando" hidden>
       <div class="spinner" aria-hidden="true"></div>
@@ -3792,6 +4186,27 @@ const Render = (() => {
       });
       dica(gr.elemento, gr.id + (gr.movel.descricao ? ' — ' + gr.movel.descricao : ''));
     });
+
+    // Validação: marcador com o nº de comentários abertos no canto de cada móvel comentado
+    // (do mesmo tamanho na tela com zoom; não vai no PNG).
+    if (ctx.comentarios && !ctx.somentePlanta) {
+      const camada = el('g', { class: 'camada-comentarios' }, svg);
+      moveis.forEach((m) => {
+        const qtd = ctx.comentarios[m.id];
+        if (!qtd) return;
+        // Canto de cima mais à direita do móvel na tela.
+        const [px, py] = P(m.x + m.w, m.y, m.z + m.h);
+        const g = el('g', { class: 'marcador-comentario', 'data-movel': m.id }, pivoZoom(camada, px, py));
+        const cx = px + 6;
+        const cy = py - 22;
+        el('circle', { cx, cy, r: 17, fill: '#E8590C', stroke: '#FFFFFF', 'stroke-width': 2.5, filter: 'url(#sombraEtq)' }, g);
+        poligono(g, [[cx - 9, cy + 11], [cx - 4, cy + 22], [cx + 3, cy + 14]], { fill: '#E8590C' });
+        texto(g, cx, cy + 6, String(qtd), {
+          'font-family': FONTE_ETQ, 'font-size': 17, 'font-weight': 800, fill: '#FFFFFF', 'text-anchor': 'middle',
+        });
+        dica(g, qtd + (qtd === 1 ? ' comentário aberto' : ' comentários abertos') + ' da validação — clique para ver');
+      });
+    }
 
     // Só a planta: tira os painéis (lateral, notas, legenda, extras e caixas de destaque).
     if (ctx.somentePlanta) {
@@ -5073,6 +5488,397 @@ const Construtor = (() => {
     <script>
 /**
  * ============================================================================
+ *  VALIDAÇÃO DA ESTRATÉGIA (página)
+ * ============================================================================
+ *  Botão "Validação": entra como validador ou construtor da estratégia (nome +
+ *  senha). O validador comenta a planta ou um móvel no ciclo escolhido; o
+ *  construtor vê, responde e marca como resolvido. Painel ao lado da planta com
+ *  os comentários do ciclo e da planta, marcadores nos móveis com comentários
+ *  abertos e a seção "Comentários da validação" na tela do móvel.
+ *  As regras (senha, quem pode o quê) são conferidas no servidor (Validacao.gs).
+ */
+const Validacao = (() => {
+  const CHAVE = 'planoVarejo.validacao';
+  const $ = (id) => document.getElementById(id);
+  let app = null; // { estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, fecharEspaco }
+  let acesso = null; // { papel, senha, nome, nomePapel }
+  let comentarios = [];
+  let painelAberto = false;
+  let filtro = 'ABERTO'; // ABERTO | RESOLVIDO | TODOS
+  let escolhendo = false; // o próximo clique num móvel escolhe o móvel do comentário novo
+  let movelNovo = ''; // móvel do comentário novo ('' = planta em geral)
+  let secaoMovel = null; // { pai, id } da seção aberta na tela do móvel
+  const rascunhos = {}; // texto ainda não enviado de cada formulário (o painel é redesenhado a cada mudança)
+
+  const sessao = {
+    ler() { try { return JSON.parse(window.sessionStorage.getItem(CHAVE)); } catch (e) { return null; } },
+    gravar(v) { try { if (v) window.sessionStorage.setItem(CHAVE, JSON.stringify(v)); else window.sessionStorage.removeItem(CHAVE); } catch (e) { /* sem armazenamento */ } },
+  };
+
+  function n(tag, classe, texto, pai) {
+    const e = document.createElement(tag);
+    if (classe) e.className = classe;
+    if (texto !== undefined && texto !== null) e.textContent = texto;
+    if (pai) pai.appendChild(e);
+    return e;
+  }
+
+  function botao(texto, classe, fn, pai) {
+    const b = n('button', 'btn pequeno ' + (classe || ''), texto, pai);
+    b.type = 'button';
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  const ehValidador = () => !!acesso && acesso.papel === 'VALIDADOR';
+  const ativo = () => !!acesso;
+  const nomeMovel = (id) => {
+    const p = app.plantaAtual();
+    const m = p && p.moveis.find((x) => x.id === id);
+    return m && m.descricao && m.descricao !== id ? id + ' · ' + m.descricao : id;
+  };
+
+  /** Comentários do ciclo atual (de uma planta, ou de todas). */
+  function doCiclo(planta) {
+    const e = app.estado;
+    return comentarios.filter((c) => c.ciclo === e.ciclo && (!planta || c.planta === planta));
+  }
+
+  /* ------------------------------- acesso --------------------------------- */
+
+  function abrirAcesso() {
+    const dlg = $('dlgAcesso');
+    $('acessoErro').hidden = true;
+    $('acessoSenha').value = '';
+    const ultimo = sessao.ler() || {};
+    if (!$('acessoNome').value) $('acessoNome').value = ultimo.nome || '';
+    dlg.showModal();
+    ($('acessoNome').value ? $('acessoSenha') : $('acessoNome')).focus();
+  }
+
+  async function entrar(ev) {
+    ev.preventDefault();
+    const dlg = $('dlgAcesso');
+    const papel = (dlg.querySelector('input[name="papel"]:checked') || {}).value || '';
+    const pedido = { papel, nome: $('acessoNome').value.trim(), senha: $('acessoSenha').value };
+    const botaoEntrar = $('acessoEntrar');
+    botaoEntrar.disabled = true;
+    try {
+      const r = await app.chamar('entrarValidacao', pedido);
+      acesso = Object.assign(pedido, { papel: r.papel, nome: r.autor, nomePapel: r.nomePapel });
+      sessao.gravar(acesso);
+      dlg.close();
+      app.toast('Você entrou como ' + r.nomePapel.toLowerCase() + '.');
+      painelAberto = true;
+      if (app.fecharEspaco) app.fecharEspaco(); // um painel lateral por vez
+      await recarregar();
+    } catch (e) {
+      $('acessoErro').textContent = (e && e.message) || String(e);
+      $('acessoErro').hidden = false;
+    } finally {
+      botaoEntrar.disabled = false;
+    }
+  }
+
+  function sair() {
+    acesso = null;
+    comentarios = [];
+    escolhendo = false;
+    movelNovo = '';
+    sessao.gravar(null);
+    painelAberto = false;
+    app.desenhar();
+  }
+
+  /* ----------------------------- servidor ---------------------------------- */
+
+  async function recarregar() {
+    if (!acesso) return;
+    try {
+      comentarios = await app.chamar('getComentarios', acesso);
+    } catch (e) {
+      // Senha trocada na planilha (ou sessão antiga): pede para entrar de novo.
+      if (/senha|papel|nome/i.test((e && e.message) || '')) sair();
+      app.erro(e);
+      return;
+    }
+    app.desenhar();
+  }
+
+  async function salvar(pedido, mensagem) {
+    try {
+      comentarios = await app.chamar('salvarComentario', acesso, pedido);
+      if (mensagem) app.toast(mensagem);
+      app.desenhar();
+      return true;
+    } catch (e) {
+      app.erro(e);
+      return false;
+    }
+  }
+
+  /* ------------------------------- painel ---------------------------------- */
+
+  function abrirPainel() {
+    if (!acesso) { abrirAcesso(); return; }
+    painelAberto = true;
+    if (app.fecharEspaco) app.fecharEspaco();
+    atualizar();
+    recarregar();
+  }
+
+  function fecharPainel() {
+    painelAberto = false;
+    escolhendo = false;
+    atualizar();
+  }
+
+  /** Redesenha o botão, o painel e a seção da tela do móvel (chamado depois de cada desenho da planta). */
+  function atualizar() {
+    const e = app.estado;
+    const planta = app.plantaAtual();
+    const abertos = ativo() && e.ciclo ? doCiclo().filter((c) => c.status === 'ABERTO').length : 0;
+    const btn = $('btnValidacao');
+    if (btn) {
+      btn.setAttribute('aria-pressed', String(painelAberto && ativo()));
+      $('valBadge').textContent = abertos ? String(abertos) : '';
+      $('valBadge').hidden = !abertos;
+      btn.title = ativo() ? 'Validação: ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : 'Validação da estratégia (pede senha)';
+    }
+    const painel = $('painelValidacao');
+    const visivel = painelAberto && ativo() && !!planta;
+    painel.hidden = !visivel;
+    document.body.classList.toggle('com-painel-validacao', visivel);
+    document.body.classList.toggle('escolhendo-movel', escolhendo && visivel);
+    if (visivel) montarPainel(planta);
+    if (secaoMovel && secaoMovel.pai.isConnected) montarSecaoMovel(secaoMovel.pai, secaoMovel.id);
+  }
+
+  function montarPainel(planta) {
+    const e = app.estado;
+    $('valSub').textContent = planta.nome + (e.ciclo ? ' · ' + e.ciclo : '');
+    const corpo = $('valCorpo');
+    corpo.innerHTML = '';
+
+    const quem = n('div', 'val-quem', null, corpo);
+    n('span', 'val-avatar', acesso.nome.slice(0, 1).toUpperCase(), quem);
+    const t = n('div', null, null, quem);
+    n('strong', null, acesso.nome, t);
+    n('span', null, acesso.nomePapel, t);
+    botao('Sair', 'fantasma', sair, quem);
+
+    if (!e.ciclo) {
+      n('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver e fazer comentários da estratégia.', corpo);
+      return;
+    }
+
+    if (ehValidador()) formNovo(corpo, planta, null);
+    else n('p', 'val-dica', 'Os comentários do validador aparecem aqui. Responda e marque como resolvido quando ajustar a estratégia.', corpo);
+
+    const daPlanta = doCiclo(planta.id);
+    const qtd = (s) => daPlanta.filter((c) => s === 'TODOS' || c.status === s).length;
+    const chips = n('div', 'val-filtros', null, corpo);
+    [['ABERTO', 'Abertos'], ['RESOLVIDO', 'Resolvidos'], ['TODOS', 'Todos']].forEach(([s, rot]) => {
+      const b = botao(rot + ' (' + qtd(s) + ')', filtro === s ? 'ativo' : 'fantasma', () => { filtro = s; atualizar(); }, chips);
+      b.setAttribute('aria-pressed', String(filtro === s));
+    });
+
+    const lista = daPlanta.filter((c) => filtro === 'TODOS' || c.status === filtro);
+    if (!lista.length) {
+      n('p', 'mv-vazio', filtro === 'ABERTO' ? 'Nenhum comentário aberto nesta planta.' : 'Nenhum comentário aqui.', corpo);
+    }
+    lista.slice().reverse().forEach((c) => cartao(corpo, c, true));
+
+    // Comentários abertos em outras plantas do ciclo (clique para ir até a planta).
+    const outras = app.estado.dados.plantas.filter((p) => p.id !== planta.id)
+      .map((p) => ({ p, n: doCiclo(p.id).filter((c) => c.status === 'ABERTO').length }))
+      .filter((x) => x.n);
+    if (outras.length) {
+      n('h3', null, 'Abertos em outras plantas', corpo);
+      const box = n('div', 'val-outras', null, corpo);
+      outras.forEach((x) => botao(x.p.nome + ' · ' + x.n, 'fantasma', () => app.trocarPlanta(x.p.id), box));
+    }
+  }
+
+  /** Formulário de comentário novo (validador). movelFixo: na tela do móvel, o comentário já é desse móvel. */
+  function formNovo(pai, planta, movelFixo) {
+    const f = n('form', 'val-novo', null, pai);
+    n('h3', null, 'Novo comentário', f);
+    if (!movelFixo) {
+      const linha = n('div', 'val-alvo', null, f);
+      const sel = n('select', null, null, linha);
+      sel.setAttribute('aria-label', 'Sobre o quê');
+      n('option', null, 'Planta em geral', sel).value = '';
+      planta.moveis.filter((m) => m.tipo !== 'CAIXA').slice()
+        .sort((a, b) => a.id.localeCompare(b.id, 'pt-BR', { numeric: true }))
+        .forEach((m) => { n('option', null, nomeMovel(m.id), sel).value = m.id; });
+      sel.value = movelNovo;
+      sel.addEventListener('change', () => { movelNovo = sel.value; });
+      const b = botao(escolhendo ? 'Clique num móvel…' : 'Escolher na planta', escolhendo ? 'ativo' : '', () => {
+        escolhendo = !escolhendo;
+        atualizar();
+      }, linha);
+      b.title = 'Clique aqui e depois no móvel, na planta';
+    }
+    const txt = n('textarea', null, null, f);
+    const chave = movelFixo ? 'movel:' + movelFixo : 'painel';
+    txt.value = rascunhos[chave] || '';
+    txt.addEventListener('input', () => { rascunhos[chave] = txt.value; });
+    txt.rows = 3;
+    txt.placeholder = movelFixo ? 'O que precisa mudar neste móvel?' : 'O que precisa mudar na estratégia?';
+    txt.required = true;
+    const acoes = n('div', 'val-acoes', null, f);
+    const enviar = n('button', 'btn pequeno primario', 'Comentar', acoes);
+    enviar.type = 'submit';
+    f.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if (!txt.value.trim()) return;
+      enviar.disabled = true;
+      const ok = await salvar({
+        acao: 'novo', ciclo: app.estado.ciclo, planta: planta.id, movel: movelFixo || movelNovo, texto: txt.value,
+      }, 'Comentário enviado.');
+      enviar.disabled = false;
+      if (ok) { delete rascunhos[chave]; filtro = 'ABERTO'; if (!movelFixo) movelNovo = ''; atualizar(); }
+    });
+  }
+
+  /** Cartão de um comentário, com as respostas e as ações de cada papel. */
+  function cartao(pai, c, comMovel) {
+    const box = n('article', 'val-cartao' + (c.status === 'RESOLVIDO' ? ' resolvido' : ''), null, pai);
+    box.dataset.comentario = c.id;
+    const topo = n('div', 'val-topo', null, box);
+    if (comMovel) {
+      if (c.movel) {
+        const b = botao(nomeMovel(c.movel), 'val-movel', () => app.abrirMovel(c.movel), topo);
+        b.title = 'Ver a estratégia deste móvel';
+      } else {
+        n('span', 'val-movel geral', 'Planta em geral', topo);
+      }
+    }
+    n('span', 'val-status ' + c.status.toLowerCase(), c.status === 'RESOLVIDO' ? 'Resolvido' : 'Aberto', topo);
+    const msg = (m) => {
+      const d = n('div', 'val-msg ' + m.papel.toLowerCase(), null, box);
+      const meta = n('div', 'val-meta', null, d);
+      n('strong', null, m.autor, meta);
+      n('span', null, (m.papel === 'VALIDADOR' ? 'validador' : 'construtor') + ' · ' + m.data, meta);
+      n('p', null, m.texto, d);
+    };
+    msg(c);
+    c.respostas.forEach(msg);
+
+    const acoes = n('div', 'val-acoes', null, box);
+    const resposta = n('form', 'val-responder', null, box);
+    resposta.hidden = true;
+    const txt = n('textarea', null, null, resposta);
+    txt.rows = 2;
+    txt.placeholder = 'Sua resposta';
+    const enviar = n('button', 'btn pequeno primario', 'Responder', n('div', 'val-acoes', null, resposta));
+    enviar.type = 'submit';
+    resposta.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if (!txt.value.trim()) return;
+      enviar.disabled = true;
+      await salvar({ acao: 'responder', id: c.id, texto: txt.value }, 'Resposta enviada.');
+      enviar.disabled = false;
+    });
+    botao('Responder', 'fantasma', () => { resposta.hidden = !resposta.hidden; if (!resposta.hidden) txt.focus(); }, acoes);
+    if (c.status === 'ABERTO') {
+      botao('Marcar como resolvido', '', () => salvar({ acao: 'status', id: c.id, status: 'RESOLVIDO' }, 'Comentário resolvido.'), acoes);
+    } else if (ehValidador()) {
+      botao('Reabrir', '', () => salvar({ acao: 'status', id: c.id, status: 'ABERTO' }, 'Comentário reaberto.'), acoes);
+    }
+    if (ehValidador()) {
+      botao('Excluir', 'fantasma perigo', () => {
+        if (window.confirm('Excluir este comentário e as respostas dele?')) salvar({ acao: 'excluir', id: c.id }, 'Comentário excluído.');
+      }, acoes);
+    }
+    return box;
+  }
+
+  /* ------------------------- tela do móvel / planta ------------------------ */
+
+  /** Seção "Comentários da validação" na tela do móvel (só para quem entrou). */
+  function montarSecaoMovel(pai, id) {
+    secaoMovel = { pai, id };
+    pai.innerHTML = '';
+    if (!ativo()) {
+      pai.hidden = true;
+      return;
+    }
+    pai.hidden = false;
+    n('h3', null, 'Comentários da validação', pai);
+    const planta = app.plantaAtual();
+    if (!app.estado.ciclo) {
+      n('p', 'mv-vazio', 'Escolha um ciclo para ver os comentários.', pai);
+      return;
+    }
+    const lista = doCiclo(planta.id).filter((c) => c.movel === id);
+    if (!lista.length) n('p', 'mv-vazio', 'Nenhum comentário neste móvel.', pai);
+    lista.slice().reverse().forEach((c) => cartao(pai, c, false));
+    if (ehValidador()) formNovo(pai, planta, id);
+  }
+
+  /**
+   * Clique num móvel da planta. No modo "Escolher na planta", o móvel vira o alvo do
+   * comentário novo (e o clique não abre a tela do móvel). @return {boolean} tratado
+   */
+  function aoClicarMovel(id) {
+    if (!escolhendo) return false;
+    escolhendo = false;
+    movelNovo = id;
+    atualizar();
+    return true;
+  }
+
+  /** Clique no marcador de um móvel: abre o painel com os comentários abertos e destaca os desse móvel. */
+  function focar(id) {
+    filtro = 'ABERTO';
+    painelAberto = true;
+    if (app.fecharEspaco) app.fecharEspaco();
+    atualizar();
+    const cartoes = Array.from($('valCorpo').querySelectorAll('.val-cartao'))
+      .filter((el) => (doCiclo().find((c) => c.id === el.dataset.comentario) || {}).movel === id);
+    cartoes.forEach((el) => el.classList.add('focado'));
+    if (cartoes[0]) cartoes[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  /** Marcadores para a planta: ID do móvel → nº de comentários abertos (null fora da validação). */
+  function marcadores() {
+    if (!ativo() || !app.estado.ciclo) return null;
+    const planta = app.plantaAtual();
+    const mapa = {};
+    doCiclo(planta && planta.id).forEach((c) => {
+      if (c.movel && c.status === 'ABERTO') mapa[c.movel] = (mapa[c.movel] || 0) + 1;
+    });
+    return mapa;
+  }
+
+  /* -------------------------------- início --------------------------------- */
+
+  function iniciar(contexto) {
+    app = contexto;
+    $('btnValidacao').addEventListener('click', () => {
+      if (painelAberto && ativo()) fecharPainel();
+      else abrirPainel();
+    });
+    $('valFechar').addEventListener('click', fecharPainel);
+    $('formAcesso').addEventListener('submit', entrar);
+    $('acessoCancelar').addEventListener('click', () => $('dlgAcesso').close());
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && escolhendo) { escolhendo = false; atualizar(); }
+    });
+    // Mesma aba: continua entrado depois de recarregar a página (a senha fica só nesta aba).
+    const salvo = sessao.ler();
+    if (salvo && salvo.senha && salvo.papel) acesso = salvo;
+  }
+
+  return { iniciar, atualizar, recarregar, marcadores, aoClicarMovel, focar, montarSecaoMovel, fecharPainel, ativo };
+})();
+</script>
+
+    <script>
+/**
+ * ============================================================================
  *  APLICAÇÃO (estado, controles e chamadas ao servidor)
  * ============================================================================
  */
@@ -5212,6 +6018,7 @@ const App = (() => {
         return;
       }
       aplicarDados(dados, preferencias || {});
+      Validacao.recarregar();
     } catch (e) {
       erro(e);
     } finally {
@@ -5387,6 +6194,8 @@ const App = (() => {
     const ctx = contextoDesenho();
     if (!ctx) return;
     svg.classList.toggle('construindo', !!Editor.contexto());
+    // Marcadores dos comentários abertos (só na validação e fora da construção).
+    if (!Editor.contexto()) ctx.comentarios = Validacao.marcadores();
     const r = Render.desenhar(svg, ctx);
     destacarMovel('');
     Editor.aposDesenhar(r);
@@ -5394,6 +6203,7 @@ const App = (() => {
     if (estado.edicao) ativarArraste();
     aplicarZoom();
     atualizarEspaco();
+    Validacao.atualizar();
   }
 
   /* --------------------------------- zoom --------------------------------- */
@@ -5523,8 +6333,12 @@ const App = (() => {
       gesto = null;
       if (arrastou || !estado.dados || Editor.contexto()) return;
       if (estado.edicao && ev.target.closest('.arrastavel')) return;
+      const marcador = ev.target.closest('.marcador-comentario');
+      if (marcador) { Validacao.focar(marcador.getAttribute('data-movel')); return; }
       const alvo = ev.target.closest('[data-movel]');
-      if (alvo) abrirMovel(alvo.getAttribute('data-movel').split('/')[0]);
+      if (!alvo) return;
+      const id = alvo.getAttribute('data-movel').split('/')[0];
+      if (!Validacao.aoClicarMovel(id)) abrirMovel(id);
     });
   }
 
@@ -6095,6 +6909,8 @@ const App = (() => {
     $('mvSub').textContent = [descricao, String(tipo).split(':')[0], planta.nome, ciclo || 'sem ciclo selecionado'].filter(Boolean).join(' · ');
     const corpo = $('mvEstrategia');
     corpo.innerHTML = '';
+    // Comentários da validação deste móvel (só aparece para quem entrou na validação).
+    Validacao.montarSecaoMovel(novo('section', 'mv-bloco mv-validacao', null, corpo), m.id);
     if (!ciclo) {
       novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver a estratégia deste móvel.', corpo);
     } else {
@@ -6239,6 +7055,7 @@ const App = (() => {
       const clone = svg.cloneNode(true);
       clone.setAttribute('viewBox', '0 0 ' + Render.TELA.w + ' ' + Render.TELA.h);
       clone.querySelectorAll('.etq-zoom').forEach((g) => g.removeAttribute('transform'));
+      clone.querySelectorAll('.camada-comentarios').forEach((g) => g.remove()); // marcadores da validação não vão no PNG
       return { clone, caixa: { x: 0, y: 0, w: Render.TELA.w, h: Render.TELA.h } };
     }
     const ns = 'http://www.w3.org/2000/svg';
@@ -6363,6 +7180,7 @@ const App = (() => {
     ao('btnEspaco', 'click', () => {
       estado.painelEspaco = !estado.painelEspaco;
       memoria.gravar('painelEspaco', estado.painelEspaco ? '1' : '0');
+      if (estado.painelEspaco) Validacao.fecharPainel(); // um painel lateral por vez
       atualizarEspaco();
     });
     ao('espFechar', 'click', () => $('btnEspaco').click());
@@ -6418,6 +7236,11 @@ const App = (() => {
       .catch(() => { /* sem a fonte: as etiquetas usam a reserva (Segoe UI / Arial) */ });
   }
   Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
+  Validacao.iniciar({
+    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta,
+    abrirMovel: (id) => abrirMovel(id),
+    fecharEspaco: () => { estado.painelEspaco = false; atualizarEspaco(); },
+  });
   carregar();
 
   // resolver: usado também para gerar a planilha base da versão de visualização (dev/).

@@ -431,6 +431,68 @@
     .mv-rotulo { flex-basis: 100%; }
   }
 
+  /* ---------- validação da estratégia ---------- */
+  .btn .badge {
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #E8590C; color: #fff;
+    font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+  }
+  .acesso-papeis { border: 0; padding: 0; margin: 0 0 12px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .acesso-papeis legend { padding: 0; margin-bottom: 4px; font-size: 12px; color: var(--texto-2); }
+  .acesso-campo { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 12px; color: var(--texto-2); }
+  .dialogo input[type="password"], .acesso-campo input { width: 100%; font: inherit; font-size: 14px; color: var(--texto); padding: 7px 9px; border: 1px solid var(--borda); border-radius: var(--raio); }
+  .acesso-erro { margin: 0 0 8px; color: #b42318; font-size: 13px; }
+  .val-quem { display: flex; align-items: center; gap: 10px; margin: 14px 0 4px; }
+  .val-quem > div { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+  .val-quem strong { font-size: 13px; }
+  .val-quem span { color: var(--texto-2); font-size: 12px; }
+  .val-avatar {
+    flex: 0 0 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    background: #fde6d8; color: #9a3a06 !important; font-weight: 700; font-size: 13px !important;
+  }
+  .val-dica { color: var(--texto-2); font-size: 12px; margin: 12px 0 0; }
+  .val-novo { margin-top: 6px; }
+  .val-novo textarea, .val-responder textarea {
+    width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-size: 13px; padding: 8px 10px;
+    border: 1px solid var(--borda); border-radius: var(--raio); background: var(--superficie); color: var(--texto);
+  }
+  .val-alvo { display: flex; gap: 6px; margin-bottom: 6px; }
+  .val-alvo select { flex: 1 1 auto; min-width: 0; }
+  .val-acoes { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+  .val-filtros { display: flex; gap: 6px; margin: 18px 0 10px; flex-wrap: wrap; }
+  .btn.ativo { background: #fff4ec; border-color: #E8590C; color: #9a3a06; }
+  .btn.perigo { color: #b42318; }
+  .val-cartao {
+    border: 1px solid var(--borda); border-left: 3px solid #E8590C; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
+    background: var(--superficie); transition: box-shadow .2s;
+  }
+  .val-cartao.resolvido { border-left-color: #3E9D6B; opacity: .85; }
+  .val-cartao.focado { box-shadow: 0 0 0 2px #E8590C; }
+  .val-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .val-movel {
+    font: 600 12px var(--fonte); color: var(--texto); background: #f1efec; border: 0; border-radius: 6px; padding: 3px 8px;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+  }
+  .val-movel.geral { cursor: default; color: var(--texto-2); }
+  .val-status { flex: 0 0 auto; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding: 2px 8px; border-radius: 9px; }
+  .val-status.aberto { background: #fde6d8; color: #9a3a06; }
+  .val-status.resolvido { background: #dff1e7; color: #1f6b43; }
+  .val-msg { padding: 6px 0; }
+  .val-msg + .val-msg { border-top: 1px dashed var(--borda); }
+  .val-msg.construtor { padding-left: 12px; }
+  .val-meta { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; font-size: 12px; }
+  .val-meta span { color: var(--texto-2); }
+  .val-msg p { margin: 3px 0 0; white-space: pre-line; font-size: 13px; line-height: 1.45; }
+  .val-responder { margin-top: 6px; }
+  .val-outras { display: flex; flex-wrap: wrap; gap: 6px; }
+  .mv-validacao[hidden] { display: none; }
+  .mv-validacao .val-cartao { max-width: 760px; }
+  .mv-validacao .val-msg p { font-size: 16px; }
+  .mv-validacao .val-novo { max-width: 760px; }
+  #slide .marcador-comentario { cursor: pointer; }
+  #slide .marcador-comentario:hover circle { fill: #c2410c; }
+  body.escolhendo-movel #slide .movel { cursor: crosshair; }
+  body.escolhendo-movel #slide .movel:hover polygon { stroke: #E8590C; stroke-width: 2.6; }
+
   .lista-avisos { max-height: 240px; overflow: auto; font-size: 12px; color: #7a4b00; padding-left: 18px; }
   .lista-avisos:empty { display: none; }
 
@@ -480,7 +542,8 @@
 
   /* Telas estreitas: o painel de espaço vai para baixo da planta. */
   @media (max-width: 900px) {
-    body.com-painel-espaco .palco { flex-direction: column; }
+    body.com-painel-espaco .palco, body.com-painel-validacao .palco { flex-direction: column; }
+    body.com-painel-validacao #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     body.com-painel-espaco #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     .painel-espaco { flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--borda); overflow: visible; }
     .esp-topo { position: static; }

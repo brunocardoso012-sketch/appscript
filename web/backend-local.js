@@ -80,6 +80,25 @@
       return { planta: normPlanta_(planta), moveis: objetos.length - 1 };
     },
 
+    entrarValidacao(acesso) {
+      const quem = conferirAcesso_(acesso);
+      return { papel: quem.papel, autor: quem.autor, nomePapel: PAPEIS_ACESSO[quem.papel] };
+    },
+
+    getComentarios(acesso) {
+      conferirAcesso_(acesso);
+      return comentariosDeValores_(ler().comentarios || valoresComentariosVazios_());
+    },
+
+    salvarComentario(acesso, pedido) {
+      const quem = conferirAcesso_(acesso);
+      const abas = ler();
+      const r = aplicarAcaoComentario_(abas.comentarios || valoresComentariosVazios_(), quem, pedido);
+      abas.comentarios = r.valores;
+      gravar(abas);
+      return comentariosDeValores_(r.valores);
+    },
+
     salvarAjustesEtiquetas(planta, ajustes) {
       planta = normPlanta_(planta);
       if (!planta || !ajustes || typeof ajustes !== 'object') throw new Error('Dados inválidos.');

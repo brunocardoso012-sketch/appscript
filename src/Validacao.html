@@ -1,0 +1,390 @@
+<script>
+/**
+ * ============================================================================
+ *  VALIDAÇÃO DA ESTRATÉGIA (página)
+ * ============================================================================
+ *  Botão "Validação": entra como validador ou construtor da estratégia (nome +
+ *  senha). O validador comenta a planta ou um móvel no ciclo escolhido; o
+ *  construtor vê, responde e marca como resolvido. Painel ao lado da planta com
+ *  os comentários do ciclo e da planta, marcadores nos móveis com comentários
+ *  abertos e a seção "Comentários da validação" na tela do móvel.
+ *  As regras (senha, quem pode o quê) são conferidas no servidor (Validacao.gs).
+ */
+const Validacao = (() => {
+  const CHAVE = 'planoVarejo.validacao';
+  const $ = (id) => document.getElementById(id);
+  let app = null; // { estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, fecharEspaco }
+  let acesso = null; // { papel, senha, nome, nomePapel }
+  let comentarios = [];
+  let painelAberto = false;
+  let filtro = 'ABERTO'; // ABERTO | RESOLVIDO | TODOS
+  let escolhendo = false; // o próximo clique num móvel escolhe o móvel do comentário novo
+  let movelNovo = ''; // móvel do comentário novo ('' = planta em geral)
+  let secaoMovel = null; // { pai, id } da seção aberta na tela do móvel
+  const rascunhos = {}; // texto ainda não enviado de cada formulário (o painel é redesenhado a cada mudança)
+
+  const sessao = {
+    ler() { try { return JSON.parse(window.sessionStorage.getItem(CHAVE)); } catch (e) { return null; } },
+    gravar(v) { try { if (v) window.sessionStorage.setItem(CHAVE, JSON.stringify(v)); else window.sessionStorage.removeItem(CHAVE); } catch (e) { /* sem armazenamento */ } },
+  };
+
+  function n(tag, classe, texto, pai) {
+    const e = document.createElement(tag);
+    if (classe) e.className = classe;
+    if (texto !== undefined && texto !== null) e.textContent = texto;
+    if (pai) pai.appendChild(e);
+    return e;
+  }
+
+  function botao(texto, classe, fn, pai) {
+    const b = n('button', 'btn pequeno ' + (classe || ''), texto, pai);
+    b.type = 'button';
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  const ehValidador = () => !!acesso && acesso.papel === 'VALIDADOR';
+  const ativo = () => !!acesso;
+  const nomeMovel = (id) => {
+    const p = app.plantaAtual();
+    const m = p && p.moveis.find((x) => x.id === id);
+    return m && m.descricao && m.descricao !== id ? id + ' · ' + m.descricao : id;
+  };
+
+  /** Comentários do ciclo atual (de uma planta, ou de todas). */
+  function doCiclo(planta) {
+    const e = app.estado;
+    return comentarios.filter((c) => c.ciclo === e.ciclo && (!planta || c.planta === planta));
+  }
+
+  /* ------------------------------- acesso --------------------------------- */
+
+  function abrirAcesso() {
+    const dlg = $('dlgAcesso');
+    $('acessoErro').hidden = true;
+    $('acessoSenha').value = '';
+    const ultimo = sessao.ler() || {};
+    if (!$('acessoNome').value) $('acessoNome').value = ultimo.nome || '';
+    dlg.showModal();
+    ($('acessoNome').value ? $('acessoSenha') : $('acessoNome')).focus();
+  }
+
+  async function entrar(ev) {
+    ev.preventDefault();
+    const dlg = $('dlgAcesso');
+    const papel = (dlg.querySelector('input[name="papel"]:checked') || {}).value || '';
+    const pedido = { papel, nome: $('acessoNome').value.trim(), senha: $('acessoSenha').value };
+    const botaoEntrar = $('acessoEntrar');
+    botaoEntrar.disabled = true;
+    try {
+      const r = await app.chamar('entrarValidacao', pedido);
+      acesso = Object.assign(pedido, { papel: r.papel, nome: r.autor, nomePapel: r.nomePapel });
+      sessao.gravar(acesso);
+      dlg.close();
+      app.toast('Você entrou como ' + r.nomePapel.toLowerCase() + '.');
+      painelAberto = true;
+      if (app.fecharEspaco) app.fecharEspaco(); // um painel lateral por vez
+      await recarregar();
+    } catch (e) {
+      $('acessoErro').textContent = (e && e.message) || String(e);
+      $('acessoErro').hidden = false;
+    } finally {
+      botaoEntrar.disabled = false;
+    }
+  }
+
+  function sair() {
+    acesso = null;
+    comentarios = [];
+    escolhendo = false;
+    movelNovo = '';
+    sessao.gravar(null);
+    painelAberto = false;
+    app.desenhar();
+  }
+
+  /* ----------------------------- servidor ---------------------------------- */
+
+  async function recarregar() {
+    if (!acesso) return;
+    try {
+      comentarios = await app.chamar('getComentarios', acesso);
+    } catch (e) {
+      // Senha trocada na planilha (ou sessão antiga): pede para entrar de novo.
+      if (/senha|papel|nome/i.test((e && e.message) || '')) sair();
+      app.erro(e);
+      return;
+    }
+    app.desenhar();
+  }
+
+  async function salvar(pedido, mensagem) {
+    try {
+      comentarios = await app.chamar('salvarComentario', acesso, pedido);
+      if (mensagem) app.toast(mensagem);
+      app.desenhar();
+      return true;
+    } catch (e) {
+      app.erro(e);
+      return false;
+    }
+  }
+
+  /* ------------------------------- painel ---------------------------------- */
+
+  function abrirPainel() {
+    if (!acesso) { abrirAcesso(); return; }
+    painelAberto = true;
+    if (app.fecharEspaco) app.fecharEspaco();
+    atualizar();
+    recarregar();
+  }
+
+  function fecharPainel() {
+    painelAberto = false;
+    escolhendo = false;
+    atualizar();
+  }
+
+  /** Redesenha o botão, o painel e a seção da tela do móvel (chamado depois de cada desenho da planta). */
+  function atualizar() {
+    const e = app.estado;
+    const planta = app.plantaAtual();
+    const abertos = ativo() && e.ciclo ? doCiclo().filter((c) => c.status === 'ABERTO').length : 0;
+    const btn = $('btnValidacao');
+    if (btn) {
+      btn.setAttribute('aria-pressed', String(painelAberto && ativo()));
+      $('valBadge').textContent = abertos ? String(abertos) : '';
+      $('valBadge').hidden = !abertos;
+      btn.title = ativo() ? 'Validação: ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : 'Validação da estratégia (pede senha)';
+    }
+    const painel = $('painelValidacao');
+    const visivel = painelAberto && ativo() && !!planta;
+    painel.hidden = !visivel;
+    document.body.classList.toggle('com-painel-validacao', visivel);
+    document.body.classList.toggle('escolhendo-movel', escolhendo && visivel);
+    if (visivel) montarPainel(planta);
+    if (secaoMovel && secaoMovel.pai.isConnected) montarSecaoMovel(secaoMovel.pai, secaoMovel.id);
+  }
+
+  function montarPainel(planta) {
+    const e = app.estado;
+    $('valSub').textContent = planta.nome + (e.ciclo ? ' · ' + e.ciclo : '');
+    const corpo = $('valCorpo');
+    corpo.innerHTML = '';
+
+    const quem = n('div', 'val-quem', null, corpo);
+    n('span', 'val-avatar', acesso.nome.slice(0, 1).toUpperCase(), quem);
+    const t = n('div', null, null, quem);
+    n('strong', null, acesso.nome, t);
+    n('span', null, acesso.nomePapel, t);
+    botao('Sair', 'fantasma', sair, quem);
+
+    if (!e.ciclo) {
+      n('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver e fazer comentários da estratégia.', corpo);
+      return;
+    }
+
+    if (ehValidador()) formNovo(corpo, planta, null);
+    else n('p', 'val-dica', 'Os comentários do validador aparecem aqui. Responda e marque como resolvido quando ajustar a estratégia.', corpo);
+
+    const daPlanta = doCiclo(planta.id);
+    const qtd = (s) => daPlanta.filter((c) => s === 'TODOS' || c.status === s).length;
+    const chips = n('div', 'val-filtros', null, corpo);
+    [['ABERTO', 'Abertos'], ['RESOLVIDO', 'Resolvidos'], ['TODOS', 'Todos']].forEach(([s, rot]) => {
+      const b = botao(rot + ' (' + qtd(s) + ')', filtro === s ? 'ativo' : 'fantasma', () => { filtro = s; atualizar(); }, chips);
+      b.setAttribute('aria-pressed', String(filtro === s));
+    });
+
+    const lista = daPlanta.filter((c) => filtro === 'TODOS' || c.status === filtro);
+    if (!lista.length) {
+      n('p', 'mv-vazio', filtro === 'ABERTO' ? 'Nenhum comentário aberto nesta planta.' : 'Nenhum comentário aqui.', corpo);
+    }
+    lista.slice().reverse().forEach((c) => cartao(corpo, c, true));
+
+    // Comentários abertos em outras plantas do ciclo (clique para ir até a planta).
+    const outras = app.estado.dados.plantas.filter((p) => p.id !== planta.id)
+      .map((p) => ({ p, n: doCiclo(p.id).filter((c) => c.status === 'ABERTO').length }))
+      .filter((x) => x.n);
+    if (outras.length) {
+      n('h3', null, 'Abertos em outras plantas', corpo);
+      const box = n('div', 'val-outras', null, corpo);
+      outras.forEach((x) => botao(x.p.nome + ' · ' + x.n, 'fantasma', () => app.trocarPlanta(x.p.id), box));
+    }
+  }
+
+  /** Formulário de comentário novo (validador). movelFixo: na tela do móvel, o comentário já é desse móvel. */
+  function formNovo(pai, planta, movelFixo) {
+    const f = n('form', 'val-novo', null, pai);
+    n('h3', null, 'Novo comentário', f);
+    if (!movelFixo) {
+      const linha = n('div', 'val-alvo', null, f);
+      const sel = n('select', null, null, linha);
+      sel.setAttribute('aria-label', 'Sobre o quê');
+      n('option', null, 'Planta em geral', sel).value = '';
+      planta.moveis.filter((m) => m.tipo !== 'CAIXA').slice()
+        .sort((a, b) => a.id.localeCompare(b.id, 'pt-BR', { numeric: true }))
+        .forEach((m) => { n('option', null, nomeMovel(m.id), sel).value = m.id; });
+      sel.value = movelNovo;
+      sel.addEventListener('change', () => { movelNovo = sel.value; });
+      const b = botao(escolhendo ? 'Clique num móvel…' : 'Escolher na planta', escolhendo ? 'ativo' : '', () => {
+        escolhendo = !escolhendo;
+        atualizar();
+      }, linha);
+      b.title = 'Clique aqui e depois no móvel, na planta';
+    }
+    const txt = n('textarea', null, null, f);
+    const chave = movelFixo ? 'movel:' + movelFixo : 'painel';
+    txt.value = rascunhos[chave] || '';
+    txt.addEventListener('input', () => { rascunhos[chave] = txt.value; });
+    txt.rows = 3;
+    txt.placeholder = movelFixo ? 'O que precisa mudar neste móvel?' : 'O que precisa mudar na estratégia?';
+    txt.required = true;
+    const acoes = n('div', 'val-acoes', null, f);
+    const enviar = n('button', 'btn pequeno primario', 'Comentar', acoes);
+    enviar.type = 'submit';
+    f.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if (!txt.value.trim()) return;
+      enviar.disabled = true;
+      const ok = await salvar({
+        acao: 'novo', ciclo: app.estado.ciclo, planta: planta.id, movel: movelFixo || movelNovo, texto: txt.value,
+      }, 'Comentário enviado.');
+      enviar.disabled = false;
+      if (ok) { delete rascunhos[chave]; filtro = 'ABERTO'; if (!movelFixo) movelNovo = ''; atualizar(); }
+    });
+  }
+
+  /** Cartão de um comentário, com as respostas e as ações de cada papel. */
+  function cartao(pai, c, comMovel) {
+    const box = n('article', 'val-cartao' + (c.status === 'RESOLVIDO' ? ' resolvido' : ''), null, pai);
+    box.dataset.comentario = c.id;
+    const topo = n('div', 'val-topo', null, box);
+    if (comMovel) {
+      if (c.movel) {
+        const b = botao(nomeMovel(c.movel), 'val-movel', () => app.abrirMovel(c.movel), topo);
+        b.title = 'Ver a estratégia deste móvel';
+      } else {
+        n('span', 'val-movel geral', 'Planta em geral', topo);
+      }
+    }
+    n('span', 'val-status ' + c.status.toLowerCase(), c.status === 'RESOLVIDO' ? 'Resolvido' : 'Aberto', topo);
+    const msg = (m) => {
+      const d = n('div', 'val-msg ' + m.papel.toLowerCase(), null, box);
+      const meta = n('div', 'val-meta', null, d);
+      n('strong', null, m.autor, meta);
+      n('span', null, (m.papel === 'VALIDADOR' ? 'validador' : 'construtor') + ' · ' + m.data, meta);
+      n('p', null, m.texto, d);
+    };
+    msg(c);
+    c.respostas.forEach(msg);
+
+    const acoes = n('div', 'val-acoes', null, box);
+    const resposta = n('form', 'val-responder', null, box);
+    resposta.hidden = true;
+    const txt = n('textarea', null, null, resposta);
+    txt.rows = 2;
+    txt.placeholder = 'Sua resposta';
+    const enviar = n('button', 'btn pequeno primario', 'Responder', n('div', 'val-acoes', null, resposta));
+    enviar.type = 'submit';
+    resposta.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if (!txt.value.trim()) return;
+      enviar.disabled = true;
+      await salvar({ acao: 'responder', id: c.id, texto: txt.value }, 'Resposta enviada.');
+      enviar.disabled = false;
+    });
+    botao('Responder', 'fantasma', () => { resposta.hidden = !resposta.hidden; if (!resposta.hidden) txt.focus(); }, acoes);
+    if (c.status === 'ABERTO') {
+      botao('Marcar como resolvido', '', () => salvar({ acao: 'status', id: c.id, status: 'RESOLVIDO' }, 'Comentário resolvido.'), acoes);
+    } else if (ehValidador()) {
+      botao('Reabrir', '', () => salvar({ acao: 'status', id: c.id, status: 'ABERTO' }, 'Comentário reaberto.'), acoes);
+    }
+    if (ehValidador()) {
+      botao('Excluir', 'fantasma perigo', () => {
+        if (window.confirm('Excluir este comentário e as respostas dele?')) salvar({ acao: 'excluir', id: c.id }, 'Comentário excluído.');
+      }, acoes);
+    }
+    return box;
+  }
+
+  /* ------------------------- tela do móvel / planta ------------------------ */
+
+  /** Seção "Comentários da validação" na tela do móvel (só para quem entrou). */
+  function montarSecaoMovel(pai, id) {
+    secaoMovel = { pai, id };
+    pai.innerHTML = '';
+    if (!ativo()) {
+      pai.hidden = true;
+      return;
+    }
+    pai.hidden = false;
+    n('h3', null, 'Comentários da validação', pai);
+    const planta = app.plantaAtual();
+    if (!app.estado.ciclo) {
+      n('p', 'mv-vazio', 'Escolha um ciclo para ver os comentários.', pai);
+      return;
+    }
+    const lista = doCiclo(planta.id).filter((c) => c.movel === id);
+    if (!lista.length) n('p', 'mv-vazio', 'Nenhum comentário neste móvel.', pai);
+    lista.slice().reverse().forEach((c) => cartao(pai, c, false));
+    if (ehValidador()) formNovo(pai, planta, id);
+  }
+
+  /**
+   * Clique num móvel da planta. No modo "Escolher na planta", o móvel vira o alvo do
+   * comentário novo (e o clique não abre a tela do móvel). @return {boolean} tratado
+   */
+  function aoClicarMovel(id) {
+    if (!escolhendo) return false;
+    escolhendo = false;
+    movelNovo = id;
+    atualizar();
+    return true;
+  }
+
+  /** Clique no marcador de um móvel: abre o painel com os comentários abertos e destaca os desse móvel. */
+  function focar(id) {
+    filtro = 'ABERTO';
+    painelAberto = true;
+    if (app.fecharEspaco) app.fecharEspaco();
+    atualizar();
+    const cartoes = Array.from($('valCorpo').querySelectorAll('.val-cartao'))
+      .filter((el) => (doCiclo().find((c) => c.id === el.dataset.comentario) || {}).movel === id);
+    cartoes.forEach((el) => el.classList.add('focado'));
+    if (cartoes[0]) cartoes[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  /** Marcadores para a planta: ID do móvel → nº de comentários abertos (null fora da validação). */
+  function marcadores() {
+    if (!ativo() || !app.estado.ciclo) return null;
+    const planta = app.plantaAtual();
+    const mapa = {};
+    doCiclo(planta && planta.id).forEach((c) => {
+      if (c.movel && c.status === 'ABERTO') mapa[c.movel] = (mapa[c.movel] || 0) + 1;
+    });
+    return mapa;
+  }
+
+  /* -------------------------------- início --------------------------------- */
+
+  function iniciar(contexto) {
+    app = contexto;
+    $('btnValidacao').addEventListener('click', () => {
+      if (painelAberto && ativo()) fecharPainel();
+      else abrirPainel();
+    });
+    $('valFechar').addEventListener('click', fecharPainel);
+    $('formAcesso').addEventListener('submit', entrar);
+    $('acessoCancelar').addEventListener('click', () => $('dlgAcesso').close());
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && escolhendo) { escolhendo = false; atualizar(); }
+    });
+    // Mesma aba: continua entrado depois de recarregar a página (a senha fica só nesta aba).
+    const salvo = sessao.ler();
+    if (salvo && salvo.senha && salvo.papel) acesso = salvo;
+  }
+
+  return { iniciar, atualizar, recarregar, marcadores, aoClicarMovel, focar, montarSecaoMovel, fecharPainel, ativo };
+})();
+</script>

@@ -306,3 +306,35 @@ test('gôndola, mesas, totem e móvel make: linha do móvel inteiro é ignorada 
   assert.match(d.avisos[0], /GONDOLA 1\/LADO-A/);
   assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(), ['GONDOLA 1/MEIO-B', 'PIRAMIDE 1']);
 });
+
+test('validação: senha por papel, quem pode o quê e aba Comentários', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  const V = "{ papel: 'validador', senha: '1234', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  assert.deepEqual(run(`entrarValidacao(${V})`), { papel: 'VALIDADOR', autor: 'Ana', nomePapel: 'Validador' });
+  assert.throws(() => run("entrarValidacao({ papel: 'VALIDADOR', senha: '0000', nome: 'Ana' })"), /Senha incorreta/);
+  assert.throws(() => run("entrarValidacao({ papel: 'VALIDADOR', senha: '1234', nome: ' ' })"), /nome/);
+  assert.throws(() => run("entrarValidacao({ papel: 'CHEFE', senha: '1234', nome: 'X' })"), /validador ou construtor/);
+
+  assert.throws(() => run(`salvarComentario(${C}, { acao: 'novo', ciclo: 'C1', planta: '01', texto: 'x' })`), /Só o validador cria/);
+  let l = run(`salvarComentario(${V}, { acao: 'novo', ciclo: 'C1', planta: 'ER P', movel: 'gôndola 1', texto: 'Trocar o lado A' })`);
+  assert.equal(l.length, 1);
+  assert.deepEqual([l[0].planta, l[0].movel, l[0].status, l[0].autor], ['01', 'GONDOLA 1', 'ABERTO', 'Ana']);
+  const id = l[0].id;
+  l = run(`salvarComentario(${C}, { acao: 'responder', id: '${id}', texto: 'Feito' })`);
+  l = run(`salvarComentario(${C}, { acao: 'status', id: '${id}', status: 'resolvido' })`);
+  assert.equal(l[0].status, 'RESOLVIDO');
+  assert.deepEqual(l[0].respostas.map((r) => [r.autor, r.papel, r.texto]), [['Bia', 'CONSTRUTOR', 'Feito']]);
+  assert.throws(() => run(`salvarComentario(${C}, { acao: 'status', id: '${id}', status: 'ABERTO' })`), /Só o validador reabre/);
+  assert.throws(() => run(`salvarComentario(${C}, { acao: 'excluir', id: '${id}' })`), /Só o validador exclui/);
+  assert.throws(() => run(`getComentarios({ papel: 'CONSTRUTOR', senha: 'x', nome: 'Bia' })`), /Senha incorreta/);
+
+  const aba = run("lerComentariosDaPlanilha_(planilha_())");
+  assert.deepEqual(aba[0], ['ID', 'Responde a', 'Ciclo', 'Planta', 'ID Móvel', 'Papel', 'Autor', 'Data', 'Texto', 'Status']);
+  assert.equal(aba[1][3], 'ER P', 'planta gravada pelo nome');
+  assert.equal(aba.length, 3, 'comentário + resposta');
+  l = run(`salvarComentario(${V}, { acao: 'excluir', id: '${id}' })`);
+  assert.deepEqual(l, []);
+  assert.equal(run("lerComentariosDaPlanilha_(planilha_())").length, 1, 'resposta sai junto');
+});

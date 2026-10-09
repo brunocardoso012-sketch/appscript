@@ -140,6 +140,7 @@ const App = (() => {
         return;
       }
       aplicarDados(dados, preferencias || {});
+      Validacao.recarregar();
     } catch (e) {
       erro(e);
     } finally {
@@ -315,6 +316,8 @@ const App = (() => {
     const ctx = contextoDesenho();
     if (!ctx) return;
     svg.classList.toggle('construindo', !!Editor.contexto());
+    // Marcadores dos comentários abertos (só na validação e fora da construção).
+    if (!Editor.contexto()) ctx.comentarios = Validacao.marcadores();
     const r = Render.desenhar(svg, ctx);
     destacarMovel('');
     Editor.aposDesenhar(r);
@@ -322,6 +325,7 @@ const App = (() => {
     if (estado.edicao) ativarArraste();
     aplicarZoom();
     atualizarEspaco();
+    Validacao.atualizar();
   }
 
   /* --------------------------------- zoom --------------------------------- */
@@ -451,8 +455,12 @@ const App = (() => {
       gesto = null;
       if (arrastou || !estado.dados || Editor.contexto()) return;
       if (estado.edicao && ev.target.closest('.arrastavel')) return;
+      const marcador = ev.target.closest('.marcador-comentario');
+      if (marcador) { Validacao.focar(marcador.getAttribute('data-movel')); return; }
       const alvo = ev.target.closest('[data-movel]');
-      if (alvo) abrirMovel(alvo.getAttribute('data-movel').split('/')[0]);
+      if (!alvo) return;
+      const id = alvo.getAttribute('data-movel').split('/')[0];
+      if (!Validacao.aoClicarMovel(id)) abrirMovel(id);
     });
   }
 
@@ -1023,6 +1031,8 @@ const App = (() => {
     $('mvSub').textContent = [descricao, String(tipo).split(':')[0], planta.nome, ciclo || 'sem ciclo selecionado'].filter(Boolean).join(' · ');
     const corpo = $('mvEstrategia');
     corpo.innerHTML = '';
+    // Comentários da validação deste móvel (só aparece para quem entrou na validação).
+    Validacao.montarSecaoMovel(novo('section', 'mv-bloco mv-validacao', null, corpo), m.id);
     if (!ciclo) {
       novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver a estratégia deste móvel.', corpo);
     } else {
@@ -1167,6 +1177,7 @@ const App = (() => {
       const clone = svg.cloneNode(true);
       clone.setAttribute('viewBox', '0 0 ' + Render.TELA.w + ' ' + Render.TELA.h);
       clone.querySelectorAll('.etq-zoom').forEach((g) => g.removeAttribute('transform'));
+      clone.querySelectorAll('.camada-comentarios').forEach((g) => g.remove()); // marcadores da validação não vão no PNG
       return { clone, caixa: { x: 0, y: 0, w: Render.TELA.w, h: Render.TELA.h } };
     }
     const ns = 'http://www.w3.org/2000/svg';
@@ -1291,6 +1302,7 @@ const App = (() => {
     ao('btnEspaco', 'click', () => {
       estado.painelEspaco = !estado.painelEspaco;
       memoria.gravar('painelEspaco', estado.painelEspaco ? '1' : '0');
+      if (estado.painelEspaco) Validacao.fecharPainel(); // um painel lateral por vez
       atualizarEspaco();
     });
     ao('espFechar', 'click', () => $('btnEspaco').click());
@@ -1346,6 +1358,11 @@ const App = (() => {
       .catch(() => { /* sem a fonte: as etiquetas usam a reserva (Segoe UI / Arial) */ });
   }
   Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
+  Validacao.iniciar({
+    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta,
+    abrirMovel: (id) => abrirMovel(id),
+    fecharEspaco: () => { estado.painelEspaco = false; atualizarEspaco(); },
+  });
   carregar();
 
   // resolver: usado também para gerar a planilha base da versão de visualização (dev/).

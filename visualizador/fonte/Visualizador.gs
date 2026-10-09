@@ -106,6 +106,28 @@ function salvarAjustesEtiquetas(planta, ajustes) {
   }
 }
 
+/* ======================== VALIDAÇÃO DA ESTRATÉGIA ========================= */
+
+/** Confere papel, nome e senha da validação. @return {{papel, autor, nomePapel}} */
+function entrarValidacao(acesso) {
+  const quem = conferirAcesso_(acesso);
+  return { papel: quem.papel, autor: quem.autor, nomePapel: PAPEIS_ACESSO[quem.papel] };
+}
+
+/** Todos os comentários (com as respostas), para quem entrou na validação. */
+function getComentarios(acesso) {
+  conferirAcesso_(acesso);
+  return comentariosDeValores_(lerComentariosDaPlanilha_(planilhaVisualizador_()));
+}
+
+/**
+ * Cria, responde, resolve / reabre ou exclui um comentário (veja aplicarAcaoComentario_).
+ * @return {Array} comentários atualizados
+ */
+function salvarComentario(acesso, pedido) {
+  return executarComentario_(planilhaVisualizador_(), acesso, pedido);
+}
+
 /* ================================ I/O ===================================== */
 
 /** Planilha dos ciclos: a de VISUALIZADOR.PLANILHA (link ou ID), a propriedade SPREADSHEET_ID ou a vinculada. */

@@ -89,3 +89,12 @@ test('visualizador/apps-script está atualizado com src/ (rode npm run build:vis
   assert.equal(ler('Codigo.gs'), gerarCodigo(), 'Codigo.gs desatualizado');
   assert.equal(ler('Index.html'), gerarIndex(), 'Index.html desatualizado');
 });
+
+test('visualizador: comentários da validação ficam na aba Comentários da planilha conectada', () => {
+  const { run, falsos } = carregarVisualizador();
+  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
+  const l = run(`salvarComentario(${V}, { acao: 'novo', ciclo: 'Ciclo exemplo', planta: '02', texto: 'Rever a ER M' })`);
+  assert.equal(l.length, 1);
+  assert.ok(falsos.planilha.getSheetByName('Comentários'), 'aba criada');
+  assert.equal(run(`getComentarios(${V})`)[0].texto, 'Rever a ER M');
+});

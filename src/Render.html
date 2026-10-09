@@ -1208,6 +1208,27 @@ const Render = (() => {
       dica(gr.elemento, gr.id + (gr.movel.descricao ? ' — ' + gr.movel.descricao : ''));
     });
 
+    // Validação: marcador com o nº de comentários abertos no canto de cada móvel comentado
+    // (do mesmo tamanho na tela com zoom; não vai no PNG).
+    if (ctx.comentarios && !ctx.somentePlanta) {
+      const camada = el('g', { class: 'camada-comentarios' }, svg);
+      moveis.forEach((m) => {
+        const qtd = ctx.comentarios[m.id];
+        if (!qtd) return;
+        // Canto de cima mais à direita do móvel na tela.
+        const [px, py] = P(m.x + m.w, m.y, m.z + m.h);
+        const g = el('g', { class: 'marcador-comentario', 'data-movel': m.id }, pivoZoom(camada, px, py));
+        const cx = px + 6;
+        const cy = py - 22;
+        el('circle', { cx, cy, r: 17, fill: '#E8590C', stroke: '#FFFFFF', 'stroke-width': 2.5, filter: 'url(#sombraEtq)' }, g);
+        poligono(g, [[cx - 9, cy + 11], [cx - 4, cy + 22], [cx + 3, cy + 14]], { fill: '#E8590C' });
+        texto(g, cx, cy + 6, String(qtd), {
+          'font-family': FONTE_ETQ, 'font-size': 17, 'font-weight': 800, fill: '#FFFFFF', 'text-anchor': 'middle',
+        });
+        dica(g, qtd + (qtd === 1 ? ' comentário aberto' : ' comentários abertos') + ' da validação — clique para ver');
+      });
+    }
+
     // Só a planta: tira os painéis (lateral, notas, legenda, extras e caixas de destaque).
     if (ctx.somentePlanta) {
       camadaSobre.remove();

@@ -30,6 +30,16 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 - **Etiquetas arredondadas** na fonte Nunito (também no PNG, que leva a fonte embutida; sem internet, usa Segoe UI / Arial).
 - **Etiquetas sem sobreposição**: as etiquetas se afastam sozinhas para nenhuma ficar em cima de outra (nem das caixas de destaque e notas); se não houver lugar perto do móvel, vão para o espaço livre mais próximo, com linha-guia. Para outra posição, use *Ajustar etiquetas*, arraste e clique em *Salvar posições* (as de uma gôndola movem juntas). Os móveis aparecem em cores foscas e opacas; as etiquetas mantêm as cores das marcas.
 
+## Validação da estratégia
+
+O botão **Validação** abre um painel de comentários sobre a estratégia do ciclo, para o **validador** apontar o que precisa mudar e o **construtor da estratégia** ver, responder e resolver.
+
+- **Acesso:** escolha *Validador* ou *Construtor da estratégia*, digite o seu nome e a senha. As senhas são provisórias (**1234** para os dois papéis), ficam em `SENHAS_ACESSO` (`src/Config.gs`) e são conferidas no servidor a cada gravação. Para passar a lê-las da planilha, basta mudar `senhasDeAcesso_()` em `src/Validacao.gs`. O acesso vale até fechar a aba do navegador; *Sair* encerra antes.
+- **Validador:** comenta a planta em geral ou um móvel. O móvel pode ser escolhido na lista, com *Escolher na planta* (e depois um clique no móvel) ou direto na tela do móvel. O validador também pode reabrir e excluir comentários.
+- **Construtor da estratégia:** vê os comentários, responde e usa *Marcar como resolvido*.
+- **Onde aparecem:** no painel (filtros *Abertos*, *Resolvidos* e *Todos*, da planta e do ciclo escolhidos, com atalhos para as outras plantas que têm comentários abertos); como um balão laranja com o número de comentários abertos no canto do móvel (clique para ver os comentários); e na seção *Comentários da validação* da tela do móvel. O número no botão é o total de comentários abertos no ciclo. O balão não sai no PNG.
+- **Onde ficam:** na aba **Comentários** da planilha, criada no primeiro comentário, com uma linha por mensagem: as respostas apontam para o comentário na coluna *Responde a*. Na versão web, ficam no navegador.
+
 ## Construir loja (editor do layout)
 
 Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **abre com o modelo atual** (os móveis salvos dela), pronta para editar; trocar de planta no editor também abre o modelo daquela planta. Fechar sem salvar não apaga nada; ao clicar em **Salvar planta**, o layout passa a ser o que está na tela.
@@ -120,12 +130,15 @@ Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`
    |---|---|---|
    | Script | `Code` | [`src/Code.gs`](src/Code.gs) |
    | Script | `Config` | [`src/Config.gs`](src/Config.gs) |
+   | Script | `Dados` | [`src/Dados.gs`](src/Dados.gs) |
    | Script | `Layouts` | [`src/Layouts.gs`](src/Layouts.gs) |
+   | Script | `Validacao` | [`src/Validacao.gs`](src/Validacao.gs) |
    | HTML | `Index` | [`src/Index.html`](src/Index.html) |
    | HTML | `Styles` | [`src/Styles.html`](src/Styles.html) |
    | HTML | `Render` | [`src/Render.html`](src/Render.html) |
    | HTML | `Planilha` | [`src/Planilha.html`](src/Planilha.html) |
    | HTML | `Construtor` | [`src/Construtor.html`](src/Construtor.html) |
+   | HTML | `Validacao` | [`src/Validacao.html`](src/Validacao.html) |
    | HTML | `App` | [`src/App.html`](src/App.html) |
 
 5. Salve, volte para a planilha e recarregue a página. Vai aparecer o menu **Plano de Varejo**. Clique em **Configurar planilha (criar abas que faltam)** e autorize o script. Ele cria as abas `Layout`, `Movimentos` e `Painéis` com o layout das 4 plantas e um *Ciclo exemplo*.
@@ -242,18 +255,20 @@ src/
   Dados.gs          leitura das abas e normalizações (sem I/O; usado também pelo visualizador)
   Code.gs           doGet, menu, getDados, importarPlanilha, salvarLayout, salvarAjustesEtiquetas…
   Layouts.gs        layout padrão das 4 plantas + ciclo de exemplo
+  Validacao.gs      validação da estratégia: senhas, aba Comentários e quem pode o quê
   Index.html        página (inclui os arquivos abaixo)
   Styles.html       estilos
   Render.html       desenho isométrico em SVG (slide 1920×1080)
   Planilha.html     gerar/ler .xlsx no navegador (ExcelJS via cdnjs, com SRI)
   Construtor.html   modo "Construir loja" (editor visual do layout)
+  Validacao.html    painel de validação (acesso, comentários, marcadores na planta)
   App.html          estado da tela, botões e chamadas ao servidor
 index.html          versão web gerada (netli.fyi / Netlify)
 netlify.toml        publicação estática a partir da raiz
 web/
   backend-local.js  troca o google.script.run por localStorage (versão web)
 visualizador/
-  fonte/Visualizador.gs   backend da versão só de visualização (lê a planilha, sem gravar nela)
+  fonte/Visualizador.gs   backend da versão só de visualização (lê a planilha; só grava na aba Comentários)
   apps-script/            projeto gerado para o Apps Script (Codigo.gs, Index.html, manifesto)
   Planilha base - Visualizador.xlsx
 dev/
