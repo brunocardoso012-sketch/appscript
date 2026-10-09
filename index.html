@@ -3775,7 +3775,7 @@ const Render = (() => {
       longe.some((d) => tentar(d[0], d[1]));
     };
     grupos.filter((g) => g.manual).forEach((g) => { acomodar(g); ocupados.push(g); });
-    // As etiquetas ao lado do móvel (painéis do totem) vão antes, para ficarem juntas do móvel delas.
+    // As etiquetas fora da planta (painéis do totem) vão antes, para ficarem no lugar delas.
     grupos.filter((g) => !g.manual).sort((a, b) => (b.aoLado ? 1 : 0) - (a.aoLado ? 1 : 0) || a.ancora[1] - b.ancora[1])
       .forEach((g) => { acomodar(g); ocupados.push(g); });
   }
@@ -4176,14 +4176,29 @@ const Render = (() => {
     const limitePorTipo = ctx.dados.config.etiquetasPorTipo || {};
     const limitePorBloco = ctx.dados.config.etiquetasPorBloco || {};
     const grupos = [];
-    // aoLado: a etiqueta começa à direita do móvel (com linha-guia até a âncora) em vez de ficar em
-    // cima dela — usado nos painéis do totem, para a etiqueta não cobrir a cor do painel.
-    const direitaDe = (m) => Math.max.apply(null, [m.x, m.x + m.w].map((x) => P(x, m.y, m.z)[0]));
+    // aoLado: a etiqueta vai para fora da planta, à esquerda (com linha-guia até a âncora), em vez de
+    // ficar em cima dela — usado nos painéis do totem: não cobre a cor do painel e deixa o espaço em volta
+    // do totem para as etiquetas dos outros móveis. As do mesmo móvel ficam alinhadas pela direita.
+    const contornoEsquerdo = (() => { // borda esquerda da loja na tela: alto da parede → canto → frente do piso
+      const W = planta.loja.largura, D = planta.loja.profundidade, H = planta.loja.alturaParede;
+      const t = ESPESSURA_PAREDE, b = ESPESSURA_PISO;
+      return [P(-t, -t, H), P(-t, D, H), P(-t, D, -b), P(W, D, -b)];
+    })();
+    const bordaEsquerda = (sy) => {
+      let x = Infinity;
+      for (let k = 1; k < contornoEsquerdo.length; k++) {
+        const [a, c] = [contornoEsquerdo[k - 1], contornoEsquerdo[k]];
+        if ((sy - a[1]) * (sy - c[1]) > 0 || a[1] === c[1]) continue;
+        x = Math.min(x, a[0] + ((sy - a[1]) / (c[1] - a[1])) * (c[0] - a[0]));
+      }
+      return isFinite(x) ? x : contornoEsquerdo[2][0];
+    };
+    const esquerdaDe = (m) => bordaEsquerda(P(m.x + m.w / 2, m.y + m.d / 2, m.z + m.h)[1] - 30) - 18;
     const novoGrupo = (id, m, i, etiquetas, simbolo, ancora, ajuste, aoLado) => {
       if (!etiquetas.length) return;
       const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta', true)) || corEtiquetaPadrao(true);
       const med = medirGrupo(etiquetas, simbolo, corPadrao);
-      const baseX = aoLado ? direitaDe(m) + 16 : ancora[0] - med.w / 2;
+      const baseX = aoLado ? Math.max(LIMITES.x0, esquerdaDe(m) - med.w) : ancora[0] - med.w / 2;
       const baseY = ancora[1] - med.h / 2;
       grupos.push(Object.assign(med, {
         id, movel: m, info: i, ancora, baseX, baseY, aoLado: !!aoLado,
