@@ -269,6 +269,54 @@ const Render = (() => {
 
   const espessuraL = (m) => Math.min(0.6, m.w / 2, m.d / 2);
 
+  /**
+   * Balcão recepção: um bloco só em "L" (sem divisões entre os braços), em vidro, com as prateleiras.
+   * Desenha as faces de fora viradas para quem olha (de trás para a frente) e o tampo em "L" por cima.
+   */
+  function balcaoL(pai, P, b, cores) {
+    const x0 = b.x, x1 = b.x + b.w, y0 = b.y, y1 = b.y + b.d, z0 = b.z, z1 = b.z + b.h;
+    const t = espessuraL(b);
+    const c = cantoL(b.movel);
+    // Canto do retângulo que fica vazio (o oposto ao canto do L) e o canto de dentro do L.
+    const vazio = [c.direita ? x0 : x1, c.frente ? y0 : y1];
+    const dentro = [c.direita ? x1 - t : x0 + t, c.frente ? y1 - t : y0 + t];
+    const cantos = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+    const pegada = [];
+    cantos.forEach((q, k) => {
+      if (q[0] !== vazio[0] || q[1] !== vazio[1]) { pegada.push(q); return; }
+      const ant = cantos[(k + 3) % 4], prox = cantos[(k + 1) % 4];
+      pegada.push(ant[1] === q[1] ? [dentro[0], q[1]] : [q[0], dentro[1]]);
+      pegada.push(dentro);
+      pegada.push(prox[1] === q[1] ? [dentro[0], q[1]] : [q[0], dentro[1]]);
+    });
+    let area = 0;
+    pegada.forEach((a, k) => { const n = pegada[(k + 1) % pegada.length]; area += a[0] * n[1] - n[0] * a[1]; });
+    const neutro = !cores;
+    const base = cores || [COR.neutro];
+    const comum = { stroke: neutro ? COR.contornoNeutro : COR.contorno, 'stroke-width': neutro ? 1 : 1.3, 'stroke-linejoin': 'round' };
+    const detalhe = neutro
+      ? { stroke: COR.prateleiraNeutra, 'stroke-width': 1 }
+      : { stroke: misturar(base[0], '#000000', 0.35), 'stroke-width': 1, 'stroke-dasharray': '5 4' };
+    // Faces visíveis: normal para fora em +x ou +y.
+    const faces = [];
+    pegada.forEach((a, k) => {
+      const n = pegada[(k + 1) % pegada.length];
+      const nx = area > 0 ? n[1] - a[1] : a[1] - n[1];
+      const ny = area > 0 ? a[0] - n[0] : n[0] - a[0];
+      if (nx > 0 || ny > 0) faces.push({ a, n, frente: ny > 0, prof: (a[0] + n[0] + a[1] + n[1]) / 2 });
+    });
+    faces.sort((f, g) => f.prof - g.prof).forEach((f) => {
+      const sombra = f.frente ? (neutro ? 0.03 : 0) : (neutro ? 0.1 : 0.16);
+      poligono(pai, [P(f.a[0], f.a[1], z0), P(f.n[0], f.n[1], z0), P(f.n[0], f.n[1], z1), P(f.a[0], f.a[1], z1)],
+        Object.assign({ fill: tinta(base, sombra) }, comum));
+      for (let k = 1; k < PRATELEIRAS.VITRINE_L; k++) {
+        const z = z0 + (b.h * k) / PRATELEIRAS.VITRINE_L;
+        linha(pai, P(f.a[0], f.a[1], z), P(f.n[0], f.n[1], z), detalhe);
+      }
+    });
+    poligono(pai, pegada.map((q) => P(q[0], q[1], z1)), Object.assign({ fill: tinta(base, neutro ? 0 : -0.3) }, comum));
+  }
+
   /** [comprimento, largura] do móvel: o lado maior é o eixo "u". */
   const eixos = (b) => (b.w >= b.d ? [b.w, b.d] : [b.d, b.w]);
 
@@ -408,21 +456,9 @@ const Render = (() => {
   /** Móvel make: altura onde começa a testeira e fundo da testeira. */
   const testeiraMake = (m) => ({ z: m.h * 0.8, fundo: Math.min(eixos(m)[1], 0.4) });
 
-  /** Quebra um móvel em caixas "ordenáveis" (gôndola → espaços; balcão em L → 3 blocos; make → corpo + testeiras). */
+  /** Quebra um móvel em caixas "ordenáveis" (gôndola → espaços; make → corpo + testeiras). */
   function primitivas(m) {
     if (m.tipo === 'GONDOLA') return caixasGondola(m);
-    if (m.tipo === 'VITRINE_L') {
-      const t = espessuraL(m);
-      const c = cantoL(m);
-      const xBraco = c.direita ? m.x + m.w - t : m.x;
-      const yBraco = c.frente ? m.y + m.d - t : m.y;
-      // 3 blocos (braço, canto, braço), todos com a cor do balcão; bloco = posição da etiqueta.
-      return [
-        { x: xBraco, y: c.frente ? m.y : m.y + t, z: m.z, w: t, d: m.d - t, h: m.h, movel: m, bloco: 1 },
-        { x: xBraco, y: yBraco, z: m.z, w: t, d: t, h: m.h, movel: m, bloco: 2 },
-        { x: c.direita ? m.x : m.x + t, y: yBraco, z: m.z, w: m.w - t, d: t, h: m.h, movel: m, bloco: 3 },
-      ];
-    }
     if (m.tipo === 'MAKE') {
       const [L] = eixos(m);
       const T = testeiraMake(m);
@@ -554,7 +590,7 @@ const Render = (() => {
         caixa(pai, P, b, { cores, moldura: true });
         break;
       case 'VITRINE_L':
-        caixa(pai, P, b, { cores, vidro: true, prateleiras: PRATELEIRAS.VITRINE_L });
+        balcaoL(pai, P, b, cores);
         break;
       case 'CAIXA': {
         // Móvel de atendimento: balcão com a tela preta em cima, no lado do fundo (acompanha o giro).
@@ -1236,16 +1272,6 @@ const Render = (() => {
         return;
       }
       const i = info[m.id];
-      if (m.tipo === 'VITRINE_L') {
-        // Balcão: Etiqueta 1, 2 e 3 da linha do balcão vão para o bloco 1, o canto e o bloco 3.
-        if (i) {
-          juntarIguais(primitivas(m).map((p) => {
-            const e = i.etiquetas.filter((x, k) => (x.posicao || k + 1) === p.bloco)[0];
-            return e ? { id: m.id + '/' + p.bloco, info: i, etiquetas: [e], simbolo: p.bloco === 1 ? i.simbolo : '', pontos: [[p.x + p.w / 2, p.y + p.d / 2, p.z + p.h]] } : null;
-          })).forEach(grupo);
-        }
-        return;
-      }
       if (i) novoGrupo(m.id, m, i, i.etiquetas.slice(0, limitePorTipo[m.tipo] || i.etiquetas.length), i.simbolo, ancoraDe(m), ajuste);
       // Blocos (mesas, painéis do totem, testeiras do make): a linha do bloco mostra as etiquetas dela em
       // cima do bloco (até ETIQUETAS_POR_BLOCO; senão só a 1) — no totem, ao lado do móvel (LADO_ETIQUETA);

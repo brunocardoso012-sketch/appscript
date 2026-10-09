@@ -778,11 +778,6 @@ const App = (() => {
 
   /* ------------------------- estratégia do móvel -------------------------- */
 
-  /** O que cada "Etiqueta N" da linha do móvel quer dizer, nos tipos em que ela vai para um bloco. */
-  const POSICOES_ETIQUETA = {
-    VITRINE_L: ['Bloco 1', 'Canto', 'Bloco 3'],
-  };
-
   function novo(tag, classe, conteudo, pai) {
     const n = document.createElement(tag);
     if (classe) n.className = classe;
@@ -838,9 +833,7 @@ const App = (() => {
     const ul = etiquetas.length ? novo('ul', null, null, lista) : null;
     etiquetas.forEach((e, k) => {
       const li = novo('li', null, null, ul);
-      const n = e.posicao || k + 1;
-      const onde = op.posicoes && op.posicoes[n - 1];
-      novo('span', 'mv-pos', onde || 'Etiqueta ' + n, li);
+      novo('span', 'mv-pos', 'Etiqueta ' + (k + 1), li);
       const marcaEtq = e.marca || (i.marca && i.marca !== 'NEUTRO' ? i.marca : '');
       const chip = novo('span', 'mv-etiqueta', e.texto, li);
       chip.style.background = corDaMarca(marcaEtq, 'etiqueta');
@@ -927,11 +920,6 @@ const App = (() => {
       return { n, rotulos, colunas: [coluna('Prateleiras', 1, n, null, [])], testeiras };
     }
     const geral = linha(m.id);
-    const posicoes = POSICOES_ETIQUETA[m.tipo];
-    if (posicoes) { // balcão: Etiqueta N = bloco N
-      const naPosicao = (k) => (geral ? geral.etiquetas.filter((e, j) => (e.posicao || j + 1) === k + 1) : []);
-      return { n, rotulos, colunas: posicoes.map((nome, k) => coluna(nome, k === 1 ? 0.6 : 1, n, geral, naPosicao(k))), testeiras: null };
-    }
     const lim = (config.etiquetasPorTipo || {})[m.tipo];
     return { n, rotulos, colunas: [coluna('Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };
   }
@@ -1051,7 +1039,6 @@ const App = (() => {
         blocoEstrategia(corpo, 'Móvel', linha(m.id), {
           vazio: 'Sem linha neste ciclo: o móvel fica branco (neutro).',
           limite: (config.etiquetasPorTipo || {})[m.tipo],
-          posicoes: POSICOES_ETIQUETA[m.tipo],
         });
       }
       Render.espacos(mov).forEach((e) => {

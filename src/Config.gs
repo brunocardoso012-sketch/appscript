@@ -44,7 +44,7 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
  * "Etiqueta N" são ignoradas). Tipos que não aparecem aqui mostram até
  * CONFIG.MAX_ETIQUETAS (pirâmide: até 4, empilhadas).
- * Balcão recepção: uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.
+ * Balcão recepção: um espaço só (uma cor), com até 3 etiquetas empilhadas.
  * Gôndola, mesas, totem e móvel make não têm linha do móvel inteiro: cada espaço tem a
  * sua (veja ETIQUETAS_POR_BLOCO).
  */
@@ -150,7 +150,7 @@ const TIPOS_MOVEL = {
   EXPOSITOR_OUI: 'Totem O.U.i: expositor estreito com moldura, na altura da gôndola',
   ILHA_OUI: 'Ilha premium O.U.i: base com prateleiras e painel alto atrás, com faixas claras nas laterais',
   MAKE: 'Móvel make: estante de parede com prateleiras e 4 testeiras no alto (cada uma pode ter cor própria)',
-  VITRINE_L: 'Balcão recepção: em "L", com os dois lados do mesmo tamanho; uma cor só e uma etiqueta por bloco (Etiqueta 1–3)',
+  VITRINE_L: 'Balcão recepção: em "L", com os dois lados do mesmo tamanho; um espaço só, com uma cor e até 3 etiquetas',
   CAIXA: 'Móvel de atendimento (caixa): balcão com tela preta em cima',
   EXTRA: 'Item fora da planta (Cestinhas, Espaço da Beleza, Cavalete…)',
 };

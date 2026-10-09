@@ -167,7 +167,7 @@ const Planilha = (() => {
       '6.1 Gôndola, mesas, totem e móvel make são preenchidos espaço por espaço: não há linha do móvel inteiro (se houver, ela é ignorada). Espaço sem linha fica branco.',
       '6.2 Gôndola: uma linha por espaço — GONDOLA 1/LADO-A, MEIO-A, MEIO-B e LADO-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas empilhadas em cima dele. Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
       '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só, no centro. As etiquetas do totem ficam ao lado do painel, com linha-guia.',
-      '6.4 Móveis de um espaço só (pirâmide, móvel de fila, móvel de parede, PDV, O.U.i…) têm uma linha. O balcão recepção tem uma cor só; Etiqueta 1, 2 e 3 vão para o bloco 1, o canto e o bloco 3.',
+      '6.4 Móveis de um espaço só (pirâmide, móvel de fila, móvel de parede, PDV, O.U.i…) têm uma linha. O balcão recepção também: um espaço só, com uma cor e até 3 etiquetas.',
       '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
     ].concat(op.visualizador ? [
       // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.
@@ -240,9 +240,6 @@ const Planilha = (() => {
         const lista = (ondeExiste[m.id] || []).filter((id) => plantas.findIndex((x) => x.id === id) >= plantas.indexOf(p));
         return lista.length > 1 ? ' · vale para ' + lista.map(nomeDe).join(', ') : '';
       };
-      const POR_POSICAO = {
-        VITRINE_L: ' (Etiqueta 1–3 = bloco 1, canto, bloco 3)',
-      };
       const linhasDoMovel = (m) => {
         const espacos = espacosNaPlanilha(m);
         if (espacos.length) {
@@ -254,9 +251,8 @@ const Planilha = (() => {
         }
         return [{
           id: m.id,
-          descricao: m.descricao + (POR_POSICAO[m.tipo] || '') + valePara(m),
+          descricao: m.descricao + valePara(m),
           limite: porTipo[m.tipo] || max,
-          porPosicao: !!POR_POSICAO[m.tipo],
         }];
       };
       // Móvel de atendimento não leva cor nem etiqueta: fica fora da planilha.
@@ -268,14 +264,10 @@ const Planilha = (() => {
         const linha = { ciclo: op.ciclo, planta: nomeDe(p.id), movel: m.id, descricao: m.descricao };
         if (info) {
           linha.marca = info.marca;
-          // Só as etiquetas que aparecem na planta (no balcão, cada uma fica na coluna do seu bloco).
-          const usadas = m.porPosicao
-            ? info.etiquetas.filter((e, i) => (e.posicao || i + 1) <= m.limite)
-            : info.etiquetas.slice(0, m.limite);
-          usadas.forEach((e, i) => {
-            const n = m.porPosicao ? e.posicao || i + 1 : i + 1;
-            linha['etiqueta' + n] = e.texto;
-            linha['marcaEtiqueta' + n] = e.marca;
+          // Só as etiquetas que aparecem na planta.
+          info.etiquetas.slice(0, m.limite).forEach((e, i) => {
+            linha['etiqueta' + (i + 1)] = e.texto;
+            linha['marcaEtiqueta' + (i + 1)] = e.marca;
           });
           linha.simbolo = info.simbolo;
           linha.observacao = info.observacao;
