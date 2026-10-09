@@ -29,6 +29,7 @@ const Render = (() => {
   const NUMERO = { lado: 18, fonte: 11.5 };
   // Onde ficam as etiquetas de cada tipo (os demais: em cima do móvel). Totem: fora da planta, à esquerda;
   // mesas destaque: fora da planta, à direita; pirâmide e totem O.U.i: encostadas à direita do móvel.
+  const SOBRE_BORDA = 40; // px da etiqueta do totem que entram na planta, além da borda esquerda
   const LADO_ETIQUETA = { TOTEM: 'fora-esquerda', MESA: 'fora-direita', MESA_3: 'fora-direita', PIRAMIDE: 'direita', EXPOSITOR_OUI: 'direita' };
   const CALLOUT = { fonte: 12.5, lh: 16, pad: 9, maxW: 360 };
   const COR = {
@@ -1204,8 +1205,8 @@ const Render = (() => {
     const limitePorBloco = ctx.dados.config.etiquetasPorBloco || {};
     const grupos = [];
     // Etiquetas fora do lugar padrão (em cima do móvel), com linha-guia até a âncora (LADO_ETIQUETA):
-    // "fora-esquerda" / "fora-direita" levam a pilha para fora da planta, alinhada pela borda mais perto
-    // da planta; "direita" encosta a pilha à direita do próprio móvel.
+    // "fora-esquerda" leva a pilha para a esquerda, montada na borda da planta; "fora-direita", para fora
+    // da planta à direita, alinhada; "direita" encosta a pilha à direita do próprio móvel.
     const contorno = (() => { // bordas da loja na tela: alto da parede → canto → frente do piso
       const W = planta.loja.largura, D = planta.loja.profundidade, H = planta.loja.alturaParede;
       const t = ESPESSURA_PAREDE, b = ESPESSURA_PISO;
@@ -1226,10 +1227,11 @@ const Render = (() => {
       return lado === 'esquerda' ? Math.min.apply(null, xs) : Math.max.apply(null, xs);
     };
     const xsTela = (m) => [m.x, m.x + m.w].map((x) => [m.y, m.y + m.d].map((y) => P(x, y, m.z)[0])).reduce((t, v) => t.concat(v), []);
-    const xDoLado = (m, w) => {
+    const xDoLado = (m, w, y) => {
       const lado = LADO_ETIQUETA[m.tipo];
       const topo = P(m.x + m.w / 2, m.y + m.d / 2, m.z + m.h)[1] - 30; // a borda mais para fora da altura do móvel
-      if (lado === 'fora-esquerda') return Math.max(LIMITES.x0, borda('esquerda', topo) - 18 - w);
+      // Totem: à esquerda, montada na borda da planta (um pedaço da etiqueta sobre o piso), na altura dela.
+      if (lado === 'fora-esquerda') return Math.max(LIMITES.x0, borda('esquerda', y) + SOBRE_BORDA - w);
       if (lado === 'fora-direita') return Math.min(LIMITES.x1 - w, borda('direita', topo) + 18);
       return Math.max.apply(null, xsTela(m)) + 14; // direita
     };
@@ -1238,8 +1240,8 @@ const Render = (() => {
       const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta', true)) || corEtiquetaPadrao(true);
       const med = medirGrupo(etiquetas, simbolo, corPadrao);
       const aoLado = !!LADO_ETIQUETA[m.tipo];
-      const baseX = aoLado ? xDoLado(m, med.w) : ancora[0] - med.w / 2;
       const baseY = ancora[1] - med.h / 2;
+      const baseX = aoLado ? xDoLado(m, med.w, baseY) : ancora[0] - med.w / 2;
       grupos.push(Object.assign(med, {
         id, movel: m, info: i, ancora, baseX, baseY, aoLado,
         x: baseX + ajuste.x, y: baseY + ajuste.y, manual: !!(ajuste.x || ajuste.y),
