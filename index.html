@@ -239,22 +239,24 @@
   #slide:not(.construindo) .movel,
   #slide:not(.construindo) .grupo-etiquetas:not(.arrastavel) { cursor: pointer; }
   #slide.com-zoom.arrastando, #slide.com-zoom.arrastando * { cursor: grabbing; }
-  /* Com zoom, as linhas-guia não engrossam (as etiquetas também mantêm o tamanho na tela). */
-  #slide .camada-guias line { stroke-width: calc(1.3px / var(--zoom, 1)); }
-  #slide .camada-guias circle { r: calc(4px / var(--zoom, 1)); stroke-width: calc(1.3px / var(--zoom, 1)); }
+  /* Com zoom, as linhas-guia não engrossam (as caixas de destaque também mantêm o tamanho na tela). */
+  #slide .guia-callout line { stroke-width: calc(1.3px / var(--zoom, 1)); }
+  #slide .guia-callout circle { r: calc(4px / var(--zoom, 1)); stroke-width: calc(1.3px / var(--zoom, 1)); }
+  #slide .guia .guia-linha { stroke-width: calc(1.3px / var(--zoom, 1)); }
+  #slide .guia .guia-halo { stroke-width: calc(3.6px / var(--zoom, 1)); }
+  #slide .guia .guia-ponto { r: calc(4.4px / var(--zoom, 1)); stroke-width: calc(1.6px / var(--zoom, 1)); }
+  #slide .guia .guia-centro { r: calc(1.7px / var(--zoom, 1)); }
   #slide .movel:hover polygon { stroke-width: 2.2; }
-  /* Mouse sobre um móvel: as etiquetas dele crescem um pouco e ganham contorno branco; as dos outros ficam mais claras. */
-  #slide .grupo-etiquetas { transform-box: fill-box; transform-origin: center; transition: transform .15s ease, opacity .15s ease; }
-  #slide .camada-guias .guia { transition: opacity .15s ease; }
+  /* Destaque ao passar o mouse num móvel ou na ficha dele: a ficha ganha contorno e a linha-guia escurece. */
+  #slide .grupo-etiquetas, #slide .camada-guias .guia { transition: opacity .15s ease; }
   #slide.destacando .grupo-etiquetas:not(.destaque),
-  #slide.destacando .camada-guias .guia:not(.destaque) { opacity: .6; }
-  #slide.destacando .grupo-etiquetas.destaque { transform: scale(1.08); }
-  #slide.destacando .grupo-etiquetas.destaque rect { stroke: #fff; stroke-width: 1.6; }
-  #slide.destacando .camada-guias .guia.destaque line { stroke: #111; stroke-width: calc(2px / var(--zoom, 1)); }
+  #slide.destacando .camada-guias .guia:not(.destaque) { opacity: .35; }
+  #slide.destacando .grupo-etiquetas.destaque .ficha-fundo { stroke: #1C1C1C; stroke-width: 2; }
+  #slide.destacando .camada-guias .guia.destaque .guia-linha { stroke: #111; stroke-width: calc(2.2px / var(--zoom, 1)); }
   #slide.destacando .movel.destaque polygon { stroke-width: 2.2; }
-  @media (prefers-reduced-motion: reduce) { #slide .grupo-etiquetas { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { #slide .grupo-etiquetas, #slide .camada-guias .guia { transition: none; } }
   #slide .arrastavel { cursor: grab; }
-  #slide .arrastavel:hover rect { stroke: #111; stroke-width: 1.5; }
+  #slide .arrastavel:hover .ficha-fundo { stroke: #111; stroke-width: 1.5; }
   #slide .arrastavel:active { cursor: grabbing; }
 
   #slide .movel.selecionado polygon { stroke: #ff6a00; stroke-width: 2.6; }
@@ -615,10 +617,10 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
 const ETIQUETAS_POR_TIPO = { VITRINE_L: 3 };
 
 /**
- * Quantas etiquetas a linha de um espaço mostra em cima dele (GONDOLA 1/LADO-A,
+ * Quantas etiquetas a linha de um espaço mostra na ficha do móvel (GONDOLA 1/LADO-A,
  * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
  * (painéis do totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
- * mesmas etiquetas (texto e cor) viram uma pilha só, centralizada.
+ * mesmas etiquetas (texto e cor) viram uma linha só na ficha.
  */
 const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
 
@@ -2984,7 +2986,8 @@ function executarComentario_(ss, acesso, pedido) {
  * ============================================================================
  *  Render.desenhar(svg, contexto) redesenha o slide inteiro:
  *   - planta isométrica (piso, paredes e móveis coloridos pela marca);
- *   - etiquetas de cada móvel (com desvio automático de sobreposição);
+ *   - fichas das etiquetas: uma por móvel, em colunas dos dois lados da planta, com a
+ *     miniatura do móvel mostrando o espaço de cada etiqueta e linha-guia até o móvel;
  *   - caixas de destaque (CALLOUT), painel lateral (TV / A / C), notas,
  *     legenda de símbolos e faixa de itens extras.
  *  Todo o estilo vai em atributos SVG (não em CSS) para o PNG exportado
@@ -2997,19 +3000,22 @@ const Render = (() => {
   const FONTE_ETQ = "Nunito, 'Segoe UI', Arial, sans-serif";
   const COS30 = Math.cos(Math.PI / 6);
 
-  const TELA = { w: 1920, h: 1080, fundo: '#F3EFEA' };
+  // Slide base (16:9). Com etiquetas, o slide cresce na mesma proporção quando as fichas precisam de
+  // mais espaço ("canvas infinito"): TELA guarda o tamanho do último desenho (a aplicação usa no zoom e no PNG).
+  const TELA_BASE = { w: 1920, h: 1080 };
+  const TELA = { w: TELA_BASE.w, h: TELA_BASE.h, fundo: '#F3EFEA' };
   const REGIAO_PLANTA = { x: 500, y: 70, w: 1400, h: 950 };
-  const LIMITES = { x0: 470, y0: 8, x1: 1912, y1: 1072 };
+  const LIMITES_BASE = { x0: 470, y0: 8, x1: 1912, y1: 1072 };
   const ETQ = { fonte: 12.5, lh: 15, padX: 10, padY: 4, gap: 4, maxTexto: 190, simbolo: 20, raio: 9 };
+  // Fichas das etiquetas: uma por móvel, em colunas dos dois lados da planta.
+  //   xEsq: coluna da esquerda (logo depois do painel lateral); mini: miniatura do móvel em cada linha;
+  //   legenda: nome do espaço ("LADO A"), entre a miniatura e as etiquetas; folga: entre as colunas e a planta.
+  const FICHA = { w: 330, xEsq: 300, margem: 12, pad: 7, cab: 22, mini: 40, miniH: 25, legenda: 52, vao: 6, simbolo: 24, entre: 5, gap: 9, raio: 9, folga: 46 };
   // Quantas prateleiras (níveis) cada tipo de móvel tem: o desenho e o planograma da tela do móvel usam esta tabela.
   const PRATELEIRAS = { GONDOLA: 4, PIRAMIDE: 4, FILA: 3, GONDOLA_PAREDE: 5, VITRINE_L: 2, ILHA_OUI: 3, MAKE: 5 };
   // Móveis que mostram o número (do fim do ID: "MOVEL DE FILA 3" → 3) numa plaquinha na planta.
   const NUMERADOS = ['PIRAMIDE', 'GONDOLA', 'FILA'];
   const NUMERO = { lado: 18, fonte: 11.5 };
-  // Etiquetas encostadas ao lado do próprio móvel (os demais tipos: em cima dele). Totem: à esquerda
-  // (não cobre a cor dos painéis); pirâmide e totem O.U.i: à direita.
-  const LADO_ETIQUETA = { TOTEM: 'esquerda', PIRAMIDE: 'direita', EXPOSITOR_OUI: 'direita' };
-  const FOLGA_LADO = 12; // px entre o móvel e a etiqueta encostada nele
   const CALLOUT = { fonte: 12.5, lh: 16, pad: 9, maxW: 360 };
   const COR = {
     contorno: '#1C1C1C',
@@ -3032,6 +3038,7 @@ const Render = (() => {
   const ESPESSURA_PISO = 0.35;
 
   let marcas = {};
+  let limites = LIMITES_BASE; // faixa onde ficam as caixas de destaque (muda com as colunas de fichas)
   let filtroMarca = ''; // marca destacada pelo filtro ('' = todas coloridas)
   let defs = null;
   let gradientes = {};
@@ -3159,7 +3166,8 @@ const Render = (() => {
 
   /* ------------------------------ projeção -------------------------------- */
 
-  function criarProjecao(loja) {
+  function criarProjecao(loja, regiao) {
+    const R = regiao || REGIAO_PLANTA;
     const W = loja.largura;
     const D = loja.profundidade;
     const H = loja.alturaParede;
@@ -3175,9 +3183,9 @@ const Render = (() => {
     const minY = Math.min.apply(null, by);
     const larg = Math.max.apply(null, bx) - minX;
     const alt = Math.max.apply(null, by) - minY;
-    const s = Math.min(REGIAO_PLANTA.w / larg, REGIAO_PLANTA.h / alt);
-    const ox = REGIAO_PLANTA.x + (REGIAO_PLANTA.w - larg * s) / 2 - minX * s;
-    const oy = REGIAO_PLANTA.y + (REGIAO_PLANTA.h - alt * s) / 2 - minY * s;
+    const s = Math.min(R.w / larg, R.h / alt);
+    const ox = R.x + (R.w - larg * s) / 2 - minX * s;
+    const oy = R.y + (R.h - alt * s) / 2 - minY * s;
     return {
       escala: s,
       P: (x, y, z) => [ox + (x - y) * COS30 * s, oy + ((x + y) * 0.5 - (z || 0)) * s],
@@ -3359,25 +3367,8 @@ const Render = (() => {
   }
 
   /**
-   * Etiquetas da gôndola, por espaço: cada espaço mostra as etiquetas da própria linha
-   * (GONDOLA 1/MEIO-A…), até "limite", empilhadas em cima dele. A metade sem linha própria
-   * usa a do meio (MEIO-A-1 → MEIO-A); metades iguais viram uma pilha só (juntarIguais).
-   * @return {Array<{id, info, etiquetas, simbolo, pontos}|null>} na ordem dos espaços (null = sem etiqueta)
-   */
-  function etiquetasGondola(m, infoEspaco, limite) {
-    return caixasGondola(m).map((b) => {
-      const id = m.id + '/' + b.espaco.id;
-      const proprio = infoEspaco[id];
-      return proprio && proprio.etiquetas.length
-        ? { id, info: proprio, etiquetas: proprio.etiquetas.slice(0, limite || 1), simbolo: proprio.simbolo, pontos: [[b.x + b.w / 2, b.y + b.d / 2, b.z + b.h]] }
-        : null;
-    });
-  }
-
-  /**
-   * Blocos vizinhos com as mesmas etiquetas (texto e cor) viram uma pilha só, no centro deles.
-   * lista: itens { id, info, etiquetas, simbolo, pontos } ou null (bloco sem etiqueta,
-   * que separa os vizinhos). Devolve os itens com topo = ponto 3D médio.
+   * Espaços vizinhos com as mesmas etiquetas (texto e cor) viram uma linha só na ficha.
+   * lista: itens { info, etiquetas, simbolo, espacos } ou null (espaço sem etiqueta, que separa os vizinhos).
    */
   function juntarIguais(lista) {
     const chave = (it) => it.etiquetas.map((e) => e.texto + '|' + (e.marca || it.info.marca || '')).join('||');
@@ -3385,16 +3376,14 @@ const Render = (() => {
     let anterior = null;
     lista.forEach((it) => {
       if (it && anterior && chave(it) === chave(anterior)) {
-        anterior.pontos = anterior.pontos.concat(it.pontos);
+        anterior.espacos = anterior.espacos.concat(it.espacos);
         anterior.simbolo = anterior.simbolo || it.simbolo;
         return;
       }
       anterior = it ? Object.assign({}, it) : null;
       if (anterior) saida.push(anterior);
     });
-    return saida.map((it) => Object.assign(it, {
-      topo: [0, 1, 2].map((k) => it.pontos.reduce((s, p) => s + p[k], 0) / it.pontos.length),
-    }));
+    return saida;
   }
 
   /**
@@ -3402,26 +3391,6 @@ const Render = (() => {
    * Na planilha o Painel 1 é o de cima, então o painel k é o espaço 3 - k.
    */
   const painelTotem = (h, k) => [h * (0.33 + 0.21 * k), h * (0.48 + 0.21 * k)];
-
-  /** Ponto 3D (âncora da etiqueta) de cada bloco de mesa, totem e móvel make, na ordem de espacos(). */
-  function topoDosBlocos(m) {
-    if (m.tipo === 'TOTEM') {
-      // Âncora no meio da face da frente de cada painel (o totem é fino: as etiquetas saem ao lado).
-      return espacos(m).map((e, i) => {
-        const [z0, z1] = painelTotem(m.h, 2 - i);
-        return { espaco: e, topo: [m.x + m.w / 2, m.y + m.d / 2, m.z + (z0 + z1) / 2] };
-      });
-    }
-    if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
-      const [L, C] = eixos(m);
-      const n = espacos(m).length;
-      return espacos(m).map((e, k) => {
-        const c = caixaLocal(m, (k + 0.5) * (L / n), (k + 0.5) * (L / n), C / 2, C / 2, 0, m.h);
-        return { espaco: e, topo: [c.x, c.y, c.z + c.h] };
-      });
-    }
-    return primitivas(m).filter((p) => p.espaco).map((p) => ({ espaco: p.espaco, topo: [p.x + p.w / 2, p.y + p.d / 2, p.z + p.h] }));
-  }
 
   /**
    * Balcão em L: canto onde os braços se encontram, conforme o giro
@@ -3595,7 +3564,6 @@ const Render = (() => {
   /**
    * Plaquinha quadrada com o número do móvel, em perspectiva, colada na face da frente mais comprida
    * e centralizada nela (na gôndola, na ponta A), um pouco acima do pé. Fundo preto, número branco.
-   * Devolve o retângulo ocupado na tela (obstáculo para as etiquetas).
    */
   function desenharNumero(pai, P, m, numero, escala) {
     const a = (numero.length > 1 ? NUMERO.lado + 4 : NUMERO.lado) / 2 / escala; // meio lado, em unidades da loja
@@ -3710,9 +3678,10 @@ const Render = (() => {
 
   /* ------------------------------ etiquetas ------------------------------- */
 
-  function medirGrupo(etiquetas, simbolo, corPadrao) {
+  /** Pilha de etiquetas: todas com a mesma largura (wEtq); maxTexto = largura máxima do texto. */
+  function medirGrupo(etiquetas, simbolo, corPadrao, maxTexto) {
     const itens = etiquetas.map((e) => {
-      const linhas = quebrar(e.texto, ETQ.maxTexto, ETQ.fonte, 800, FONTE_ETQ);
+      const linhas = quebrar(e.texto, maxTexto || ETQ.maxTexto, ETQ.fonte, 800, FONTE_ETQ);
       const w = Math.max.apply(null, linhas.map((l) => largura(l, ETQ.fonte, 800, 'normal', FONTE_ETQ))) + ETQ.padX * 2;
       return {
         linhas,
@@ -3752,72 +3721,311 @@ const Render = (() => {
   /** Retângulo arredondado de etiqueta: pílula numa linha, cantos suaves em várias; borda um pouco mais escura. */
   function fundoEtiqueta(pai, x, y, w, h, cores) {
     return el('rect', {
-      x, y, width: w, height: h, rx: Math.min(ETQ.raio, h / 2), fill: tinta(cores, 0),
+      class: 'etq', x, y, width: w, height: h, rx: Math.min(ETQ.raio, h / 2), fill: tinta(cores, 0),
       stroke: misturar(cores[0], '#000000', 0.2), 'stroke-width': 0.8,
     }, pai);
   }
 
-  function desenharGrupo(pai, gr, attrs) {
-    // data-movel-base: o móvel da etiqueta (para destacar as etiquetas dele ao passar o mouse no móvel).
-    const g = el('g', Object.assign({ 'data-movel': gr.id, 'data-movel-base': gr.movel.id, filter: 'url(#sombraEtq)' }, attrs), pai);
-    let y = gr.y;
-    gr.itens.forEach((it, i) => {
-      fundoEtiqueta(g, gr.x, y, gr.wEtq, it.h, it.cores);
-      it.linhas.forEach((l, k) => {
-        texto(g, gr.x + gr.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6, l, {
-          'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
-          fill: '#FFFFFF', 'text-anchor': 'middle',
-        });
+  /* ---------------------------- fichas dos móveis --------------------------- */
+  // Cada móvel com etiqueta ganha uma ficha fora da planta, numa coluna ao lado dela: o nome do móvel
+  // (com a plaquinha do número, igual à da planta) e uma linha por espaço, com o móvel em miniatura
+  // (na mesma posição da planta, só aquele espaço pintado) e as etiquetas dele. Uma linha-guia liga a
+  // ficha ao móvel.
+
+  /** Número do móvel na plaquinha ("MOVEL DE FILA 3" → "3"), só nos tipos numerados. */
+  function numeroDe(m) {
+    if (NUMERADOS.indexOf(m.tipo) < 0) return '';
+    const n = /(\d+)\s*$/.exec(m.id);
+    return n ? String(Number(n[1])) : '';
+  }
+
+  /** Caixas do móvel para a miniatura, cada uma com o espaço dela (null = estrutura, fica sempre cinza). */
+  function formaDoMovel(m) {
+    const [L, C] = eixos(m);
+    const esp = espacos(m);
+    const loc = (u0, u1, v0, v1, z0, z1, espaco) => Object.assign(caixaLocal(m, u0, u1, v0, v1, z0, z1), { espaco: espaco || null });
+    if (m.tipo === 'GONDOLA') return caixasGondola(m);
+    if (m.tipo === 'MAKE') return primitivas(m).map((p) => Object.assign({}, p, { espaco: p.espaco || null }));
+    if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
+      // Cada frente: a lâmina de vidro do fundo (alta) e o nicho com o cartaz (baixo).
+      const passo = L / esp.length;
+      const g = Math.min(0.05, passo * 0.04);
+      const painel = Math.min(0.15, C * 0.12);
+      const lista = [];
+      esp.forEach((e, k) => {
+        lista.push(loc(k * passo + g, (k + 1) * passo - g, 0, painel, 0, m.h, e));
+        lista.push(loc(k * passo + g, (k + 1) * passo - g, painel, C, 0, m.h * 0.47, e));
       });
-      if (i === 0 && gr.simbolo) desenharSimbolo(g, gr.simbolo, gr.x + gr.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2);
-      y += it.h + ETQ.gap;
+      return lista;
+    }
+    if (m.tipo === 'TOTEM') {
+      const t = Math.min(0.12, L * 0.1);
+      return [loc(0, t, 0, C, 0, m.h), loc(L - t, L, 0, C, 0, m.h)].concat([0, 1, 2].map((k) => {
+        const [z0, z1] = painelTotem(m.h, k);
+        return loc(t, L - t, 0, C, z0, z1, esp[2 - k]);
+      }));
+    }
+    if (m.tipo === 'VITRINE_L') {
+      const t = espessuraL(m);
+      const c = cantoL(m);
+      const yBraco = c.frente ? m.y + m.d - t : m.y;
+      return [
+        { x: m.x, y: yBraco, z: m.z, w: m.w, d: t, h: m.h },
+        { x: c.direita ? m.x + m.w - t : m.x, y: c.frente ? m.y : m.y + t, z: m.z, w: t, d: m.d - t, h: m.h },
+      ];
+    }
+    return [{ x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h }];
+  }
+
+  /**
+   * Miniatura do móvel dentro de (x, y, w, h), na mesma orientação da planta, com os espaços "ids"
+   * pintados na cor da etiqueta e o resto em cinza claro (ids = null: o móvel todo pintado).
+   */
+  function desenharMiniatura(pai, m, ids, cores, x, y, w, h) {
+    const caixas = formaDoMovel(m);
+    const bruto = (px, py, pz) => [(px - py) * COS30, (px + py) * 0.5 - pz];
+    const xs = [];
+    const ys = [];
+    caixas.forEach((b) => [b.x, b.x + b.w].forEach((px) => [b.y, b.y + b.d].forEach((py) => [b.z, b.z + b.h].forEach((pz) => {
+      const r = bruto(px, py, pz);
+      xs.push(r[0]);
+      ys.push(r[1]);
+    }))));
+    const x0 = Math.min.apply(null, xs);
+    const y0 = Math.min.apply(null, ys);
+    const bw = Math.max.apply(null, xs) - x0 || 1;
+    const bh = Math.max.apply(null, ys) - y0 || 1;
+    const k = Math.min(w / bw, h / bh);
+    const ox = x + (w - bw * k) / 2 - x0 * k;
+    const oy = y + (h - bh * k) / 2 - y0 * k;
+    const P = (px, py, pz) => {
+      const r = bruto(px, py, pz || 0);
+      return [ox + r[0] * k, oy + r[1] * k];
+    };
+    const g = el('g', { class: 'miniatura' }, pai);
+    ordenar(caixas, P).forEach((b) => {
+      const pintado = ids ? !!(b.espaco && ids.indexOf(b.espaco.id) >= 0) : true;
+      const base = pintado ? cores : ['#E4E2DF'];
+      const comum = { stroke: pintado ? misturar(cores[0], '#000000', 0.45) : '#A3A09B', 'stroke-width': 0.7, 'stroke-linejoin': 'round' };
+      const x1 = b.x + b.w, y1 = b.y + b.d, z1 = b.z + b.h;
+      poligono(g, [P(b.x, y1, b.z), P(x1, y1, b.z), P(x1, y1, z1), P(b.x, y1, z1)], Object.assign({ fill: tinta(base, 0) }, comum));
+      poligono(g, [P(x1, b.y, b.z), P(x1, y1, b.z), P(x1, y1, z1), P(x1, b.y, z1)], Object.assign({ fill: tinta(base, 0.16) }, comum));
+      poligono(g, [P(b.x, b.y, z1), P(x1, b.y, z1), P(x1, y1, z1), P(b.x, y1, z1)], Object.assign({ fill: tinta(base, pintado ? -0.3 : -0.5) }, comum));
     });
     return g;
   }
 
-  const sobrepoe = (a, b, m) => a.x < b.x + b.w + m && b.x < a.x + a.w + m && a.y < b.y + b.h + m && b.y < a.y + a.h + m;
-
-  /** Candidatos de deslocamento, do mais próximo ao mais distante. */
-  const DESLOCAMENTOS = (() => {
-    const lista = [];
-    for (let dx = -220; dx <= 220; dx += 10) {
-      for (let dy = -160; dy <= 160; dy += 6) lista.push([dx, dy, dx * dx + dy * dy * 1.3]);
+  /** Nome curto do(s) espaço(s) de uma linha da ficha: "Lado A", "Meio A", "Frentes 1–2"… */
+  function nomeCurto(lista) {
+    const ids = lista.map((e) => e.id);
+    // As duas metades de um meio juntas = o meio inteiro.
+    if (ids.length > 1 && ids.every((id) => /^MEIO-[AB]-\d$/.test(id) && id.slice(0, 6) === ids[0].slice(0, 6))) {
+      return 'Meio ' + ids[0].charAt(5);
     }
-    return lista.sort((a, b) => a[2] - b[2]);
-  })();
+    const um = (id) => {
+      const g = /^(LADO|MEIO)-([AB])(?:-(\d))?$/.exec(id);
+      if (g) return (g[1] === 'LADO' ? 'Lado ' : 'Meio ') + g[2] + (g[3] ? ' · ' + g[3] : '');
+      const n = /^(\w+)-(\d+)$/.exec(id);
+      return n ? n[1].charAt(0) + n[1].slice(1).toLowerCase() + ' ' + n[2] : id;
+    };
+    if (ids.length === 1) return um(ids[0]);
+    const n = ids.map((id) => /^(FRENTE|PAINEL|TESTEIRA)-(\d+)$/.exec(id));
+    if (n.every((x) => x && x[1] === n[0][1])) {
+      const plural = { FRENTE: 'Frentes', PAINEL: 'Painéis', TESTEIRA: 'Testeiras' }[n[0][1]];
+      return plural + ' ' + n[0][2] + '–' + n[n.length - 1][2];
+    }
+    return ids.map(um).join(' + ');
+  }
 
   /**
-   * Posiciona os grupos sem nenhuma etiqueta sobre outra (nem sobre as caixas de destaque,
-   * notas e painéis). Os com ajuste manual ficam onde o usuário pôs, a menos que caiam em
-   * cima de outro. Primeiro tenta perto do móvel; se não houver lugar, procura na tela toda,
-   * do mais perto para o mais longe.
+   * Fichas da planta: uma por móvel com etiqueta, com uma linha por espaço (gôndola, mesas, totem,
+   * móvel make) ou uma linha só (os demais). Espaços vizinhos com as mesmas etiquetas viram uma linha.
    */
-  function posicionar(grupos, obstaculos) {
-    const ocupados = obstaculos.slice();
-    const dentro = (r) => r.x >= LIMITES.x0 && r.y >= LIMITES.y0 && r.x + r.w <= LIMITES.x1 && r.y + r.h <= LIMITES.y1;
-    const livre = (r) => dentro(r) && ocupados.every((o) => !sobrepoe(r, o, 3));
-    const acomodar = (g) => {
-      const base = { x: g.x, y: g.y, w: g.w, h: g.h };
-      if (livre(base)) return;
-      const tentar = (dx, dy) => {
-        const c = { x: base.x + dx, y: base.y + dy, w: g.w, h: g.h };
-        if (!livre(c)) return false;
-        g.x = c.x;
-        g.y = c.y;
+  function montarFichas(moveis, info, infoEspaco, config) {
+    const limitePorTipo = config.etiquetasPorTipo || {};
+    const limitePorBloco = config.etiquetasPorBloco || {};
+    const fichas = [];
+    moveis.forEach((m) => {
+      let linhas;
+      if (espacos(m).length) {
+        linhas = juntarIguais(espacos(m).map((e) => {
+          const ie = infoEspaco[m.id + '/' + e.id];
+          return ie && ie.etiquetas.length
+            ? { info: ie, etiquetas: ie.etiquetas.slice(0, limitePorBloco[m.tipo] || 1), simbolo: ie.simbolo, espacos: [e] }
+            : null;
+        }));
+      } else {
+        const i = info[m.id];
+        linhas = i && i.etiquetas.length
+          ? [{ info: i, etiquetas: i.etiquetas.slice(0, limitePorTipo[m.tipo] || i.etiquetas.length), simbolo: i.simbolo, espacos: null }]
+          : [];
+      }
+      if (!linhas.length) return;
+      // Móvel com espaços: o nome do espaço fica entre a miniatura e as etiquetas (que ficam mais estreitas).
+      const comLegenda = linhas.some((ln) => ln.espacos);
+      const xEtq = FICHA.pad + FICHA.mini + FICHA.vao + (comLegenda ? FICHA.legenda + FICHA.vao : 0);
+      const larguraEtq = FICHA.w - xEtq - FICHA.pad - FICHA.simbolo;
+      linhas.forEach((ln) => {
+        const corMarca = !ehNeutro(ln.info.marca) && coresDe(ln.info.marca, 'etiqueta', true);
+        ln.med = medirGrupo(ln.etiquetas, ln.simbolo, corMarca || corEtiquetaPadrao(true), larguraEtq - ETQ.padX * 2);
+        ln.med.wEtq = larguraEtq;
+        ln.cores = corMarca || ln.med.itens[0].cores; // cor do espaço na miniatura
+        ln.legenda = ln.espacos ? quebrar(nomeCurto(ln.espacos).toUpperCase(), FICHA.legenda, 8.5, 800, FONTE_ETQ) : [];
+        ln.h = Math.max(ln.med.h, FICHA.miniH, ln.legenda.length * 10 + 3);
+      });
+      const h = FICHA.pad + FICHA.cab + linhas.reduce((s, l) => s + l.h, 0) + FICHA.entre * (linhas.length - 1) + FICHA.pad;
+      fichas.push({ id: m.id, movel: m, linhas, xEtq, w: FICHA.w, h });
+    });
+    return fichas;
+  }
+
+  function desenharFicha(pai, f, attrs) {
+    // data-movel-base: o móvel da ficha (para destacá-la ao passar o mouse no móvel).
+    const g = el('g', Object.assign({ 'data-movel': f.id, 'data-movel-base': f.movel.id }, attrs), pai);
+    el('rect', {
+      class: 'ficha-fundo', x: f.x, y: f.y, width: f.w, height: f.h, rx: FICHA.raio,
+      fill: '#FFFFFF', stroke: '#D9D2C8', 'stroke-width': 1, filter: 'url(#sombraEtq)',
+    }, g);
+    // Cabeçalho: plaquinha do número (como na planta) e o nome do móvel.
+    const numero = numeroDe(f.movel);
+    const cy = f.y + FICHA.pad + 7.5;
+    let tx = f.x + FICHA.pad + 1;
+    if (numero) {
+      const lado = numero.length > 1 ? 21 : 15;
+      el('rect', { x: tx, y: cy - 7.5, width: lado, height: 15, rx: 3, fill: '#111111' }, g);
+      texto(g, tx + lado / 2, cy + 3.8, numero, { 'font-family': FONTE_ETQ, 'font-size': 10.5, 'font-weight': 800, fill: '#FFFFFF', 'text-anchor': 'middle' });
+      tx += lado + 6;
+    }
+    const nome = f.movel.descricao || f.movel.id;
+    texto(g, tx, cy + 3.6, (numero ? nome.replace(/\s*\d+\s*$/, '') : nome).toUpperCase(), {
+      'font-family': FONTE_ETQ, 'font-size': 10.5, 'font-weight': 800, 'letter-spacing': 0.6, fill: '#3A3A3A',
+    });
+    linha(g, [f.x + 1, f.y + FICHA.pad + 17.5], [f.x + f.w - 1, f.y + FICHA.pad + 17.5], { stroke: '#ECE6DE', 'stroke-width': 1 });
+    // Uma linha por espaço: miniatura do móvel (com o espaço pintado), nome do espaço e as etiquetas dele.
+    const xMini = f.x + FICHA.pad;
+    const xEtq = f.x + f.xEtq;
+    let y = f.y + FICHA.pad + FICHA.cab;
+    f.linhas.forEach((ln, k) => {
+      if (k) linha(g, [xMini, y - FICHA.entre / 2], [f.x + f.w - FICHA.pad, y - FICHA.entre / 2], { stroke: '#F1ECE6', 'stroke-width': 1 });
+      const gl = el('g', { class: 'ficha-linha', 'data-espaco': ln.espacos ? ln.espacos.map((e) => e.id).join(' ') : null }, g);
+      desenharMiniatura(gl, f.movel, ln.espacos ? ln.espacos.map((e) => e.id) : null, ln.cores, xMini, y + (ln.h - FICHA.miniH) / 2, FICHA.mini, FICHA.miniH);
+      const yLeg = y + ln.h / 2 - (ln.legenda.length * 10) / 2 + 7.5;
+      ln.legenda.forEach((t, i) => texto(gl, xMini + FICHA.mini + FICHA.vao, yLeg + i * 10, t, {
+        'font-family': FONTE_ETQ, 'font-size': 8.5, 'font-weight': 800, 'letter-spacing': 0.2, fill: '#5F5B56',
+      }));
+      let ye = y + (ln.h - ln.med.h) / 2;
+      ln.med.itens.forEach((it, i) => {
+        fundoEtiqueta(gl, xEtq, ye, ln.med.wEtq, it.h, it.cores);
+        it.linhas.forEach((l, j) => {
+          texto(gl, xEtq + ln.med.wEtq / 2, ye + ETQ.padY + ETQ.lh * (j + 1) - 3.6, l, {
+            'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
+            fill: '#FFFFFF', 'text-anchor': 'middle',
+          });
+        });
+        if (i === 0 && ln.simbolo) desenharSimbolo(gl, ln.simbolo, xEtq + ln.med.wEtq + FICHA.simbolo / 2 + 1, ye + it.h / 2);
+        ye += it.h + ETQ.gap;
+      });
+      y += ln.h + FICHA.entre;
+    });
+    return g;
+  }
+
+  /** Linha-guia da ficha até o móvel: sai da borda da ficha virada para ele, com um trecho reto, e vai até o ponto. */
+  function desenharGuiaFicha(pai, f) {
+    const [ax, ay] = f.ancora;
+    const direita = ax > f.x + f.w / 2;
+    const bx = direita ? f.x + f.w : f.x;
+    const by = Math.max(f.y + 16, Math.min(ay, f.y + f.h - 16));
+    const sx = bx + (direita ? 14 : -14);
+    const d = 'M' + bx.toFixed(1) + ',' + by.toFixed(1) + ' L' + sx.toFixed(1) + ',' + by.toFixed(1) + ' L' + ax.toFixed(1) + ',' + ay.toFixed(1);
+    const g = el('g', { class: 'guia', 'data-movel-base': f.movel.id }, pai);
+    el('path', { class: 'guia-halo', d, fill: 'none', stroke: '#FFFFFF', 'stroke-opacity': 0.85, 'stroke-width': 3.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, g);
+    el('path', { class: 'guia-linha', d, fill: 'none', stroke: '#4E545C', 'stroke-width': 1.3, 'stroke-linejoin': 'round' }, g);
+    el('circle', { class: 'guia-ponto', cx: ax.toFixed(1), cy: ay.toFixed(1), r: 4.4, fill: '#FFFFFF', stroke: '#2B2F35', 'stroke-width': 1.6 }, g);
+    el('circle', { class: 'guia-centro', cx: ax.toFixed(1), cy: ay.toFixed(1), r: 1.7, fill: '#2B2F35' }, g);
+  }
+
+  /**
+   * Topo (y) de cada ficha de uma coluna, na ordem, sem sobrepor e o mais perto possível do ideal
+   * (regressão isotônica: fichas que se empurram ficam centradas no grupo). null = não cabem em [y0, y1].
+   */
+  function empilhar(alturas, ideais, y0, y1, gap) {
+    const n = alturas.length;
+    if (!n) return [];
+    const S = [];
+    let soma = 0;
+    alturas.forEach((h) => { S.push(soma); soma += h + gap; });
+    const maximo = y1 - S[n - 1] - alturas[n - 1];
+    if (maximo < y0) return null;
+    const blocos = [];
+    ideais.forEach((v, i) => {
+      blocos.push({ soma: v - S[i], n: 1 });
+      while (blocos.length > 1) {
+        const a = blocos[blocos.length - 2];
+        const b = blocos[blocos.length - 1];
+        if (a.soma / a.n <= b.soma / b.n) break;
+        a.soma += b.soma;
+        a.n += b.n;
+        blocos.pop();
+      }
+    });
+    const z = [];
+    blocos.forEach((b) => { for (let k = 0; k < b.n; k++) z.push(b.soma / b.n); });
+    return z.map((v, i) => Math.max(y0, Math.min(maximo, v)) + S[i]);
+  }
+
+  /** Ponto do móvel onde chega a linha-guia: meio do tampo (no balcão em L, o meio do braço da frente/fundo). */
+  function ancoraDe(m, P) {
+    if (m.tipo === 'VITRINE_L') {
+      const t = espessuraL(m);
+      return P(m.x + m.w / 2, cantoL(m).frente ? m.y + m.d - t / 2 : m.y + t / 2, m.z + m.h);
+    }
+    return P(m.x + m.w / 2, m.y + m.d / 2, m.z + m.h);
+  }
+
+  /**
+   * Arranjo do slide com as fichas: uma coluna à esquerda da planta (depois do painel lateral, acima
+   * das notas e da legenda) e outra à direita (acima dos itens extras). Cada ficha vai para o lado do
+   * móvel e fica na altura dele (sem cruzar as vizinhas). Se não couberem, ou se a planta ficar bem
+   * menor que no slide sem fichas, o slide cresce em 16:9: textos do mesmo tamanho, mais espaço.
+   * reservas: altura ocupada embaixo à esquerda / à direita.
+   */
+  function arranjarFichas(loja, fichas, reservas) {
+    const escalaSemFichas = criarProjecao(loja).escala;
+    const altura = (lista) => lista.reduce((s, f) => s + f.h, 0) + FICHA.gap * Math.max(0, lista.length - 1);
+    let arranjo = null;
+    for (let fator = 1; fator <= 3; fator += 0.02) {
+      const W = Math.round((TELA_BASE.w * fator) / 16) * 16; // múltiplo de 16: 16:9 exato
+      const H = (W / 16) * 9;
+      const colE = { x: FICHA.xEsq, y0: FICHA.margem, y1: H - reservas.esquerda - FICHA.margem };
+      const colD = { x: W - FICHA.margem - FICHA.w, y0: FICHA.margem, y1: H - reservas.direita - FICHA.margem };
+      const x0 = colE.x + FICHA.w + FICHA.folga;
+      const regiao = { x: x0, y: 70, w: colD.x - FICHA.folga - x0, h: H - 130 };
+      const projecao = criarProjecao(loja, regiao);
+      fichas.forEach((f) => { f.ancora = ancoraDe(f.movel, projecao.P); });
+      // Lado de cada ficha: o do móvel em relação ao meio da loja; se um lado não couber, os móveis
+      // mais perto do meio passam para o outro.
+      const meio = projecao.P(loja.largura / 2, loja.profundidade / 2, 0)[0];
+      const porX = fichas.slice().sort((a, b) => a.ancora[0] - b.ancora[0]);
+      const esq = porX.filter((f) => f.ancora[0] < meio);
+      const dir = porX.filter((f) => f.ancora[0] >= meio);
+      while (esq.length && altura(esq) > colE.y1 - colE.y0 && altura(dir) + esq[esq.length - 1].h + FICHA.gap <= colD.y1 - colD.y0) dir.unshift(esq.pop());
+      while (dir.length && altura(dir) > colD.y1 - colD.y0 && altura(esq) + dir[0].h + FICHA.gap <= colE.y1 - colE.y0) esq.push(dir.shift());
+      const colocar = (lista, col) => {
+        lista.sort((a, b) => a.ancora[1] - b.ancora[1]);
+        const ys = empilhar(lista.map((f) => f.h), lista.map((f) => f.ancora[1] - f.h / 2), col.y0, col.y1, FICHA.gap);
+        if (!ys) return false;
+        lista.forEach((f, i) => { f.baseX = col.x; f.baseY = ys[i]; });
         return true;
       };
-      if (DESLOCAMENTOS.some((d) => tentar(d[0], d[1]))) return;
-      const longe = [];
-      for (let x = LIMITES.x0; x + g.w <= LIMITES.x1; x += 8) {
-        for (let y = LIMITES.y0; y + g.h <= LIMITES.y1; y += 6) longe.push([x - base.x, y - base.y]);
-      }
-      longe.sort((a, b) => a[0] * a[0] + a[1] * a[1] * 1.3 - (b[0] * b[0] + b[1] * b[1] * 1.3));
-      longe.some((d) => tentar(d[0], d[1]));
-    };
-    grupos.filter((g) => g.manual).forEach((g) => { acomodar(g); ocupados.push(g); });
-    // As etiquetas levadas para o lado (LADO_ETIQUETA) vão antes, para ficarem no lugar delas.
-    grupos.filter((g) => !g.manual).sort((a, b) => (b.aoLado ? 1 : 0) - (a.aoLado ? 1 : 0) || a.ancora[1] - b.ancora[1])
-      .forEach((g) => { acomodar(g); ocupados.push(g); });
+      const cabe = colocar(esq, colE) && colocar(dir, colD);
+      arranjo = {
+        w: W, h: H, projecao,
+        limites: { x0: x0 - FICHA.folga + 10, y0: 8, x1: colD.x - 10, y1: H - 8 },
+      };
+      if (cabe && projecao.escala >= escalaSemFichas * 0.92) break;
+    }
+    return arranjo;
   }
 
   /** Ponto da caixa mais perto da âncora: de onde sai a linha-guia. */
@@ -3828,22 +4036,15 @@ const Render = (() => {
   /**
    * Envoltório das caixas de destaque para o zoom da tela: com zoom, a aplicação encolhe o envoltório
    * em volta de (px, py) para a caixa continuar do mesmo tamanho na tela, sem soltar da linha-guia.
-   * (As etiquetas dos móveis crescem com o zoom, junto com a planta.)
+   * (As fichas dos móveis crescem com o zoom, junto com a planta.)
    */
   function pivoZoom(pai, px, py) {
     return el('g', { class: 'etq-zoom', 'data-px': px, 'data-py': py }, pai);
   }
 
-  /** Linha-guia do grupo até o ponto do móvel (quando o grupo ficou longe). */
-  function desenharGuia(pai, rect, ancora, forcar, movelId, fio) {
-    const [px, py] = pontoDaGuia(rect, ancora);
-    const dist = Math.hypot(px - ancora[0], py - ancora[1]);
-    if (!forcar && dist < 14) return;
-    if (movelId) pai = el('g', { class: 'guia', 'data-movel-base': movelId }, pai);
-    // fio: guia longa (etiqueta levada para o lado), mais clara e tracejada para não parecer parte dos móveis que cruza.
-    linha(pai, [px, py], ancora, fio
-      ? { stroke: '#7C828A', 'stroke-width': 1.1, 'stroke-dasharray': '4 3' }
-      : { stroke: '#3A3A3A', 'stroke-width': 1.3 });
+  /** Linha-guia da caixa de destaque até o ponto do móvel. */
+  function desenharGuia(pai, rect, ancora) {
+    linha(pai, pontoDaGuia(rect, ancora), ancora, { stroke: '#3A3A3A', 'stroke-width': 1.3 });
     el('circle', { cx: ancora[0], cy: ancora[1], r: 4, fill: '#FFFFFF', stroke: '#3A3A3A', 'stroke-width': 1.3 }, pai);
   }
 
@@ -3910,11 +4111,15 @@ const Render = (() => {
       iconeLetra(g, 62, y + h / 2, letra);
       y += h + 26;
     });
+    return y; // pé do painel (com pai = null, só mede)
   }
 
-  /** Notas (canto inferior esquerdo): o trecho antes de ":" fica em negrito. */
-  function medirNotas(notas) {
-    const tam = 17, lh = 23, maxW = 490;
+  /**
+   * Notas (canto inferior esquerdo): o trecho antes de ":" fica em negrito.
+   * estreita: caixa da largura do painel lateral (com as fichas, para a coluna da esquerda ir até embaixo).
+   */
+  function medirNotas(notas, estreita) {
+    const tam = estreita ? 15 : 17, lh = estreita ? 20 : 23, maxW = estreita ? 226 : 490;
     const paragrafos = notas.map((n) => {
       const i = n.texto.indexOf(':');
       const partes = i > 0 && i < 60
@@ -3936,7 +4141,7 @@ const Render = (() => {
       return linhas;
     });
     const nLinhas = paragrafos.reduce((s, p) => s + p.length, 0);
-    return { paragrafos, tam, lh, h: nLinhas * lh + (paragrafos.length - 1) * 14 + 44, w: 535 };
+    return { paragrafos, tam, lh, h: nLinhas * lh + (paragrafos.length - 1) * 14 + 44, w: estreita ? 270 : 535 };
   }
 
   function desenharNotas(pai, medida, x, y) {
@@ -3958,14 +4163,14 @@ const Render = (() => {
 
   function desenharLegendaSimbolos(pai, usados, simbolos) {
     const ordem = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((s) => usados.has(s));
-    let y = 1052 - (ordem.length - 1) * 44;
+    let y = TELA.h - 28 - (ordem.length - 1) * 44;
     const topo = y - 22;
     ordem.forEach((s) => {
       desenharSimbolo(pai, s, 33, y, 1.45);
       texto(pai, 58, y + 7, (simbolos[s] && simbolos[s].descricao) || s, { 'font-size': 19, fill: '#1A1A1A', 'font-weight': 400 });
       y += 44;
     });
-    return ordem.length ? topo : 1072;
+    return ordem.length ? topo : TELA.h - 8;
   }
 
   /* ---------------------------- itens extras ------------------------------ */
@@ -3995,8 +4200,8 @@ const Render = (() => {
     const slot = 206;
     const w = slot * extras.length;
     const h = 84;
-    const x = 1904 - w;
-    const y = 1064 - h;
+    const x = TELA.w - 16 - w;
+    const y = TELA.h - 16 - h;
     const g = el('g', { class: 'extras' }, pai);
     el('rect', { x, y, width: w, height: h, rx: 10, fill: '#FFFFFF', stroke: '#DDD', filter: 'url(#sombra)' }, g);
     extras.forEach((m, i) => {
@@ -4024,10 +4229,12 @@ const Render = (() => {
 
   /* ------------------------------- callouts ------------------------------- */
 
+  const sobrepoe = (a, b, m) => a.x < b.x + b.w + m && b.x < a.x + a.w + m && a.y < b.y + b.h + m && b.y < a.y + a.h + m;
+
   function posicionarCallouts(callouts) {
     const placed = [];
     callouts.sort((a, b) => a.ancoraX - b.ancoraX).forEach((c) => {
-      c.x = Math.max(LIMITES.x0 + 6, Math.min(c.ancoraX - c.w / 2, LIMITES.x1 - c.w));
+      c.x = Math.max(limites.x0 + 6, Math.min(c.ancoraX - c.w / 2, limites.x1 - c.w));
       c.y = 14;
       placed.forEach((p) => {
         if (sobrepoe(c, p, 14)) c.x = p.x + p.w + 18;
@@ -4035,16 +4242,16 @@ const Render = (() => {
       placed.push(c);
     });
     // Se estourou a direita, empurra tudo para a esquerda; se ainda não couber, quebra linha.
-    const excesso = placed.length ? placed[placed.length - 1].x + placed[placed.length - 1].w - LIMITES.x1 : 0;
+    const excesso = placed.length ? placed[placed.length - 1].x + placed[placed.length - 1].w - limites.x1 : 0;
     if (excesso > 0) {
       for (let i = placed.length - 1; i >= 0; i--) {
-        const limite = i === placed.length - 1 ? LIMITES.x1 : placed[i + 1].x - 18;
+        const limite = i === placed.length - 1 ? limites.x1 : placed[i + 1].x - 18;
         placed[i].x = Math.min(placed[i].x, limite - placed[i].w);
       }
     }
     placed.forEach((c, i) => {
-      if (c.x < LIMITES.x0) {
-        c.x = LIMITES.x0 + 6;
+      if (c.x < limites.x0) {
+        c.x = limites.x0 + 6;
         const acima = placed.slice(0, i).filter((p) => sobrepoe(c, p, 10));
         if (acima.length) c.y = Math.max.apply(null, acima.map((p) => p.y + p.h)) + 14;
       }
@@ -4075,24 +4282,7 @@ const Render = (() => {
     filtroMarca = ctx.filtro || '';
     gradientes = {};
     while (svg.firstChild) svg.removeChild(svg.firstChild);
-    svg.setAttribute('viewBox', '0 0 ' + TELA.w + ' ' + TELA.h);
-    defs = el('defs', null, svg);
-    const filtro = el('filter', { id: 'sombra', x: '-10%', y: '-10%', width: '120%', height: '130%' }, defs);
-    el('feDropShadow', { dx: 0, dy: 3, stdDeviation: 4, 'flood-color': '#000', 'flood-opacity': 0.18 }, filtro);
-    const sombraEtq = el('filter', { id: 'sombraEtq', x: '-20%', y: '-30%', width: '140%', height: '170%' }, defs);
-    el('feDropShadow', { dx: 0, dy: 1.2, stdDeviation: 1.3, 'flood-color': '#000', 'flood-opacity': 0.22 }, sombraEtq);
-    if (!ctx.somentePlanta) el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
-
     const planta = ctx.planta;
-    const projecao = criarProjecao(planta.loja);
-    const { P } = projecao;
-    const camadaPlanta = el('g', { class: 'camada-planta' }, svg);
-    const camadaGuias = el('g', { class: 'camada-guias' }, svg);
-    const camadaEtiquetas = el('g', { class: 'camada-etiquetas' }, svg);
-    const camadaSobre = el('g', { class: 'camada-sobreposta' }, svg);
-
-    desenharLoja(camadaPlanta, P, planta.loja);
-    if (ctx.grade) desenharGrade(camadaPlanta, P, planta.loja);
 
     // Gôndola: um meio também fica dividido quando o ciclo tem linha para a 2ª (ou 1ª) metade dele.
     const temLinha = (id) => {
@@ -4127,16 +4317,49 @@ const Render = (() => {
     });
     const infoDe = (b) => (b.espaco ? infoEspaco[b.movel.id + '/' + b.espaco.id] : info[b.movel.id]);
 
-    // Numeração (pirâmide, gôndola e móvel de fila): plaquinha na face da frente, desenhada junto
-    // com o móvel (o que está na frente o cobre, como o resto da planta); as etiquetas desviam dela.
-    const numeros = [];
-    const numeroDe = (m) => {
-      if (NUMERADOS.indexOf(m.tipo) < 0) return '';
-      const n = /(\d+)\s*$/.exec(m.id);
-      return n ? String(Number(n[1])) : '';
-    };
+    // Fichas das etiquetas e tamanho do slide: sem etiquetas, o slide de sempre (1920×1080);
+    // com etiquetas, as fichas ficam em colunas dos dois lados da planta e o slide cresce se precisar.
+    const pain = ctx.obterPaineis();
+    const nSimbolos = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length;
+    const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide
+    const fichas = montarFichas(moveis, info, infoEspaco, ctx.dados.config);
+    // Com fichas, as notas vão estreitas embaixo do painel lateral (se couberem no slide de 1080),
+    // e a coluna da esquerda desce até a legenda; senão, as notas largas de sempre, e a coluna para acima delas.
+    let medNotas = pain.NOTA.length ? medirNotas(pain.NOTA, !!fichas.length) : null;
+    if (medNotas && fichas.length && TELA_BASE.h - legendaAteOPe - 28 - medNotas.h < desenharLateral(null, planta, ctx.ciclo, pain) + 16) {
+      medNotas = medirNotas(pain.NOTA, false);
+    }
+    const notasLargas = medNotas && medNotas.w > FICHA.xEsq;
+    const arranjo = fichas.length
+      ? arranjarFichas(planta.loja, fichas, {
+        esquerda: notasLargas ? legendaAteOPe + 28 + medNotas.h : nSimbolos ? legendaAteOPe : 0,
+        direita: extras.length ? 100 : 0,
+      })
+      : { w: TELA_BASE.w, h: TELA_BASE.h, projecao: criarProjecao(planta.loja), limites: LIMITES_BASE };
+    TELA.w = arranjo.w;
+    TELA.h = arranjo.h;
+    limites = arranjo.limites;
 
-    // Móveis, na ordem de pintura.
+    svg.setAttribute('viewBox', '0 0 ' + TELA.w + ' ' + TELA.h);
+    defs = el('defs', null, svg);
+    const filtro = el('filter', { id: 'sombra', x: '-10%', y: '-10%', width: '120%', height: '130%' }, defs);
+    el('feDropShadow', { dx: 0, dy: 3, stdDeviation: 4, 'flood-color': '#000', 'flood-opacity': 0.18 }, filtro);
+    const sombraEtq = el('filter', { id: 'sombraEtq', x: '-20%', y: '-30%', width: '140%', height: '170%' }, defs);
+    el('feDropShadow', { dx: 0, dy: 1.2, stdDeviation: 1.3, 'flood-color': '#000', 'flood-opacity': 0.22 }, sombraEtq);
+    if (!ctx.somentePlanta) el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
+
+    const projecao = arranjo.projecao;
+    const { P } = projecao;
+    const camadaPlanta = el('g', { class: 'camada-planta' }, svg);
+    const camadaGuias = el('g', { class: 'camada-guias' }, svg);
+    const camadaEtiquetas = el('g', { class: 'camada-etiquetas' }, svg);
+    const camadaSobre = el('g', { class: 'camada-sobreposta' }, svg);
+
+    desenharLoja(camadaPlanta, P, planta.loja);
+    if (ctx.grade) desenharGrade(camadaPlanta, P, planta.loja);
+
+    // Móveis, na ordem de pintura. Numeração (pirâmide, gôndola e móvel de fila): plaquinha na face
+    // da frente, desenhada junto com o móvel (o que está na frente o cobre, como o resto da planta).
     const prims = [];
     const faltam = {}; // primitivas ainda por pintar de cada móvel (a plaquinha vai com a última)
     moveis.forEach((m) => primitivas(m).forEach((p) => { prims.push(p); faltam[m.id] = (faltam[m.id] || 0) + 1; }));
@@ -4154,7 +4377,7 @@ const Render = (() => {
       }, camadaPlanta);
       desenharPrimitiva(g, P, b, cores);
       const numero = --faltam[m.id] === 0 ? numeroDe(m) : '';
-      if (numero) numeros.push(desenharNumero(g, P, m, numero, projecao.escala));
+      if (numero) desenharNumero(g, P, m, numero, projecao.escala);
       const linhasDica = [m.id + (b.espaco ? '/' + b.espaco.id + ' (' + b.espaco.nome + ')' : '') + (m.descricao ? ' — ' + m.descricao : '')];
       const nomeMarca = (x) => (x.marca ? x.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—');
       if (!b.espaco && espacos(m).length) {
@@ -4173,104 +4396,44 @@ const Render = (() => {
       dica(g, linhasDica.join('\n'));
     });
 
-    // Painéis (lateral, notas, callouts, extras).
-    const pain = ctx.obterPaineis();
+    // Painéis (lateral, legenda, notas, extras e caixas de destaque).
     desenharLateral(el('g', null, camadaSobre), planta, ctx.ciclo, pain);
     const topoLegenda = desenharLegendaSimbolos(camadaSobre, simbolosUsados, ctx.dados.simbolos);
-    const obstaculos = [{ x: 0, y: 0, w: 470, h: 1080 }].concat(numeros);
-    if (pain.NOTA.length) {
-      const med = medirNotas(pain.NOTA);
-      const y = Math.min(topoLegenda, 1072) - 28 - med.h;
-      desenharNotas(camadaSobre, med, 15, y);
-      obstaculos.push({ x: 15, y, w: med.w, h: med.h });
-    }
-    const rExtras = desenharExtras(camadaSobre, extras, (m) => info[m.id]);
-    if (rExtras) obstaculos.push(rExtras);
+    if (medNotas) desenharNotas(camadaSobre, medNotas, 15, Math.min(topoLegenda, TELA.h - 8) - 28 - medNotas.h);
+    desenharExtras(camadaSobre, extras, (m) => info[m.id]);
 
-    const ancoraDe = (m) => {
-      if (m.tipo === 'VITRINE_L') {
-        const t = espessuraL(m);
-        return P(m.x + m.w / 2, cantoL(m).frente ? m.y + m.d - t / 2 : m.y + t / 2, m.z + m.h);
-      }
-      return P(m.x + m.w / 2, m.y + m.d / 2, m.z + m.h);
-    };
     const porId = {};
     moveis.forEach((m) => { porId[m.id] = m; });
-
     const callouts = pain.CALLOUT.map((c) => {
       const cores = coresDe(c.marca, 'etiqueta') || [COR.etiquetaPadrao];
       const linhas = quebrar(c.texto, CALLOUT.maxW - CALLOUT.pad * 2, CALLOUT.fonte, 700);
       const w = Math.max.apply(null, linhas.map((l) => largura(l, CALLOUT.fonte, 700))) + CALLOUT.pad * 2 + 2;
-      const alvo = c.movel && porId[c.movel] ? ancoraDe(porId[c.movel]) : null;
-      return { cores, linhas, w, h: linhas.length * CALLOUT.lh + CALLOUT.pad * 2, alvo, ancoraX: alvo ? alvo[0] : 1200 };
+      const alvo = c.movel && porId[c.movel] ? ancoraDe(porId[c.movel], P) : null;
+      return { cores, linhas, w, h: linhas.length * CALLOUT.lh + CALLOUT.pad * 2, alvo, ancoraX: alvo ? alvo[0] : (limites.x0 + limites.x1) / 2 };
     });
     posicionarCallouts(callouts);
     callouts.forEach((c) => {
       if (c.alvo) {
         const x = Math.max(c.x + 12, Math.min(c.alvo[0], c.x + c.w - 12));
-        desenharGuia(el('g', { class: 'guia-callout' }, camadaGuias), { x, y: c.y + c.h, w: 0, h: 0 }, c.alvo, true);
+        desenharGuia(el('g', { class: 'guia-callout' }, camadaGuias), { x, y: c.y + c.h, w: 0, h: 0 }, c.alvo);
       }
       desenharCallout(camadaEtiquetas, c);
-      obstaculos.push(c);
     });
 
-    // Etiquetas: uma pilha por móvel (limitada por tipo) e, na gôndola, uma por bloco.
-    // As etiquetas de uma gôndola compartilham o ajuste manual do móvel (movem juntas).
-    const limitePorTipo = ctx.dados.config.etiquetasPorTipo || {};
-    const limitePorBloco = ctx.dados.config.etiquetasPorBloco || {};
-    const grupos = [];
-    // Etiquetas encostadas no móvel (LADO_ETIQUETA), com linha-guia até a âncora de cada uma.
-    const telaDe = (m) => {
-      const pts = [];
-      [m.x, m.x + m.w].forEach((x) => [m.y, m.y + m.d].forEach((y) => [m.z, m.z + m.h].forEach((z) => pts.push(P(x, y, z)))));
-      const xs = pts.map((p) => p[0]);
-      return { x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs) };
-    };
-    const posicaoDoLado = (m, med, ancora) => {
-      const t = telaDe(m);
-      return LADO_ETIQUETA[m.tipo] === 'esquerda'
-        ? [t.x0 - FOLGA_LADO - med.w, ancora[1] - med.h / 2]
-        : [t.x1 + FOLGA_LADO, ancora[1] - med.h / 2];
-    };
-    const novoGrupo = (id, m, i, etiquetas, simbolo, ancora, ajuste) => {
-      if (!etiquetas.length) return;
-      const corPadrao = (!ehNeutro(i.marca) && coresDe(i.marca, 'etiqueta', true)) || corEtiquetaPadrao(true);
-      const med = medirGrupo(etiquetas, simbolo, corPadrao);
-      const aoLado = !!LADO_ETIQUETA[m.tipo];
-      const [baseX, baseY] = aoLado ? posicaoDoLado(m, med, ancora) : [ancora[0] - med.w / 2, ancora[1] - med.h / 2];
-      grupos.push(Object.assign(med, {
-        id, movel: m, info: i, ancora, baseX, baseY, aoLado,
-        x: baseX + ajuste.x, y: baseY + ajuste.y, manual: !!(ajuste.x || ajuste.y),
-      }));
-    };
-    moveis.forEach((m) => {
+    // Fichas: na posição do arranjo, mais o ajuste manual do móvel (modo "Ajustar etiquetas").
+    fichas.forEach((f) => {
+      const m = f.movel;
       const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
-      const grupo = (e) => novoGrupo(e.id, m, e.info, e.etiquetas, e.simbolo, P(e.topo[0], e.topo[1], e.topo[2]), ajuste);
-      if (m.tipo === 'GONDOLA') {
-        juntarIguais(etiquetasGondola(m, infoEspaco, limitePorBloco.GONDOLA)).forEach(grupo);
-        return;
-      }
-      const i = info[m.id];
-      if (i) novoGrupo(m.id, m, i, i.etiquetas.slice(0, limitePorTipo[m.tipo] || i.etiquetas.length), i.simbolo, ancoraDe(m), ajuste);
-      // Blocos (mesas, painéis do totem, testeiras do make): a linha do bloco mostra as etiquetas dela em
-      // cima do bloco (até ETIQUETAS_POR_BLOCO; senão só a 1) — no totem, ao lado do móvel (LADO_ETIQUETA);
-      // blocos vizinhos com as mesmas etiquetas ficam com uma pilha só, no centro deles.
-      juntarIguais(topoDosBlocos(m).map((bl) => {
-        const id = m.id + '/' + bl.espaco.id;
-        const ie = infoEspaco[id];
-        return ie && ie.etiquetas.length
-          ? { id, info: ie, etiquetas: ie.etiquetas.slice(0, limitePorBloco[m.tipo] || 1), simbolo: ie.simbolo, pontos: [bl.topo] }
-          : null;
-      })).forEach(grupo);
-    });
-    posicionar(grupos, obstaculos);
-    grupos.forEach((gr) => {
-      desenharGuia(camadaGuias, gr, gr.ancora, false, gr.movel.id, gr.aoLado);
-      gr.elemento = desenharGrupo(camadaEtiquetas, gr, {
-        class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : ''),
+      f.x = f.baseX + ajuste.x;
+      f.y = f.baseY + ajuste.y;
+      f.manual = !!(ajuste.x || ajuste.y);
+      desenharGuiaFicha(camadaGuias, f);
+      f.elemento = desenharFicha(camadaEtiquetas, f, {
+        class: 'grupo-etiquetas ficha' + (ctx.edicao ? ' arrastavel' : ''),
       });
-      dica(gr.elemento, gr.id + (gr.movel.descricao ? ' — ' + gr.movel.descricao : ''));
+      dica(f.elemento, m.id + (m.descricao ? ' — ' + m.descricao : '') + ' · clique para ver a estratégia do móvel');
     });
+    const grupos = fichas;
 
     // Validação: marcador com o nº de comentários abertos no canto de cada móvel comentado
     // (do mesmo tamanho na tela com zoom; não vai no PNG).
@@ -4487,8 +4650,8 @@ const Planilha = (() => {
       '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
       '6.1 Gôndola, mesas, totem e móvel make são preenchidos espaço por espaço: não há linha do móvel inteiro (se houver, ela é ignorada). Espaço sem linha fica branco.',
-      '6.2 Gôndola: uma linha por espaço — GONDOLA 1/LADO-A, MEIO-A, MEIO-B e LADO-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas empilhadas em cima dele. Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
-      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só, no centro. As etiquetas do totem ficam ao lado do painel, com linha-guia.',
+      '6.2 Gôndola: uma linha por espaço — GONDOLA 1/LADO-A, MEIO-A, MEIO-B e LADO-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas, numa linha própria da ficha do móvel (ao lado da planta). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
+      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam numa linha só da ficha do móvel.',
       '6.4 Móveis de um espaço só (pirâmide, móvel de fila, móvel de parede, PDV, O.U.i…) têm uma linha. O balcão recepção também: um espaço só, com uma cor e até 3 etiquetas.',
       '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
     ].concat(op.visualizador ? [
@@ -7205,7 +7368,8 @@ const App = (() => {
       const img = new Image();
       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
       await img.decode();
-      const escala = 2;
+      // Slide completo: sempre 3840 px de largura (16:9), mesmo quando o slide cresceu para caber as fichas.
+      const escala = modo === 'planta' ? 2 : 3840 / caixa.w;
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(caixa.w * escala);
       canvas.height = Math.round(caixa.h * escala);

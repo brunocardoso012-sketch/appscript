@@ -230,10 +230,10 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
 const ETIQUETAS_POR_TIPO = { VITRINE_L: 3 };
 
 /**
- * Quantas etiquetas a linha de um espaço mostra em cima dele (GONDOLA 1/LADO-A,
+ * Quantas etiquetas a linha de um espaço mostra na ficha do móvel (GONDOLA 1/LADO-A,
  * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
  * (painéis do totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
- * mesmas etiquetas (texto e cor) viram uma pilha só, centralizada.
+ * mesmas etiquetas (texto e cor) viram uma linha só na ficha.
  */
 const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
 

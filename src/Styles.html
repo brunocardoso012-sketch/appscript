@@ -229,22 +229,24 @@
   #slide:not(.construindo) .movel,
   #slide:not(.construindo) .grupo-etiquetas:not(.arrastavel) { cursor: pointer; }
   #slide.com-zoom.arrastando, #slide.com-zoom.arrastando * { cursor: grabbing; }
-  /* Com zoom, as linhas-guia não engrossam (as etiquetas também mantêm o tamanho na tela). */
-  #slide .camada-guias line { stroke-width: calc(1.3px / var(--zoom, 1)); }
-  #slide .camada-guias circle { r: calc(4px / var(--zoom, 1)); stroke-width: calc(1.3px / var(--zoom, 1)); }
+  /* Com zoom, as linhas-guia não engrossam (as caixas de destaque também mantêm o tamanho na tela). */
+  #slide .guia-callout line { stroke-width: calc(1.3px / var(--zoom, 1)); }
+  #slide .guia-callout circle { r: calc(4px / var(--zoom, 1)); stroke-width: calc(1.3px / var(--zoom, 1)); }
+  #slide .guia .guia-linha { stroke-width: calc(1.3px / var(--zoom, 1)); }
+  #slide .guia .guia-halo { stroke-width: calc(3.6px / var(--zoom, 1)); }
+  #slide .guia .guia-ponto { r: calc(4.4px / var(--zoom, 1)); stroke-width: calc(1.6px / var(--zoom, 1)); }
+  #slide .guia .guia-centro { r: calc(1.7px / var(--zoom, 1)); }
   #slide .movel:hover polygon { stroke-width: 2.2; }
-  /* Mouse sobre um móvel: as etiquetas dele crescem um pouco e ganham contorno branco; as dos outros ficam mais claras. */
-  #slide .grupo-etiquetas { transform-box: fill-box; transform-origin: center; transition: transform .15s ease, opacity .15s ease; }
-  #slide .camada-guias .guia { transition: opacity .15s ease; }
+  /* Destaque ao passar o mouse num móvel ou na ficha dele: a ficha ganha contorno e a linha-guia escurece. */
+  #slide .grupo-etiquetas, #slide .camada-guias .guia { transition: opacity .15s ease; }
   #slide.destacando .grupo-etiquetas:not(.destaque),
-  #slide.destacando .camada-guias .guia:not(.destaque) { opacity: .6; }
-  #slide.destacando .grupo-etiquetas.destaque { transform: scale(1.08); }
-  #slide.destacando .grupo-etiquetas.destaque rect { stroke: #fff; stroke-width: 1.6; }
-  #slide.destacando .camada-guias .guia.destaque line { stroke: #111; stroke-width: calc(2px / var(--zoom, 1)); }
+  #slide.destacando .camada-guias .guia:not(.destaque) { opacity: .35; }
+  #slide.destacando .grupo-etiquetas.destaque .ficha-fundo { stroke: #1C1C1C; stroke-width: 2; }
+  #slide.destacando .camada-guias .guia.destaque .guia-linha { stroke: #111; stroke-width: calc(2.2px / var(--zoom, 1)); }
   #slide.destacando .movel.destaque polygon { stroke-width: 2.2; }
-  @media (prefers-reduced-motion: reduce) { #slide .grupo-etiquetas { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { #slide .grupo-etiquetas, #slide .camada-guias .guia { transition: none; } }
   #slide .arrastavel { cursor: grab; }
-  #slide .arrastavel:hover rect { stroke: #111; stroke-width: 1.5; }
+  #slide .arrastavel:hover .ficha-fundo { stroke: #111; stroke-width: 1.5; }
   #slide .arrastavel:active { cursor: grabbing; }
 
   #slide .movel.selecionado polygon { stroke: #ff6a00; stroke-width: 2.6; }

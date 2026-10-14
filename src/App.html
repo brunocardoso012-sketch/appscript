@@ -1250,7 +1250,8 @@ const App = (() => {
       const img = new Image();
       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
       await img.decode();
-      const escala = 2;
+      // Slide completo: sempre 3840 px de largura (16:9), mesmo quando o slide cresceu para caber as fichas.
+      const escala = modo === 'planta' ? 2 : 3840 / caixa.w;
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(caixa.w * escala);
       canvas.height = Math.round(caixa.h * escala);
