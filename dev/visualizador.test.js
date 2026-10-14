@@ -59,24 +59,19 @@ test('visualizador abre a planilha pelo link colado em VISUALIZADOR.PLANILHA', (
   assert.deepEqual(abertas, ['1AbC-d_9']);
 });
 
-test('posições das etiquetas ficam nas propriedades do script, sem mexer na planilha', () => {
+test('visualizador não grava posições de etiquetas, só aplica as já salvas nas propriedades do script', () => {
   const { run, falsos } = carregarVisualizador();
-  const antes = JSON.stringify(falsos.planilha.getSheets().map((a) => a._aba.grade));
-  assert.deepEqual(run("salvarAjustesEtiquetas('ER P', { 'Gôndola 1': { x: 12.4, y: -30 }, 'PIRAMIDE 1': { x: 5, y: 0 } })"), { atualizados: 2 });
-  let g = run('getDados()').plantas[0].moveis.find((m) => m.id === 'GONDOLA 1');
+  assert.equal(run('typeof salvarAjustesEtiquetas'), 'undefined');
+  falsos.propriedades.AJUSTES_ETIQUETAS_01 = JSON.stringify({ 'GONDOLA 1': { x: 12, y: -30 } });
+  const g = run('getDados()').plantas[0].moveis.find((m) => m.id === 'GONDOLA 1');
   assert.deepEqual([g.ajusteX, g.ajusteY], [12, -30]);
-  run("salvarAjustesEtiquetas('01', { 'GONDOLA 1': { x: 0, y: 0 } })"); // organizar automaticamente
-  g = run('getDados()').plantas[0].moveis.find((m) => m.id === 'GONDOLA 1');
-  assert.deepEqual([g.ajusteX, g.ajusteY], [0, 0]);
-  assert.deepEqual(JSON.parse(falsos.propriedades.AJUSTES_ETIQUETAS_01), { 'PIRAMIDE 1': { x: 5, y: 0 } });
-  assert.equal(JSON.stringify(falsos.planilha.getSheets().map((a) => a._aba.grade)), antes);
 });
 
-test('Index.html do visualizador não tem Construir loja nem Baixar / Importar planilha', () => {
+test('Index.html do visualizador não tem Construir loja, Ajustar etiquetas nem Baixar / Importar planilha', () => {
   const html = gerarIndex();
-  ['btnModelo', 'btnImportar', 'btnConstruir', 'painelConstrutor', 'dlgModelo', 'dlgResultado', 'btnConfigurar']
+  ['btnModelo', 'btnImportar', 'btnConstruir', 'btnEditar', 'barraEdicao', 'painelConstrutor', 'dlgModelo', 'dlgResultado', 'btnConfigurar']
     .forEach((id) => assert.ok(!html.includes('id="' + id + '"'), id + ' deveria ficar de fora'));
-  ['btnPng', 'btnEditar', 'btnAtualizar', 'selCiclo', 'legenda', 'slide'].forEach((id) => assert.ok(html.includes('id="' + id + '"'), id));
+  ['btnPng', 'btnAtualizar', 'selCiclo', 'legenda', 'slide'].forEach((id) => assert.ok(html.includes('id="' + id + '"'), id));
   assert.ok(!/<\?/.test(html), 'sem tags de template do Apps Script');
   assert.ok(!/const Construtor =|const Planilha =/.test(html), 'sem os módulos de construção e planilha');
 });

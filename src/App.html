@@ -541,6 +541,7 @@ const App = (() => {
   }
 
   function atualizarBarraEdicao() {
+    if (!$('barraEdicao')) return; // versão só de visualização: sem "Ajustar etiquetas"
     $('barraEdicao').hidden = !estado.edicao;
     $('btnEditar').setAttribute('aria-pressed', String(estado.edicao));
     const n = Object.keys(estado.ajustes).length;

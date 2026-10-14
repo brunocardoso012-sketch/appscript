@@ -4,8 +4,8 @@
  * ============================================================================
  *  Mostra as plantas de cada ciclo a partir de UMA planilha (abas "Movimentos"
  *  e "Painéis"). A estratégia é montada direto na planilha; o app só lê.
- *  Não tem o modo "Construir loja" nem "Baixar / Importar planilha": o layout
- *  das lojas fica no código (seção LAYOUT PADRÃO, mais abaixo).
+ *  Não tem o modo "Construir loja", "Ajustar etiquetas" nem "Baixar / Importar
+ *  planilha": o layout das lojas fica no código (seção LAYOUT PADRÃO, mais abaixo).
  *
  *  Conectar a planilha (um dos dois):
  *   1. Abrir o Apps Script pela própria planilha (Extensões > Apps Script) —
@@ -19,7 +19,7 @@
 const VISUALIZADOR = {
   /** Link ou ID da planilha com os ciclos. Vazio = planilha a que o script está vinculado. */
   PLANILHA: '',
-  /** Prefixo das propriedades do script que guardam as posições das etiquetas (uma por planta). */
+  /** Prefixo das propriedades do script com posições de etiquetas salvas antes (uma por planta; só leitura). */
   PROPRIEDADE_AJUSTES: 'AJUSTES_ETIQUETAS_',
 };
 
@@ -71,39 +71,6 @@ function getDados() {
   dados.planilhaUrl = ss.getUrl();
   dados.precisaConfigurar = false;
   return dados;
-}
-
-/**
- * Grava a posição das etiquetas arrastadas em "Ajustar etiquetas". Fica nas
- * propriedades do script (a planilha não é alterada).
- * @param {string} planta
- * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel → deslocamento em px.
- */
-function salvarAjustesEtiquetas(planta, ajustes) {
-  planta = normPlanta_(planta);
-  if (!planta || planta === CONFIG.PLANTA_TODAS || !ajustes || typeof ajustes !== 'object') {
-    throw new Error('Dados inválidos.');
-  }
-  const trava = LockService.getScriptLock();
-  trava.waitLock(30000);
-  try {
-    const salvos = lerAjustes_(planta);
-    let atualizados = 0;
-    Object.keys(ajustes).forEach(function (id) {
-      const a = ajustes[id] || {};
-      const x = Math.round(Number(a.x) || 0);
-      const y = Math.round(Number(a.y) || 0);
-      const chave = normId_(id);
-      if (!chave) return;
-      if (x || y) salvos[chave] = { x: x, y: y };
-      else delete salvos[chave]; // "Organizar automaticamente" volta para a posição calculada
-      atualizados++;
-    });
-    PropertiesService.getScriptProperties().setProperty(VISUALIZADOR.PROPRIEDADE_AJUSTES + planta, JSON.stringify(salvos));
-    return { atualizados: atualizados };
-  } finally {
-    trava.releaseLock();
-  }
 }
 
 /* ======================== VALIDAÇÃO DA ESTRATÉGIA ========================= */

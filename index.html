@@ -2675,11 +2675,11 @@ function executarComentario_(ss, acesso, pedido) {
           Validação
           <span class="badge" id="valBadge" hidden></span>
         </button>
+        <!-- so-app-completo -->
         <button id="btnEditar" class="btn" type="button" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
           Ajustar etiquetas
         </button>
-        <!-- so-app-completo -->
         <button id="btnConstruir" class="btn" type="button" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
           Construir loja
@@ -2716,6 +2716,7 @@ function executarComentario_(ss, acesso, pedido) {
       </details>
     </div>
 
+    <!-- so-app-completo -->
     <div class="barra-edicao" id="barraEdicao" hidden>
       <span><strong>Modo ajuste:</strong> arraste as etiquetas para reposicionar. <span id="qtdAjustes"></span></span>
       <span class="grupo-botoes">
@@ -2724,6 +2725,7 @@ function executarComentario_(ss, acesso, pedido) {
         <button id="btnSalvarAjustes" class="btn pequeno primario" type="button">Salvar posições</button>
       </span>
     </div>
+    <!-- /so-app-completo -->
 
     <main class="palco" id="palco">
       <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
@@ -6496,6 +6498,7 @@ const App = (() => {
   }
 
   function atualizarBarraEdicao() {
+    if (!$('barraEdicao')) return; // versão só de visualização: sem "Ajustar etiquetas"
     $('barraEdicao').hidden = !estado.edicao;
     $('btnEditar').setAttribute('aria-pressed', String(estado.edicao));
     const n = Object.keys(estado.ajustes).length;

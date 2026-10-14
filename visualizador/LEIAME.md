@@ -2,7 +2,9 @@
 
 Versão **só de visualização** do app: mostra as plantas de cada ciclo a partir de **uma única planilha** no Google Sheets. A estratégia é montada direto na planilha; o app só lê (a única coisa que ele grava são os comentários da validação, na aba **Comentários**).
 
-Comparado ao app completo, esta versão **não tem** *Construir loja*, *Baixar planilha base* nem *Importar planilha*. Ficam: seletor de ciclo, abas das plantas (setas ← →), filtro por marca, *Baixar PNG*, *Ajustar etiquetas*, *Atualizar* e *Abrir planilha*.
+Comparado ao app completo, esta versão **não tem** *Construir loja*, *Ajustar etiquetas*, *Baixar planilha base* nem *Importar planilha*. Ficam: seletor de ciclo, abas das plantas (setas ← →), filtro por marca, *Baixar PNG*, *Espaço por marca*, *Validação*, *Atualizar* e *Abrir planilha*.
+
+**Download:** [`Plano de Varejo - Visualizador (Apps Script).zip`](Plano%20de%20Varejo%20-%20Visualizador%20(Apps%20Script).zip) traz tudo o que é preciso (planilha base, `Codigo.gs`, `Index.html`, manifesto) e o passo a passo detalhado, que também está em [`PASSO-A-PASSO.md`](PASSO-A-PASSO.md).
 
 ## Arquivos
 
@@ -12,10 +14,14 @@ Comparado ao app completo, esta versão **não tem** *Construir loja*, *Baixar p
 | `apps-script/Codigo.gs` | Todo o código do servidor, num arquivo só. |
 | `apps-script/Index.html` | A página, num arquivo só. |
 | `apps-script/appsscript.json` | Manifesto (fuso horário, V8, App da Web). |
+| `PASSO-A-PASSO.md` | Passo a passo detalhado de instalação. |
+| `Plano de Varejo - Visualizador (Apps Script).zip` | Pacote para download: os arquivos acima e o passo a passo. Gerado com `npm run pacote:visualizador`. |
 
 Os três arquivos de `apps-script/` são **gerados** a partir de `src/` (`npm run build:visualizador`). Não edite à mão: mude `src/` (ou `visualizador/fonte/Visualizador.gs`) e gere de novo.
 
 ## Como instalar
+
+Resumo abaixo. O passo a passo completo, com autorização e problemas comuns, está em [`PASSO-A-PASSO.md`](PASSO-A-PASSO.md).
 
 1. **Planilha:** envie `Planilha base - Visualizador.xlsx` para o Google Drive e abra com o Google Sheets (*Arquivo > Salvar como Planilhas Google*). Esta é a planilha onde todos os ciclos vão ficar.
 2. **Script vinculado à planilha:** na planilha, abra *Extensões > Apps Script*.
@@ -53,4 +59,4 @@ const VISUALIZADOR = {
 
 - **Layout das lojas** (posição e tamanho dos móveis de cada planta): seção `LAYOUT PADRÃO` do `Codigo.gs` (vem de `src/Layouts.gs`). Para mudar uma planta, monte o layout no modo *Construir loja* do app completo, use *Baixar código da loja* e atualize `src/Layouts.gs`.
 - **Marcas, cores, símbolos e nomes das plantas:** seção `CONFIGURAÇÕES` (vem de `src/Config.gs`).
-- **Posições das etiquetas** salvas em *Ajustar etiquetas*: ficam nas propriedades do script, uma por planta (a planilha não é alterada). Quem acessa o app pode ajustá-las.
+- **Posições das etiquetas:** as etiquetas se organizam sozinhas. Esta versão não tem *Ajustar etiquetas*; posições salvas antes nas propriedades do script (uma por planta) continuam sendo aplicadas.

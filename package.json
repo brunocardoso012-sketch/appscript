@@ -7,6 +7,7 @@
     "test": "node --test dev/*.test.js",
     "build:web": "node dev/build-web.js",
     "push": "clasp push",
-    "build:visualizador": "node dev/build-visualizador.js"
+    "build:visualizador": "node dev/build-visualizador.js",
+    "pacote:visualizador": "node dev/empacotar-visualizador.js"
   }
 }

@@ -90,11 +90,12 @@ Seções recolhidas no painel:
 
 ## Versão só de visualização (Apps Script)
 
-A pasta [`visualizador/`](visualizador/) tem uma versão do app **só para visualizar** a estratégia, que é montada direto numa planilha do Google Sheets. Todos os ciclos ficam numa única planilha (abas *Movimentos* e *Painéis*), conectada ao script. Não tem *Construir loja*, *Baixar planilha base* nem *Importar planilha*. O layout das lojas fica no código.
+A pasta [`visualizador/`](visualizador/) tem uma versão do app **só para visualizar** a estratégia, que é montada direto numa planilha do Google Sheets. Todos os ciclos ficam numa única planilha (abas *Movimentos* e *Painéis*), conectada ao script. Não tem *Construir loja*, *Ajustar etiquetas*, *Baixar planilha base* nem *Importar planilha*. O layout das lojas fica no código.
 
 - [`visualizador/Planilha base - Visualizador.xlsx`](visualizador/) é a planilha que alimenta o app.
 - [`visualizador/apps-script/`](visualizador/apps-script/) tem o projeto pronto para colar no Apps Script: `Codigo.gs`, `Index.html` e o manifesto.
-- O passo a passo de instalação está em [`visualizador/LEIAME.md`](visualizador/LEIAME.md).
+- O passo a passo de instalação está em [`visualizador/PASSO-A-PASSO.md`](visualizador/PASSO-A-PASSO.md) (resumo em [`visualizador/LEIAME.md`](visualizador/LEIAME.md)).
+- Para baixar tudo de uma vez: [`visualizador/Plano de Varejo - Visualizador (Apps Script).zip`](visualizador/) (gerado com `npm run pacote:visualizador`).
 
 Os arquivos de `visualizador/apps-script/` são gerados a partir de `src/` com `npm run build:visualizador`. A planilha base é gerada com `node dev/gerar-planilha-visualizador.js`.
 
@@ -277,6 +278,7 @@ dev/
   visualizador.test.js  testes da versão só de visualização
   build-web.js      gera index.html (raiz) a partir de src/ + web/
   build-visualizador.js         gera visualizador/apps-script/ a partir de src/
+  empacotar-visualizador.js     gera o .zip para download do visualizador
   gerar-planilha-visualizador.js  gera a planilha base do visualizador (Playwright)
 ```
 
@@ -286,6 +288,7 @@ Para desenvolver (Node 18+):
 npm test            # testes do backend (sem Apps Script)
 npm run build:web   # gera index.html na raiz (versão web)
 npm run build:visualizador   # gera visualizador/apps-script/ (versão só de visualização)
+npm run pacote:visualizador  # gera o .zip para download do visualizador
 ```
 
 ## Observações

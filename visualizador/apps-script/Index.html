@@ -596,10 +596,6 @@
           Validação
           <span class="badge" id="valBadge" hidden></span>
         </button>
-        <button id="btnEditar" class="btn" type="button" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
-          Ajustar etiquetas
-        </button>
         <button id="btnAtualizar" class="btn fantasma" type="button" title="Ler a planilha de novo">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
           Atualizar
@@ -628,14 +624,6 @@
       </details>
     </div>
 
-    <div class="barra-edicao" id="barraEdicao" hidden>
-      <span><strong>Modo ajuste:</strong> arraste as etiquetas para reposicionar. <span id="qtdAjustes"></span></span>
-      <span class="grupo-botoes">
-        <button id="btnAutoOrganizar" class="btn pequeno" type="button">Organizar automaticamente</button>
-        <button id="btnDescartar" class="btn pequeno" type="button">Descartar</button>
-        <button id="btnSalvarAjustes" class="btn pequeno primario" type="button">Salvar posições</button>
-      </span>
-    </div>
 
     <main class="palco" id="palco">
       <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
@@ -3001,6 +2989,7 @@ const App = (() => {
   }
 
   function atualizarBarraEdicao() {
+    if (!$('barraEdicao')) return; // versão só de visualização: sem "Ajustar etiquetas"
     $('barraEdicao').hidden = !estado.edicao;
     $('btnEditar').setAttribute('aria-pressed', String(estado.edicao));
     const n = Object.keys(estado.ajustes).length;
