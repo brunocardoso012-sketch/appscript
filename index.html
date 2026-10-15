@@ -554,9 +554,29 @@
     .acoes .btn { flex: 1 1 auto; justify-content: center; }
   }
 
-  /* Telas estreitas: o painel de espaço vai para baixo da planta. */
+  /* ---------- painel da ER (menu da esquerda) ---------- */
+  .painel-loja { flex: 0 0 300px; border-left: 0; border-right: 1px solid var(--borda); }
+  .painel-loja .esp-topo h2 { font-size: 22px; letter-spacing: .5px; }
+  .lj-secao { margin-top: 18px; }
+  .lj-secao h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+  .lj-icone { width: 22px; height: 22px; flex: 0 0 auto; color: var(--texto); }
+  .lj-letra { display: inline-grid; place-items: center; width: 20px; height: 20px; border: 1.8px solid var(--texto); border-radius: 50%; font-size: 12px; font-weight: 600; color: var(--texto); }
+  .lj-chips { display: flex; flex-direction: column; gap: 5px; }
+  .lj-chip { display: block; padding: 5px 10px; border-radius: 7px; color: #fff; font: 800 11.5px/1.3 Nunito, 'Segoe UI', Arial, sans-serif; letter-spacing: .2px; }
+  .lj-nota { margin: 0 0 8px; color: #1F3B73; font-size: 13px; line-height: 1.45; }
+  .lj-nota strong { color: #0B2A5B; }
+  .lj-simbolos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+  .lj-simbolos li { display: flex; align-items: center; gap: 10px; }
+  .lj-simbolo { width: 30px; text-align: center; font-weight: 700; }
+  .lj-extra { display: grid; grid-template-columns: 1fr; gap: 5px; padding: 10px 0; border-top: 1px solid var(--borda); }
+  .lj-extra:first-of-type { border-top: 0; padding-top: 0; }
+  .lj-extra-nome { font-size: 12px; font-style: italic; color: var(--texto-2); }
+
+  /* Telas estreitas: os painéis vão para baixo da planta. */
   @media (max-width: 900px) {
-    body.com-painel-espaco .palco, body.com-painel-validacao .palco { flex-direction: column; }
+    body.com-painel-espaco .palco, body.com-painel-validacao .palco, body.com-painel-loja .palco { flex-direction: column; }
+    body.com-painel-loja #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
+    .painel-loja { order: 2; border-right: 0; }
     body.com-painel-validacao #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     body.com-painel-espaco #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     .painel-espaco { flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--borda); overflow: visible; }
@@ -2674,6 +2694,10 @@ function executarComentario_(ss, acesso, pedido) {
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
           Baixar PNG
         </button>
+        <button id="btnLoja" class="btn" type="button" aria-pressed="false" title="Nome da ER, ciclo, TV / rádio, A, C, notas, legenda dos símbolos e itens fora da planta">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M5.5 8h1.5M5.5 11h1.5M5.5 14h1.5"/></svg>
+          Painel da ER
+        </button>
         <button id="btnEspaco" class="btn" type="button" aria-pressed="false" title="Quanto da ER vai para cada marca e tipo de movimento">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7H3"/></svg>
           Espaço por marca
@@ -2734,6 +2758,16 @@ function executarComentario_(ss, acesso, pedido) {
     </div>
 
     <main class="palco" id="palco">
+      <aside class="painel-espaco painel-loja" id="painelLoja" hidden aria-label="Painel da ER">
+        <header class="esp-topo">
+          <div>
+            <h2 id="lojaTitulo">ER</h2>
+            <span id="lojaSub"></span>
+          </div>
+          <button id="lojaFechar" class="btn fantasma pequeno" type="button" title="Fechar o painel">✕</button>
+        </header>
+        <div id="lojaCorpo" class="esp-corpo"></div>
+      </aside>
       <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
       <aside class="painel-espaco" id="painelEspaco" hidden aria-label="Espaço por marca">
         <header class="esp-topo">
@@ -3012,7 +3046,6 @@ const Render = (() => {
   const TELA_BASE = { w: 1920, h: 1080 };
   const TELA = { w: TELA_BASE.w, h: TELA_BASE.h, fundo: '#F3EFEA' };
   const REGIAO_PLANTA = { x: 500, y: 70, w: 1400, h: 950 };
-  const LIMITES_BASE = { x0: 470, y0: 8, x1: 1912, y1: 1072 };
   const ETQ = { fonte: 12.5, lh: 15, padX: 10, padY: 4, gap: 4, maxTexto: 190, simbolo: 20, raio: 9 };
   // Fichas da visão simplificada: uma por móvel, em colunas agrupadas por tipo de móvel.
   //   xEsq: primeira coluna (logo depois do painel lateral); mini: miniatura do móvel em cada linha;
@@ -3045,7 +3078,16 @@ const Render = (() => {
   const ESPESSURA_PISO = 0.35;
 
   let marcas = {};
-  let limites = LIMITES_BASE; // faixa onde ficam as caixas de destaque (muda com as colunas de fichas)
+  let limites = null; // faixa onde ficam as caixas de destaque (muda com o tamanho do slide)
+  // Painéis do slide (nome da ER, TV/rádio, A, C, notas, legenda e itens extras). Na tela eles ficam
+  // no menu da esquerda (fora do SVG) e a planta usa a largura toda; no PNG do slide eles vão desenhados.
+  let comPaineis = true;
+
+  /** Região da planta num slide W × H: à direita do painel lateral (com painéis) ou na largura toda. */
+  const regiaoPlanta = (W, H) => (comPaineis
+    ? { x: REGIAO_PLANTA.x, y: REGIAO_PLANTA.y, w: W - REGIAO_PLANTA.x - 20, h: H - 130 }
+    : { x: 40, y: REGIAO_PLANTA.y, w: W - 80, h: H - 130 });
+  const limitesDe = (W, H) => ({ x0: comPaineis ? 470 : 12, y0: 8, x1: W - 8, y1: H - 8 });
   let filtroMarca = ''; // marca destacada pelo filtro ('' = todas coloridas)
   let defs = null;
   let gradientes = {};
@@ -3986,7 +4028,7 @@ const Render = (() => {
     for (let fator = 1; ; fator += 0.05) {
       const W = Math.round((TELA_BASE.w * fator) / 16) * 16;
       const H = (W / 16) * 9;
-      const x0 = FICHA.xEsq;
+      const x0 = comPaineis ? FICHA.xEsq : 24;
       const nCol = Math.max(1, Math.floor((W - FICHA.margem - x0 + 16) / passo));
       // Cada coluna vai do alto do slide até acima do que está embaixo dela.
       const colunas = Array.from({ length: nCol }, (_, c) => {
@@ -4375,11 +4417,10 @@ const Render = (() => {
     [1, 1.15, 1.3, 1.45, 1.6].some((fator) => {
       const W = Math.round((TELA_BASE.w * fator) / 16) * 16;
       const H = (W / 16) * 9;
-      const regiao = { x: REGIAO_PLANTA.x, y: REGIAO_PLANTA.y, w: W - REGIAO_PLANTA.x - 20, h: H - 130 };
-      const projecao = criarProjecao(loja, regiao);
-      limites = { x0: LIMITES_BASE.x0, y0: 8, x1: W - 8, y1: H - 8 };
+      const projecao = criarProjecao(loja, regiaoPlanta(W, H));
+      limites = limitesDe(W, H);
       const callouts = painel.situarCallouts(projecao.P);
-      const obstaculos = [{ x: 0, y: 0, w: 470, h: H }].concat(painel.obstaculos(W, H), callouts);
+      const obstaculos = (comPaineis ? [{ x: 0, y: 0, w: 470, h: H }] : []).concat(painel.obstaculos(W, H), callouts);
       rotulos.forEach((r) => ancorarRotulo(r, projecao.P));
       const q = posicionarRotulos(rotulos, silhuetas(moveis, projecao.P), obstaculos, W, H);
       const qualidade = q.pena + Math.max(0, q.dist - 50) * 0.5;
@@ -4641,14 +4682,17 @@ const Render = (() => {
 
   /**
    * @param {SVGSVGElement} svg
-   * @param {{dados, planta, ciclo, filtro, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta}} ctx
+   * @param {{dados, planta, ciclo, filtro, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx
    *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).
-   *   As etiquetas ficam nas mesmas posições da tela (os painéis continuam contando como obstáculo).
-   * @return {{grupos: Array}} grupos de etiquetas (para arrastar no modo edição)
+   *   paineis: false = sem o painel lateral, notas, legenda e itens extras (na tela eles ficam no menu
+   *   da esquerda) e a planta na largura toda; true (padrão) = slide completo, como no PNG.
+   * @return {{grupos: Array, tela: {w, h}, simbolos: Array}} grupos de etiquetas (para arrastar no modo
+   *   edição), tamanho do slide desenhado e símbolos usados na planta
    */
   function desenhar(svg, ctx) {
     marcas = ctx.dados.marcas;
     filtroMarca = ctx.filtro || '';
+    comPaineis = ctx.paineis !== false;
     gradientes = {};
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     const planta = ctx.planta;
@@ -4708,20 +4752,20 @@ const Render = (() => {
     //  - "simplificada": sem a planta, só as fichas, agrupadas por tipo de móvel (o slide cresce se precisar);
     //  - "planta" (padrão): etiquetas junto dos espaços, com a planta maior se faltar lugar.
     const simplificada = ctx.visao === 'simplificada';
-    const nSimbolos = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length;
+    const nSimbolos = comPaineis ? ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length : 0;
     const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide
     const fichas = simplificada ? montarFichas(moveis, info, infoEspaco, ctx.dados.config) : [];
     const rotulos = simplificada ? [] : montarRotulos(moveis, info, infoEspaco, ctx.dados.config);
     // Na visão simplificada, as notas vão estreitas embaixo do painel lateral (se couberem no slide de
     // 1080), e a primeira coluna desce até a legenda; senão, as notas largas, e a coluna para acima delas.
-    let medNotas = pain.NOTA.length ? medirNotas(pain.NOTA, !!fichas.length) : null;
+    let medNotas = comPaineis && pain.NOTA.length ? medirNotas(pain.NOTA, !!fichas.length) : null;
     if (medNotas && fichas.length && TELA_BASE.h - legendaAteOPe - 28 - medNotas.h < desenharLateral(null, planta, ctx.ciclo, pain) + 16) {
       medNotas = medirNotas(pain.NOTA, false);
     }
     const yNotas = (H) => Math.min(nSimbolos ? H - legendaAteOPe : H - 8, H - 8) - 28 - (medNotas ? medNotas.h : 0);
     const obstaculosPaineis = (W, H) => [].concat(
       medNotas ? [{ x: 15, y: yNotas(H), w: medNotas.w, h: medNotas.h }] : [],
-      extras.length ? [{ x: W - 16 - 206 * extras.length, y: H - 100, w: 206 * extras.length, h: 84 }] : [],
+      comPaineis && extras.length ? [{ x: W - 16 - 206 * extras.length, y: H - 100, w: 206 * extras.length, h: 84 }] : [],
     );
     const larguraLegenda = 58 + Math.max.apply(null, [0].concat(['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO']
       .filter((x) => simbolosUsados.has(x)).map((x) => largura((ctx.dados.simbolos[x] && ctx.dados.simbolos[x].descricao) || x, 19, 400))));
@@ -4741,8 +4785,8 @@ const Render = (() => {
       arranjo = arranjarNaPlanta(planta.loja, moveis, rotulos, { situarCallouts, obstaculos: obstaculosPaineis });
       limites = arranjo.limites;
     } else {
-      limites = LIMITES_BASE;
-      arranjo = { w: TELA_BASE.w, h: TELA_BASE.h, projecao: criarProjecao(planta.loja) };
+      limites = limitesDe(TELA_BASE.w, TELA_BASE.h);
+      arranjo = { w: TELA_BASE.w, h: TELA_BASE.h, projecao: criarProjecao(planta.loja, regiaoPlanta(TELA_BASE.w, TELA_BASE.h)) };
       arranjo.callouts = situarCallouts(arranjo.projecao.P);
     }
     TELA.w = arranjo.w;
@@ -4756,7 +4800,7 @@ const Render = (() => {
     el('feDropShadow', { dx: 0, dy: 1.2, stdDeviation: 1.3, 'flood-color': '#000', 'flood-opacity': 0.22 }, sombraEtq);
     if (!ctx.somentePlanta) el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
 
-    const projecao = arranjo.projecao || criarProjecao(planta.loja);
+    const projecao = arranjo.projecao || criarProjecao(planta.loja, regiaoPlanta(TELA.w, TELA.h));
     const { P } = projecao;
     const camadaPlanta = el('g', { class: 'camada-planta' }, svg);
     const camadaGuias = el('g', { class: 'camada-guias' }, svg);
@@ -4808,10 +4852,12 @@ const Render = (() => {
     }
 
     // Painéis (lateral, legenda, notas, extras e caixas de destaque).
-    desenharLateral(el('g', null, camadaSobre), planta, ctx.ciclo, pain);
-    const topoLegenda = desenharLegendaSimbolos(camadaSobre, simbolosUsados, ctx.dados.simbolos);
-    if (medNotas) desenharNotas(camadaSobre, medNotas, 15, Math.min(topoLegenda, TELA.h - 8) - 28 - medNotas.h);
-    desenharExtras(camadaSobre, extras, (m) => info[m.id]);
+    if (comPaineis) {
+      desenharLateral(el('g', null, camadaSobre), planta, ctx.ciclo, pain);
+      const topoLegenda = desenharLegendaSimbolos(camadaSobre, simbolosUsados, ctx.dados.simbolos);
+      if (medNotas) desenharNotas(camadaSobre, medNotas, 15, Math.min(topoLegenda, TELA.h - 8) - 28 - medNotas.h);
+      desenharExtras(camadaSobre, extras, (m) => info[m.id]);
+    }
 
     arranjo.callouts.forEach((c) => {
       if (c.alvo) {
@@ -4888,7 +4934,7 @@ const Render = (() => {
       }, svg);
     }
 
-    return { grupos, escala: projecao.escala, P };
+    return { grupos, escala: projecao.escala, P, tela: { w: TELA.w, h: TELA.h }, simbolos: Array.from(simbolosUsados) };
   }
 
   return { desenhar, espacos, caixasGondola, TELA, PRATELEIRAS, FONTE_ETQ };
@@ -6545,6 +6591,9 @@ const App = (() => {
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
     grupos: [],
     painelEspaco: false, // painel "Espaço por marca" aberto
+    painelLoja: false, // menu da esquerda (nome da ER, TV / rádio, A, C, notas, símbolos, itens extras) aberto
+    tela: { w: 1920, h: 1080 }, // tamanho do slide do último desenho (cresce em 16:9 quando as etiquetas pedem)
+    simbolos: [], // símbolos usados na planta (legenda do menu da esquerda)
     visao: 'planta', // etiquetas "Na planta" ou em fichas ("simplificada")
     zoom: { k: 1, x: 0, y: 0 }, // zoom da tela: fator e canto de cima à esquerda da área visível (unidades do slide)
   };
@@ -6854,6 +6903,8 @@ const App = (() => {
       ajustes: estado.ajustes,
       edicao: estado.edicao,
       visao: construcao ? 'planta' : estado.visao, // a construção é sempre sobre a planta
+      // Na tela, os painéis do slide ficam no menu da esquerda (na construção, no slide, como no PNG).
+      paineis: !!construcao,
       // No modo construção os móveis ficam sem cor e sem etiqueta (a menos que se peça para mostrar o ciclo).
       obterMovimento: (m) => (semConteudo ? null : movimentoDe(estado.ciclo, planta.id, m.id)),
       obterPaineis: () => {
@@ -6874,12 +6925,15 @@ const App = (() => {
     // Marcadores dos comentários abertos (só na validação e fora da construção).
     if (!Editor.contexto()) ctx.comentarios = Validacao.marcadores();
     const r = Render.desenhar(svg, ctx);
+    estado.tela = r.tela;
+    estado.simbolos = r.simbolos;
     destacarMovel('');
     Editor.aposDesenhar(r);
     estado.grupos = r.grupos;
     if (estado.edicao) ativarArraste();
     aplicarZoom();
     atualizarEspaco();
+    atualizarPainelLoja();
     Validacao.atualizar();
   }
 
@@ -6896,8 +6950,8 @@ const App = (() => {
     const z = estado.zoom;
     const ativo = !Editor.contexto();
     if (!ativo) Object.assign(z, { k: 1, x: 0, y: 0 });
-    const W = Render.TELA.w;
-    const H = Render.TELA.h;
+    const W = estado.tela.w;
+    const H = estado.tela.h;
     const w = W / z.k;
     const h = H / z.k;
     z.x = Math.max(0, Math.min(z.x, W - w));
@@ -6925,8 +6979,8 @@ const App = (() => {
     const z = estado.zoom;
     const novo = Math.max(1, Math.min(ZOOM_MAX, k));
     if (cx === undefined) {
-      cx = z.x + Render.TELA.w / z.k / 2;
-      cy = z.y + Render.TELA.h / z.k / 2;
+      cx = z.x + estado.tela.w / z.k / 2;
+      cy = z.y + estado.tela.h / z.k / 2;
     }
     z.x = cx - (cx - z.x) * (z.k / novo);
     z.y = cy - (cy - z.y) * (z.k / novo);
@@ -7331,6 +7385,101 @@ const App = (() => {
     novo('p', 'esp-nota', 'Metros lineares de frente: na gôndola, cada lado vale a largura e cada meio o comprimento; mesas, totem e móvel make dividem o comprimento entre as frentes, painéis e testeiras. Combinações de marcas (BOT+QDB) dividem o espaço igualmente. O móvel de atendimento e os itens fora da planta não contam.', corpo);
   }
 
+  /* ------------------- painel da ER (menu da esquerda) -------------------- */
+
+  const ICONES_LOJA = {
+    TV: '<svg class="lj-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="1.5"/><path d="M9 20.5h6M12 17v3.5"/></svg>',
+    RADIO: '<svg class="lj-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M5 8 17 3M3 12h18"/><circle cx="8" cy="16.5" r="2.3"/><path d="M13 15.5h5M13 18h5"/></svg>',
+  };
+  const GLIFOS_SIMBOLO = { MOVIMENTO: '▶', FIXO: '◆', EXPOSICAO: 'Ⓔ', NOVO: 'NEW' };
+
+  /** Cor de uma etiqueta do painel: a da marca (com uma marca no filtro, as outras em cinza, como no slide). */
+  function corEtiquetaPainel(marca) {
+    const fora = estado.filtro && String(marca || '').split('+').map((p) => p.trim()).indexOf(estado.filtro) < 0;
+    return fora ? '#8C8C8C' : corDaMarca(marca, 'etiqueta');
+  }
+
+  function chipsLoja(pai, itens) {
+    const box = novo('div', 'lj-chips', null, pai);
+    itens.forEach((it) => { novo('span', 'lj-chip', it.texto, box).style.background = corEtiquetaPainel(it.marca); });
+    return box;
+  }
+
+  /**
+   * Menu da esquerda: o que no PNG do slide fica no painel lateral e nos cantos de baixo — nome da ER,
+   * ciclo, TV / rádio, (A), (C), notas, legenda dos símbolos e itens fora da planta.
+   */
+  function atualizarPainelLoja() {
+    const painel = $('painelLoja');
+    if (!painel) return;
+    const planta = plantaAtual();
+    const aberto = estado.painelLoja && !!planta && !Editor.contexto();
+    painel.hidden = !aberto;
+    document.body.classList.toggle('com-painel-loja', aberto);
+    $('btnLoja').setAttribute('aria-pressed', String(!!estado.painelLoja));
+    if (!aberto) return;
+    $('lojaTitulo').textContent = planta.nome;
+    $('lojaSub').textContent = estado.ciclo ? 'Ciclo: ' + estado.ciclo : 'Sem ciclo escolhido';
+    const corpo = $('lojaCorpo');
+    corpo.innerHTML = '';
+    if (!estado.ciclo) {
+      novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver os painéis da ER.', corpo);
+      return;
+    }
+    const pain = paineisDe(estado.ciclo, planta.id);
+    const secao = (titulo) => {
+      const sec = novo('section', 'lj-secao', null, corpo);
+      const h = novo('h3', null, null, sec);
+      if (titulo) novo('span', null, titulo, h);
+      return { sec, h };
+    };
+    if (pain.TV.length) {
+      const s = secao('TV e rádio');
+      s.h.insertAdjacentHTML('afterbegin', ICONES_LOJA.TV + ICONES_LOJA.RADIO);
+      chipsLoja(s.sec, pain.TV);
+    }
+    ['A', 'C'].forEach((letra) => {
+      if (!pain[letra].length) return;
+      const s = secao('');
+      novo('span', 'lj-letra', letra, s.h);
+      chipsLoja(s.sec, pain[letra]);
+    });
+    if (pain.NOTA.length) {
+      const s = secao('Notas');
+      pain.NOTA.forEach((n) => {
+        const p = novo('p', 'lj-nota', null, s.sec);
+        const i = n.texto.indexOf(':');
+        if (i > 0 && i < 60) {
+          novo('strong', null, n.texto.slice(0, i + 1), p);
+          p.appendChild(document.createTextNode(n.texto.slice(i + 1)));
+        } else {
+          p.textContent = n.texto;
+        }
+      });
+    }
+    const usados = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => estado.simbolos.indexOf(x) >= 0);
+    if (usados.length) {
+      const ul = novo('ul', 'lj-simbolos', null, secao('Símbolos').sec);
+      usados.forEach((x) => {
+        const li = novo('li', null, null, ul);
+        novo('span', 'lj-simbolo', GLIFOS_SIMBOLO[x], li);
+        novo('span', null, (estado.dados.simbolos[x] && estado.dados.simbolos[x].descricao) || x, li);
+      });
+    }
+    const extras = planta.moveis.filter((m) => m.tipo === 'EXTRA');
+    if (extras.length) {
+      const sec = secao('Fora da planta').sec;
+      extras.forEach((m) => {
+        const bloco = novo('div', 'lj-extra', null, sec);
+        novo('span', 'lj-extra-nome', m.descricao || m.id, bloco);
+        const info = movimentoDe(estado.ciclo, planta.id, m.id);
+        const etiquetas = info && info.etiquetas.length ? info.etiquetas.slice(0, 3) : [];
+        if (!etiquetas.length) novo('span', 'mv-vazio', '—', bloco);
+        else chipsLoja(bloco, etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || (info.marca !== 'NEUTRO' ? info.marca : '') })));
+      });
+    }
+  }
+
   /* ------------------------- estratégia do móvel -------------------------- */
 
   function novo(tag, classe, conteudo, pai) {
@@ -7709,35 +7858,34 @@ const App = (() => {
   }
 
   /**
-   * SVG a exportar. "slide": o slide da tela inteiro. "planta": só a loja, os móveis e as
-   * etiquetas (sem painéis), sem fundo e recortada no conteúdo — com as mesmas cores da tela
-   * (inclusive o filtro de marca).
+   * SVG a exportar, desenhado à parte (sem o zoom e sem os marcadores da validação). "slide": o slide
+   * inteiro, com os painéis (nome da ER, TV / rádio, A, C, notas, legenda e itens extras), que na tela
+   * ficam no menu da esquerda. "planta": só a loja, os móveis e as etiquetas, sem fundo e recortada no
+   * conteúdo. Os dois com as mesmas cores da tela (inclusive o filtro de marca) e na visão da tela.
    */
   function svgParaPng(modo) {
-    if (modo !== 'planta') {
-      // O PNG sai sempre com o slide inteiro, sem o zoom da tela.
-      const clone = svg.cloneNode(true);
-      clone.setAttribute('viewBox', '0 0 ' + Render.TELA.w + ' ' + Render.TELA.h);
-      clone.querySelectorAll('.etq-zoom').forEach((g) => g.removeAttribute('transform'));
-      clone.querySelectorAll('.camada-comentarios').forEach((g) => g.remove()); // marcadores da validação não vão no PNG
-      return { clone, caixa: { x: 0, y: 0, w: Render.TELA.w, h: Render.TELA.h } };
-    }
     const ns = 'http://www.w3.org/2000/svg';
     const temp = document.createElementNS(ns, 'svg');
     // Fora da tela, mas renderizado (getBBox não funciona com display: none).
-    temp.setAttribute('style', 'position:absolute;left:-10000px;top:0;width:' + Render.TELA.w + 'px;height:' + Render.TELA.h + 'px;visibility:hidden');
+    temp.setAttribute('style', 'position:absolute;left:-10000px;top:0;width:' + estado.tela.w + 'px;height:' + estado.tela.h + 'px;visibility:hidden');
     document.body.appendChild(temp);
     try {
-      Render.desenhar(temp, Object.assign(contextoDesenho(), { somentePlanta: true, edicao: false, selecionado: '', grade: false, referencia: null }));
-      const bb = temp.getBBox();
-      const m = 12;
-      const x = Math.max(0, Math.floor(bb.x - m));
-      const y = Math.max(0, Math.floor(bb.y - m));
-      const caixa = {
-        x, y,
-        w: Math.min(Render.TELA.w, Math.ceil(bb.x + bb.width + m)) - x,
-        h: Math.min(Render.TELA.h, Math.ceil(bb.y + bb.height + m)) - y,
-      };
+      const soPlanta = modo === 'planta';
+      const r = Render.desenhar(temp, Object.assign(contextoDesenho(), {
+        somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null,
+      }));
+      let caixa = { x: 0, y: 0, w: r.tela.w, h: r.tela.h };
+      if (soPlanta) {
+        const bb = temp.getBBox();
+        const m = 12;
+        const x = Math.max(0, Math.floor(bb.x - m));
+        const y = Math.max(0, Math.floor(bb.y - m));
+        caixa = {
+          x, y,
+          w: Math.min(r.tela.w, Math.ceil(bb.x + bb.width + m)) - x,
+          h: Math.min(r.tela.h, Math.ceil(bb.y + bb.height + m)) - y,
+        };
+      }
       const clone = temp.cloneNode(true);
       clone.removeAttribute('style');
       clone.setAttribute('viewBox', [caixa.x, caixa.y, caixa.w, caixa.h].join(' '));
@@ -7849,6 +7997,12 @@ const App = (() => {
       atualizarEspaco();
     });
     ao('espFechar', 'click', () => $('btnEspaco').click());
+    ao('btnLoja', 'click', () => {
+      estado.painelLoja = !estado.painelLoja;
+      memoria.gravar('painelLoja', estado.painelLoja ? '1' : '0');
+      atualizarPainelLoja();
+    });
+    ao('lojaFechar', 'click', () => $('btnLoja').click());
     ao('zoomMais', 'click', () => zoomPara(estado.zoom.k * 1.5));
     ao('zoomMenos', 'click', () => zoomPara(estado.zoom.k / 1.5));
     ao('zoomNivel', 'click', () => zoomPara(1));
@@ -7892,6 +8046,9 @@ const App = (() => {
   marcarVisao();
   document.querySelectorAll('#abasVisao .aba').forEach((b) => b.addEventListener('click', () => trocarVisao(b.dataset.visao)));
   // Painel de espaço: lembra a última escolha; na primeira vez, abre em telas largas.
+  // Menu da esquerda (painel da ER): lembra a última escolha; na primeira vez, abre em telas largas.
+  const prefLoja = memoria.ler('painelLoja');
+  estado.painelLoja = prefLoja ? prefLoja === '1' : window.innerWidth >= 1200;
   const prefEspaco = memoria.ler('painelEspaco');
   estado.painelEspaco = prefEspaco ? prefEspaco === '1' : window.innerWidth >= 1200;
   ligarEventos();
