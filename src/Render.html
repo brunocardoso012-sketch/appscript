@@ -1936,7 +1936,8 @@ const Render = (() => {
     // Só a planta: tira os painéis (lateral, notas, legenda, extras e caixas de destaque).
     if (ctx.somentePlanta) {
       camadaSobre.remove();
-      svg.querySelectorAll('.callout, .guia-callout').forEach((n) => n.remove());
+      // Na visão simplificada as caixas de destaque fazem parte do quadro (grupo "Destaques"): ficam.
+      if (!semPlanta) svg.querySelectorAll('.callout, .guia-callout').forEach((n) => n.remove());
     }
 
     // Imagem de referência (modo construção): por cima de tudo, semitransparente.

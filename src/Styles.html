@@ -401,6 +401,8 @@
   .dialogo .sub { margin: 0 0 16px; color: var(--texto-2); font-size: 13px; }
   .dialogo input[type="text"], .dialogo select { width: 100%; }
   .opcao { display: flex; align-items: center; gap: 8px; color: var(--texto); font-size: 13px; padding: 3px 0; cursor: pointer; }
+  .opcao small { color: var(--texto-2); font-size: 12px; }
+  .opcao:has(input:disabled) { opacity: .5; cursor: default; }
   .rodape-dialogo { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
   /* estratégia do móvel (clique no móvel): ocupa a tela inteira */
   .tela-movel {

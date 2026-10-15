@@ -330,8 +330,14 @@
         <p class="sub">Imagem em alta resolução da planta selecionada.</p>
         <fieldset class="campo bloco">
           <legend>Conteúdo</legend>
-          <label class="opcao"><input type="radio" name="pngModo" value="slide" checked> <span>Slide completo (com painéis, notas e fundo)</span></label>
-          <label class="opcao"><input type="radio" name="pngModo" value="planta"> <span>Só a planta com as etiquetas (sem painéis e sem fundo)</span></label>
+          <label class="opcao"><input type="radio" name="pngConteudo" value="planta" checked> <span>Planta <small>— a loja com as etiquetas junto de cada espaço</small></span></label>
+          <label class="opcao"><input type="radio" name="pngConteudo" value="simplificada"> <span>Visão simplificada <small>— as fichas dos móveis, por tipo</small></span></label>
+          <label class="opcao"><input type="radio" name="pngConteudo" value="estrategia"> <span>Estratégia <small>— o espaço por marca, os movimentos e as classificações em gráficos</small></span></label>
+        </fieldset>
+        <fieldset class="campo bloco">
+          <legend>Formato</legend>
+          <label class="opcao"><input type="radio" name="pngFormato" value="png" checked> <span>PNG <small id="pngFormatoPng">— só o conteúdo, recortado e com fundo transparente</small></span></label>
+          <label class="opcao"><input type="radio" name="pngFormato" value="slide"> <span>Slide completo <small id="pngFormatoSlide">— 16:9 (3840 px), com fundo, painéis e notas, pronto para a apresentação</small></span></label>
         </fieldset>
         <p class="sub" id="pngFiltroTexto" hidden></p>
         <div class="rodape-dialogo">
@@ -401,6 +407,7 @@
     <?!= include('Construtor'); ?>
     <!-- /so-app-completo -->
     <?!= include('Validacao'); ?>
+    <?!= include('Estrategia'); ?>
     <?!= include('App'); ?>
   </body>
 </html>

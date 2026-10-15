@@ -1462,6 +1462,15 @@ const App = (() => {
   function abrirDialogoPng() {
     if (!plantaAtual()) return;
     const dlg = $('dlgPng');
+    // Conteúdo: começa na visão da tela; a estratégia precisa de um ciclo.
+    const estr = dlg.querySelector('input[name="pngConteudo"][value="estrategia"]');
+    estr.disabled = !estado.ciclo;
+    estr.closest('label').title = estado.ciclo ? '' : 'Escolha um ciclo para baixar a estratégia';
+    const atual = dlg.querySelector('input[name="pngConteudo"]:checked');
+    if (!atual || atual.disabled || atual.value !== 'estrategia') {
+      dlg.querySelector('input[name="pngConteudo"][value="' + (estado.visao === 'simplificada' ? 'simplificada' : 'planta') + '"]').checked = true;
+    }
+    atualizarDialogoPng();
     const marca = estado.filtro && estado.dados.marcas[estado.filtro];
     $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.'
       : estado.filtroEtiqueta ? 'Só os espaços com a etiqueta ' + estado.filtroEtiqueta + ' ficam coloridos, como na tela.'
@@ -1471,13 +1480,70 @@ const App = (() => {
     dlg.showModal();
   }
 
+  /** Textos do formato conforme o conteúdo (a estratégia não tem painéis nem notas da ER). */
+  function atualizarDialogoPng() {
+    const dlg = $('dlgPng');
+    const conteudo = dlg.querySelector('input[name="pngConteudo"]:checked').value;
+    const estrategia = conteudo === 'estrategia';
+    $('pngFormatoPng').textContent = estrategia ? '— só os gráficos, recortados e com fundo transparente'
+      : '— só o conteúdo, recortado e com fundo transparente';
+    $('pngFormatoSlide').textContent = estrategia ? '— 16:9 (3840 px), com título e fundo, pronto para a apresentação'
+      : '— 16:9 (3840 px), com fundo, painéis e notas, pronto para a apresentação';
+    // O filtro da tela vale para a planta e a visão simplificada; a estratégia mostra o ciclo inteiro.
+    $('pngFiltroTexto').hidden = estrategia || !$('pngFiltroTexto').textContent;
+  }
+
+  /**
+   * Dados do slide da estratégia (o mesmo que o painel "Espaço por marca" mostra), já com nomes,
+   * cores e formatos, para o Estrategia.desenhar. Não usa os filtros da tela: é o ciclo inteiro na ER.
+   */
+  function dadosEstrategia(planta, ciclo) {
+    const r = resumoDeEspaco(partesDeEspaco(planta, ciclo));
+    const marcas = ordemDasMarcas().filter((c) => r.porMarca[c]);
+    const grupos = Object.values(r.porEtiqueta).sort((a, b) => b.espacos - a.espacos || a.texto.localeCompare(b.texto, 'pt-BR'));
+    const gmvDe = (g) => (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0);
+    const gmvTotal = grupos.reduce((s, g) => s + gmvDe(g), 0);
+    const classes = ordemDasClassificacoes(Object.keys(r.porClassificacao));
+    return {
+      er: planta.nome,
+      ciclo,
+      total: r.total,
+      moveis: r.moveis.size,
+      gmvTotal,
+      marcas: marcas.map((c) => ({ nome: nomeMarcaPainel(c), cor: corMarcaPainel(c), valor: r.porMarca[c] })),
+      movimentos: grupos.map((g) => ({
+        texto: g.texto,
+        espacos: g.espacos,
+        gmv: gmvDe(g),
+        classificacao: g.classificacao === SEM_CLASSIFICACAO ? null : { nome: nomeClassificacao(g.classificacao), cor: corClassificacao(g.classificacao) },
+        marcas: marcas.filter((c) => g.marcas[c]).map((c) => ({ cor: corMarcaPainel(c), valor: g.marcas[c] })),
+      })),
+      movimentosOcultos: 0,
+      classificacoes: classes.map((c) => {
+        const doTipo = grupos.filter((g) => g.classificacao === c);
+        return {
+          nome: nomeClassificacao(c), cor: corClassificacao(c), sem: c === SEM_CLASSIFICACAO,
+          espacos: r.porClassificacao[c] || 0, movimentos: doTipo.length, gmv: doTipo.reduce((s, g) => s + gmvDe(g), 0),
+        };
+      }),
+      nota: 'Espaços: na gôndola, cada lado e cada meio; mesas e totem, cada frente e painel; os demais móveis, um espaço. '
+        + 'Móvel de atendimento, itens fora da planta, móveis de parede e móvel make não contam. GMV esperado: o do movimento no ciclo (aba Tipos de movimento).',
+      fmt: {
+        espacos: qtdEspacos,
+        pct: porcento,
+        gmvCurto,
+        gmvCompleto: (v) => formatoGmvCompleto.format(v),
+      },
+    };
+  }
+
   /**
    * SVG a exportar, desenhado à parte (sem o zoom e sem os marcadores da validação). "slide": o slide
    * inteiro, com os painéis (nome da ER, TV / rádio, A, C, notas, legenda e itens extras), que na tela
    * ficam no menu da esquerda. "planta": só a loja, os móveis e as etiquetas, sem fundo e recortada no
    * conteúdo. Os dois com as mesmas cores da tela (inclusive o filtro de marca) e na visão da tela.
    */
-  function svgParaPng(modo) {
+  function svgParaPng(modo, conteudo) {
     const ns = 'http://www.w3.org/2000/svg';
     const temp = document.createElementNS(ns, 'svg');
     // Fora da tela, mas renderizado (getBBox não funciona com display: none).
@@ -1485,9 +1551,12 @@ const App = (() => {
     document.body.appendChild(temp);
     try {
       const soPlanta = modo === 'planta';
-      const r = Render.desenhar(temp, Object.assign(contextoDesenho(), {
-        somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null,
-      }));
+      const r = conteudo === 'estrategia'
+        ? { tela: Estrategia.desenhar(temp, dadosEstrategia(plantaAtual(), estado.ciclo), { recorte: soPlanta }) }
+        : Render.desenhar(temp, Object.assign(contextoDesenho(), {
+          somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null,
+          visao: conteudo === 'simplificada' ? 'simplificada' : 'planta',
+        }));
       let caixa = { x: 0, y: 0, w: r.tela.w, h: r.tela.h };
       if (soPlanta) {
         const bb = temp.getBBox();
@@ -1549,10 +1618,12 @@ const App = (() => {
     if (dlg.returnValue !== 'baixar') return;
     const planta = plantaAtual();
     if (!planta) return;
-    const modo = dlg.querySelector('input[name="pngModo"]:checked').value;
+    const conteudo = dlg.querySelector('input[name="pngConteudo"]:checked').value;
+    // "png": só o conteúdo, recortado e sem fundo; "slide": o slide 16:9 completo.
+    const modo = dlg.querySelector('input[name="pngFormato"]:checked').value === 'png' ? 'planta' : 'slide';
     carregando(true, 'Gerando imagem…');
     try {
-      const { clone, caixa } = svgParaPng(modo);
+      const { clone, caixa } = svgParaPng(modo, conteudo);
       clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
       clone.setAttribute('width', caixa.w);
       clone.setAttribute('height', caixa.h);
@@ -1577,7 +1648,9 @@ const App = (() => {
       ctx.drawImage(img, 0, 0, caixa.w, caixa.h);
       const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/png'));
       const marca = estado.filtro && estado.dados.marcas[estado.filtro];
-      const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', estado.visao === 'simplificada' ? 'visao simplificada' : '', marca ? marca.nome : ''].filter(Boolean);
+      const estrategia = conteudo === 'estrategia';
+      const partes = [planta.nome, estado.ciclo, estrategia ? 'estrategia' : conteudo === 'simplificada' ? 'visao simplificada' : 'planta',
+        modo === 'slide' ? 'slide' : '', !estrategia && marca ? marca.nome : ''].filter(Boolean);
       const nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + '.png';
       baixarArquivo(blob, nome);
     } catch (e) {
@@ -1603,6 +1676,7 @@ const App = (() => {
     ao('arquivo', 'change', (e) => importar(e.target.files[0]));
     ao('btnPng', 'click', () => estado.dados && abrirDialogoPng());
     ao('dlgPng', 'close', baixarPng);
+    ao('dlgPng', 'change', atualizarDialogoPng);
     ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
     ao('btnEspaco', 'click', () => {
       estado.painelEspaco = !estado.painelEspaco;

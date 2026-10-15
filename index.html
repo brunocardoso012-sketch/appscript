@@ -411,6 +411,8 @@
   .dialogo .sub { margin: 0 0 16px; color: var(--texto-2); font-size: 13px; }
   .dialogo input[type="text"], .dialogo select { width: 100%; }
   .opcao { display: flex; align-items: center; gap: 8px; color: var(--texto); font-size: 13px; padding: 3px 0; cursor: pointer; }
+  .opcao small { color: var(--texto-2); font-size: 12px; }
+  .opcao:has(input:disabled) { opacity: .5; cursor: default; }
   .rodape-dialogo { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
   /* estratégia do móvel (clique no móvel): ocupa a tela inteira */
   .tela-movel {
@@ -3303,8 +3305,14 @@ function executarComentario_(ss, acesso, pedido) {
         <p class="sub">Imagem em alta resolução da planta selecionada.</p>
         <fieldset class="campo bloco">
           <legend>Conteúdo</legend>
-          <label class="opcao"><input type="radio" name="pngModo" value="slide" checked> <span>Slide completo (com painéis, notas e fundo)</span></label>
-          <label class="opcao"><input type="radio" name="pngModo" value="planta"> <span>Só a planta com as etiquetas (sem painéis e sem fundo)</span></label>
+          <label class="opcao"><input type="radio" name="pngConteudo" value="planta" checked> <span>Planta <small>— a loja com as etiquetas junto de cada espaço</small></span></label>
+          <label class="opcao"><input type="radio" name="pngConteudo" value="simplificada"> <span>Visão simplificada <small>— as fichas dos móveis, por tipo</small></span></label>
+          <label class="opcao"><input type="radio" name="pngConteudo" value="estrategia"> <span>Estratégia <small>— o espaço por marca, os movimentos e as classificações em gráficos</small></span></label>
+        </fieldset>
+        <fieldset class="campo bloco">
+          <legend>Formato</legend>
+          <label class="opcao"><input type="radio" name="pngFormato" value="png" checked> <span>PNG <small id="pngFormatoPng">— só o conteúdo, recortado e com fundo transparente</small></span></label>
+          <label class="opcao"><input type="radio" name="pngFormato" value="slide"> <span>Slide completo <small id="pngFormatoSlide">— 16:9 (3840 px), com fundo, painéis e notas, pronto para a apresentação</small></span></label>
         </fieldset>
         <p class="sub" id="pngFiltroTexto" hidden></p>
         <div class="rodape-dialogo">
@@ -5306,7 +5314,8 @@ const Render = (() => {
     // Só a planta: tira os painéis (lateral, notas, legenda, extras e caixas de destaque).
     if (ctx.somentePlanta) {
       camadaSobre.remove();
-      svg.querySelectorAll('.callout, .guia-callout').forEach((n) => n.remove());
+      // Na visão simplificada as caixas de destaque fazem parte do quadro (grupo "Destaques"): ficam.
+      if (!semPlanta) svg.querySelectorAll('.callout, .guia-callout').forEach((n) => n.remove());
     }
 
     // Imagem de referência (modo construção): por cima de tudo, semitransparente.
@@ -7036,6 +7045,306 @@ const Validacao = (() => {
     <script>
 /**
  * ============================================================================
+ *  SLIDE DA ESTRATÉGIA (PNG): o painel "Espaço por marca" em gráficos, 16:9
+ * ============================================================================
+ *  Estrategia.desenhar(svg, dados, { recorte }) monta, num SVG de 1920×1080, um compilado do painel:
+ *   - números principais (espaços, móveis, movimentos e GMV esperado);
+ *   - Por marca: barra 100% com a divisão dos espaços e uma linha por marca;
+ *   - Por movimentos: uma barra por movimento (empilhada pelas marcas), com o selo da classificação
+ *     e o GMV esperado;
+ *   - Por classificação: espaços e GMV esperado de cada uma (duas barras, cada uma na sua escala).
+ *  recorte: sem o fundo e sem o título do slide (só os cartões), para recortar no conteúdo.
+ *  Os dados vêm prontos da aplicação (App.dadosEstrategia); aqui só o desenho. Todo o estilo vai em
+ *  atributos SVG, para o PNG sair igual.
+ */
+const Estrategia = (() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const FONTE = 'Arial, Helvetica, sans-serif';
+  const FONTE_ETQ = "Nunito, 'Segoe UI', Arial, sans-serif";
+  const W = 1920;
+  const H = 1080;
+  const M = 64; // margem do slide
+  const COR = {
+    fundo: '#F3EFEA', cartao: '#FFFFFF', borda: '#E4DED6',
+    tinta: '#1C1F24', tinta2: '#5B6068', tinta3: '#8A8F97', trilho: '#EEEAE4',
+  };
+
+  function el(tag, attrs, pai) {
+    const e = document.createElementNS(NS, tag);
+    Object.keys(attrs || {}).forEach((k) => { if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]); });
+    if (pai) pai.appendChild(e);
+    return e;
+  }
+
+  function texto(pai, x, y, conteudo, attrs) {
+    const t = el('text', Object.assign({ x, y, 'font-family': FONTE, fill: COR.tinta }, attrs), pai);
+    t.textContent = conteudo;
+    return t;
+  }
+
+  const medidor = document.createElement('canvas').getContext('2d');
+  function largura(txt, tam, peso, fonte) {
+    medidor.font = (peso || 400) + ' ' + tam + 'px ' + (fonte || FONTE);
+    return medidor.measureText(txt).width;
+  }
+
+  /** Corta o texto com "…" para caber em maxW. */
+  function caber(txt, maxW, tam, peso, fonte) {
+    let t = String(txt);
+    if (largura(t, tam, peso, fonte) <= maxW) return t;
+    while (t.length > 1 && largura(t + '…', tam, peso, fonte) > maxW) t = t.slice(0, -1);
+    return t.trim() + '…';
+  }
+
+  /** Barra com as pontas de dados arredondadas (4px) e a base reta, na horizontal. */
+  function barra(pai, x, y, w, h, cor, arredondar) {
+    if (w <= 0) return null;
+    const r = arredondar ? Math.min(4, w / 2, h / 2) : 0;
+    const d = 'M' + x + ',' + y + 'h' + (w - r) + (r ? 'a' + r + ',' + r + ' 0 0 1 ' + r + ',' + r : '') +
+      'v' + (h - 2 * r) + (r ? 'a' + r + ',' + r + ' 0 0 1 ' + -r + ',' + r : '') + 'h' + -(w - r) + 'z';
+    return el('path', { d, fill: cor }, pai);
+  }
+
+  /**
+   * Segmentos empilhados (na ordem dada), com 2px de vão da cor do fundo entre eles; só a última
+   * ponta é arredondada. @return largura total desenhada
+   */
+  function pilha(pai, x, y, w, h, partes) {
+    const total = partes.reduce((s, p) => s + p.valor, 0);
+    if (!total || w <= 0) return 0;
+    const vao = 2;
+    const visiveis = partes.filter((p) => p.valor > 0);
+    const util = w - vao * (visiveis.length - 1);
+    let cx = x;
+    visiveis.forEach((p, i) => {
+      const pw = Math.max(1, (p.valor / total) * util);
+      barra(pai, cx, y, pw, h, p.cor, i === visiveis.length - 1);
+      cx += pw + vao;
+    });
+    return w;
+  }
+
+  function cartao(pai, x, y, w, h, titulo, nota) {
+    const g = el('g', null, pai);
+    el('rect', { x, y, width: w, height: h, rx: 16, fill: COR.cartao, stroke: COR.borda, 'stroke-width': 1.5 }, g);
+    texto(g, x + 28, y + 44, titulo.toUpperCase(), { 'font-size': 17, 'font-weight': 700, fill: COR.tinta2, 'letter-spacing': 1.2 });
+    if (nota) texto(g, x + w - 28, y + 44, nota, { 'font-size': 15, fill: COR.tinta3, 'text-anchor': 'end' });
+    return g;
+  }
+
+  /** Selo da classificação (pílula colorida com texto branco). @return largura */
+  function selo(pai, x, y, rotulo, cor, tam) {
+    const fs = tam || 14;
+    const w = largura(rotulo, fs, 800, FONTE_ETQ) + 18;
+    const h = fs + 9;
+    el('rect', { x, y: y - h / 2, width: w, height: h, rx: h / 2, fill: cor }, pai);
+    texto(pai, x + w / 2, y + fs * 0.36, rotulo, {
+      'font-family': FONTE_ETQ, 'font-size': fs, 'font-weight': 800, fill: '#FFFFFF', 'text-anchor': 'middle',
+    });
+    return w;
+  }
+
+  function seloVazio(pai, x, y, rotulo, tam) {
+    const fs = tam || 14;
+    const w = largura(rotulo, fs, 700, FONTE) + 18;
+    const h = fs + 9;
+    el('rect', { x, y: y - h / 2, width: w, height: h, rx: h / 2, fill: 'none', stroke: '#C9C4BC', 'stroke-dasharray': '4 3' }, pai);
+    texto(pai, x + w / 2, y + fs * 0.36, rotulo, { 'font-size': fs, 'font-weight': 700, fill: COR.tinta3, 'text-anchor': 'middle' });
+    return w;
+  }
+
+  /* ------------------------------ seções ------------------------------- */
+
+  function numeros(pai, x, y, w, d) {
+    const itens = [
+      [String(d.total), 'espaços na ER'],
+      [String(d.moveis), 'móveis'],
+      [String(d.movimentos.length + d.movimentosOcultos), 'movimentos'],
+      [d.gmvTotal ? d.fmt.gmvCurto(d.gmvTotal) : '—', 'GMV esperado dos movimentos'],
+    ];
+    const vao = 24;
+    const tw = (w - vao * (itens.length - 1)) / itens.length;
+    itens.forEach(([v, rot], i) => {
+      const tx = x + i * (tw + vao);
+      el('rect', { x: tx, y, width: tw, height: 112, rx: 16, fill: COR.cartao, stroke: COR.borda, 'stroke-width': 1.5 }, pai);
+      texto(pai, tx + 28, y + 64, v, { 'font-size': 46, 'font-weight': 700 });
+      texto(pai, tx + 28, y + 94, rot, { 'font-size': 18, fill: COR.tinta2 });
+    });
+    return 112;
+  }
+
+  function porMarca(pai, x, y, w, d) {
+    const linhas = d.marcas;
+    const rowH = 34;
+    const h = 72 + 26 + 22 + linhas.length * rowH + 14;
+    const g = cartao(pai, x, y, w, h, 'Por marca', d.fmt.espacos(d.total));
+    const ix = x + 28;
+    const iw = w - 56;
+    // Barra 100%: como os espaços da ER se dividem entre as marcas.
+    pilha(g, ix, y + 72, iw, 26, linhas.map((m) => ({ valor: m.valor, cor: m.cor })));
+    let ly = y + 72 + 26 + 22;
+    const colNome = ix + 26;
+    const colValor = ix + iw * 0.44; // fim do texto "12 espaços"
+    const colPct = ix + iw * 0.54; // fim do "35%"
+    const barraX = ix + iw * 0.58;
+    const barraW = iw * 0.42;
+    linhas.forEach((m) => {
+      const cy = ly + rowH / 2;
+      el('rect', { x: ix, y: cy - 8, width: 16, height: 16, rx: 4, fill: m.cor }, g);
+      texto(g, colNome, cy + 6, caber(m.nome, colValor - colNome - 120, 19, 600), { 'font-size': 19, 'font-weight': 600 });
+      texto(g, colValor, cy + 6, d.fmt.espacos(m.valor), { 'font-size': 18, fill: COR.tinta, 'text-anchor': 'end' });
+      texto(g, colPct, cy + 6, d.fmt.pct(m.valor, d.total), { 'font-size': 18, fill: COR.tinta2, 'text-anchor': 'end', 'font-weight': 700 });
+      el('rect', { x: barraX, y: cy - 6, width: barraW, height: 12, rx: 4, fill: COR.trilho }, g);
+      barra(g, barraX, cy - 6, d.total ? (m.valor / d.total) * barraW : 0, 12, m.cor, true);
+      ly += rowH;
+    });
+    return h;
+  }
+
+  function porClassificacao(pai, x, y, w, hMax, d) {
+    const lista = d.classificacoes;
+    if (!lista.length) return 0;
+    const topo = 92;
+    const rowH = Math.max(26, Math.min(52, (hMax - topo - 14) / lista.length));
+    const h = Math.min(hMax, topo + lista.length * rowH + 14);
+    const g = cartao(pai, x, y, w, h, 'Por classificação', d.gmvTotal ? 'GMV esperado: ' + d.fmt.gmvCompleto(d.gmvTotal) : '');
+    const ix = x + 28;
+    const iw = w - 56;
+    const colNome = ix;
+    const nomeW = iw * 0.38;
+    const b1x = ix + nomeW + 12;
+    const bw = (iw - nomeW - 12 - 40) / 2;
+    const b2x = b1x + bw + 40;
+    texto(g, b1x, y + 80, 'Espaços (% da ER)', { 'font-size': 15, fill: COR.tinta3 });
+    texto(g, b2x, y + 80, 'GMV esperado (% do total)', { 'font-size': 15, fill: COR.tinta3 });
+    const maiorEsp = Math.max.apply(null, lista.map((c) => c.espacos).concat([1]));
+    const maiorGmv = Math.max.apply(null, lista.map((c) => c.gmv).concat([1]));
+    let ly = y + topo;
+    lista.forEach((c) => {
+      const cy = ly + rowH / 2;
+      // Selo da classificação e, ao lado, quantos movimentos ela tem.
+      const fs = rowH >= 34 ? 14 : 12;
+      const sw = c.sem ? seloVazio(g, colNome, cy, c.nome, fs) : selo(g, colNome, cy, caber(c.nome, nomeW - 110, fs, 800, FONTE_ETQ), c.cor, fs);
+      texto(g, colNome + sw + 8, cy + 5, String(c.movimentos) + ' mov.', { 'font-size': 14, fill: COR.tinta2 });
+      // Espaços (escala própria) e GMV (escala própria): duas barras, nunca dois eixos no mesmo gráfico.
+      const e = (c.espacos / maiorEsp) * (bw - 120);
+      barra(g, b1x, cy - 7, e, 14, c.cor, true);
+      texto(g, b1x + e + 8, cy + 6, d.fmt.espacos(c.espacos) + ' · ' + d.fmt.pct(c.espacos, d.total), { 'font-size': 16 });
+      if (c.sem) {
+        texto(g, b2x, cy + 6, '—', { 'font-size': 16, fill: COR.tinta3 });
+      } else if (c.gmv) {
+        const gw = (c.gmv / maiorGmv) * (bw - 120);
+        barra(g, b2x, cy - 7, gw, 14, c.cor, true);
+        texto(g, b2x + gw + 8, cy + 6, d.fmt.gmvCurto(c.gmv) + ' · ' + d.fmt.pct(c.gmv, d.gmvTotal), { 'font-size': 16 });
+      } else {
+        texto(g, b2x, cy + 6, 'não informado', { 'font-size': 15, fill: COR.tinta3 });
+      }
+      ly += rowH;
+    });
+    return h;
+  }
+
+  function porMovimentos(pai, x, y, w, h, d) {
+    const g = cartao(pai, x, y, w, h, 'Por movimentos', 'espaços (barra pelas marcas)' + (d.gmvTotal ? ' · GMV esperado' : ''));
+    const ix = x + 28;
+    const iw = w - 56;
+    const topo = 72;
+    const disponivel = h - topo - 44; // embaixo fica a legenda das marcas
+    let lista = d.movimentos;
+    let resto = null;
+    const minH = 34;
+    if (lista.length * minH > disponivel) {
+      const cabem = Math.max(1, Math.floor(disponivel / minH) - 1);
+      const fora = lista.slice(cabem);
+      resto = { n: fora.length + d.movimentosOcultos, espacos: fora.reduce((s, m) => s + m.espacos, 0) };
+      lista = lista.slice(0, cabem);
+    } else if (d.movimentosOcultos) {
+      resto = { n: d.movimentosOcultos, espacos: 0 };
+    }
+    const n = lista.length + (resto ? 1 : 0);
+    const rowH = Math.max(minH, Math.min(58, disponivel / Math.max(1, n)));
+    const grande = rowH >= 50; // linhas altas: selo embaixo do nome; baixas: na mesma linha
+    const nomeW = iw * 0.38;
+    const barX = ix + nomeW + 16;
+    const valorW = 100; // "5 espaços"
+    const gmvW = d.gmvTotal ? 92 : 0; // "R$ 1,8 mi"
+    const barW = iw - nomeW - 16 - valorW - gmvW - 12;
+    const maior = Math.max.apply(null, lista.map((m) => m.espacos).concat([1]));
+    let ly = y + topo;
+    lista.forEach((m) => {
+      const cy = ly + rowH / 2;
+      const fs = rowH >= 42 ? 18 : 16;
+      if (grande) {
+        texto(g, ix, cy - 4, caber(m.texto, nomeW, fs, 700), { 'font-size': fs, 'font-weight': 700 });
+        let sx = ix;
+        if (m.classificacao) selo(g, sx, cy + 15, caber(m.classificacao.nome, nomeW * 0.6, 12, 800, FONTE_ETQ), m.classificacao.cor, 12);
+        else seloVazio(g, sx, cy + 15, 'Sem classificação', 12);
+      } else {
+        const seloW = m.classificacao ? largura(m.classificacao.nome, 11, 800, FONTE_ETQ) + 18 : 0;
+        texto(g, ix, cy + 6, caber(m.texto, nomeW - seloW - 10, fs, 700), { 'font-size': fs, 'font-weight': 700 });
+        if (m.classificacao) selo(g, ix + nomeW - seloW, cy, m.classificacao.nome, m.classificacao.cor, 11);
+      }
+      const bw = (m.espacos / maior) * barW;
+      el('rect', { x: barX, y: cy - 7, width: barW, height: 14, rx: 4, fill: COR.trilho }, g);
+      pilha(g, barX, cy - 7, bw, 14, m.marcas);
+      texto(g, ix + iw - gmvW, cy + 6, d.fmt.espacos(m.espacos), { 'font-size': 16, 'text-anchor': 'end', 'font-weight': 700 });
+      if (gmvW) texto(g, ix + iw, cy + 6, m.gmv ? d.fmt.gmvCurto(m.gmv) : '—', { 'font-size': 15, fill: m.gmv ? COR.tinta2 : COR.tinta3, 'text-anchor': 'end' });
+      ly += rowH;
+    });
+    if (resto) {
+      texto(g, ix, ly + rowH / 2 + 6, '+ ' + resto.n + (resto.n === 1 ? ' movimento' : ' movimentos')
+        + (resto.espacos ? ' (' + d.fmt.espacos(resto.espacos) + ')' : '') + ' — veja o painel no app', { 'font-size': 16, fill: COR.tinta2, 'font-style': 'italic' });
+    }
+    // Legenda das marcas das barras (identidade nunca só pela cor: os nomes ficam aqui).
+    const marcas = d.marcas.filter((mc) => d.movimentos.some((m) => m.marcas.some((p) => p.cor === mc.cor && p.valor)));
+    let lx = ix;
+    const legY = y + h - 6;
+    marcas.forEach((mc) => {
+      const lw = largura(mc.nome, 14, 400) + 34;
+      if (lx + lw > ix + iw) return;
+      el('rect', { x: lx, y: legY - 22, width: 12, height: 12, rx: 3, fill: mc.cor }, g);
+      texto(g, lx + 18, legY - 12, mc.nome, { 'font-size': 14, fill: COR.tinta2 });
+      lx += lw;
+    });
+  }
+
+  /**
+   * @param {SVGSVGElement} svg
+   * @param {{er, ciclo, total, moveis, marcas, movimentos, movimentosOcultos, classificacoes, gmvTotal, nota, fmt}} d
+   * @param {{recorte?: boolean}} op
+   * @return {{w: number, h: number}}
+   */
+  function desenhar(svg, d, op) {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    const recorte = op && op.recorte;
+    if (!recorte) {
+      el('rect', { x: 0, y: 0, width: W, height: H, fill: COR.fundo }, svg);
+      texto(svg, M, 74, 'Estratégia · ' + d.er, { 'font-size': 40, 'font-weight': 700 });
+      const ciclo = d.ciclo ? (/^ciclo\b/i.test(d.ciclo) ? d.ciclo : 'Ciclo ' + d.ciclo) + ' · ' : '';
+      texto(svg, M, 108, ciclo + 'espaço por marca, movimentos e classificação', { 'font-size': 21, fill: COR.tinta2 });
+    }
+    const topo = recorte ? M : 140;
+    numeros(svg, M, topo, W - 2 * M, d);
+    const corpoY = topo + 112 + 24;
+    const fim = recorte ? H - M : H - 56;
+    const colW = (W - 2 * M - 32) / 2;
+    const esqX = M;
+    const dirX = M + colW + 32;
+    const hMarca = porMarca(svg, esqX, corpoY, colW, d);
+    porClassificacao(svg, esqX, corpoY + hMarca + 24, colW, fim - (corpoY + hMarca + 24), d);
+    porMovimentos(svg, dirX, corpoY, colW, fim - corpoY, d);
+    if (!recorte && d.nota) texto(svg, M, H - 22, d.nota, { 'font-size': 14, fill: COR.tinta3 });
+    return { w: W, h: H };
+  }
+
+  return { desenhar, W, H };
+})();
+</script>
+
+    <script>
+/**
+ * ============================================================================
  *  APLICAÇÃO (estado, controles e chamadas ao servidor)
  * ============================================================================
  */
@@ -8497,6 +8806,15 @@ const App = (() => {
   function abrirDialogoPng() {
     if (!plantaAtual()) return;
     const dlg = $('dlgPng');
+    // Conteúdo: começa na visão da tela; a estratégia precisa de um ciclo.
+    const estr = dlg.querySelector('input[name="pngConteudo"][value="estrategia"]');
+    estr.disabled = !estado.ciclo;
+    estr.closest('label').title = estado.ciclo ? '' : 'Escolha um ciclo para baixar a estratégia';
+    const atual = dlg.querySelector('input[name="pngConteudo"]:checked');
+    if (!atual || atual.disabled || atual.value !== 'estrategia') {
+      dlg.querySelector('input[name="pngConteudo"][value="' + (estado.visao === 'simplificada' ? 'simplificada' : 'planta') + '"]').checked = true;
+    }
+    atualizarDialogoPng();
     const marca = estado.filtro && estado.dados.marcas[estado.filtro];
     $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.'
       : estado.filtroEtiqueta ? 'Só os espaços com a etiqueta ' + estado.filtroEtiqueta + ' ficam coloridos, como na tela.'
@@ -8506,13 +8824,70 @@ const App = (() => {
     dlg.showModal();
   }
 
+  /** Textos do formato conforme o conteúdo (a estratégia não tem painéis nem notas da ER). */
+  function atualizarDialogoPng() {
+    const dlg = $('dlgPng');
+    const conteudo = dlg.querySelector('input[name="pngConteudo"]:checked').value;
+    const estrategia = conteudo === 'estrategia';
+    $('pngFormatoPng').textContent = estrategia ? '— só os gráficos, recortados e com fundo transparente'
+      : '— só o conteúdo, recortado e com fundo transparente';
+    $('pngFormatoSlide').textContent = estrategia ? '— 16:9 (3840 px), com título e fundo, pronto para a apresentação'
+      : '— 16:9 (3840 px), com fundo, painéis e notas, pronto para a apresentação';
+    // O filtro da tela vale para a planta e a visão simplificada; a estratégia mostra o ciclo inteiro.
+    $('pngFiltroTexto').hidden = estrategia || !$('pngFiltroTexto').textContent;
+  }
+
+  /**
+   * Dados do slide da estratégia (o mesmo que o painel "Espaço por marca" mostra), já com nomes,
+   * cores e formatos, para o Estrategia.desenhar. Não usa os filtros da tela: é o ciclo inteiro na ER.
+   */
+  function dadosEstrategia(planta, ciclo) {
+    const r = resumoDeEspaco(partesDeEspaco(planta, ciclo));
+    const marcas = ordemDasMarcas().filter((c) => r.porMarca[c]);
+    const grupos = Object.values(r.porEtiqueta).sort((a, b) => b.espacos - a.espacos || a.texto.localeCompare(b.texto, 'pt-BR'));
+    const gmvDe = (g) => (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0);
+    const gmvTotal = grupos.reduce((s, g) => s + gmvDe(g), 0);
+    const classes = ordemDasClassificacoes(Object.keys(r.porClassificacao));
+    return {
+      er: planta.nome,
+      ciclo,
+      total: r.total,
+      moveis: r.moveis.size,
+      gmvTotal,
+      marcas: marcas.map((c) => ({ nome: nomeMarcaPainel(c), cor: corMarcaPainel(c), valor: r.porMarca[c] })),
+      movimentos: grupos.map((g) => ({
+        texto: g.texto,
+        espacos: g.espacos,
+        gmv: gmvDe(g),
+        classificacao: g.classificacao === SEM_CLASSIFICACAO ? null : { nome: nomeClassificacao(g.classificacao), cor: corClassificacao(g.classificacao) },
+        marcas: marcas.filter((c) => g.marcas[c]).map((c) => ({ cor: corMarcaPainel(c), valor: g.marcas[c] })),
+      })),
+      movimentosOcultos: 0,
+      classificacoes: classes.map((c) => {
+        const doTipo = grupos.filter((g) => g.classificacao === c);
+        return {
+          nome: nomeClassificacao(c), cor: corClassificacao(c), sem: c === SEM_CLASSIFICACAO,
+          espacos: r.porClassificacao[c] || 0, movimentos: doTipo.length, gmv: doTipo.reduce((s, g) => s + gmvDe(g), 0),
+        };
+      }),
+      nota: 'Espaços: na gôndola, cada lado e cada meio; mesas e totem, cada frente e painel; os demais móveis, um espaço. '
+        + 'Móvel de atendimento, itens fora da planta, móveis de parede e móvel make não contam. GMV esperado: o do movimento no ciclo (aba Tipos de movimento).',
+      fmt: {
+        espacos: qtdEspacos,
+        pct: porcento,
+        gmvCurto,
+        gmvCompleto: (v) => formatoGmvCompleto.format(v),
+      },
+    };
+  }
+
   /**
    * SVG a exportar, desenhado à parte (sem o zoom e sem os marcadores da validação). "slide": o slide
    * inteiro, com os painéis (nome da ER, TV / rádio, A, C, notas, legenda e itens extras), que na tela
    * ficam no menu da esquerda. "planta": só a loja, os móveis e as etiquetas, sem fundo e recortada no
    * conteúdo. Os dois com as mesmas cores da tela (inclusive o filtro de marca) e na visão da tela.
    */
-  function svgParaPng(modo) {
+  function svgParaPng(modo, conteudo) {
     const ns = 'http://www.w3.org/2000/svg';
     const temp = document.createElementNS(ns, 'svg');
     // Fora da tela, mas renderizado (getBBox não funciona com display: none).
@@ -8520,9 +8895,12 @@ const App = (() => {
     document.body.appendChild(temp);
     try {
       const soPlanta = modo === 'planta';
-      const r = Render.desenhar(temp, Object.assign(contextoDesenho(), {
-        somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null,
-      }));
+      const r = conteudo === 'estrategia'
+        ? { tela: Estrategia.desenhar(temp, dadosEstrategia(plantaAtual(), estado.ciclo), { recorte: soPlanta }) }
+        : Render.desenhar(temp, Object.assign(contextoDesenho(), {
+          somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null,
+          visao: conteudo === 'simplificada' ? 'simplificada' : 'planta',
+        }));
       let caixa = { x: 0, y: 0, w: r.tela.w, h: r.tela.h };
       if (soPlanta) {
         const bb = temp.getBBox();
@@ -8584,10 +8962,12 @@ const App = (() => {
     if (dlg.returnValue !== 'baixar') return;
     const planta = plantaAtual();
     if (!planta) return;
-    const modo = dlg.querySelector('input[name="pngModo"]:checked').value;
+    const conteudo = dlg.querySelector('input[name="pngConteudo"]:checked').value;
+    // "png": só o conteúdo, recortado e sem fundo; "slide": o slide 16:9 completo.
+    const modo = dlg.querySelector('input[name="pngFormato"]:checked').value === 'png' ? 'planta' : 'slide';
     carregando(true, 'Gerando imagem…');
     try {
-      const { clone, caixa } = svgParaPng(modo);
+      const { clone, caixa } = svgParaPng(modo, conteudo);
       clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
       clone.setAttribute('width', caixa.w);
       clone.setAttribute('height', caixa.h);
@@ -8612,7 +8992,9 @@ const App = (() => {
       ctx.drawImage(img, 0, 0, caixa.w, caixa.h);
       const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/png'));
       const marca = estado.filtro && estado.dados.marcas[estado.filtro];
-      const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', estado.visao === 'simplificada' ? 'visao simplificada' : '', marca ? marca.nome : ''].filter(Boolean);
+      const estrategia = conteudo === 'estrategia';
+      const partes = [planta.nome, estado.ciclo, estrategia ? 'estrategia' : conteudo === 'simplificada' ? 'visao simplificada' : 'planta',
+        modo === 'slide' ? 'slide' : '', !estrategia && marca ? marca.nome : ''].filter(Boolean);
       const nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + '.png';
       baixarArquivo(blob, nome);
     } catch (e) {
@@ -8638,6 +9020,7 @@ const App = (() => {
     ao('arquivo', 'change', (e) => importar(e.target.files[0]));
     ao('btnPng', 'click', () => estado.dados && abrirDialogoPng());
     ao('dlgPng', 'close', baixarPng);
+    ao('dlgPng', 'change', atualizarDialogoPng);
     ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
     ao('btnEspaco', 'click', () => {
       estado.painelEspaco = !estado.painelEspaco;
