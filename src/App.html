@@ -14,6 +14,7 @@ const App = (() => {
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
     grupos: [],
     painelEspaco: false, // painel "Espaço por marca" aberto
+    visao: 'planta', // etiquetas "Na planta" ou em fichas ("simplificada")
     zoom: { k: 1, x: 0, y: 0 }, // zoom da tela: fator e canto de cima à esquerda da área visível (unidades do slide)
   };
   const $ = (id) => document.getElementById(id);
@@ -284,6 +285,23 @@ const App = (() => {
     desenhar();
   }
 
+  /** Troca entre as etiquetas na planta e a visão simplificada (fichas ao lado da planta). */
+  function trocarVisao(visao) {
+    if (visao === estado.visao) return;
+    if (Object.keys(estado.ajustes).length && !window.confirm('Há ajustes de etiquetas não salvos nesta planta. Descartar?')) return;
+    estado.ajustes = {};
+    estado.visao = visao;
+    estado.zoom = { k: 1, x: 0, y: 0 };
+    memoria.gravar('visao', visao);
+    marcarVisao();
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  function marcarVisao() {
+    document.querySelectorAll('#abasVisao .aba').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.visao === estado.visao)));
+  }
+
   /* ------------------------------- desenho -------------------------------- */
 
   /** Contexto do desenho da tela (também usado para gerar o PNG só da planta). */
@@ -299,6 +317,7 @@ const App = (() => {
       filtro: estado.filtro,
       ajustes: estado.ajustes,
       edicao: estado.edicao,
+      visao: estado.visao,
       // No modo construção os móveis ficam sem cor e sem etiqueta (a menos que se peça para mostrar o ciclo).
       obterMovimento: (m) => (semConteudo ? null : movimentoDe(estado.ciclo, planta.id, m.id)),
       obterPaineis: () => {
@@ -1260,7 +1279,7 @@ const App = (() => {
       ctx.drawImage(img, 0, 0, caixa.w, caixa.h);
       const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/png'));
       const marca = estado.filtro && estado.dados.marcas[estado.filtro];
-      const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', marca ? marca.nome : ''].filter(Boolean);
+      const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', estado.visao === 'simplificada' ? 'visao simplificada' : '', marca ? marca.nome : ''].filter(Boolean);
       const nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + '.png';
       baixarArquivo(blob, nome);
     } catch (e) {
@@ -1332,6 +1351,10 @@ const App = (() => {
     });
   }
 
+  // Visão das etiquetas: lembra a última escolha (na planta, por padrão).
+  if (memoria.ler('visao') === 'simplificada') estado.visao = 'simplificada';
+  marcarVisao();
+  document.querySelectorAll('#abasVisao .aba').forEach((b) => b.addEventListener('click', () => trocarVisao(b.dataset.visao)));
   // Painel de espaço: lembra a última escolha; na primeira vez, abre em telas largas.
   const prefEspaco = memoria.ler('painelEspaco');
   estado.painelEspaco = prefEspaco ? prefEspaco === '1' : window.innerWidth >= 1200;

@@ -242,11 +242,13 @@
   #slide.destacando .grupo-etiquetas:not(.destaque),
   #slide.destacando .camada-guias .guia:not(.destaque) { opacity: .35; }
   #slide.destacando .grupo-etiquetas.destaque .ficha-fundo { stroke: #1C1C1C; stroke-width: 2; }
+  #slide.destacando .grupo-etiquetas.destaque .etq { stroke: #111; stroke-width: 1.6; }
   #slide.destacando .camada-guias .guia.destaque .guia-linha { stroke: #111; stroke-width: calc(2.2px / var(--zoom, 1)); }
   #slide.destacando .movel.destaque polygon { stroke-width: 2.2; }
   @media (prefers-reduced-motion: reduce) { #slide .grupo-etiquetas, #slide .camada-guias .guia { transition: none; } }
   #slide .arrastavel { cursor: grab; }
   #slide .arrastavel:hover .ficha-fundo { stroke: #111; stroke-width: 1.5; }
+  #slide .arrastavel:hover .etq { stroke: #111; stroke-width: 1.5; }
   #slide .arrastavel:active { cursor: grabbing; }
 
   #slide .movel.selecionado polygon { stroke: #ff6a00; stroke-width: 2.6; }

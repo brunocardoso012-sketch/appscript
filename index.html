@@ -252,11 +252,13 @@
   #slide.destacando .grupo-etiquetas:not(.destaque),
   #slide.destacando .camada-guias .guia:not(.destaque) { opacity: .35; }
   #slide.destacando .grupo-etiquetas.destaque .ficha-fundo { stroke: #1C1C1C; stroke-width: 2; }
+  #slide.destacando .grupo-etiquetas.destaque .etq { stroke: #111; stroke-width: 1.6; }
   #slide.destacando .camada-guias .guia.destaque .guia-linha { stroke: #111; stroke-width: calc(2.2px / var(--zoom, 1)); }
   #slide.destacando .movel.destaque polygon { stroke-width: 2.2; }
   @media (prefers-reduced-motion: reduce) { #slide .grupo-etiquetas, #slide .camada-guias .guia { transition: none; } }
   #slide .arrastavel { cursor: grab; }
   #slide .arrastavel:hover .ficha-fundo { stroke: #111; stroke-width: 1.5; }
+  #slide .arrastavel:hover .etq { stroke: #111; stroke-width: 1.5; }
   #slide .arrastavel:active { cursor: grabbing; }
 
   #slide .movel.selecionado polygon { stroke: #ff6a00; stroke-width: 2.6; }
@@ -617,10 +619,10 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
 const ETIQUETAS_POR_TIPO = { VITRINE_L: 3 };
 
 /**
- * Quantas etiquetas a linha de um espaço mostra na ficha do móvel (GONDOLA 1/LADO-A,
+ * Quantas etiquetas a linha de um espaço mostra (GONDOLA 1/LADO-A,
  * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
  * (painéis do totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
- * mesmas etiquetas (texto e cor) viram uma linha só na ficha.
+ * mesmas etiquetas (texto e cor) viram uma pilha só.
  */
 const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
 
@@ -2651,6 +2653,10 @@ function executarComentario_(ss, acesso, pedido) {
           <select id="selCiclo" aria-label="Ciclo"></select>
         </label>
         <div class="abas" id="abasPlanta" role="tablist" aria-label="Plantas"></div>
+        <div class="abas" id="abasVisao" role="tablist" aria-label="Como mostrar as etiquetas">
+          <button class="aba" type="button" role="tab" data-visao="planta" aria-selected="true" title="Etiquetas junto de cada espaço do móvel, na planta">Na planta</button>
+          <button class="aba" type="button" role="tab" data-visao="simplificada" aria-selected="false" title="Uma ficha por móvel, ao lado da planta, com a miniatura de cada espaço">Visão simplificada</button>
+        </div>
       </div>
 
       <div class="acoes">
@@ -2986,8 +2992,9 @@ function executarComentario_(ss, acesso, pedido) {
  * ============================================================================
  *  Render.desenhar(svg, contexto) redesenha o slide inteiro:
  *   - planta isométrica (piso, paredes e móveis coloridos pela marca);
- *   - fichas das etiquetas: uma por móvel, em colunas dos dois lados da planta, com a
- *     miniatura do móvel mostrando o espaço de cada etiqueta e linha-guia até o móvel;
+ *   - etiquetas, em duas visões: "Na planta" (cada pilha junto do espaço a que pertence, com o
+ *     nome do espaço e linha-guia até a face dele) ou "Visão simplificada" (uma ficha por móvel,
+ *     em colunas dos dois lados da planta, com a miniatura do móvel mostrando cada espaço);
  *   - caixas de destaque (CALLOUT), painel lateral (TV / A / C), notas,
  *     legenda de símbolos e faixa de itens extras.
  *  Todo o estilo vai em atributos SVG (não em CSS) para o PNG exportado
@@ -4028,6 +4035,367 @@ const Render = (() => {
     return arranjo;
   }
 
+  /* ------------------------ etiquetas na planta --------------------------- */
+  // Visão "Na planta": as etiquetas ficam junto do móvel. Nos móveis com espaços, cada pilha sai da
+  // face do próprio espaço, para o lado que ela olha (lado A: além da ponta da frente; meio B: para
+  // trás da gôndola; frente 2: na frente da mesa…), com o nome do espaço numa plaquinha escura e uma
+  // linha-guia na cor da etiqueta até um ponto na face. Nos móveis de um espaço só, a pilha fica em
+  // cima do móvel (ou no lugar livre mais perto). A planta cresce (slide em 16:9) até as etiquetas
+  // caberem perto dos móveis sem cobrir os outros.
+
+  const ROTULO = { chip: 13, vaoChip: 2, fonteChip: 8.5, cel: 6 };
+
+  /** Direção (no piso) para onde cada espaço olha: +u/-u nas pontas, +v/-v nos meios e frentes. */
+  function direcaoDoEspaco(m, id) {
+    const local = /^LADO-A/.test(id) ? [1, 0] : /^LADO-B/.test(id) ? [-1, 0] : /^MEIO-B/.test(id) ? [0, -1] : [0, 1];
+    // u = lado maior: x quando largura >= profundidade (então v = y), senão o contrário.
+    return m.w >= m.d ? local : [local[1], local[0]];
+  }
+
+  /**
+   * Ponto 3D da face do espaço por onde sai a linha-guia: no meio da face que olha para "dir"; se ela
+   * fica de costas para quem olha (-x / -y), na aresta de cima dela (a parte que aparece).
+   */
+  function pontoDaFace(b, dir) {
+    const [dx, dy] = dir;
+    const x = dx > 0 ? b.x + b.w : dx < 0 ? b.x : b.x + b.w / 2;
+    const y = dy > 0 ? b.y + b.d : dy < 0 ? b.y : b.y + b.d / 2;
+    const visivel = dx > 0 || dy > 0;
+    return [x, y, visivel ? b.z + b.h * 0.55 : b.z + b.h];
+  }
+
+  /** Caixa do espaço que recebe a linha-guia (mesa: o nicho com o cartaz; demais: a caixa do espaço). */
+  function caixaDoEspaco(m, id) {
+    const caixas = formaDoMovel(m).filter((b) => b.espaco && b.espaco.id === id);
+    return caixas[caixas.length - 1];
+  }
+
+  /**
+   * Pilhas de etiquetas da visão na planta (tamanhos, sem posição): uma por espaço (ou por móvel de
+   * um espaço só). Espaços vizinhos com as mesmas etiquetas viram uma pilha, com uma linha para cada um.
+   */
+  function montarRotulos(moveis, info, infoEspaco, config) {
+    const limitePorTipo = config.etiquetasPorTipo || {};
+    const limitePorBloco = config.etiquetasPorBloco || {};
+    const rotulos = [];
+    moveis.forEach((m) => {
+      let linhas;
+      if (espacos(m).length) {
+        linhas = juntarIguais(espacos(m).map((e) => {
+          const ie = infoEspaco[m.id + '/' + e.id];
+          return ie && ie.etiquetas.length
+            ? { info: ie, etiquetas: ie.etiquetas.slice(0, limitePorBloco[m.tipo] || 1), simbolo: ie.simbolo, espacos: [e] }
+            : null;
+        }));
+      } else {
+        const i = info[m.id];
+        linhas = i && i.etiquetas.length
+          ? [{ info: i, etiquetas: i.etiquetas.slice(0, limitePorTipo[m.tipo] || i.etiquetas.length), simbolo: i.simbolo, espacos: null }]
+          : [];
+      }
+      linhas.forEach((ln) => {
+        const corMarca = !ehNeutro(ln.info.marca) && coresDe(ln.info.marca, 'etiqueta', true);
+        const med = medirGrupo(ln.etiquetas, ln.simbolo, corMarca || corEtiquetaPadrao(true));
+        const legenda = ln.espacos ? nomeCurto(ln.espacos).toUpperCase() : '';
+        const wChip = legenda ? largura(legenda, ROTULO.fonteChip, 800, 'normal', FONTE_ETQ) + 10 : 0;
+        const topo = legenda ? ROTULO.chip + ROTULO.vaoChip : 0;
+        rotulos.push(Object.assign(med, {
+          id: m.id + (ln.espacos ? '/' + ln.espacos.map((e) => e.id).join('+') : ''),
+          movel: m, info: ln.info, espacos: ln.espacos, legenda, wChip, topo,
+          cor: (corMarca || med.itens[0].cores)[0],
+          w: Math.max(med.w, wChip), h: med.h + topo,
+        }));
+      });
+    });
+    return rotulos;
+  }
+
+  /** Pontos da linha-guia (na tela) e direção de saída de cada pilha, para a projeção P. */
+  function ancorarRotulo(r, P) {
+    const m = r.movel;
+    if (!r.espacos) {
+      r.pontos = [ancoraDe(m, P)];
+      r.dir = null;
+      return;
+    }
+    let sx = 0;
+    let sy = 0;
+    r.pontos = r.espacos.map((e) => {
+      const d = direcaoDoEspaco(m, e.id);
+      const b = caixaDoEspaco(m, e.id);
+      const p3 = pontoDaFace(b, d);
+      const a = P(p3[0], p3[1], p3[2]);
+      const c = P(p3[0] + d[0], p3[1] + d[1], p3[2]);
+      sx += c[0] - a[0];
+      sy += c[1] - a[1];
+      return a;
+    });
+    const n = Math.hypot(sx, sy) || 1;
+    r.dir = [sx / n, sy / n];
+  }
+
+  /** Envoltório convexo de pontos 2D (cadeia monótona). */
+  function envoltorio(pts) {
+    const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cruz = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const baixo = [];
+    const cima = [];
+    p.forEach((q) => {
+      while (baixo.length >= 2 && cruz(baixo[baixo.length - 2], baixo[baixo.length - 1], q) <= 0) baixo.pop();
+      baixo.push(q);
+    });
+    for (let i = p.length - 1; i >= 0; i--) {
+      while (cima.length >= 2 && cruz(cima[cima.length - 2], cima[cima.length - 1], p[i]) <= 0) cima.pop();
+      cima.push(p[i]);
+    }
+    return baixo.slice(0, -1).concat(cima.slice(0, -1));
+  }
+
+  function dentroConvexo(poli, x, y) {
+    let sinal = 0;
+    for (let i = 0; i < poli.length; i++) {
+      const a = poli[i];
+      const b = poli[(i + 1) % poli.length];
+      const c = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]);
+      if (c !== 0) {
+        if (sinal && Math.sign(c) !== sinal) return false;
+        sinal = Math.sign(c);
+      }
+    }
+    return true;
+  }
+
+  /** Silhueta (na tela) de cada caixa dos móveis, com o móvel dela. */
+  function silhuetas(moveis, P) {
+    const lista = [];
+    moveis.forEach((m) => primitivas(m).forEach((b) => {
+      const pts = [];
+      [b.x, b.x + b.w].forEach((x) => [b.y, b.y + b.d].forEach((y) => [b.z, b.z + b.h].forEach((z) => pts.push(P(x, y, z)))));
+      lista.push({ movel: m.id, poli: envoltorio(pts) });
+    }));
+    return lista;
+  }
+
+  /**
+   * Grade da tela com o que é móvel (células de ROTULO.cel px), com soma acumulada: diz em O(1)
+   * quanto de um retângulo cobre os móveis.
+   */
+  function gradeDeMoveis(silh, W, H) {
+    const cel = ROTULO.cel;
+    const nx = Math.ceil(W / cel);
+    const ny = Math.ceil(H / cel);
+    const soma = new Float32Array((nx + 1) * (ny + 1));
+    const ocupado = new Uint8Array(nx * ny);
+    silh.forEach((s) => {
+      const xs = s.poli.map((p) => p[0]);
+      const ys = s.poli.map((p) => p[1]);
+      const i0 = Math.max(0, Math.floor(Math.min.apply(null, xs) / cel));
+      const i1 = Math.min(nx - 1, Math.floor(Math.max.apply(null, xs) / cel));
+      const j0 = Math.max(0, Math.floor(Math.min.apply(null, ys) / cel));
+      const j1 = Math.min(ny - 1, Math.floor(Math.max.apply(null, ys) / cel));
+      for (let j = j0; j <= j1; j++) {
+        for (let i = i0; i <= i1; i++) {
+          if (!ocupado[j * nx + i] && dentroConvexo(s.poli, (i + 0.5) * cel, (j + 0.5) * cel)) ocupado[j * nx + i] = 1;
+        }
+      }
+    });
+    for (let j = 0; j < ny; j++) {
+      for (let i = 0; i < nx; i++) {
+        soma[(j + 1) * (nx + 1) + i + 1] = ocupado[j * nx + i] + soma[j * (nx + 1) + i + 1] + soma[(j + 1) * (nx + 1) + i] - soma[j * (nx + 1) + i];
+      }
+    }
+    return (r) => {
+      const i0 = Math.max(0, Math.min(nx, Math.round(r.x / cel)));
+      const i1 = Math.max(0, Math.min(nx, Math.round((r.x + r.w) / cel)));
+      const j0 = Math.max(0, Math.min(ny, Math.round(r.y / cel)));
+      const j1 = Math.max(0, Math.min(ny, Math.round((r.y + r.h) / cel)));
+      const area = (i1 - i0) * (j1 - j0);
+      if (area <= 0) return 0;
+      const v = soma[j1 * (nx + 1) + i1] - soma[j0 * (nx + 1) + i1] - soma[j1 * (nx + 1) + i0] + soma[j0 * (nx + 1) + i0];
+      return v / area;
+    };
+  }
+
+  const cruzam = (a, b, c, d) => {
+    const o = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+    return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+  };
+  const segmentoNoRet = (a, b, r) => {
+    const c = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
+    return c.some((p, i) => cruzam(a, b, p, c[(i + 1) % 4]));
+  };
+
+  /**
+   * Candidatos de posição (centro) da pilha: ao longo da direção do espaço, a partir de onde a linha
+   * sai do desenho do móvel ("saida", px), ou em volta do móvel (móvel de um espaço só).
+   */
+  function candidatos(r, saida) {
+    const lista = [];
+    const [ax, ay] = r.pontos.reduce((s, p) => [s[0] + p[0] / r.pontos.length, s[1] + p[1] / r.pontos.length], [0, 0]);
+    if (r.dir) {
+      const [ux, uy] = r.dir;
+      const nx = -uy;
+      const ny = ux;
+      const meio = Math.abs(ux) * r.w / 2 + Math.abs(uy) * r.h / 2; // meia extensão da pilha na direção
+      for (let t = 8; t <= 420; t += 10) {
+        [0, 14, -14, 30, -30, 50, -50, 80, -80, 120, -120].forEach((sl) => {
+          const d = saida + t + meio;
+          lista.push({ cx: ax + ux * d + nx * sl, cy: ay + uy * d + ny * sl, custo: t + Math.abs(sl) * 1.4 });
+        });
+      }
+      // Se a direção do espaço estiver tomada: em volta do ponto, mais caro (a plaquinha diz o espaço).
+      for (let dx = -300; dx <= 300; dx += 14) {
+        for (let dy = -240; dy <= 240; dy += 12) lista.push({ cx: ax + dx, cy: ay + dy, custo: 40 + Math.hypot(dx, dy) * 1.5 });
+      }
+    } else {
+      // Em cima do móvel (no ponto do tampo) e em volta dele, do mais perto ao mais longe.
+      for (let dx = -280; dx <= 280; dx += 12) {
+        for (let dy = -220; dy <= 220; dy += 10) lista.push({ cx: ax + dx, cy: ay - r.h / 2 + 4 + dy, custo: Math.hypot(dx, dy * 1.2) * 0.9 });
+      }
+    }
+    return lista.sort((a, b) => a.custo - b.custo);
+  }
+
+  /**
+   * Coloca as pilhas: nenhuma sobre outra nem sobre os painéis; entre as livres, a de menor custo:
+   * distância + o quanto cobre os móveis (os outros; nos móveis com espaços, também o próprio) +
+   * linhas que se cruzam ou passam por cima de outra pilha. Devolve a média da distância e das penalidades.
+   */
+  function posicionarRotulos(rotulos, silh, obstaculos, W, H) {
+    const cobre = gradeDeMoveis(silh, W, H);
+    const silhDe = {};
+    silh.forEach((x) => { (silhDe[x.movel] = silhDe[x.movel] || []).push(x.poli); });
+    // Quanto do retângulo cobre o próprio móvel (amostras 5 × 3), para não contar nos de um espaço só.
+    const cobreProprio = (ret, id) => {
+      const polis = silhDe[id] || [];
+      let n = 0;
+      for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 3; j++) {
+          const x = ret.x + ret.w * (i + 0.5) / 5;
+          const y = ret.y + ret.h * (j + 0.5) / 3;
+          if (polis.some((p) => dentroConvexo(p, x, y))) n++;
+        }
+      }
+      return n / 15;
+    };
+    const colocados = [];
+    const guias = [];
+    let somaDist = 0;
+    let somaPena = 0;
+    const ordem = rotulos.slice().sort((a, b) => (a.dir ? 0 : 1) - (b.dir ? 0 : 1) || b.pontos[0][1] - a.pontos[0][1]);
+    ordem.forEach((r) => {
+      let melhor = null;
+      // Onde a linha sai do desenho do próprio móvel, andando na direção do espaço.
+      let saida = 0;
+      if (r.dir) {
+        const [ax, ay] = r.pontos.reduce((s, p) => [s[0] + p[0] / r.pontos.length, s[1] + p[1] / r.pontos.length], [0, 0]);
+        const polis = silhDe[r.movel.id] || [];
+        while (saida < 400 && polis.some((p) => dentroConvexo(p, ax + r.dir[0] * (saida + 2), ay + r.dir[1] * (saida + 2)))) saida += 4;
+      }
+      candidatos(r, saida).forEach((c) => {
+        if (melhor && c.custo >= melhor.custo) return;
+        const ret = { x: c.cx - r.w / 2, y: c.cy - r.h / 2, w: r.w, h: r.h };
+        if (ret.x < 6 || ret.y < 6 || ret.x + ret.w > W - 6 || ret.y + ret.h > H - 6) return;
+        if (obstaculos.some((o) => sobrepoe(ret, o, 4)) || colocados.some((o) => sobrepoe(ret, o, 5))) return;
+        // Cobrir outro móvel confunde (parece etiqueta dele); cobrir o próprio, bem menos.
+        const proprio = cobreProprio(ret, r.movel.id);
+        let pena = Math.max(0, cobre(ret) - proprio) * 520 + (r.dir ? proprio * 50 : 0);
+        if (c.custo + pena >= (melhor ? melhor.custo : Infinity)) return;
+        guias.forEach((g) => { if (segmentoNoRet(g[0], g[1], ret)) pena += 90; });
+        r.pontos.forEach((p) => {
+          const q = pontoDaGuia(ret, p);
+          if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 6) return;
+          guias.forEach((g) => { if (cruzam(p, q, g[0], g[1])) pena += 70; });
+          colocados.forEach((o) => { if (segmentoNoRet(p, q, o)) pena += 110; });
+        });
+        if (!melhor || c.custo + pena < melhor.custo) melhor = { x: ret.x, y: ret.y, custo: c.custo + pena, dist: c.custo, pena };
+      });
+      if (!melhor) melhor = { x: r.pontos[0][0] - r.w / 2, y: r.pontos[0][1] - r.h / 2, dist: 400, pena: 400 };
+      r.baseX = melhor.x;
+      r.baseY = melhor.y;
+      const ret = { x: r.baseX, y: r.baseY, w: r.w, h: r.h };
+      colocados.push(ret);
+      r.pontos.forEach((p) => guias.push([p, pontoDaGuia(ret, p)]));
+      somaDist += melhor.dist;
+      somaPena += melhor.pena;
+    });
+    const n = rotulos.length || 1;
+    return { dist: somaDist / n, pena: somaPena / n };
+  }
+
+  /** Pilha de etiquetas na planta: plaquinha com o nome do espaço (se houver) e as etiquetas. */
+  function desenharRotulo(pai, r, attrs) {
+    const g = el('g', Object.assign({ 'data-movel': r.id, 'data-movel-base': r.movel.id, filter: 'url(#sombraEtq)' }, attrs), pai);
+    let y = r.y;
+    if (r.legenda) {
+      el('rect', { class: 'chip-espaco', x: r.x, y, width: r.wChip, height: ROTULO.chip, rx: 4, fill: '#24282E' }, g);
+      texto(g, r.x + 5, y + ROTULO.chip - 3.6, r.legenda, {
+        'font-family': FONTE_ETQ, 'font-size': ROTULO.fonteChip, 'font-weight': 800, 'letter-spacing': 0.3, fill: '#FFFFFF',
+      });
+      y += r.topo;
+    }
+    r.itens.forEach((it, i) => {
+      fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores);
+      it.linhas.forEach((l, k) => {
+        texto(g, r.x + r.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6, l, {
+          'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
+          fill: '#FFFFFF', 'text-anchor': 'middle',
+        });
+      });
+      if (i === 0 && r.simbolo) desenharSimbolo(g, r.simbolo, r.x + r.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2);
+      y += it.h + ETQ.gap;
+    });
+    return g;
+  }
+
+  /** Linhas-guia da pilha até a face de cada espaço, na cor da etiqueta (com contorno branco). */
+  function desenharGuiaRotulo(pai, r) {
+    const ret = { x: r.x, y: r.y, w: r.wEtq, h: r.h };
+    const g = el('g', { class: 'guia', 'data-movel-base': r.movel.id }, pai);
+    const escura = misturar(r.cor, '#000000', 0.25);
+    r.pontos.forEach((p) => {
+      const q = pontoDaGuia(ret, p);
+      const dentro = p[0] >= ret.x && p[0] <= ret.x + ret.w && p[1] >= ret.y && p[1] <= ret.y + ret.h;
+      if (dentro) return; // a pilha está em cima do ponto: não precisa de linha
+      const d = 'M' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ' L' + p[0].toFixed(1) + ',' + p[1].toFixed(1);
+      el('path', { class: 'guia-halo', d, fill: 'none', stroke: '#FFFFFF', 'stroke-opacity': 0.9, 'stroke-width': 4, 'stroke-linecap': 'round' }, g);
+      el('path', { class: 'guia-linha', d, fill: 'none', stroke: escura, 'stroke-width': 1.6, 'stroke-linecap': 'round' }, g);
+      el('circle', { class: 'guia-ponto', cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: 4.4, fill: r.cor, stroke: '#FFFFFF', 'stroke-width': 1.6 }, g);
+    });
+  }
+
+  /**
+   * Arranjo da visão na planta: o slide cresce (16:9) e a planta junto, até as etiquetas caberem
+   * perto dos espaços sem cobrir os outros móveis. Fica no menor tamanho em que a nota é boa;
+   * senão, no de melhor nota (slide maior deixa o texto menor na tela, então ele pesa um pouco).
+   */
+  function arranjarNaPlanta(loja, moveis, rotulos, painel) {
+    let melhor = null;
+    [1, 1.15, 1.3, 1.45, 1.6].some((fator) => {
+      const W = Math.round((TELA_BASE.w * fator) / 16) * 16;
+      const H = (W / 16) * 9;
+      const regiao = { x: REGIAO_PLANTA.x, y: REGIAO_PLANTA.y, w: W - REGIAO_PLANTA.x - 20, h: H - 130 };
+      const projecao = criarProjecao(loja, regiao);
+      limites = { x0: LIMITES_BASE.x0, y0: 8, x1: W - 8, y1: H - 8 };
+      const callouts = painel.situarCallouts(projecao.P);
+      const obstaculos = [{ x: 0, y: 0, w: 470, h: H }].concat(painel.obstaculos(W, H), callouts);
+      rotulos.forEach((r) => ancorarRotulo(r, projecao.P));
+      const q = posicionarRotulos(rotulos, silhuetas(moveis, projecao.P), obstaculos, W, H);
+      const qualidade = q.pena + Math.max(0, q.dist - 50) * 0.5;
+      const nota = qualidade + (fator - 1) * 50;
+      if (!melhor || nota < melhor.nota) {
+        melhor = { nota, w: W, h: H, projecao, limites, callouts, posicoes: rotulos.map((r) => [r.baseX, r.baseY]) };
+      }
+      return qualidade < 22;
+    });
+    limites = melhor.limites;
+    rotulos.forEach((r, i) => {
+      ancorarRotulo(r, melhor.projecao.P);
+      [r.baseX, r.baseY] = melhor.posicoes[i];
+    });
+    return melhor;
+  }
+
   /** Ponto da caixa mais perto da âncora: de onde sai a linha-guia. */
   function pontoDaGuia(rect, ancora) {
     return [Math.max(rect.x, Math.min(ancora[0], rect.x + rect.w)), Math.max(rect.y, Math.min(ancora[1], rect.y + rect.h))];
@@ -4317,28 +4685,62 @@ const Render = (() => {
     });
     const infoDe = (b) => (b.espaco ? infoEspaco[b.movel.id + '/' + b.espaco.id] : info[b.movel.id]);
 
-    // Fichas das etiquetas e tamanho do slide: sem etiquetas, o slide de sempre (1920×1080);
-    // com etiquetas, as fichas ficam em colunas dos dois lados da planta e o slide cresce se precisar.
+    // Caixas de destaque: medidas aqui; a posição depende da projeção (situarCallouts).
     const pain = ctx.obterPaineis();
+    const porId = {};
+    moveis.forEach((m) => { porId[m.id] = m; });
+    const medCallouts = pain.CALLOUT.map((c) => {
+      const linhas = quebrar(c.texto, CALLOUT.maxW - CALLOUT.pad * 2, CALLOUT.fonte, 700);
+      const w = Math.max.apply(null, linhas.map((l) => largura(l, CALLOUT.fonte, 700))) + CALLOUT.pad * 2 + 2;
+      return { c, cores: coresDe(c.marca, 'etiqueta') || [COR.etiquetaPadrao], linhas, w, h: linhas.length * CALLOUT.lh + CALLOUT.pad * 2 };
+    });
+    const situarCallouts = (P) => {
+      const lista = medCallouts.map((mc) => {
+        const alvo = mc.c.movel && porId[mc.c.movel] ? ancoraDe(porId[mc.c.movel], P) : null;
+        return Object.assign({}, mc, { alvo, ancoraX: alvo ? alvo[0] : (limites.x0 + limites.x1) / 2 });
+      });
+      posicionarCallouts(lista);
+      return lista;
+    };
+
+    // Tamanho do slide e etiquetas. Sem etiquetas: o slide de sempre (1920×1080).
+    //  - "simplificada": fichas em colunas dos dois lados da planta (o slide cresce se precisar);
+    //  - "planta" (padrão): etiquetas junto dos espaços, com a planta maior se faltar lugar.
+    const simplificada = ctx.visao === 'simplificada';
     const nSimbolos = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length;
     const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide
-    const fichas = montarFichas(moveis, info, infoEspaco, ctx.dados.config);
-    // Com fichas, as notas vão estreitas embaixo do painel lateral (se couberem no slide de 1080),
-    // e a coluna da esquerda desce até a legenda; senão, as notas largas de sempre, e a coluna para acima delas.
+    const fichas = simplificada ? montarFichas(moveis, info, infoEspaco, ctx.dados.config) : [];
+    const rotulos = simplificada ? [] : montarRotulos(moveis, info, infoEspaco, ctx.dados.config);
+    // Na visão simplificada, as notas vão estreitas embaixo do painel lateral (se couberem no slide de
+    // 1080), e a coluna da esquerda desce até a legenda; senão, as notas largas, e a coluna para acima delas.
     let medNotas = pain.NOTA.length ? medirNotas(pain.NOTA, !!fichas.length) : null;
     if (medNotas && fichas.length && TELA_BASE.h - legendaAteOPe - 28 - medNotas.h < desenharLateral(null, planta, ctx.ciclo, pain) + 16) {
       medNotas = medirNotas(pain.NOTA, false);
     }
     const notasLargas = medNotas && medNotas.w > FICHA.xEsq;
-    const arranjo = fichas.length
-      ? arranjarFichas(planta.loja, fichas, {
+    const yNotas = (H) => Math.min(nSimbolos ? H - legendaAteOPe : H - 8, H - 8) - 28 - (medNotas ? medNotas.h : 0);
+    const obstaculosPaineis = (W, H) => [].concat(
+      medNotas ? [{ x: 15, y: yNotas(H), w: medNotas.w, h: medNotas.h }] : [],
+      extras.length ? [{ x: W - 16 - 206 * extras.length, y: H - 100, w: 206 * extras.length, h: 84 }] : [],
+    );
+    let arranjo;
+    if (fichas.length) {
+      arranjo = arranjarFichas(planta.loja, fichas, {
         esquerda: notasLargas ? legendaAteOPe + 28 + medNotas.h : nSimbolos ? legendaAteOPe : 0,
         direita: extras.length ? 100 : 0,
-      })
-      : { w: TELA_BASE.w, h: TELA_BASE.h, projecao: criarProjecao(planta.loja), limites: LIMITES_BASE };
+      });
+      limites = arranjo.limites;
+      arranjo.callouts = situarCallouts(arranjo.projecao.P);
+    } else if (rotulos.length) {
+      arranjo = arranjarNaPlanta(planta.loja, moveis, rotulos, { situarCallouts, obstaculos: obstaculosPaineis });
+      limites = arranjo.limites;
+    } else {
+      limites = LIMITES_BASE;
+      arranjo = { w: TELA_BASE.w, h: TELA_BASE.h, projecao: criarProjecao(planta.loja) };
+      arranjo.callouts = situarCallouts(arranjo.projecao.P);
+    }
     TELA.w = arranjo.w;
     TELA.h = arranjo.h;
-    limites = arranjo.limites;
 
     svg.setAttribute('viewBox', '0 0 ' + TELA.w + ' ' + TELA.h);
     defs = el('defs', null, svg);
@@ -4402,22 +4804,24 @@ const Render = (() => {
     if (medNotas) desenharNotas(camadaSobre, medNotas, 15, Math.min(topoLegenda, TELA.h - 8) - 28 - medNotas.h);
     desenharExtras(camadaSobre, extras, (m) => info[m.id]);
 
-    const porId = {};
-    moveis.forEach((m) => { porId[m.id] = m; });
-    const callouts = pain.CALLOUT.map((c) => {
-      const cores = coresDe(c.marca, 'etiqueta') || [COR.etiquetaPadrao];
-      const linhas = quebrar(c.texto, CALLOUT.maxW - CALLOUT.pad * 2, CALLOUT.fonte, 700);
-      const w = Math.max.apply(null, linhas.map((l) => largura(l, CALLOUT.fonte, 700))) + CALLOUT.pad * 2 + 2;
-      const alvo = c.movel && porId[c.movel] ? ancoraDe(porId[c.movel], P) : null;
-      return { cores, linhas, w, h: linhas.length * CALLOUT.lh + CALLOUT.pad * 2, alvo, ancoraX: alvo ? alvo[0] : (limites.x0 + limites.x1) / 2 };
-    });
-    posicionarCallouts(callouts);
-    callouts.forEach((c) => {
+    arranjo.callouts.forEach((c) => {
       if (c.alvo) {
         const x = Math.max(c.x + 12, Math.min(c.alvo[0], c.x + c.w - 12));
         desenharGuia(el('g', { class: 'guia-callout' }, camadaGuias), { x, y: c.y + c.h, w: 0, h: 0 }, c.alvo);
       }
       desenharCallout(camadaEtiquetas, c);
+    });
+
+    // Etiquetas na planta: na posição do arranjo, mais o ajuste manual do móvel ("Ajustar etiquetas";
+    // as pilhas de um móvel movem juntas).
+    rotulos.forEach((r) => {
+      const m = r.movel;
+      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
+      r.x = r.baseX + ajuste.x;
+      r.y = r.baseY + ajuste.y;
+      desenharGuiaRotulo(camadaGuias, r);
+      r.elemento = desenharRotulo(camadaEtiquetas, r, { class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : '') });
+      dica(r.elemento, r.id + (m.descricao ? ' — ' + m.descricao : '') + ' · clique para ver a estratégia do móvel');
     });
 
     // Fichas: na posição do arranjo, mais o ajuste manual do móvel (modo "Ajustar etiquetas").
@@ -4433,7 +4837,7 @@ const Render = (() => {
       });
       dica(f.elemento, m.id + (m.descricao ? ' — ' + m.descricao : '') + ' · clique para ver a estratégia do móvel');
     });
-    const grupos = fichas;
+    const grupos = fichas.length ? fichas : rotulos;
 
     // Validação: marcador com o nº de comentários abertos no canto de cada móvel comentado
     // (do mesmo tamanho na tela com zoom; não vai no PNG).
@@ -4650,8 +5054,8 @@ const Planilha = (() => {
       '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
       '6.1 Gôndola, mesas, totem e móvel make são preenchidos espaço por espaço: não há linha do móvel inteiro (se houver, ela é ignorada). Espaço sem linha fica branco.',
-      '6.2 Gôndola: uma linha por espaço — GONDOLA 1/LADO-A, MEIO-A, MEIO-B e LADO-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas, numa linha própria da ficha do móvel (ao lado da planta). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
-      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam numa linha só da ficha do móvel.',
+      '6.2 Gôndola: uma linha por espaço — GONDOLA 1/LADO-A, MEIO-A, MEIO-B e LADO-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas, junto dele na planta, com o nome do espaço (LADO A, MEIO B…). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
+      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só.',
       '6.4 Móveis de um espaço só (pirâmide, móvel de fila, móvel de parede, PDV, O.U.i…) têm uma linha. O balcão recepção também: um espaço só, com uma cor e até 3 etiquetas.',
       '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
     ].concat(op.visualizador ? [
@@ -6132,6 +6536,7 @@ const App = (() => {
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
     grupos: [],
     painelEspaco: false, // painel "Espaço por marca" aberto
+    visao: 'planta', // etiquetas "Na planta" ou em fichas ("simplificada")
     zoom: { k: 1, x: 0, y: 0 }, // zoom da tela: fator e canto de cima à esquerda da área visível (unidades do slide)
   };
   const $ = (id) => document.getElementById(id);
@@ -6402,6 +6807,23 @@ const App = (() => {
     desenhar();
   }
 
+  /** Troca entre as etiquetas na planta e a visão simplificada (fichas ao lado da planta). */
+  function trocarVisao(visao) {
+    if (visao === estado.visao) return;
+    if (Object.keys(estado.ajustes).length && !window.confirm('Há ajustes de etiquetas não salvos nesta planta. Descartar?')) return;
+    estado.ajustes = {};
+    estado.visao = visao;
+    estado.zoom = { k: 1, x: 0, y: 0 };
+    memoria.gravar('visao', visao);
+    marcarVisao();
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
+  function marcarVisao() {
+    document.querySelectorAll('#abasVisao .aba').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.visao === estado.visao)));
+  }
+
   /* ------------------------------- desenho -------------------------------- */
 
   /** Contexto do desenho da tela (também usado para gerar o PNG só da planta). */
@@ -6417,6 +6839,7 @@ const App = (() => {
       filtro: estado.filtro,
       ajustes: estado.ajustes,
       edicao: estado.edicao,
+      visao: estado.visao,
       // No modo construção os móveis ficam sem cor e sem etiqueta (a menos que se peça para mostrar o ciclo).
       obterMovimento: (m) => (semConteudo ? null : movimentoDe(estado.ciclo, planta.id, m.id)),
       obterPaineis: () => {
@@ -7378,7 +7801,7 @@ const App = (() => {
       ctx.drawImage(img, 0, 0, caixa.w, caixa.h);
       const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/png'));
       const marca = estado.filtro && estado.dados.marcas[estado.filtro];
-      const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', marca ? marca.nome : ''].filter(Boolean);
+      const partes = [planta.nome, estado.ciclo, modo === 'planta' ? 'planta' : '', estado.visao === 'simplificada' ? 'visao simplificada' : '', marca ? marca.nome : ''].filter(Boolean);
       const nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + '.png';
       baixarArquivo(blob, nome);
     } catch (e) {
@@ -7450,6 +7873,10 @@ const App = (() => {
     });
   }
 
+  // Visão das etiquetas: lembra a última escolha (na planta, por padrão).
+  if (memoria.ler('visao') === 'simplificada') estado.visao = 'simplificada';
+  marcarVisao();
+  document.querySelectorAll('#abasVisao .aba').forEach((b) => b.addEventListener('click', () => trocarVisao(b.dataset.visao)));
   // Painel de espaço: lembra a última escolha; na primeira vez, abre em telas largas.
   const prefEspaco = memoria.ler('painelEspaco');
   estado.painelEspaco = prefEspaco ? prefEspaco === '1' : window.innerWidth >= 1200;
