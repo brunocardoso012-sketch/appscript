@@ -2993,8 +2993,8 @@ function executarComentario_(ss, acesso, pedido) {
  *  Render.desenhar(svg, contexto) redesenha o slide inteiro:
  *   - planta isométrica (piso, paredes e móveis coloridos pela marca);
  *   - etiquetas, em duas visões: "Na planta" (cada pilha junto do espaço a que pertence, com o
- *     nome do espaço e linha-guia até a face dele) ou "Visão simplificada" (uma ficha por móvel,
- *     em colunas dos dois lados da planta, com a miniatura do móvel mostrando cada espaço);
+ *     nome do espaço e linha-guia até a face dele) ou "Visão simplificada" (sem a planta: uma
+ *     ficha por móvel, agrupadas por tipo, com a miniatura do móvel mostrando cada espaço);
  *   - caixas de destaque (CALLOUT), painel lateral (TV / A / C), notas,
  *     legenda de símbolos e faixa de itens extras.
  *  Todo o estilo vai em atributos SVG (não em CSS) para o PNG exportado
@@ -3014,10 +3014,10 @@ const Render = (() => {
   const REGIAO_PLANTA = { x: 500, y: 70, w: 1400, h: 950 };
   const LIMITES_BASE = { x0: 470, y0: 8, x1: 1912, y1: 1072 };
   const ETQ = { fonte: 12.5, lh: 15, padX: 10, padY: 4, gap: 4, maxTexto: 190, simbolo: 20, raio: 9 };
-  // Fichas das etiquetas: uma por móvel, em colunas dos dois lados da planta.
-  //   xEsq: coluna da esquerda (logo depois do painel lateral); mini: miniatura do móvel em cada linha;
-  //   legenda: nome do espaço ("LADO A"), entre a miniatura e as etiquetas; folga: entre as colunas e a planta.
-  const FICHA = { w: 330, xEsq: 300, margem: 12, pad: 7, cab: 22, mini: 40, miniH: 25, legenda: 52, vao: 6, simbolo: 24, entre: 5, gap: 9, raio: 9, folga: 46 };
+  // Fichas da visão simplificada: uma por móvel, em colunas agrupadas por tipo de móvel.
+  //   xEsq: primeira coluna (logo depois do painel lateral); mini: miniatura do móvel em cada linha;
+  //   legenda: nome do espaço ("LADO A"), entre a miniatura e as etiquetas.
+  const FICHA = { w: 330, xEsq: 300, margem: 12, pad: 7, cab: 22, mini: 40, miniH: 25, legenda: 52, vao: 6, simbolo: 24, entre: 5, gap: 9, raio: 9 };
   // Quantas prateleiras (níveis) cada tipo de móvel tem: o desenho e o planograma da tela do móvel usam esta tabela.
   const PRATELEIRAS = { GONDOLA: 4, PIRAMIDE: 4, FILA: 3, GONDOLA_PAREDE: 5, VITRINE_L: 2, ILHA_OUI: 3, MAKE: 5 };
   // Móveis que mostram o número (do fim do ID: "MOVEL DE FILA 3" → 3) numa plaquinha na planta.
@@ -3734,10 +3734,9 @@ const Render = (() => {
   }
 
   /* ---------------------------- fichas dos móveis --------------------------- */
-  // Cada móvel com etiqueta ganha uma ficha fora da planta, numa coluna ao lado dela: o nome do móvel
-  // (com a plaquinha do número, igual à da planta) e uma linha por espaço, com o móvel em miniatura
-  // (na mesma posição da planta, só aquele espaço pintado) e as etiquetas dele. Uma linha-guia liga a
-  // ficha ao móvel.
+  // Visão simplificada: cada móvel com etiqueta ganha uma ficha, com o nome do móvel (com a plaquinha
+  // do número, igual à da planta) e uma linha por espaço, com o móvel em miniatura (na mesma posição
+  // da planta, só aquele espaço pintado) e as etiquetas dele. As fichas ficam agrupadas por tipo.
 
   /** Número do móvel na plaquinha ("MOVEL DE FILA 3" → "3"), só nos tipos numerados. */
   function numeroDe(m) {
@@ -3937,50 +3936,6 @@ const Render = (() => {
     return g;
   }
 
-  /** Linha-guia da ficha até o móvel: sai da borda da ficha virada para ele, com um trecho reto, e vai até o ponto. */
-  function desenharGuiaFicha(pai, f) {
-    const [ax, ay] = f.ancora;
-    const direita = ax > f.x + f.w / 2;
-    const bx = direita ? f.x + f.w : f.x;
-    const by = Math.max(f.y + 16, Math.min(ay, f.y + f.h - 16));
-    const sx = bx + (direita ? 14 : -14);
-    const d = 'M' + bx.toFixed(1) + ',' + by.toFixed(1) + ' L' + sx.toFixed(1) + ',' + by.toFixed(1) + ' L' + ax.toFixed(1) + ',' + ay.toFixed(1);
-    const g = el('g', { class: 'guia', 'data-movel-base': f.movel.id }, pai);
-    el('path', { class: 'guia-halo', d, fill: 'none', stroke: '#FFFFFF', 'stroke-opacity': 0.85, 'stroke-width': 3.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, g);
-    el('path', { class: 'guia-linha', d, fill: 'none', stroke: '#4E545C', 'stroke-width': 1.3, 'stroke-linejoin': 'round' }, g);
-    el('circle', { class: 'guia-ponto', cx: ax.toFixed(1), cy: ay.toFixed(1), r: 4.4, fill: '#FFFFFF', stroke: '#2B2F35', 'stroke-width': 1.6 }, g);
-    el('circle', { class: 'guia-centro', cx: ax.toFixed(1), cy: ay.toFixed(1), r: 1.7, fill: '#2B2F35' }, g);
-  }
-
-  /**
-   * Topo (y) de cada ficha de uma coluna, na ordem, sem sobrepor e o mais perto possível do ideal
-   * (regressão isotônica: fichas que se empurram ficam centradas no grupo). null = não cabem em [y0, y1].
-   */
-  function empilhar(alturas, ideais, y0, y1, gap) {
-    const n = alturas.length;
-    if (!n) return [];
-    const S = [];
-    let soma = 0;
-    alturas.forEach((h) => { S.push(soma); soma += h + gap; });
-    const maximo = y1 - S[n - 1] - alturas[n - 1];
-    if (maximo < y0) return null;
-    const blocos = [];
-    ideais.forEach((v, i) => {
-      blocos.push({ soma: v - S[i], n: 1 });
-      while (blocos.length > 1) {
-        const a = blocos[blocos.length - 2];
-        const b = blocos[blocos.length - 1];
-        if (a.soma / a.n <= b.soma / b.n) break;
-        a.soma += b.soma;
-        a.n += b.n;
-        blocos.pop();
-      }
-    });
-    const z = [];
-    blocos.forEach((b) => { for (let k = 0; k < b.n; k++) z.push(b.soma / b.n); });
-    return z.map((v, i) => Math.max(y0, Math.min(maximo, v)) + S[i]);
-  }
-
   /** Ponto do móvel onde chega a linha-guia: meio do tampo (no balcão em L, o meio do braço da frente/fundo). */
   function ancoraDe(m, P) {
     if (m.tipo === 'VITRINE_L') {
@@ -3990,49 +3945,113 @@ const Render = (() => {
     return P(m.x + m.w / 2, m.y + m.d / 2, m.z + m.h);
   }
 
+  /** Seções da visão simplificada: tipos de móvel, nesta ordem (os demais vão em "Outros"). */
+  const SECOES_FICHAS = [
+    { titulo: 'Gôndolas', tipos: ['GONDOLA'] },
+    { titulo: 'Pirâmides', tipos: ['PIRAMIDE'] },
+    { titulo: 'Móveis de fila', tipos: ['FILA'] },
+    { titulo: 'Mesas destaque', tipos: ['MESA', 'MESA_3'] },
+    { titulo: 'Totens', tipos: ['TOTEM'] },
+    { titulo: 'Móvel make', tipos: ['MAKE'] },
+    { titulo: 'Móveis de parede', tipos: ['GONDOLA_PAREDE'] },
+    { titulo: 'Balcão recepção', tipos: ['VITRINE_L'] },
+    { titulo: 'PDV móvel', tipos: ['CUBO'] },
+    { titulo: 'O.U.i', tipos: ['PAINEL', 'EXPOSITOR_OUI', 'ILHA_OUI'] },
+  ];
+  const CABECALHO_SECAO = 30; // altura do título de cada tipo
+
+  /** Fichas agrupadas por tipo de móvel (na ordem de SECOES_FICHAS) e, dentro do tipo, pelo número. */
+  function agruparFichas(fichas) {
+    const num = (f) => { const n = /(\d+)\s*$/.exec(f.movel.id); return n ? Number(n[1]) : 0; };
+    const secoes = SECOES_FICHAS.map((sec) => ({ titulo: sec.titulo, fichas: fichas.filter((f) => sec.tipos.indexOf(f.movel.tipo) >= 0) }));
+    const conhecidos = [].concat.apply([], SECOES_FICHAS.map((sec) => sec.tipos));
+    secoes.push({ titulo: 'Outros', fichas: fichas.filter((f) => conhecidos.indexOf(f.movel.tipo) < 0) });
+    return secoes.filter((sec) => sec.fichas.length).map((sec) => Object.assign(sec, {
+      fichas: sec.fichas.sort((a, b) => num(a) - num(b) || (a.movel.id < b.movel.id ? -1 : 1)),
+    }));
+  }
+
+  /** Caixas de destaque da visão simplificada: em fila no alto (sem linha-guia), quebrando a linha se precisar. */
+  function enfileirarCallouts(callouts, x0, x1) {
+    let x = x0;
+    let y = 14;
+    let alturaLinha = 0;
+    callouts.forEach((c) => {
+      if (x > x0 && x + c.w > x1) { x = x0; y += alturaLinha + 12; alturaLinha = 0; }
+      Object.assign(c, { x, y, alvo: null });
+      x += c.w + 16;
+      alturaLinha = Math.max(alturaLinha, c.h);
+    });
+    return callouts.length ? y + alturaLinha : 0;
+  }
+
   /**
-   * Arranjo do slide com as fichas: uma coluna à esquerda da planta (depois do painel lateral, acima
-   * das notas e da legenda) e outra à direita (acima dos itens extras). Cada ficha vai para o lado do
-   * móvel e fica na altura dele (sem cruzar as vizinhas). Se não couberem, ou se a planta ficar bem
-   * menor que no slide sem fichas, o slide cresce em 16:9: textos do mesmo tamanho, mais espaço.
-   * reservas: altura ocupada embaixo à esquerda / à direita.
+   * Arranjo da visão simplificada (sem a planta): as fichas em colunas, lidas de cima para baixo e da
+   * esquerda para a direita, agrupadas por tipo de móvel, cada grupo com o título dele (repetido com
+   * "(cont.)" se passar para a coluna seguinte). As colunas começam depois do painel lateral, embaixo
+   * das caixas de destaque, e param acima do que estiver embaixo (legenda, notas, itens extras).
+   * Se não couberem, o slide cresce em 16:9. painel: { callouts, embaixo(W, H) → retângulos }.
    */
-  function arranjarFichas(loja, fichas, reservas) {
-    const escalaSemFichas = criarProjecao(loja).escala;
-    const altura = (lista) => lista.reduce((s, f) => s + f.h, 0) + FICHA.gap * Math.max(0, lista.length - 1);
-    let arranjo = null;
-    for (let fator = 1; fator <= 3; fator += 0.02) {
-      const W = Math.round((TELA_BASE.w * fator) / 16) * 16; // múltiplo de 16: 16:9 exato
+  function arranjarSimplificada(fichas, painel) {
+    const secoes = agruparFichas(fichas);
+    const passo = FICHA.w + 16;
+    for (let fator = 1; ; fator += 0.05) {
+      const W = Math.round((TELA_BASE.w * fator) / 16) * 16;
       const H = (W / 16) * 9;
-      const colE = { x: FICHA.xEsq, y0: FICHA.margem, y1: H - reservas.esquerda - FICHA.margem };
-      const colD = { x: W - FICHA.margem - FICHA.w, y0: FICHA.margem, y1: H - reservas.direita - FICHA.margem };
-      const x0 = colE.x + FICHA.w + FICHA.folga;
-      const regiao = { x: x0, y: 70, w: colD.x - FICHA.folga - x0, h: H - 130 };
-      const projecao = criarProjecao(loja, regiao);
-      fichas.forEach((f) => { f.ancora = ancoraDe(f.movel, projecao.P); });
-      // Lado de cada ficha: o do móvel em relação ao meio da loja; se um lado não couber, os móveis
-      // mais perto do meio passam para o outro.
-      const meio = projecao.P(loja.largura / 2, loja.profundidade / 2, 0)[0];
-      const porX = fichas.slice().sort((a, b) => a.ancora[0] - b.ancora[0]);
-      const esq = porX.filter((f) => f.ancora[0] < meio);
-      const dir = porX.filter((f) => f.ancora[0] >= meio);
-      while (esq.length && altura(esq) > colE.y1 - colE.y0 && altura(dir) + esq[esq.length - 1].h + FICHA.gap <= colD.y1 - colD.y0) dir.unshift(esq.pop());
-      while (dir.length && altura(dir) > colD.y1 - colD.y0 && altura(esq) + dir[0].h + FICHA.gap <= colE.y1 - colE.y0) esq.push(dir.shift());
-      const colocar = (lista, col) => {
-        lista.sort((a, b) => a.ancora[1] - b.ancora[1]);
-        const ys = empilhar(lista.map((f) => f.h), lista.map((f) => f.ancora[1] - f.h / 2), col.y0, col.y1, FICHA.gap);
-        if (!ys) return false;
-        lista.forEach((f, i) => { f.baseX = col.x; f.baseY = ys[i]; });
+      const x0 = FICHA.xEsq;
+      enfileirarCallouts(painel.callouts, x0, W - FICHA.margem);
+      const nCol = Math.max(1, Math.floor((W - FICHA.margem - x0 + 16) / passo));
+      // Cada coluna vai de baixo das caixas de destaque que estão em cima dela até acima do que está embaixo.
+      const naFaixa = (x) => (r) => r.x < x + FICHA.w && r.x + r.w > x;
+      const colunas = Array.from({ length: nCol }, (_, c) => {
+        const x = x0 + c * passo;
+        const cima = painel.callouts.filter(naFaixa(x));
+        const baixo = painel.embaixo(W, H).filter(naFaixa(x));
+        return {
+          x,
+          y0: Math.max.apply(null, [20].concat(cima.map((r) => r.y + r.h + 24))),
+          y1: Math.min.apply(null, [H - FICHA.margem].concat(baixo.map((r) => r.y - 14))),
+        };
+      });
+      const alturaSecao = (sec) => CABECALHO_SECAO + sec.fichas.reduce((t, f) => t + f.h + FICHA.gap, 0);
+      const titulos = [];
+      let c = 0;
+      let y = colunas[0].y0;
+      const proxima = () => { c++; if (c < nCol) y = colunas[c].y0; return c < nCol; };
+      const cabe = secoes.every((sec) => sec.fichas.every((f, i) => {
+        // Um tipo que não cabe no resto da coluna, mas cabe inteiro na seguinte, começa nela.
+        if (i === 0 && y + alturaSecao(sec) > colunas[c].y1 && c + 1 < nCol && y > colunas[c].y0
+          && colunas[c + 1].y0 + alturaSecao(sec) <= colunas[c + 1].y1) proxima();
+        // Título junto com a primeira ficha do tipo; numa coluna nova, o título se repete.
+        const precisa = (i === 0 ? CABECALHO_SECAO : 0) + f.h;
+        if (y + precisa > colunas[c].y1) {
+          if (!proxima() || y + CABECALHO_SECAO + f.h > colunas[c].y1) return false;
+          if (i > 0) { titulos.push({ texto: sec.titulo + ' (cont.)', x: colunas[c].x, y }); y += CABECALHO_SECAO; }
+        }
+        if (i === 0) { titulos.push({ texto: sec.titulo, n: sec.fichas.length, x: colunas[c].x, y }); y += CABECALHO_SECAO; }
+        f.baseX = colunas[c].x;
+        f.baseY = y;
+        y += f.h + FICHA.gap;
+        if (i === sec.fichas.length - 1) y += 10; // respiro entre um tipo e o seguinte
         return true;
-      };
-      const cabe = colocar(esq, colE) && colocar(dir, colD);
-      arranjo = {
-        w: W, h: H, projecao,
-        limites: { x0: x0 - FICHA.folga + 10, y0: 8, x1: colD.x - 10, y1: H - 8 },
-      };
-      if (cabe && projecao.escala >= escalaSemFichas * 0.92) break;
+      }));
+      if (cabe || fator > 3) {
+        return { w: W, h: H, titulos, callouts: painel.callouts, limites: { x0, y0: 8, x1: W - FICHA.margem, y1: H - 8 } };
+      }
     }
-    return arranjo;
+  }
+
+  /** Título de um tipo de móvel na visão simplificada: nome, quantidade e um traço embaixo. */
+  function desenharTituloSecao(pai, t) {
+    const g = el('g', { class: 'titulo-secao' }, pai);
+    texto(g, t.x + 2, t.y + 16, t.texto.toUpperCase(), {
+      'font-family': FONTE_ETQ, 'font-size': 13, 'font-weight': 800, 'letter-spacing': 0.8, fill: '#2B2B2B',
+    });
+    if (t.n) {
+      const w = largura(t.texto.toUpperCase(), 13, 800, 'normal', FONTE_ETQ) + t.texto.length * 0.8;
+      texto(g, t.x + 10 + w, t.y + 16, String(t.n), { 'font-family': FONTE_ETQ, 'font-size': 12, 'font-weight': 700, fill: '#8A847C' });
+    }
+    linha(g, [t.x, t.y + 23], [t.x + FICHA.w, t.y + 23], { stroke: '#2B2B2B', 'stroke-width': 1.5 });
   }
 
   /* ------------------------ etiquetas na planta --------------------------- */
@@ -4704,7 +4723,7 @@ const Render = (() => {
     };
 
     // Tamanho do slide e etiquetas. Sem etiquetas: o slide de sempre (1920×1080).
-    //  - "simplificada": fichas em colunas dos dois lados da planta (o slide cresce se precisar);
+    //  - "simplificada": sem a planta, só as fichas, agrupadas por tipo de móvel (o slide cresce se precisar);
     //  - "planta" (padrão): etiquetas junto dos espaços, com a planta maior se faltar lugar.
     const simplificada = ctx.visao === 'simplificada';
     const nSimbolos = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length;
@@ -4712,25 +4731,26 @@ const Render = (() => {
     const fichas = simplificada ? montarFichas(moveis, info, infoEspaco, ctx.dados.config) : [];
     const rotulos = simplificada ? [] : montarRotulos(moveis, info, infoEspaco, ctx.dados.config);
     // Na visão simplificada, as notas vão estreitas embaixo do painel lateral (se couberem no slide de
-    // 1080), e a coluna da esquerda desce até a legenda; senão, as notas largas, e a coluna para acima delas.
+    // 1080), e a primeira coluna desce até a legenda; senão, as notas largas, e a coluna para acima delas.
     let medNotas = pain.NOTA.length ? medirNotas(pain.NOTA, !!fichas.length) : null;
     if (medNotas && fichas.length && TELA_BASE.h - legendaAteOPe - 28 - medNotas.h < desenharLateral(null, planta, ctx.ciclo, pain) + 16) {
       medNotas = medirNotas(pain.NOTA, false);
     }
-    const notasLargas = medNotas && medNotas.w > FICHA.xEsq;
     const yNotas = (H) => Math.min(nSimbolos ? H - legendaAteOPe : H - 8, H - 8) - 28 - (medNotas ? medNotas.h : 0);
     const obstaculosPaineis = (W, H) => [].concat(
       medNotas ? [{ x: 15, y: yNotas(H), w: medNotas.w, h: medNotas.h }] : [],
       extras.length ? [{ x: W - 16 - 206 * extras.length, y: H - 100, w: 206 * extras.length, h: 84 }] : [],
     );
+    const larguraLegenda = 58 + Math.max.apply(null, [0].concat(['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO']
+      .filter((x) => simbolosUsados.has(x)).map((x) => largura((ctx.dados.simbolos[x] && ctx.dados.simbolos[x].descricao) || x, 19, 400))));
+    const semPlanta = fichas.length > 0; // visão simplificada com etiquetas: só as fichas
     let arranjo;
-    if (fichas.length) {
-      arranjo = arranjarFichas(planta.loja, fichas, {
-        esquerda: notasLargas ? legendaAteOPe + 28 + medNotas.h : nSimbolos ? legendaAteOPe : 0,
-        direita: extras.length ? 100 : 0,
+    if (semPlanta) {
+      arranjo = arranjarSimplificada(fichas, {
+        callouts: medCallouts.map((mc) => Object.assign({}, mc)),
+        embaixo: (W, H) => obstaculosPaineis(W, H).concat(nSimbolos ? [{ x: 0, y: H - legendaAteOPe, w: larguraLegenda, h: legendaAteOPe }] : []),
       });
       limites = arranjo.limites;
-      arranjo.callouts = situarCallouts(arranjo.projecao.P);
     } else if (rotulos.length) {
       arranjo = arranjarNaPlanta(planta.loja, moveis, rotulos, { situarCallouts, obstaculos: obstaculosPaineis });
       limites = arranjo.limites;
@@ -4750,53 +4770,56 @@ const Render = (() => {
     el('feDropShadow', { dx: 0, dy: 1.2, stdDeviation: 1.3, 'flood-color': '#000', 'flood-opacity': 0.22 }, sombraEtq);
     if (!ctx.somentePlanta) el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
 
-    const projecao = arranjo.projecao;
+    const projecao = arranjo.projecao || criarProjecao(planta.loja);
     const { P } = projecao;
     const camadaPlanta = el('g', { class: 'camada-planta' }, svg);
     const camadaGuias = el('g', { class: 'camada-guias' }, svg);
     const camadaEtiquetas = el('g', { class: 'camada-etiquetas' }, svg);
     const camadaSobre = el('g', { class: 'camada-sobreposta' }, svg);
 
-    desenharLoja(camadaPlanta, P, planta.loja);
-    if (ctx.grade) desenharGrade(camadaPlanta, P, planta.loja);
+    // A planta (piso, paredes e móveis): na visão simplificada com etiquetas, não aparece.
+    if (!semPlanta) {
+      desenharLoja(camadaPlanta, P, planta.loja);
+      if (ctx.grade) desenharGrade(camadaPlanta, P, planta.loja);
 
-    // Móveis, na ordem de pintura. Numeração (pirâmide, gôndola e móvel de fila): plaquinha na face
-    // da frente, desenhada junto com o móvel (o que está na frente o cobre, como o resto da planta).
-    const prims = [];
-    const faltam = {}; // primitivas ainda por pintar de cada móvel (a plaquinha vai com a última)
-    moveis.forEach((m) => primitivas(m).forEach((p) => { prims.push(p); faltam[m.id] = (faltam[m.id] || 0) + 1; }));
-    ordenar(prims, P).forEach((b) => {
-      const m = b.movel;
-      const i = infoDe(b);
-      const corInfo = (x) => (x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);
-      const cores = corInfo(i);
-      // Mesas e totem: um só desenho, mas cada frente / painel com a cor da própria linha.
-      if (m.tipo === 'MESA' || m.tipo === 'MESA_3' || m.tipo === 'TOTEM') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id]));
-      const g = el('g', {
-        class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
-        'data-movel': m.id,
-        'data-espaco': b.espaco ? b.espaco.id : null,
-      }, camadaPlanta);
-      desenharPrimitiva(g, P, b, cores);
-      const numero = --faltam[m.id] === 0 ? numeroDe(m) : '';
-      if (numero) desenharNumero(g, P, m, numero, projecao.escala);
-      const linhasDica = [m.id + (b.espaco ? '/' + b.espaco.id + ' (' + b.espaco.nome + ')' : '') + (m.descricao ? ' — ' + m.descricao : '')];
-      const nomeMarca = (x) => (x.marca ? x.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—');
-      if (!b.espaco && espacos(m).length) {
-        // Mesa, totem e corpo do móvel make: um desenho só, com o que cada espaço tem.
-        espacos(m).forEach((e) => {
-          const x = infoEspaco[m.id + '/' + e.id];
-          linhasDica.push(e.nome + ': ' + (x ? nomeMarca(x) + x.etiquetas.map((et) => ' • ' + et.texto).join('') : 'sem movimento'));
-        });
-      } else if (i) {
-        linhasDica.push('Marca: ' + nomeMarca(i));
-        i.etiquetas.forEach((e) => linhasDica.push('• ' + e.texto));
-        if (i.observacao) linhasDica.push('Obs.: ' + i.observacao);
-      } else {
-        linhasDica.push('Sem movimento neste ciclo');
-      }
-      dica(g, linhasDica.join('\n'));
-    });
+      // Móveis, na ordem de pintura. Numeração (pirâmide, gôndola e móvel de fila): plaquinha na face
+      // da frente, desenhada junto com o móvel (o que está na frente o cobre, como o resto da planta).
+      const prims = [];
+      const faltam = {}; // primitivas ainda por pintar de cada móvel (a plaquinha vai com a última)
+      moveis.forEach((m) => primitivas(m).forEach((p) => { prims.push(p); faltam[m.id] = (faltam[m.id] || 0) + 1; }));
+      ordenar(prims, P).forEach((b) => {
+        const m = b.movel;
+        const i = infoDe(b);
+        const corInfo = (x) => (x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);
+        const cores = corInfo(i);
+        // Mesas e totem: um só desenho, mas cada frente / painel com a cor da própria linha.
+        if (m.tipo === 'MESA' || m.tipo === 'MESA_3' || m.tipo === 'TOTEM') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id]));
+        const g = el('g', {
+          class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
+          'data-movel': m.id,
+          'data-espaco': b.espaco ? b.espaco.id : null,
+        }, camadaPlanta);
+        desenharPrimitiva(g, P, b, cores);
+        const numero = --faltam[m.id] === 0 ? numeroDe(m) : '';
+        if (numero) desenharNumero(g, P, m, numero, projecao.escala);
+        const linhasDica = [m.id + (b.espaco ? '/' + b.espaco.id + ' (' + b.espaco.nome + ')' : '') + (m.descricao ? ' — ' + m.descricao : '')];
+        const nomeMarca = (x) => (x.marca ? x.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—');
+        if (!b.espaco && espacos(m).length) {
+          // Mesa, totem e corpo do móvel make: um desenho só, com o que cada espaço tem.
+          espacos(m).forEach((e) => {
+            const x = infoEspaco[m.id + '/' + e.id];
+            linhasDica.push(e.nome + ': ' + (x ? nomeMarca(x) + x.etiquetas.map((et) => ' • ' + et.texto).join('') : 'sem movimento'));
+          });
+        } else if (i) {
+          linhasDica.push('Marca: ' + nomeMarca(i));
+          i.etiquetas.forEach((e) => linhasDica.push('• ' + e.texto));
+          if (i.observacao) linhasDica.push('Obs.: ' + i.observacao);
+        } else {
+          linhasDica.push('Sem movimento neste ciclo');
+        }
+        dica(g, linhasDica.join('\n'));
+      });
+    }
 
     // Painéis (lateral, legenda, notas, extras e caixas de destaque).
     desenharLateral(el('g', null, camadaSobre), planta, ctx.ciclo, pain);
@@ -4824,30 +4847,30 @@ const Render = (() => {
       dica(r.elemento, r.id + (m.descricao ? ' — ' + m.descricao : '') + ' · clique para ver a estratégia do móvel');
     });
 
-    // Fichas: na posição do arranjo, mais o ajuste manual do móvel (modo "Ajustar etiquetas").
+    // Fichas (visão simplificada): títulos dos tipos de móvel e as fichas, na posição do arranjo
+    // (sem ajuste manual: o arranjo por tipo é fixo).
+    (arranjo.titulos || []).forEach((t) => desenharTituloSecao(camadaEtiquetas, t));
     fichas.forEach((f) => {
       const m = f.movel;
-      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
-      f.x = f.baseX + ajuste.x;
-      f.y = f.baseY + ajuste.y;
-      f.manual = !!(ajuste.x || ajuste.y);
-      desenharGuiaFicha(camadaGuias, f);
-      f.elemento = desenharFicha(camadaEtiquetas, f, {
-        class: 'grupo-etiquetas ficha' + (ctx.edicao ? ' arrastavel' : ''),
-      });
+      f.x = f.baseX;
+      f.y = f.baseY;
+      f.elemento = desenharFicha(camadaEtiquetas, f, { class: 'grupo-etiquetas ficha' });
       dica(f.elemento, m.id + (m.descricao ? ' — ' + m.descricao : '') + ' · clique para ver a estratégia do móvel');
     });
-    const grupos = fichas.length ? fichas : rotulos;
+    const grupos = rotulos; // pilhas que se arrastam em "Ajustar etiquetas" (as fichas não se ajustam)
 
     // Validação: marcador com o nº de comentários abertos no canto de cada móvel comentado
     // (do mesmo tamanho na tela com zoom; não vai no PNG).
     if (ctx.comentarios && !ctx.somentePlanta) {
       const camada = el('g', { class: 'camada-comentarios' }, svg);
+      const fichaDe = {};
+      fichas.forEach((f) => { fichaDe[f.movel.id] = f; });
       moveis.forEach((m) => {
         const qtd = ctx.comentarios[m.id];
-        if (!qtd) return;
-        // Canto de cima mais à direita do móvel na tela.
-        const [px, py] = P(m.x + m.w, m.y, m.z + m.h);
+        if (!qtd || (semPlanta && !fichaDe[m.id])) return;
+        // Canto de cima mais à direita do móvel na tela (sem a planta: o canto da ficha dele).
+        const f = fichaDe[m.id];
+        const [px, py] = semPlanta ? [f.x + f.w - 12, f.y + 20] : P(m.x + m.w, m.y, m.z + m.h);
         const g = el('g', { class: 'marcador-comentario', 'data-movel': m.id }, pivoZoom(camada, px, py));
         const cx = px + 6;
         const cy = py - 22;
@@ -6813,6 +6836,7 @@ const App = (() => {
     if (Object.keys(estado.ajustes).length && !window.confirm('Há ajustes de etiquetas não salvos nesta planta. Descartar?')) return;
     estado.ajustes = {};
     estado.visao = visao;
+    estado.edicao = estado.edicao && visao === 'planta'; // as fichas da visão simplificada não se ajustam
     estado.zoom = { k: 1, x: 0, y: 0 };
     memoria.gravar('visao', visao);
     marcarVisao();
@@ -6822,6 +6846,10 @@ const App = (() => {
 
   function marcarVisao() {
     document.querySelectorAll('#abasVisao .aba').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.visao === estado.visao)));
+    // Na visão simplificada as fichas ficam no arranjo por tipo: não há o que ajustar.
+    const simplificada = estado.visao === 'simplificada';
+    $('btnEditar').disabled = simplificada;
+    $('btnEditar').title = simplificada ? 'Na visão simplificada as fichas ficam organizadas por tipo de móvel' : '';
   }
 
   /* ------------------------------- desenho -------------------------------- */
@@ -6839,7 +6867,7 @@ const App = (() => {
       filtro: estado.filtro,
       ajustes: estado.ajustes,
       edicao: estado.edicao,
-      visao: estado.visao,
+      visao: construcao ? 'planta' : estado.visao, // a construção é sempre sobre a planta
       // No modo construção os móveis ficam sem cor e sem etiqueta (a menos que se peça para mostrar o ciclo).
       obterMovimento: (m) => (semConteudo ? null : movimentoDe(estado.ciclo, planta.id, m.id)),
       obterPaineis: () => {

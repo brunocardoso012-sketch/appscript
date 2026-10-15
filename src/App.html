@@ -291,6 +291,7 @@ const App = (() => {
     if (Object.keys(estado.ajustes).length && !window.confirm('Há ajustes de etiquetas não salvos nesta planta. Descartar?')) return;
     estado.ajustes = {};
     estado.visao = visao;
+    estado.edicao = estado.edicao && visao === 'planta'; // as fichas da visão simplificada não se ajustam
     estado.zoom = { k: 1, x: 0, y: 0 };
     memoria.gravar('visao', visao);
     marcarVisao();
@@ -300,6 +301,10 @@ const App = (() => {
 
   function marcarVisao() {
     document.querySelectorAll('#abasVisao .aba').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.visao === estado.visao)));
+    // Na visão simplificada as fichas ficam no arranjo por tipo: não há o que ajustar.
+    const simplificada = estado.visao === 'simplificada';
+    $('btnEditar').disabled = simplificada;
+    $('btnEditar').title = simplificada ? 'Na visão simplificada as fichas ficam organizadas por tipo de móvel' : '';
   }
 
   /* ------------------------------- desenho -------------------------------- */
@@ -317,7 +322,7 @@ const App = (() => {
       filtro: estado.filtro,
       ajustes: estado.ajustes,
       edicao: estado.edicao,
-      visao: estado.visao,
+      visao: construcao ? 'planta' : estado.visao, // a construção é sempre sobre a planta
       // No modo construção os móveis ficam sem cor e sem etiqueta (a menos que se peça para mostrar o ciclo).
       obterMovimento: (m) => (semConteudo ? null : movimentoDe(estado.ciclo, planta.id, m.id)),
       obterPaineis: () => {
