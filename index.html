@@ -3971,47 +3971,28 @@ const Render = (() => {
     }));
   }
 
-  /** Caixas de destaque da visão simplificada: em fila no alto (sem linha-guia), quebrando a linha se precisar. */
-  function enfileirarCallouts(callouts, x0, x1) {
-    let x = x0;
-    let y = 14;
-    let alturaLinha = 0;
-    callouts.forEach((c) => {
-      if (x > x0 && x + c.w > x1) { x = x0; y += alturaLinha + 12; alturaLinha = 0; }
-      Object.assign(c, { x, y, alvo: null });
-      x += c.w + 16;
-      alturaLinha = Math.max(alturaLinha, c.h);
-    });
-    return callouts.length ? y + alturaLinha : 0;
-  }
-
   /**
    * Arranjo da visão simplificada (sem a planta): as fichas em colunas, lidas de cima para baixo e da
    * esquerda para a direita, agrupadas por tipo de móvel, cada grupo com o título dele (repetido com
-   * "(cont.)" se passar para a coluna seguinte). As colunas começam depois do painel lateral, embaixo
-   * das caixas de destaque, e param acima do que estiver embaixo (legenda, notas, itens extras).
-   * Se não couberem, o slide cresce em 16:9. painel: { callouts, embaixo(W, H) → retângulos }.
+   * "(cont.)" se passar para a coluna seguinte). As caixas de destaque vêm no fim, como o grupo
+   * "Destaques", na largura das fichas. As colunas começam depois do painel lateral e param acima do
+   * que estiver embaixo (legenda, notas, itens extras). Se não couberem, o slide cresce em 16:9.
+   * painel: { callouts (já medidos na largura da ficha), embaixo(W, H) → retângulos }.
    */
   function arranjarSimplificada(fichas, painel) {
     const secoes = agruparFichas(fichas);
+    if (painel.callouts.length) secoes.push({ titulo: 'Destaques', fichas: painel.callouts });
     const passo = FICHA.w + 16;
     for (let fator = 1; ; fator += 0.05) {
       const W = Math.round((TELA_BASE.w * fator) / 16) * 16;
       const H = (W / 16) * 9;
       const x0 = FICHA.xEsq;
-      enfileirarCallouts(painel.callouts, x0, W - FICHA.margem);
       const nCol = Math.max(1, Math.floor((W - FICHA.margem - x0 + 16) / passo));
-      // Cada coluna vai de baixo das caixas de destaque que estão em cima dela até acima do que está embaixo.
-      const naFaixa = (x) => (r) => r.x < x + FICHA.w && r.x + r.w > x;
+      // Cada coluna vai do alto do slide até acima do que está embaixo dela.
       const colunas = Array.from({ length: nCol }, (_, c) => {
         const x = x0 + c * passo;
-        const cima = painel.callouts.filter(naFaixa(x));
-        const baixo = painel.embaixo(W, H).filter(naFaixa(x));
-        return {
-          x,
-          y0: Math.max.apply(null, [20].concat(cima.map((r) => r.y + r.h + 24))),
-          y1: Math.min.apply(null, [H - FICHA.margem].concat(baixo.map((r) => r.y - 14))),
-        };
+        const baixo = painel.embaixo(W, H).filter((r) => r.x < x + FICHA.w && r.x + r.w > x);
+        return { x, y0: 20, y1: Math.min.apply(null, [H - FICHA.margem].concat(baixo.map((r) => r.y - 14))) };
       });
       const alturaSecao = (sec) => CABECALHO_SECAO + sec.fichas.reduce((t, f) => t + f.h + FICHA.gap, 0);
       const titulos = [];
@@ -4036,6 +4017,7 @@ const Render = (() => {
         return true;
       }));
       if (cabe || fator > 3) {
+        painel.callouts.forEach((c) => Object.assign(c, { x: c.baseX, y: c.baseY, alvo: null }));
         return { w: W, h: H, titulos, callouts: painel.callouts, limites: { x0, y0: 8, x1: W - FICHA.margem, y1: H - 8 } };
       }
     }
@@ -4746,8 +4728,12 @@ const Render = (() => {
     const semPlanta = fichas.length > 0; // visão simplificada com etiquetas: só as fichas
     let arranjo;
     if (semPlanta) {
+      // Caixas de destaque no fim do quadro, na largura das fichas.
       arranjo = arranjarSimplificada(fichas, {
-        callouts: medCallouts.map((mc) => Object.assign({}, mc)),
+        callouts: medCallouts.map((mc) => {
+          const linhas = quebrar(mc.c.texto, FICHA.w - CALLOUT.pad * 2 - 2, CALLOUT.fonte, 700);
+          return Object.assign({}, mc, { linhas, w: FICHA.w, h: linhas.length * CALLOUT.lh + CALLOUT.pad * 2 });
+        }),
         embaixo: (W, H) => obstaculosPaineis(W, H).concat(nSimbolos ? [{ x: 0, y: H - legendaAteOPe, w: larguraLegenda, h: legendaAteOPe }] : []),
       });
       limites = arranjo.limites;
