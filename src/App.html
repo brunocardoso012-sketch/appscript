@@ -1712,6 +1712,8 @@ const App = (() => {
       if (e.key === 'Escape' && !menuCfg.hidden) { abrirMenuCfg(false); $('btnConfig').focus(); }
     });
     ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
+    // O menu fecha no clique; o tour começa depois, para não destacar o menu ainda aberto.
+    ao('btnTutorial', 'click', () => estado.dados && setTimeout(() => Tutorial.iniciar(), 0));
     ao('btnSalvarAjustes', 'click', salvarAjustes);
     ao('btnConfigurar', 'click', configurar);
     ao('btnConstruir', 'click', () => {
@@ -1771,7 +1773,8 @@ const App = (() => {
     abrirMovel: (id) => abrirMovel(id),
     fecharEspaco: () => { estado.painelEspaco = false; atualizarEspaco(); },
   });
-  carregar();
+  // Na primeira visita, depois de carregar, oferece o tutorial guiado.
+  carregar().then(() => { if (estado.dados) Tutorial.oferecer(); });
 
   // resolver: usado também para gerar a planilha base da versão de visualização (dev/).
   return { estado, carregar, resolver: { movimento: movimentoDe, linhasPaineis, linhasTipos } };

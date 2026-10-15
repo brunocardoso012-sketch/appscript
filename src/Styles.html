@@ -614,4 +614,31 @@
     .painel-espaco { flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--borda); overflow: visible; }
     .esp-topo { position: static; }
   }
+
+  /* ---------- tutorial guiado ---------- */
+  .tut-fundo { position: fixed; inset: 0; z-index: 900; background: transparent; }
+  .tut-fundo.cheio { background: rgba(17, 20, 24, .55); }
+  .tut-foco {
+    position: fixed; z-index: 901; border-radius: 10px; pointer-events: none;
+    box-shadow: 0 0 0 3px #FFD21F, 0 0 0 9999px rgba(17, 20, 24, .55);
+    transition: left .2s ease, top .2s ease, width .2s ease, height .2s ease;
+  }
+  .tut-balao {
+    position: fixed; z-index: 902; box-sizing: border-box; padding: 16px 18px 14px;
+    background: var(--superficie); color: var(--texto); border-radius: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, .28);
+    font-size: 14px; line-height: 1.5;
+  }
+  .tut-balao h2 { margin: 2px 0 6px; font-size: 17px; }
+  .tut-balao p { margin: 0 0 12px; color: var(--texto-2); }
+  .tut-topo { display: flex; justify-content: space-between; align-items: center; }
+  .tut-progresso { font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--texto-2); }
+  .tut-fechar { padding: 2px 8px; }
+  .tut-pontos { display: flex; gap: 5px; margin: 0 0 12px; }
+  .tut-pontos i { width: 6px; height: 6px; border-radius: 50%; background: var(--borda-forte); }
+  .tut-pontos i.ativo { background: var(--texto); width: 18px; border-radius: 3px; }
+  .tut-rodape { display: flex; justify-content: space-between; gap: 8px; }
+  .tut-boas-vindas h2 { font-size: 20px; }
+  .tut-boas-vindas .tut-rodape { justify-content: flex-end; }
+  .tut-dica { margin: 12px 0 0 !important; font-size: 12px; }
+  @media (prefers-reduced-motion: reduce) { .tut-foco { transition: none; } }
 </style>
