@@ -94,6 +94,10 @@ Seções recolhidas no painel:
 
 **Baixar código da loja** gera `layout-plantas-AAAA-MM-DD.json` com o layout de todas as plantas, no mesmo formato de [`src/Layouts.gs`](src/Layouts.gs). Mande esse arquivo para virar o layout padrão do projeto. **Carregar código…** aplica um arquivo desses de volta.
 
+## Instalar ou atualizar no Apps Script
+
+A pasta [`instalacao/`](instalacao/) tem os arquivos prontos para colar no Apps Script, **um arquivo só por versão** (`App completo - Plano de Varejo.gs` e `Visualizador - Plano de Varejo.gs`), e o **[guia de instalação e atualização](instalacao/GUIA%20DE%20INSTALA%C3%87%C3%83O%20E%20ATUALIZA%C3%87%C3%83O.md)**, escrito para quem já usa o app e já tem a planilha com os ciclos. Os arquivos são gerados a partir de `src/` com `npm run build:instalacao`.
+
 ## Versão só de visualização (Apps Script)
 
 A pasta [`visualizador/`](visualizador/) tem uma versão do app **só para visualizar** a estratégia, que é montada direto numa planilha do Google Sheets. Todos os ciclos ficam numa única planilha (abas *Movimentos* e *Painéis*), conectada ao script. Não tem *Construir loja*, *Baixar planilha base* nem *Importar planilha*. O layout das lojas fica no código.
