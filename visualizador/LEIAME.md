@@ -2,20 +2,33 @@
 
 Versão **só de visualização** do app: mostra as plantas de cada ciclo a partir de **uma única planilha** no Google Sheets. A estratégia é montada direto na planilha; o app só lê (a única coisa que ele grava são os comentários da validação, na aba **Comentários**).
 
-Comparado ao app completo, esta versão **não tem** *Construir loja*, *Baixar planilha base* nem *Importar planilha*. Ficam: seletor de ciclo, abas das plantas (setas ← →), filtro por marca, *Baixar PNG*, *Ajustar etiquetas*, *Atualizar* e *Abrir planilha*.
+Comparado ao app completo, esta versão **não tem** *Construir loja*, *Baixar planilha base* nem *Importar planilha*. Ficam: seletor de ciclo, abas das plantas (setas ← →), as visões *Na planta* e *Visão simplificada*, *Painel da ER* (menu da esquerda), *Espaço por marca*, *Validação*, filtro por marca, zoom, *Baixar PNG*, *Ajustar etiquetas*, *Atualizar* e *Abrir planilha*.
 
 ## Arquivos
 
 | Arquivo | O que é |
 |---|---|
+| **`Plano de Varejo - Apps Script.gs`** | **O app inteiro num arquivo só** (código + página): é só colar no `Código.gs`. |
 | `Planilha base - Visualizador.xlsx` | A planilha que alimenta o app (abas **Movimentos**, **Painéis** e **Instruções**), já com o *Ciclo exemplo* das quatro plantas. |
 | `apps-script/Codigo.gs` | Todo o código do servidor, num arquivo só. |
 | `apps-script/Index.html` | A página, num arquivo só. |
 | `apps-script/appsscript.json` | Manifesto (fuso horário, V8, App da Web). |
 
-Os três arquivos de `apps-script/` são **gerados** a partir de `src/` (`npm run build:visualizador`). Não edite à mão: mude `src/` (ou `visualizador/fonte/Visualizador.gs`) e gere de novo.
+O arquivo único e os três arquivos de `apps-script/` são **gerados** a partir de `src/` (`npm run build:visualizador`). Não edite à mão: mude `src/` (ou `visualizador/fonte/Visualizador.gs`) e gere de novo.
 
-## Como instalar
+## Instalação rápida (um arquivo só)
+
+1. **Planilha:** envie `Planilha base - Visualizador.xlsx` para o Google Drive e abra com o Google Sheets (*Arquivo > Salvar como Planilhas Google*). Se já tem a planilha com os ciclos, use a sua.
+2. Na planilha, abra *Extensões > Apps Script*.
+3. Apague todo o conteúdo do `Código.gs`, cole **o conteúdo inteiro** de `Plano de Varejo - Apps Script.gs` e salve (ícone de disquete ou <kbd>Ctrl</kbd>+<kbd>S</kbd>). Não precisa criar nenhum outro arquivo.
+4. *Implantar > Nova implantação* > engrenagem > *App da Web*. *Executar como:* **Eu**; *Quem pode acessar:* quem for usar. Clique em *Implantar* e autorize o acesso à planilha na primeira vez.
+5. Pronto: abra o link do App da Web. Recarregando a planilha, aparece também o menu **Plano de Varejo > Abrir visualizador**.
+
+**Para atualizar depois:** cole de novo o arquivo inteiro no `Código.gs`, salve e, em *Implantar > Gerenciar implantações*, edite a implantação (lápis) e escolha *Versão: Nova versão*. O link continua o mesmo.
+
+Se preferir os arquivos separados (o código e a página), siga o passo a passo abaixo — o app é o mesmo.
+
+## Como instalar (arquivos separados)
 
 1. **Planilha:** envie `Planilha base - Visualizador.xlsx` para o Google Drive e abra com o Google Sheets (*Arquivo > Salvar como Planilhas Google*). Esta é a planilha onde todos os ciclos vão ficar.
 2. **Script vinculado à planilha:** na planilha, abra *Extensões > Apps Script*.

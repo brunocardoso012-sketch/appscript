@@ -96,11 +96,12 @@ Seções recolhidas no painel:
 
 A pasta [`visualizador/`](visualizador/) tem uma versão do app **só para visualizar** a estratégia, que é montada direto numa planilha do Google Sheets. Todos os ciclos ficam numa única planilha (abas *Movimentos* e *Painéis*), conectada ao script. Não tem *Construir loja*, *Baixar planilha base* nem *Importar planilha*. O layout das lojas fica no código.
 
+- **[`visualizador/Plano de Varejo - Apps Script.gs`](visualizador/) é o app inteiro num arquivo só**: cole no `Código.gs` do Apps Script da planilha e publique como App da Web (não precisa criar o Index.html).
 - [`visualizador/Planilha base - Visualizador.xlsx`](visualizador/) é a planilha que alimenta o app.
 - [`visualizador/apps-script/`](visualizador/apps-script/) tem o projeto pronto para colar no Apps Script: `Codigo.gs`, `Index.html` e o manifesto.
 - O passo a passo de instalação está em [`visualizador/LEIAME.md`](visualizador/LEIAME.md).
 
-Os arquivos de `visualizador/apps-script/` são gerados a partir de `src/` com `npm run build:visualizador`. A planilha base é gerada com `node dev/gerar-planilha-visualizador.js`.
+O arquivo único e os de `visualizador/apps-script/` são gerados a partir de `src/` com `npm run build:visualizador`. A planilha base é gerada com `node dev/gerar-planilha-visualizador.js`.
 
 ## Versão web para testes (netli.fyi / Netlify)
 

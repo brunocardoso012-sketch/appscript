@@ -6,11 +6,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('vm');
 const { carregarGas, servicosFalsos } = require('./gas');
-const { gerarCodigo, gerarIndex } = require('./build-visualizador');
+const { gerarCodigo, gerarIndex, gerarArquivoUnico, ARQUIVO_UNICO } = require('./build-visualizador');
 
 /** Carrega o Codigo.gs gerado com uma planilha em memória (abas do ciclo de exemplo, se pedido). */
 function carregarVisualizador(opcoes) {
-  const op = Object.assign({ comAbas: true, vinculada: true }, opcoes);
+  const op = Object.assign({ comAbas: true, vinculada: true, codigo: null }, opcoes);
   const falsos = servicosFalsos({ vinculada: op.vinculada });
   const abertas = [];
   falsos.globais.SpreadsheetApp.openById = (id) => { abertas.push(id); return falsos.planilha; };
@@ -23,7 +23,7 @@ function carregarVisualizador(opcoes) {
     });
   }
   const ctx = vm.createContext(Object.assign({ console }, falsos.globais));
-  vm.runInContext(gerarCodigo(), ctx, { filename: 'Codigo.gs' });
+  vm.runInContext(op.codigo || gerarCodigo(), ctx, { filename: 'Codigo.gs' });
   const run = (expr) => {
     const v = vm.runInContext(expr, ctx);
     return v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v;
@@ -97,4 +97,17 @@ test('visualizador: comentários da validação ficam na aba Comentários da pla
   assert.equal(l.length, 1);
   assert.ok(falsos.planilha.getSheetByName('Comentários'), 'aba criada');
   assert.equal(run(`getComentarios(${V})`)[0].texto, 'Rever a ER M');
+});
+
+test('arquivo único para o Apps Script: atualizado, serve a página embutida e lê a planilha', () => {
+  const fs = require('fs');
+  const unico = fs.readFileSync(ARQUIVO_UNICO, 'utf8');
+  assert.equal(unico, gerarArquivoUnico(), 'Plano de Varejo - Apps Script.gs desatualizado (rode npm run build:visualizador)');
+  assert.ok(!unico.includes('createHtmlOutputFromFile'), 'não depende do arquivo Index.html');
+  const { run } = carregarVisualizador({ codigo: unico });
+  // HtmlService de mentira: guarda a página que o doGet entrega.
+  run('HtmlService = { createHtmlOutput: (html) => { globalThis.__pagina = html; const o = { setTitle: () => o, addMetaTag: () => o }; return o; } }');
+  run('doGet()');
+  assert.equal(run('globalThis.__pagina'), gerarIndex(), 'a página servida é o Index.html do visualizador');
+  assert.deepEqual(run('getDados()').ciclos, ['Ciclo exemplo']);
 });
