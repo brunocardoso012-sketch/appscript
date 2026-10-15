@@ -9,7 +9,7 @@ Comparado ao app completo, esta versão **não tem** *Construir loja*, *Baixar p
 | Arquivo | O que é |
 |---|---|
 | **`Plano de Varejo - Apps Script.gs`** | **O app inteiro num arquivo só** (código + página): é só colar no `Código.gs`. |
-| `Planilha base - Visualizador.xlsx` | A planilha que alimenta o app (abas **Movimentos**, **Painéis** e **Instruções**), já com o *Ciclo exemplo* das quatro plantas. |
+| `Planilha base - Visualizador.xlsx` | A planilha que alimenta o app (abas **Movimentos**, **Painéis**, **Tipos de movimento** e **Instruções**), já com o *Ciclo exemplo* das quatro plantas. |
 | `apps-script/Codigo.gs` | Todo o código do servidor, num arquivo só. |
 | `apps-script/Index.html` | A página, num arquivo só. |
 | `apps-script/appsscript.json` | Manifesto (fuso horário, V8, App da Web). |
@@ -56,7 +56,8 @@ const VISUALIZADOR = {
 
 ## Como usar a planilha
 
-- **Um ciclo = um nome na coluna "Ciclo".** Todos os ciclos ficam na mesma planilha. Para criar um ciclo, copie as linhas de um ciclo existente (em **Movimentos** e em **Painéis**), cole no fim e troque o nome do ciclo.
+- **Um ciclo = um nome na coluna "Ciclo".** Todos os ciclos ficam na mesma planilha. Para criar um ciclo, copie as linhas de um ciclo existente (em **Movimentos**, **Painéis** e **Tipos de movimento**), cole no fim e troque o nome do ciclo.
+- **Tipos de movimento:** uma linha por movimento do ciclo (o texto da etiqueta), com a *Classificação* (lançamento, promoção, liquidação / outlet, institucional / portfólio ou outro) e o *GMV esperado (R$)*. Aparecem no painel *Espaço por marca*. A aba é opcional: sem ela, as etiquetas ficam como *Sem classificação*.
 - Depois de editar, clique em **Atualizar** no app.
 - Não renomeie as abas nem os títulos das colunas. As regras de preenchimento (cores, etiquetas por bloco, gôndola, cascata ER P → ER GG…) estão na aba **Instruções** da planilha.
 - Se algo estiver errado (marca desconhecida, ID de móvel que não existe…), o app mostra **avisos** com a aba e a linha a corrigir.

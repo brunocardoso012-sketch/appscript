@@ -11,7 +11,7 @@
  * Converte as matrizes das abas no objeto usado pela página.
  * Função pura (não acessa a planilha) — facilita testes.
  */
-function montarDados_(valoresLayout, valoresMov, valoresPain) {
+function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
   const avisos = [];
   const aviso = function (msg) { if (avisos.length < 60) avisos.push(msg); };
 
@@ -131,19 +131,70 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
     });
   }
 
+  // ---------- Tipos de movimento (classificação e GMV esperado por etiqueta) ----------
+  const tiposMovimento = {};
+  if (valoresTipos && valoresTipos.length) {
+    const lido = objetosDeValores_(valoresTipos, colunasTipos_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.TIPOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    }
+    // Etiquetas de cada ciclo (para avisar de movimento que não aparece em nenhuma etiqueta).
+    const etiquetasDoCiclo = function (ciclo) {
+      const vistas = {};
+      const c = movimentos[ciclo] || {};
+      Object.keys(c).forEach(function (p) {
+        Object.keys(c[p]).forEach(function (id) {
+          c[p][id].etiquetas.forEach(function (e) { vistas[chaveEtiqueta_(e.texto)] = true; });
+        });
+      });
+      return vistas;
+    };
+    const etiquetasPorCiclo = {};
+    lido.linhas.forEach(function (l) {
+      const ciclo = texto_(l.ciclo);
+      const texto = texto_(l.etiqueta);
+      const onde = CONFIG.ABAS.TIPOS + ', linha ' + l._linha;
+      if (!ciclo && !texto) return;
+      if (!ciclo || !texto) {
+        aviso(onde + ': Ciclo e Movimento (etiqueta) são obrigatórios — linha ignorada.');
+        return;
+      }
+      const k = chaveEtiqueta_(texto);
+      tiposMovimento[ciclo] = tiposMovimento[ciclo] || {};
+      if (tiposMovimento[ciclo][k]) {
+        aviso(onde + ': "' + texto + '" já aparece antes no ciclo ' + ciclo + ' — linha ignorada.');
+        return;
+      }
+      const gmv = numeroGmv_(l.gmv);
+      if (gmv === null && texto_(l.gmv)) aviso(onde + ': GMV esperado "' + texto_(l.gmv) + '" não é um número — ignorado.');
+      if (movimentos[ciclo]) {
+        etiquetasPorCiclo[ciclo] = etiquetasPorCiclo[ciclo] || etiquetasDoCiclo(ciclo);
+        if (!etiquetasPorCiclo[ciclo][k]) aviso(onde + ': "' + texto + '" não aparece em nenhuma etiqueta do ciclo ' + ciclo + '.');
+      }
+      tiposMovimento[ciclo][k] = {
+        texto: texto,
+        classificacao: normClassificacao_(l.classificacao),
+        gmv: gmv,
+        observacao: texto_(l.observacao),
+      };
+    });
+  }
+
   return {
     versao: 1,
     plantas: plantas,
     ciclos: ciclos,
     movimentos: movimentos,
     paineis: paineis,
+    tiposMovimento: tiposMovimento,
+    classificacoes: CLASSIFICACOES,
     avisos: avisos,
     marcas: MARCAS,
     simbolos: SIMBOLOS,
     secoes: SECOES_PAINEL,
     tipos: TIPOS_MOVEL,
     tiposConstrucao: TIPOS_CONSTRUCAO,
-    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), layout: colunasLayout_() },
+    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), tipos: colunasTipos_(), layout: colunasLayout_() },
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
@@ -310,6 +361,54 @@ function normPlanta_(v) {
 /** "01" → "ER P" (ou "PLANTA 05" para planta sem nome em NOMES_PLANTAS). */
 function nomePlanta_(id) {
   return NOMES_PLANTAS[id] || 'PLANTA ' + id;
+}
+
+/** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (igual ao painel "Espaço por marca"). */
+function chaveEtiqueta_(t) {
+  return texto_(t).replace(/\s+/g, ' ').toUpperCase();
+}
+
+/**
+ * Classificação do movimento: código de CLASSIFICACOES ("Lançamento", "promo", "OUTLET" → LANCAMENTO,
+ * PROMOCAO, LIQUIDACAO…). Outro texto fica como está (classificação própria). Vazio → ''.
+ */
+function normClassificacao_(v) {
+  const k = chave_(v);
+  if (!k) return '';
+  const cod = Object.keys(CLASSIFICACOES).filter(function (c) {
+    const x = CLASSIFICACOES[c];
+    return [c, x.nome].concat(x.apelidos || []).map(chave_).indexOf(k) >= 0;
+  })[0];
+  return cod || texto_(v);
+}
+
+/**
+ * GMV em reais: aceita número ou texto ("R$ 1.500.000,00", "1500000", "1,5 mi", "250 mil", "1.2M").
+ * @return {number|null} null quando vazio ou inválido
+ */
+function numeroGmv_(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  let s = texto_(v).toUpperCase().replace(/R\$/g, '').replace(/\s+/g, '');
+  if (!s) return null;
+  let fator = 1;
+  const sufixo = s.match(/(MILHOES|MILHÕES|MILHAO|MILHÃO|MI|MM|M|MIL|K)$/);
+  if (sufixo) {
+    fator = /^(MIL|K)$/.test(sufixo[1]) ? 1e3 : 1e6;
+    s = s.slice(0, -sufixo[1].length);
+  }
+  if (!/^-?[\d.,]+$/.test(s)) return null;
+  const virgula = s.lastIndexOf(',');
+  const ponto = s.lastIndexOf('.');
+  if (virgula >= 0 && ponto >= 0) {
+    // O último separador é o decimal ("1.500,50" ou "1,500.50").
+    s = virgula > ponto ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  } else if (virgula >= 0) {
+    s = /^-?\d{1,3}(,\d{3})+$/.test(s) && fator === 1 ? s.replace(/,/g, '') : s.replace(/\./g, '').replace(',', '.');
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(s) && fator === 1) {
+    s = s.replace(/\./g, ''); // "1.500.000"
+  }
+  const n = Number(s) * fator;
+  return isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 
 /** Giro do móvel (hoje só o balcão recepção usa): 0, 90, 180 ou 270. */

@@ -5,6 +5,7 @@
  *  Abas da planilha:
  *   - Movimentos: o que muda a cada ciclo (cor do móvel + etiquetas).
  *   - Painéis:    textos fora dos móveis (TV/rádio, A, C, caixas de destaque, notas).
+ *   - Tipos de movimento: classificação (lançamento, promoção…) e GMV esperado de cada movimento do ciclo.
  *   - Layout:     posição/tamanho de cada móvel em cada planta (muda raramente).
  *
  *  Funções sem "_" no final podem ser chamadas pela página (google.script.run).
@@ -80,7 +81,8 @@ function getDados() {
   const dados = montarDados_(
     lerAba_(ss, CONFIG.ABAS.LAYOUT, false),
     lerAba_(ss, CONFIG.ABAS.MOVIMENTOS, true),
-    lerAba_(ss, CONFIG.ABAS.PAINEIS, true)
+    lerAba_(ss, CONFIG.ABAS.PAINEIS, true),
+    lerAba_(ss, CONFIG.ABAS.TIPOS, true)
   );
   dados.planilhaUrl = ss.getUrl();
   dados.precisaConfigurar = !ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS);
@@ -137,6 +139,9 @@ function configurarPlanilha() {
     if (criarSeVazia_(ss, CONFIG.ABAS.PAINEIS, colunasPaineis_(), valoresPaineisExemplo_())) {
       lista.push(CONFIG.ABAS.PAINEIS);
     }
+    if (criarSeVazia_(ss, CONFIG.ABAS.TIPOS, colunasTipos_(), valoresTiposExemplo_())) {
+      lista.push(CONFIG.ABAS.TIPOS);
+    }
     if (criouPlanilha) removerAbaPadraoVazia_(ss);
     return lista;
   });
@@ -163,7 +168,7 @@ function importarPlanilha(payload) {
   const ss = planilha_();
   const prep = prepararImportacao_(payload); // valida tudo antes de gravar
 
-  const resultado = { movimentos: 0, paineis: 0, layout: 0 };
+  const resultado = { movimentos: 0, paineis: 0, tipos: 0, layout: 0 };
   comTrava_(function () {
     prep.preparados.forEach(function (p) {
       const sh = ss.getSheetByName(p.bloco.aba);
@@ -184,6 +189,7 @@ function blocosImportacao_() {
   return [
     { campo: 'movimentos', aba: CONFIG.ABAS.MOVIMENTOS, colunas: colunasMovimentos_() },
     { campo: 'paineis', aba: CONFIG.ABAS.PAINEIS, colunas: colunasPaineis_() },
+    { campo: 'tipos', aba: CONFIG.ABAS.TIPOS, colunas: colunasTipos_() },
     { campo: 'layout', aba: CONFIG.ABAS.LAYOUT, colunas: colunasLayout_() },
   ];
 }
@@ -212,6 +218,7 @@ function prepararImportacao_(payload) {
       let ok;
       if (b.campo === 'layout') ok = normPlanta_(o.planta) && normId_(o.movel) && texto_(o.tipo);
       else if (b.campo === 'paineis') ok = texto_(o.ciclo) && normPlanta_(o.planta) && texto_(o.texto) && texto_(o.secao);
+      else if (b.campo === 'tipos') ok = texto_(o.ciclo) && texto_(o.etiqueta);
       else ok = texto_(o.ciclo) && normPlanta_(o.planta) && normId_(o.movel);
       if (!ok && avisosLeitura.length < 30) {
         avisosLeitura.push(b.aba + ', linha ' + o._linha + ': faltam campos obrigatórios — linha ignorada.');
@@ -221,8 +228,8 @@ function prepararImportacao_(payload) {
     preparados.push({ bloco: b, linhas: validas, matriz: matriz });
   });
   if (!preparados.length) {
-    throw new Error('Não encontrei as abas "' + CONFIG.ABAS.MOVIMENTOS + '", "' + CONFIG.ABAS.PAINEIS +
-      '" ou "' + CONFIG.ABAS.LAYOUT + '" no arquivo.');
+    throw new Error('Não encontrei as abas "' + CONFIG.ABAS.MOVIMENTOS + '", "' + CONFIG.ABAS.PAINEIS + '", "' +
+      CONFIG.ABAS.TIPOS + '" ou "' + CONFIG.ABAS.LAYOUT + '" no arquivo.');
   }
   return { preparados: preparados, avisosLeitura: avisosLeitura };
 }
@@ -233,7 +240,7 @@ function verificarImportacao_(valoresLayout, prep) {
     const p = prep.preparados.filter(function (x) { return x.bloco.campo === campo; })[0];
     return p ? p.matriz : null;
   };
-  const verificacao = montarDados_(valoresLayout, matriz('movimentos'), matriz('paineis'));
+  const verificacao = montarDados_(valoresLayout, matriz('movimentos'), matriz('paineis'), matriz('tipos'));
   return {
     ciclos: verificacao.ciclos,
     avisos: prep.avisosLeitura.concat(verificacao.avisos.filter(function (a) {
@@ -336,7 +343,7 @@ function modeloPendente_(versoes) {
  * que VERSAO_MODELO_PLANTAS (layout da planta + linhas dela no ciclo de exemplo).
  * Se VERSAO_EXEMPLO subiu, troca o "Ciclo exemplo" inteiro (Movimentos e Painéis).
  * Função pura: recebe e devolve as matrizes das abas.
- * @param {{layout: Array, movimentos: Array, paineis: Array}} abas
+ * @param {{layout: Array, movimentos: Array, paineis: Array, tipos?: Array}} abas
  * @param {Object<string, number>} versoes  versões já aplicadas (planta → número)
  * @return {{abas: Object, versoes: Object, plantas: string[]}} plantas = as que mudaram
  */
@@ -366,6 +373,7 @@ function atualizarModelosPlantas_(abas, versoes) {
     };
     abas.movimentos = trocar(abas.movimentos, valoresMovimentosExemplo_(), colunasMovimentos_());
     abas.paineis = trocar(abas.paineis, valoresPaineisExemplo_(), colunasPaineis_());
+    abas.tipos = trocar(abas.tipos, valoresTiposExemplo_(), colunasTipos_());
     novas._exemplo = VERSAO_EXEMPLO;
     mudaram.push('exemplo');
   }
@@ -498,11 +506,13 @@ function atualizarModelosNaPlanilha_(ss) {
       layout: ss.getSheetByName(CONFIG.ABAS.LAYOUT).getDataRange().getValues(),
       movimentos: ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS) ? ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS).getDataRange().getValues() : [],
       paineis: ss.getSheetByName(CONFIG.ABAS.PAINEIS) ? ss.getSheetByName(CONFIG.ABAS.PAINEIS).getDataRange().getValues() : [],
+      tipos: ss.getSheetByName(CONFIG.ABAS.TIPOS) ? ss.getSheetByName(CONFIG.ABAS.TIPOS).getDataRange().getValues() : [],
     };
     const r = atualizarModelosPlantas_(abas, versoes);
     escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), r.abas.layout);
     if (r.abas.movimentos.length) escreverAba_(ss, CONFIG.ABAS.MOVIMENTOS, colunasMovimentos_(), r.abas.movimentos);
     if (r.abas.paineis.length) escreverAba_(ss, CONFIG.ABAS.PAINEIS, colunasPaineis_(), r.abas.paineis);
+    if (r.abas.tipos && r.abas.tipos.length) escreverAba_(ss, CONFIG.ABAS.TIPOS, colunasTipos_(), r.abas.tipos);
     gravarVersoesModelo_(r.versoes);
   });
 }
@@ -588,7 +598,7 @@ function formatarAba_(sh, colunas, cab, maxLinhas) {
     .setVerticalAlignment('middle');
   sh.setRowHeight(1, 36);
 
-  const larguras = { ciclo: 110, planta: 70, movel: 110, descricao: 260, secao: 100, texto: 420, tipo: 150, observacao: 260 };
+  const larguras = { ciclo: 110, planta: 70, movel: 110, descricao: 260, secao: 100, texto: 420, tipo: 150, observacao: 260, etiqueta: 260, classificacao: 190, gmv: 150 };
   const regrasCor = [];
   colunas.forEach(function (c) {
     const i = acharColuna_(cab, c);
@@ -622,6 +632,11 @@ function formatarAba_(sh, colunas, cab, maxLinhas) {
     } else if (c.chave === 'tipo') {
       lista = Object.keys(TIPOS_MOVEL);
       ajuda = 'Tipo de desenho do móvel.';
+    } else if (c.chave === 'classificacao') {
+      lista = Object.keys(CLASSIFICACOES).map(function (k) { return CLASSIFICACOES[k].nome; });
+      ajuda = 'Tipo do movimento: ' + lista.join(', ') + '. Também aceita outro texto.';
+    } else if (c.chave === 'gmv') {
+      coluna.setNumberFormat('"R$" #,##0');
     }
     if (lista) {
       coluna.setDataValidation(
@@ -638,7 +653,7 @@ function formatarAba_(sh, colunas, cab, maxLinhas) {
 }
 
 function removerAbaPadraoVazia_(ss) {
-  const nossas = [CONFIG.ABAS.MOVIMENTOS, CONFIG.ABAS.PAINEIS, CONFIG.ABAS.LAYOUT];
+  const nossas = [CONFIG.ABAS.MOVIMENTOS, CONFIG.ABAS.PAINEIS, CONFIG.ABAS.TIPOS, CONFIG.ABAS.LAYOUT];
   ss.getSheets().forEach(function (sh) {
     if (nossas.indexOf(sh.getName()) < 0 && sh.getLastRow() === 0 && ss.getSheets().length > 1) {
       ss.deleteSheet(sh);

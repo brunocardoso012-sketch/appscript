@@ -1665,7 +1665,7 @@ const Render = (() => {
   /**
    * @param {SVGSVGElement} svg
    * @param {{dados, planta, ciclo, filtro, filtroEtiqueta, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx
-   *   filtroEtiqueta: texto de uma etiqueta; só os espaços com ela ficam coloridos e com etiqueta.
+   *   filtroEtiqueta: texto de uma etiqueta (ou lista de textos); só os espaços com ela ficam coloridos e com etiqueta.
    *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).
    *   paineis: false = sem o painel lateral, notas, legenda e itens extras (na tela eles ficam no menu
    *   da esquerda) e a planta na largura toda; true (padrão) = slide completo, como no PNG.
@@ -1716,10 +1716,11 @@ const Render = (() => {
     // Filtro por etiqueta (painel "Espaço por marca", "Por tipo de movimento"): só os espaços que têm
     // aquela etiqueta ficam coloridos e com etiquetas (só ela); os outros espaços com movimento ficam
     // em cinza e sem etiquetas. Mesmo texto = mesma etiqueta (sem diferenciar maiúsculas e espaços).
-    const filtroEtq = chaveEtiqueta(ctx.filtroEtiqueta);
+    // Também aceita uma lista de textos (as etiquetas de uma classificação: lançamento, promoção…).
+    const filtroEtq = [].concat(ctx.filtroEtiqueta || []).map(chaveEtiqueta).filter(Boolean);
     const soEtiqueta = (i) => {
-      if (!filtroEtq || !i) return i;
-      const iguais = i.etiquetas.filter((e) => chaveEtiqueta(e.texto) === filtroEtq);
+      if (!filtroEtq.length || !i) return i;
+      const iguais = i.etiquetas.filter((e) => filtroEtq.indexOf(chaveEtiqueta(e.texto)) >= 0);
       return iguais.length ? Object.assign({}, i, { etiquetas: iguais }) : { marca: '', etiquetas: [], simbolo: '', apagado: true };
     };
     const infoVis = {};

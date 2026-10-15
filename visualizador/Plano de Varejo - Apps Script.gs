@@ -13,8 +13,8 @@
  * ============================================================================
  *  PLANO DE VAREJO · VISUALIZADOR — versão só de visualização (Apps Script)
  * ============================================================================
- *  Mostra as plantas de cada ciclo a partir de UMA planilha (abas "Movimentos"
- *  e "Painéis"). A estratégia é montada direto na planilha; o app só lê.
+ *  Mostra as plantas de cada ciclo a partir de UMA planilha (abas "Movimentos",
+ *  "Painéis" e, opcional, "Tipos de movimento"). A estratégia é montada direto na planilha; o app só lê.
  *  Não tem o modo "Construir loja" nem "Baixar / Importar planilha": o layout
  *  das lojas fica no código (seção LAYOUT PADRÃO, mais abaixo).
  *
@@ -77,7 +77,8 @@ function getDados() {
         'Use a planilha base do visualizador (abas "' + CONFIG.ABAS.MOVIMENTOS + '" e "' + CONFIG.ABAS.PAINEIS + '").',
     };
   }
-  const dados = montarDados_(valoresLayoutPadrao_(), movimentos, lerAbaTexto_(ss, CONFIG.ABAS.PAINEIS));
+  const dados = montarDados_(valoresLayoutPadrao_(), movimentos, lerAbaTexto_(ss, CONFIG.ABAS.PAINEIS),
+    lerAbaTexto_(ss, CONFIG.ABAS.TIPOS));
   aplicarAjustesSalvos_(dados.plantas);
   dados.planilhaUrl = ss.getUrl();
   dados.precisaConfigurar = false;
@@ -204,6 +205,7 @@ const CONFIG = {
   ABAS: {
     MOVIMENTOS: 'Movimentos',
     PAINEIS: 'Painéis',
+    TIPOS: 'Tipos de movimento',
     LAYOUT: 'Layout',
     COMENTARIOS: 'Comentários',
   },
@@ -307,6 +309,18 @@ const SIMBOLOS = {
   FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
+};
+
+/**
+ * Classificação dos movimentos (aba "Tipos de movimento"): aparece no painel "Espaço por marca",
+ * em "Por tipo de movimento". A planilha também aceita outro texto (vira uma classificação própria).
+ */
+const CLASSIFICACOES = {
+  LANCAMENTO: { nome: 'Lançamento', cor: '#0E7490', apelidos: ['LANCAMENTOS', 'LANC', 'LCTO', 'NOVIDADE', 'NEW'] },
+  PROMOCAO: { nome: 'Promoção', cor: '#C2410C', apelidos: ['PROMO', 'PROMOCIONAL', 'PROMOCOES', 'OFERTA'] },
+  LIQUIDACAO: { nome: 'Liquidação / outlet', cor: '#A16207', apelidos: ['LIQUIDA', 'LIQUIDACAOOUTLET', 'OUTLET', 'EXAUSTAO', 'QUEIMA'] },
+  INSTITUCIONAL: { nome: 'Institucional / portfólio', cor: '#475569', apelidos: ['PORTFOLIO', 'INSTITUCIONALPORTFOLIO', 'PERMANENTE', 'REGULAR'] },
+  OUTRO: { nome: 'Outro', cor: '#6B7280', apelidos: ['OUTROS'] },
 };
 
 /** Seções da aba "Painéis" (textos fora dos móveis). */
@@ -442,6 +456,17 @@ function colunasPaineis_() {
   ];
 }
 
+/** Aba "Tipos de movimento": classificação e GMV esperado de cada movimento (texto da etiqueta) no ciclo. */
+function colunasTipos_() {
+  return [
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true },
+    { chave: 'etiqueta', titulo: 'Movimento (etiqueta)', obrigatoria: true, texto: true, apelidos: ['Movimento', 'Etiqueta', 'Texto da etiqueta'] },
+    { chave: 'classificacao', titulo: 'Classificação', texto: true, apelidos: ['Tipo', 'Tipo de movimento'] },
+    { chave: 'gmv', titulo: 'GMV esperado (R$)', apelidos: ['GMV esperado', 'GMV', 'GMV (R$)'] },
+    { chave: 'observacao', titulo: 'Observação', texto: true, apelidos: ['Obs'] },
+  ];
+}
+
 function colunasLayout_() {
   return [
     { chave: 'planta', titulo: 'Planta', obrigatoria: true, texto: true },
@@ -495,7 +520,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 8;
+const VERSAO_EXEMPLO = 9;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -750,6 +775,34 @@ const EXEMPLO_PAINEIS = [
   ['04', 'NOTA', 'Pirâmide: NE exposição de masculino e SP Masculino + Lily', '', ''],
 ];
 
+/**
+ * Tipos de movimento do ciclo de exemplo: [movimento (texto da etiqueta), classificação, GMV esperado (R$)].
+ * Os valores de GMV são só ilustrativos.
+ */
+const EXEMPLO_TIPOS = [
+  ['LÇTO EGEO', 'LANCAMENTO', 1800000],
+  ['LÇTO UOMINI', 'LANCAMENTO', 950000],
+  ['JUICY MOOD', 'LANCAMENTO', 620000],
+  ['SIÀGE ULTIMATE', 'LANCAMENTO', 780000],
+  ['UOMINI GLORIFICADO', 'LANCAMENTO', 540000],
+  ['SIÀGE GLORIFICADO', 'LANCAMENTO', 480000],
+  ['MON AMIE + LOÇÃO', 'LANCAMENTO', 260000],
+  ['BOTIPROMO', 'PROMOCAO', 2400000],
+  ['BOTI PROMO', 'PROMOCAO', 1200000],
+  ['BOTIPROMO MAKE B.', 'PROMOCAO', 430000],
+  ['MULTI PROMO', 'PROMOCAO', 1500000],
+  ['PRINCIPAIS OPORTUNIDADES', 'PROMOCAO', 700000],
+  ['LIQUIDA QDB', 'LIQUIDACAO', 900000],
+  ['LIQUIDA MAKE', 'LIQUIDACAO', 210000],
+  ['OUTLET EUD', 'LIQUIDACAO', 1100000],
+  ['ISCAS EXAUSTÃO', 'LIQUIDACAO', 380000],
+  ['BOTIK', 'INSTITUCIONAL', 650000],
+  ['UOMINI HERO', 'INSTITUCIONAL', 520000],
+  ['PERFUMARIA', 'INSTITUCIONAL', 870000],
+  ['CUIDADOS', 'INSTITUCIONAL', 610000],
+  ['+PEC REGIONAL', 'OUTRO', 150000],
+];
+
 /* ------------------------- Conversão em matrizes ------------------------- */
 
 /** Matriz [cabeçalho, ...linhas] da aba Layout padrão. */
@@ -800,6 +853,17 @@ function valoresMovimentosExemplo_() {
   return linhas;
 }
 
+/** Matriz [cabeçalho, ...linhas] da aba Tipos de movimento com o ciclo de exemplo. */
+function valoresTiposExemplo_() {
+  const cols = colunasTipos_();
+  const linhas = [cols.map(function (c) { return c.titulo; })];
+  EXEMPLO_TIPOS.forEach(function (t) {
+    const o = { ciclo: EXEMPLO_CICLO, etiqueta: t[0], classificacao: CLASSIFICACOES[t[1]] ? CLASSIFICACOES[t[1]].nome : t[1], gmv: t[2] };
+    linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
+  });
+  return linhas;
+}
+
 /** Matriz [cabeçalho, ...linhas] da aba Painéis com o ciclo de exemplo. */
 function valoresPaineisExemplo_() {
   const cols = colunasPaineis_();
@@ -825,7 +889,7 @@ function valoresPaineisExemplo_() {
  * Converte as matrizes das abas no objeto usado pela página.
  * Função pura (não acessa a planilha) — facilita testes.
  */
-function montarDados_(valoresLayout, valoresMov, valoresPain) {
+function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
   const avisos = [];
   const aviso = function (msg) { if (avisos.length < 60) avisos.push(msg); };
 
@@ -945,19 +1009,70 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
     });
   }
 
+  // ---------- Tipos de movimento (classificação e GMV esperado por etiqueta) ----------
+  const tiposMovimento = {};
+  if (valoresTipos && valoresTipos.length) {
+    const lido = objetosDeValores_(valoresTipos, colunasTipos_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.TIPOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    }
+    // Etiquetas de cada ciclo (para avisar de movimento que não aparece em nenhuma etiqueta).
+    const etiquetasDoCiclo = function (ciclo) {
+      const vistas = {};
+      const c = movimentos[ciclo] || {};
+      Object.keys(c).forEach(function (p) {
+        Object.keys(c[p]).forEach(function (id) {
+          c[p][id].etiquetas.forEach(function (e) { vistas[chaveEtiqueta_(e.texto)] = true; });
+        });
+      });
+      return vistas;
+    };
+    const etiquetasPorCiclo = {};
+    lido.linhas.forEach(function (l) {
+      const ciclo = texto_(l.ciclo);
+      const texto = texto_(l.etiqueta);
+      const onde = CONFIG.ABAS.TIPOS + ', linha ' + l._linha;
+      if (!ciclo && !texto) return;
+      if (!ciclo || !texto) {
+        aviso(onde + ': Ciclo e Movimento (etiqueta) são obrigatórios — linha ignorada.');
+        return;
+      }
+      const k = chaveEtiqueta_(texto);
+      tiposMovimento[ciclo] = tiposMovimento[ciclo] || {};
+      if (tiposMovimento[ciclo][k]) {
+        aviso(onde + ': "' + texto + '" já aparece antes no ciclo ' + ciclo + ' — linha ignorada.');
+        return;
+      }
+      const gmv = numeroGmv_(l.gmv);
+      if (gmv === null && texto_(l.gmv)) aviso(onde + ': GMV esperado "' + texto_(l.gmv) + '" não é um número — ignorado.');
+      if (movimentos[ciclo]) {
+        etiquetasPorCiclo[ciclo] = etiquetasPorCiclo[ciclo] || etiquetasDoCiclo(ciclo);
+        if (!etiquetasPorCiclo[ciclo][k]) aviso(onde + ': "' + texto + '" não aparece em nenhuma etiqueta do ciclo ' + ciclo + '.');
+      }
+      tiposMovimento[ciclo][k] = {
+        texto: texto,
+        classificacao: normClassificacao_(l.classificacao),
+        gmv: gmv,
+        observacao: texto_(l.observacao),
+      };
+    });
+  }
+
   return {
     versao: 1,
     plantas: plantas,
     ciclos: ciclos,
     movimentos: movimentos,
     paineis: paineis,
+    tiposMovimento: tiposMovimento,
+    classificacoes: CLASSIFICACOES,
     avisos: avisos,
     marcas: MARCAS,
     simbolos: SIMBOLOS,
     secoes: SECOES_PAINEL,
     tipos: TIPOS_MOVEL,
     tiposConstrucao: TIPOS_CONSTRUCAO,
-    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), layout: colunasLayout_() },
+    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), tipos: colunasTipos_(), layout: colunasLayout_() },
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
@@ -1124,6 +1239,54 @@ function normPlanta_(v) {
 /** "01" → "ER P" (ou "PLANTA 05" para planta sem nome em NOMES_PLANTAS). */
 function nomePlanta_(id) {
   return NOMES_PLANTAS[id] || 'PLANTA ' + id;
+}
+
+/** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (igual ao painel "Espaço por marca"). */
+function chaveEtiqueta_(t) {
+  return texto_(t).replace(/\s+/g, ' ').toUpperCase();
+}
+
+/**
+ * Classificação do movimento: código de CLASSIFICACOES ("Lançamento", "promo", "OUTLET" → LANCAMENTO,
+ * PROMOCAO, LIQUIDACAO…). Outro texto fica como está (classificação própria). Vazio → ''.
+ */
+function normClassificacao_(v) {
+  const k = chave_(v);
+  if (!k) return '';
+  const cod = Object.keys(CLASSIFICACOES).filter(function (c) {
+    const x = CLASSIFICACOES[c];
+    return [c, x.nome].concat(x.apelidos || []).map(chave_).indexOf(k) >= 0;
+  })[0];
+  return cod || texto_(v);
+}
+
+/**
+ * GMV em reais: aceita número ou texto ("R$ 1.500.000,00", "1500000", "1,5 mi", "250 mil", "1.2M").
+ * @return {number|null} null quando vazio ou inválido
+ */
+function numeroGmv_(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  let s = texto_(v).toUpperCase().replace(/R\$/g, '').replace(/\s+/g, '');
+  if (!s) return null;
+  let fator = 1;
+  const sufixo = s.match(/(MILHOES|MILHÕES|MILHAO|MILHÃO|MI|MM|M|MIL|K)$/);
+  if (sufixo) {
+    fator = /^(MIL|K)$/.test(sufixo[1]) ? 1e3 : 1e6;
+    s = s.slice(0, -sufixo[1].length);
+  }
+  if (!/^-?[\d.,]+$/.test(s)) return null;
+  const virgula = s.lastIndexOf(',');
+  const ponto = s.lastIndexOf('.');
+  if (virgula >= 0 && ponto >= 0) {
+    // O último separador é o decimal ("1.500,50" ou "1,500.50").
+    s = virgula > ponto ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  } else if (virgula >= 0) {
+    s = /^-?\d{1,3}(,\d{3})+$/.test(s) && fator === 1 ? s.replace(/,/g, '') : s.replace(/\./g, '').replace(',', '.');
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(s) && fator === 1) {
+    s = s.replace(/\./g, ''); // "1.500.000"
+  }
+  const n = Number(s) * fator;
+  return isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 
 /** Giro do móvel (hoje só o balcão recepção usa): 0, 90, 180 ou 270. */
@@ -1761,6 +1924,11 @@ const PAGINA_ = [
   "  .esp-seg { display: block; height: 100%; min-width: 2px; }",
   "  .esp-seg:last-child { border-radius: 0 4px 4px 0; }",
   "  .esp-seg.atenuado { opacity: .25; }",
+  "  .esp-info { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 11px; color: var(--texto-2); }",
+  "  .esp-selo { display: inline-block; padding: 1px 7px; border-radius: 999px; color: #FFFFFF; font-weight: 700; font-size: 10.5px; letter-spacing: .2px; }",
+  "  .esp-selo.sem-classe { background: none; color: var(--texto-2); border: 1px dashed var(--borda); font-weight: 600; }",
+  "  .esp-gmv { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--texto); }",
+  "  .esp-total { margin: 8px 0 0; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }",
   "  .esp-nota { margin-top: 16px; color: var(--texto-2); font-size: 11px; line-height: 1.45; }",
   "",
   "  #slide:not(.construindo) { touch-action: none; }",
@@ -3962,7 +4130,7 @@ const PAGINA_ = [
   "  /**",
   "   * @param {SVGSVGElement} svg",
   "   * @param {{dados, planta, ciclo, filtro, filtroEtiqueta, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx",
-  "   *   filtroEtiqueta: texto de uma etiqueta; só os espaços com ela ficam coloridos e com etiqueta.",
+  "   *   filtroEtiqueta: texto de uma etiqueta (ou lista de textos); só os espaços com ela ficam coloridos e com etiqueta.",
   "   *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).",
   "   *   paineis: false = sem o painel lateral, notas, legenda e itens extras (na tela eles ficam no menu",
   "   *   da esquerda) e a planta na largura toda; true (padrão) = slide completo, como no PNG.",
@@ -4013,10 +4181,11 @@ const PAGINA_ = [
   "    // Filtro por etiqueta (painel \"Espaço por marca\", \"Por tipo de movimento\"): só os espaços que têm",
   "    // aquela etiqueta ficam coloridos e com etiquetas (só ela); os outros espaços com movimento ficam",
   "    // em cinza e sem etiquetas. Mesmo texto = mesma etiqueta (sem diferenciar maiúsculas e espaços).",
-  "    const filtroEtq = chaveEtiqueta(ctx.filtroEtiqueta);",
+  "    // Também aceita uma lista de textos (as etiquetas de uma classificação: lançamento, promoção…).",
+  "    const filtroEtq = [].concat(ctx.filtroEtiqueta || []).map(chaveEtiqueta).filter(Boolean);",
   "    const soEtiqueta = (i) => {",
-  "      if (!filtroEtq || !i) return i;",
-  "      const iguais = i.etiquetas.filter((e) => chaveEtiqueta(e.texto) === filtroEtq);",
+  "      if (!filtroEtq.length || !i) return i;",
+  "      const iguais = i.etiquetas.filter((e) => filtroEtq.indexOf(chaveEtiqueta(e.texto)) >= 0);",
   "      return iguais.length ? Object.assign({}, i, { etiquetas: iguais }) : { marca: '', etiquetas: [], simbolo: '', apagado: true };",
   "    };",
   "    const infoVis = {};",
@@ -4644,6 +4813,7 @@ const PAGINA_ = [
   "    planta: '',",
   "    filtro: '',",
   "    filtroEtiqueta: '', // etiqueta escolhida em \"Por tipo de movimento\" (só os espaços com ela ficam coloridos)",
+  "    filtroClassificacao: '', // classificação escolhida em \"Por classificação\" (lançamento, promoção…)",
   "    edicao: false,",
   "    ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}",
   "    grupos: [],",
@@ -4765,6 +4935,29 @@ const PAGINA_ = [
   "    }, []);",
   "  }",
   "",
+  "  /** Classificação e GMV esperado de um movimento (texto da etiqueta) no ciclo, ou null. */",
+  "  function tipoDe(ciclo, texto) {",
+  "    const c = (estado.dados.tiposMovimento || {})[ciclo] || {};",
+  "    return c[Render.chaveEtiqueta(texto)] || null;",
+  "  }",
+  "",
+  "  /**",
+  "   * Linhas da aba Tipos de movimento para a planilha base: as já classificadas no ciclo e as demais",
+  "   * etiquetas dele (das plantas escolhidas), para o usuário só completar.",
+  "   */",
+  "  function linhasTipos(ciclo, plantas) {",
+  "    const linhas = {};",
+  "    Object.values((estado.dados.tiposMovimento || {})[ciclo] || {}).forEach((t) => { linhas[Render.chaveEtiqueta(t.texto)] = t; });",
+  "    const c = estado.dados.movimentos[ciclo] || {};",
+  "    Object.keys(c).filter((p) => p === TODAS() || plantas.indexOf(p) >= 0).forEach((p) => {",
+  "      Object.keys(c[p]).forEach((id) => c[p][id].etiquetas.forEach((e) => {",
+  "        const k = Render.chaveEtiqueta(e.texto);",
+  "        if (k && !linhas[k]) linhas[k] = { texto: String(e.texto).trim(), classificacao: '', gmv: null, observacao: '' };",
+  "      }));",
+  "    });",
+  "    return Object.values(linhas).sort((x, y) => x.texto.localeCompare(y.texto, 'pt-BR'));",
+  "  }",
+  "",
   "  const plantaAtual = () => estado.dados && estado.dados.plantas.find((p) => p.id === estado.planta);",
   "",
   "  /* ------------------------------- carga ---------------------------------- */",
@@ -4882,20 +5075,23 @@ const PAGINA_ = [
   "      chip.addEventListener('click', () => {",
   "        estado.filtro = estado.filtro === cod ? '' : cod;",
   "        estado.filtroEtiqueta = '';",
+  "        estado.filtroClassificacao = '';",
   "        montarLegenda();",
   "        desenhar();",
   "      });",
   "      box.appendChild(chip);",
   "    });",
-  "    if (estado.filtroEtiqueta) {",
-  "      // Etiqueta escolhida no painel \"Espaço por marca\": chip para voltar a ver todas.",
+  "    if (estado.filtroEtiqueta || estado.filtroClassificacao) {",
+  "      // Etiqueta (ou classificação) escolhida no painel \"Espaço por marca\": chip para voltar a ver todas.",
   "      const chip = document.createElement('button');",
   "      chip.type = 'button';",
   "      chip.className = 'chip chip-etiqueta';",
   "      chip.setAttribute('aria-pressed', 'true');",
   "      chip.title = 'Voltar a mostrar todas as etiquetas';",
-  "      chip.textContent = 'Só a etiqueta: ' + estado.filtroEtiqueta + ' ✕';",
-  "      chip.addEventListener('click', () => alternarFiltroEtiqueta(estado.filtroEtiqueta));",
+  "      chip.textContent = (estado.filtroEtiqueta ? 'Só a etiqueta: ' + estado.filtroEtiqueta",
+  "        : 'Só ' + nomeClassificacao(estado.filtroClassificacao)) + ' ✕';",
+  "      chip.addEventListener('click', () => (estado.filtroEtiqueta",
+  "        ? alternarFiltroEtiqueta(estado.filtroEtiqueta) : alternarFiltroClassificacao(estado.filtroClassificacao)));",
   "      box.appendChild(chip);",
   "    } else if (estado.filtro) {",
   "      const dica = document.createElement('span');",
@@ -4968,7 +5164,7 @@ const PAGINA_ = [
   "      planta,",
   "      ciclo: estado.ciclo,",
   "      filtro: estado.filtro,",
-  "      filtroEtiqueta: construcao ? '' : estado.filtroEtiqueta,",
+  "      filtroEtiqueta: construcao ? '' : etiquetasDoFiltro(),",
   "      ajustes: estado.ajustes,",
   "      edicao: estado.edicao,",
   "      visao: construcao ? 'planta' : estado.visao, // a construção é sempre sobre a planta",
@@ -5340,16 +5536,21 @@ const PAGINA_ = [
   "   * etiqueta (etiquetas com o mesmo texto se juntam; cada espaço conta uma vez por texto).",
   "   */",
   "  function resumoDeEspaco(partes) {",
-  "    const r = { total: partes.length, porMarca: {}, porEtiqueta: {}, moveis: new Set() };",
+  "    const r = { total: partes.length, porMarca: {}, porEtiqueta: {}, porClassificacao: {}, moveis: new Set() };",
   "    partes.forEach((p) => {",
   "      r.moveis.add(p.movel.id);",
+  "      // Cada espaço conta uma vez em cada classificação das etiquetas dele.",
+  "      const classes = p.etiquetas.filter((e) => chaveEtiqueta(e.texto)).map((e) => classificacaoDe(e.texto));",
+  "      classes.filter((c, i) => classes.indexOf(c) === i).forEach((c) => { r.porClassificacao[c] = (r.porClassificacao[c] || 0) + 1; });",
   "      p.marcas.forEach((mc) => { r.porMarca[mc] = (r.porMarca[mc] || 0) + 1 / p.marcas.length; });",
   "      const vistas = {};",
   "      p.etiquetas.forEach((e) => {",
   "        const k = chaveEtiqueta(e.texto);",
   "        if (!k || vistas[k]) return;",
   "        vistas[k] = true;",
-  "        const g = r.porEtiqueta[k] || (r.porEtiqueta[k] = { texto: String(e.texto).trim(), espacos: 0, marcas: {} });",
+  "        const g = r.porEtiqueta[k] || (r.porEtiqueta[k] = {",
+  "          texto: String(e.texto).trim(), espacos: 0, marcas: {}, tipo: tipoDe(estado.ciclo, e.texto), classificacao: classificacaoDe(e.texto),",
+  "        });",
   "        g.espacos += 1;",
   "        const marcas = p.etiquetas.filter((x) => chaveEtiqueta(x.texto) === k)",
   "          .map((x) => x.marca).filter(Boolean)",
@@ -5360,6 +5561,40 @@ const PAGINA_ = [
   "      });",
   "    });",
   "    return r;",
+  "  }",
+  "",
+  "  /** Classificação de um movimento no ciclo atual: código de CLASSIFICACOES, outro texto ou SEM (sem classificação). */",
+  "  function classificacaoDe(texto) {",
+  "    const t = tipoDe(estado.ciclo, texto);",
+  "    return (t && t.classificacao) || SEM_CLASSIFICACAO;",
+  "  }",
+  "  const SEM_CLASSIFICACAO = '__SEM__';",
+  "  const COR_CLASSIFICACAO_PROPRIA = '#7C6F64';",
+  "  const nomeClassificacao = (c) => (c === SEM_CLASSIFICACAO ? 'Sem classificação'",
+  "    : (estado.dados.classificacoes || {})[c] ? estado.dados.classificacoes[c].nome : c);",
+  "  const corClassificacao = (c) => (c === SEM_CLASSIFICACAO ? COR_SEM_MARCA",
+  "    : (estado.dados.classificacoes || {})[c] ? estado.dados.classificacoes[c].cor : COR_CLASSIFICACAO_PROPRIA);",
+  "  /** Classificações na ordem da configuração, depois as próprias da planilha e, por último, \"Sem classificação\". */",
+  "  function ordemDasClassificacoes(presentes) {",
+  "    const fixas = Object.keys(estado.dados.classificacoes || {});",
+  "    const proprias = presentes.filter((c) => fixas.indexOf(c) < 0 && c !== SEM_CLASSIFICACAO).sort((x, y) => x.localeCompare(y, 'pt-BR'));",
+  "    return fixas.filter((c) => presentes.indexOf(c) >= 0).concat(proprias, presentes.indexOf(SEM_CLASSIFICACAO) >= 0 ? [SEM_CLASSIFICACAO] : []);",
+  "  }",
+  "  const formatoGmv = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 });",
+  "  const formatoGmvCompleto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });",
+  "  const gmvCurto = (v) => formatoGmv.format(v);",
+  "",
+  "  /** Etiquetas que o filtro deixa na planta: a escolhida, ou as da classificação escolhida (null = todas). */",
+  "  function etiquetasDoFiltro() {",
+  "    if (estado.filtroEtiqueta) return estado.filtroEtiqueta;",
+  "    if (!estado.filtroClassificacao || !estado.ciclo) return '';",
+  "    const textos = {};",
+  "    const c = estado.dados.movimentos[estado.ciclo] || {};",
+  "    Object.keys(c).forEach((p) => Object.keys(c[p]).forEach((id) => c[p][id].etiquetas.forEach((e) => {",
+  "      if (classificacaoDe(e.texto) === estado.filtroClassificacao) textos[chaveEtiqueta(e.texto)] = e.texto;",
+  "    })));",
+  "    const lista = Object.values(textos);",
+  "    return lista.length ? lista : ['\\u0000']; // nenhuma etiqueta da classificação: tudo em cinza",
   "  }",
   "",
   "  const qtdEspacos = (n) => (Math.round(n * 10) / 10).toLocaleString('pt-BR') + (n === 1 ? ' espaço' : ' espaços');",
@@ -5376,6 +5611,7 @@ const PAGINA_ = [
   "    if (cod === 'NEUTRO' || cod === 'OUTRA') return;",
   "    estado.filtro = estado.filtro === cod ? '' : cod;",
   "    estado.filtroEtiqueta = '';",
+  "    estado.filtroClassificacao = '';",
   "    montarLegenda();",
   "    desenhar();",
   "  }",
@@ -5385,6 +5621,16 @@ const PAGINA_ = [
   "    const igual = chaveEtiqueta(texto) === chaveEtiqueta(estado.filtroEtiqueta);",
   "    estado.filtroEtiqueta = igual ? '' : String(texto).trim();",
   "    estado.filtro = '';",
+  "    estado.filtroClassificacao = '';",
+  "    montarLegenda();",
+  "    desenhar();",
+  "  }",
+  "",
+  "  /** Mostra na planta só os espaços com movimentos da classificação (lançamento, promoção…). */",
+  "  function alternarFiltroClassificacao(c) {",
+  "    estado.filtroClassificacao = estado.filtroClassificacao === c ? '' : c;",
+  "    estado.filtro = '';",
+  "    estado.filtroEtiqueta = '';",
   "    montarLegenda();",
   "    desenhar();",
   "  }",
@@ -5438,7 +5684,47 @@ const PAGINA_ = [
   "      linha.addEventListener('click', () => alternarFiltro(c));",
   "    });",
   "",
-  "    // Por tipo de movimento: etiquetas com o mesmo texto juntas, barra empilhada pelas marcas.",
+  "    // Por classificação (aba Tipos de movimento): espaços, movimentos e GMV esperado de cada uma.",
+  "    // Clicar numa classificação mostra na planta só os espaços com movimentos dela.",
+  "    const classes = ordemDasClassificacoes(Object.keys(r.porClassificacao));",
+  "    if (classes.length) {",
+  "      novo('h3', null, 'Por classificação', corpo);",
+  "      const listaCl = novo('div', 'esp-lista', null, corpo);",
+  "      const gmvTotal = grupos.reduce((s, g) => s + (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0), 0);",
+  "      classes.forEach((c) => {",
+  "        const v = r.porClassificacao[c] || 0;",
+  "        const doTipo = grupos.filter((g) => g.classificacao === c);",
+  "        const gmv = doTipo.reduce((s, g) => s + (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0), 0);",
+  "        const escolhida = estado.filtroClassificacao === c;",
+  "        const apagada = estado.filtroClassificacao && !escolhida;",
+  "        const linha = novo('button', 'esp-linha' + (apagada ? ' atenuado' : '') + (escolhida ? ' ativo' : ''), null, listaCl);",
+  "        linha.type = 'button';",
+  "        linha.setAttribute('aria-pressed', String(escolhida));",
+  "        linha.title = nomeClassificacao(c) + ': ' + qtdEspacos(v) + ' (' + porcento(v, r.total) + ' dos espaços), '",
+  "          + doTipo.length + (doTipo.length === 1 ? ' movimento' : ' movimentos')",
+  "          + (gmv ? ', GMV esperado ' + formatoGmvCompleto.format(gmv) : '') + ' · '",
+  "          + (escolhida ? 'clique para ver todas as etiquetas' : 'clique para ver na planta só onde ela aparece');",
+  "        linha.addEventListener('click', () => alternarFiltroClassificacao(c));",
+  "        const nome = novo('span', 'esp-nome', null, linha);",
+  "        novo('i', null, null, nome).style.background = corClassificacao(c);",
+  "        novo('span', null, nomeClassificacao(c), nome);",
+  "        novo('span', 'esp-valor', qtdEspacos(v), linha);",
+  "        novo('span', 'esp-pct', porcento(v, r.total), linha);",
+  "        const trilho = novo('span', 'esp-trilho', null, linha);",
+  "        const barra = novo('span', 'esp-barra', null, trilho);",
+  "        barra.style.width = (r.total ? (v / r.total) * 100 : 0) + '%';",
+  "        barra.style.background = corClassificacao(c);",
+  "        const info = novo('span', 'esp-info', null, linha);",
+  "        novo('span', null, doTipo.length + (doTipo.length === 1 ? ' movimento' : ' movimentos'), info);",
+  "        if (c !== SEM_CLASSIFICACAO) {",
+  "          novo('span', 'esp-gmv', gmv ? 'GMV esperado ' + gmvCurto(gmv) + (gmvTotal ? ' · ' + porcento(gmv, gmvTotal) + ' do GMV' : '') : 'GMV não informado', info);",
+  "        }",
+  "      });",
+  "      if (gmvTotal) novo('p', 'esp-total', 'GMV esperado dos movimentos desta ER: ' + formatoGmvCompleto.format(gmvTotal), corpo);",
+  "    }",
+  "",
+  "    // Por tipo de movimento: etiquetas com o mesmo texto juntas, barra empilhada pelas marcas, com a",
+  "    // classificação e o GMV esperado da aba Tipos de movimento.",
   "    // Clicar numa etiqueta mostra na planta só os espaços onde ela aparece.",
   "    novo('h3', null, 'Por tipo de movimento (etiquetas)', corpo);",
   "    if (!grupos.length) novo('p', 'mv-vazio', 'Nenhuma etiqueta neste ciclo.', corpo);",
@@ -5447,11 +5733,16 @@ const PAGINA_ = [
   "    grupos.forEach((g) => {",
   "      const doGrupo = marcas.filter((c) => g.marcas[c]);",
   "      const escolhida = etqFiltrada === chaveEtiqueta(g.texto);",
-  "      const apagada = (estado.filtro && !g.marcas[estado.filtro]) || (etqFiltrada && !escolhida);",
+  "      const apagada = (estado.filtro && !g.marcas[estado.filtro]) || (etqFiltrada && !escolhida)",
+  "        || (estado.filtroClassificacao && g.classificacao !== estado.filtroClassificacao);",
   "      const linha = novo('button', 'esp-linha' + (apagada ? ' atenuado' : '') + (escolhida ? ' ativo' : ''), null, mov);",
   "      linha.type = 'button';",
   "      linha.setAttribute('aria-pressed', String(escolhida));",
-  "      linha.title = g.texto + ': ' + qtdEspacos(g.espacos) + ' (' + porcento(g.espacos, r.total) + ' dos espaços) · '",
+  "      const t = g.tipo;",
+  "      linha.title = g.texto + ': ' + qtdEspacos(g.espacos) + ' (' + porcento(g.espacos, r.total) + ' dos espaços)'",
+  "        + ' · ' + nomeClassificacao(g.classificacao)",
+  "        + (t && typeof t.gmv === 'number' ? ' · GMV esperado ' + formatoGmvCompleto.format(t.gmv) : '')",
+  "        + (t && t.observacao ? ' · ' + t.observacao : '') + ' · '",
   "        + (escolhida ? 'clique para ver todas as etiquetas' : 'clique para ver na planta só onde ela aparece');",
   "      linha.addEventListener('click', () => alternarFiltroEtiqueta(g.texto));",
   "      const nome = novo('span', 'esp-nome', null, linha);",
@@ -5468,9 +5759,18 @@ const PAGINA_ = [
   "        seg.style.background = corMarcaPainel(c);",
   "        seg.title = g.texto + ' · ' + nomeMarcaPainel(c) + ': ' + qtdEspacos(x);",
   "      });",
+  "      // Classificação (selo colorido) e GMV esperado.",
+  "      const info = novo('span', 'esp-info', null, linha);",
+  "      const selo = novo('span', 'esp-selo' + (g.classificacao === SEM_CLASSIFICACAO ? ' sem-classe' : ''), nomeClassificacao(g.classificacao), info);",
+  "      if (g.classificacao !== SEM_CLASSIFICACAO) selo.style.background = corClassificacao(g.classificacao);",
+  "      if (t && typeof t.gmv === 'number') novo('span', 'esp-gmv', 'GMV esperado ' + gmvCurto(t.gmv), info);",
   "    });",
+  "    if (grupos.length && !Object.keys((estado.dados.tiposMovimento || {})[estado.ciclo] || {}).length) {",
+  "      novo('p', 'esp-nota', 'Classifique os movimentos (lançamento, promoção…) e informe o GMV esperado na aba \"'",
+  "        + estado.dados.config.abas.TIPOS + '\" da planilha: uma linha por movimento, com o mesmo texto da etiqueta.', corpo);",
+  "    }",
   "",
-  "    novo('p', 'esp-nota', 'Conta em quantidade de espaços: na gôndola, cada lado e cada meio é um espaço; mesas e totem contam cada frente e painel; os demais móveis contam como um espaço. Combinações de marcas (BOT+QDB) dividem o espaço igualmente. Etiquetas com o mesmo texto são somadas juntas; clique numa delas para ver na planta só onde ela aparece. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);",
+  "    novo('p', 'esp-nota', 'Conta em quantidade de espaços: na gôndola, cada lado e cada meio é um espaço; mesas e totem contam cada frente e painel; os demais móveis contam como um espaço. Combinações de marcas (BOT+QDB) dividem o espaço igualmente. Etiquetas com o mesmo texto são somadas juntas; clique numa delas (ou numa classificação) para ver na planta só onde ela aparece. A classificação e o GMV esperado vêm da aba Tipos de movimento; o GMV é o do movimento no ciclo, não só desta ER. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);",
   "  }",
   "",
   "  /* ------------------- painel da ER (menu da esquerda) -------------------- */",
@@ -5888,6 +6188,7 @@ const PAGINA_ = [
   "      const nome = await Planilha.baixarModelo(estado.dados, op, {",
   "        movimento: movimentoDe,",
   "        linhasPaineis,",
+  "        linhasTipos,",
   "      });",
   "      toast('Download iniciado: ' + nome);",
   "    } catch (e) {",
@@ -5919,6 +6220,7 @@ const PAGINA_ = [
   "    const partes = [];",
   "    if (r.movimentos) partes.push(r.movimentos + ' linha(s) de movimentos');",
   "    if (r.paineis) partes.push(r.paineis + ' linha(s) de painéis');",
+  "    if (r.tipos) partes.push(r.tipos + ' linha(s) de tipos de movimento');",
   "    if (r.layout) partes.push(r.layout + ' linha(s) de layout');",
   "    $('resTexto').textContent = (partes.join(' e ') || 'Nenhuma linha') + ' gravada(s)' +",
   "      (r.ciclos.length ? ' — ciclo(s): ' + r.ciclos.join(', ') + '.' : '.') +",
@@ -5940,8 +6242,9 @@ const PAGINA_ = [
   "    const dlg = $('dlgPng');",
   "    const marca = estado.filtro && estado.dados.marcas[estado.filtro];",
   "    $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.'",
-  "      : estado.filtroEtiqueta ? 'Só os espaços com a etiqueta ' + estado.filtroEtiqueta + ' ficam coloridos, como na tela.' : '';",
-  "    $('pngFiltroTexto').hidden = !marca && !estado.filtroEtiqueta;",
+  "      : estado.filtroEtiqueta ? 'Só os espaços com a etiqueta ' + estado.filtroEtiqueta + ' ficam coloridos, como na tela.'",
+  "        : estado.filtroClassificacao ? 'Só os espaços com movimentos de ' + nomeClassificacao(estado.filtroClassificacao) + ' ficam coloridos, como na tela.' : '';",
+  "    $('pngFiltroTexto').hidden = !marca && !estado.filtroEtiqueta && !estado.filtroClassificacao;",
   "    dlg.returnValue = '';",
   "    dlg.showModal();",
   "  }",
@@ -6159,7 +6462,7 @@ const PAGINA_ = [
   "  carregar();",
   "",
   "  // resolver: usado também para gerar a planilha base da versão de visualização (dev/).",
-  "  return { estado, carregar, resolver: { movimento: movimentoDe, linhasPaineis } };",
+  "  return { estado, carregar, resolver: { movimento: movimentoDe, linhasPaineis, linhasTipos } };",
   "})();",
   "</script>",
   "",

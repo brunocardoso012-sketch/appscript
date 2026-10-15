@@ -25,7 +25,7 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 - **Destaque ao passar o mouse**: com o mouse sobre um móvel (ou uma etiqueta dele), as etiquetas desse móvel ganham contorno e as linhas-guia escurecem; as dos outros móveis ficam mais claras.
 - **Planta em tela cheia**: a planta ocupa toda a área abaixo dos botões, sem moldura. O nome da ER, o ciclo, as listas de TV / rádio, (A) e (C), as notas, a legenda dos símbolos e os itens fora da planta (Cestinhas, Espaço da Beleza, Cavalete) não ficam no desenho: ficam no **Painel da ER**.
 - **Painel da ER**: o botão abre um menu à esquerda da planta (como o *Espaço por marca*, que abre à direita) com o nome da ER e o ciclo, TV e rádio, (A), (C), notas, símbolos usados na planta e os itens fora da planta com as etiquetas deles. Com uma marca no filtro, as etiquetas das outras marcas ficam em cinza, como no slide. O app lembra se ele estava aberto; na primeira vez, abre em telas largas. No *Construir loja* e no PNG do slide, esses painéis continuam no slide, como antes.
-- **Espaço por marca**: o botão abre um painel ao lado da planta com quantos espaços da ER vão para cada marca no ciclo (quantidade e porcentagem) e, em "Por tipo de movimento", as etiquetas agrupadas pelo texto (etiquetas com o mesmo texto somam juntas) com quantos espaços cada uma ocupa, numa barra colorida pelas marcas. Clicar numa marca do painel destaca só ela na planta. Clicar numa etiqueta de "Por tipo de movimento" mostra na planta (e na visão simplificada) **só onde ela aparece**: os espaços com essa etiqueta ficam coloridos e só com ela; os outros espaços com movimento ficam em cinza e sem etiquetas. A legenda mostra *Só a etiqueta: …*; clique nela (ou de novo na etiqueta) para ver todas. O PNG sai igual à tela. Cada espaço é um lado ou meio da gôndola, uma frente da mesa, um painel do totem ou um móvel inteiro; combinações de marcas dividem o espaço igualmente. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.
+- **Espaço por marca**: o botão abre um painel ao lado da planta com quantos espaços da ER vão para cada marca no ciclo (quantidade e porcentagem) e, em "Por tipo de movimento", as etiquetas agrupadas pelo texto (etiquetas com o mesmo texto somam juntas) com quantos espaços cada uma ocupa, numa barra colorida pelas marcas. Clicar numa marca do painel destaca só ela na planta. Em "Por classificação" aparecem quantos espaços, movimentos e quanto GMV esperado vão para cada classificação (lançamento, promoção, liquidação / outlet, institucional / portfólio, outro), e cada etiqueta de "Por tipo de movimento" leva o selo da classificação e o GMV esperado — tudo vindo da aba **Tipos de movimento** da planilha. Clicar numa classificação mostra na planta só os espaços com movimentos dela. Clicar numa etiqueta de "Por tipo de movimento" mostra na planta (e na visão simplificada) **só onde ela aparece**: os espaços com essa etiqueta ficam coloridos e só com ela; os outros espaços com movimento ficam em cinza e sem etiquetas. A legenda mostra *Só a etiqueta: …*; clique nela (ou de novo na etiqueta) para ver todas. O PNG sai igual à tela. Cada espaço é um lado ou meio da gôndola, uma frente da mesa, um painel do totem ou um móvel inteiro; combinações de marcas dividem o espaço igualmente. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.
 - **Filtro por marca**: clique numa marca da legenda para destacar só ela; os móveis e etiquetas das outras marcas ficam em tons de cinza (etiquetas em cinza mais escuro, móveis em cinza mais claro).
 - **Baixar PNG**: o *slide completo* (com o nome da ER, TV / rádio, A, C, notas, legenda e itens extras desenhados nele, como na apresentação) em 3840 px de largura (16:9, mesmo quando o slide cresceu para caber as etiquetas), pronto para colar na apresentação, ou *só a planta com as etiquetas* (sem os painéis e com fundo transparente, recortada no desenho). Com uma marca no filtro, o PNG sai igual à tela: só ela colorida.
 - **Etiquetas arredondadas** na fonte Nunito (também no PNG, que leva a fonte embutida; sem internet, usa Segoe UI / Arial).
@@ -146,7 +146,7 @@ Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`
    | HTML | `Validacao` | [`src/Validacao.html`](src/Validacao.html) |
    | HTML | `App` | [`src/App.html`](src/App.html) |
 
-5. Salve, volte para a planilha e recarregue a página. Vai aparecer o menu **Plano de Varejo**. Clique em **Configurar planilha (criar abas que faltam)** e autorize o script. Ele cria as abas `Layout`, `Movimentos` e `Painéis` com o layout das 4 plantas e um *Ciclo exemplo*.
+5. Salve, volte para a planilha e recarregue a página. Vai aparecer o menu **Plano de Varejo**. Clique em **Configurar planilha (criar abas que faltam)** e autorize o script. Ele cria as abas `Layout`, `Movimentos`, `Painéis` e `Tipos de movimento` com o layout das 4 plantas e um *Ciclo exemplo*.
 6. Para abrir: menu **Plano de Varejo › Abrir visualizador**, ou publique como site (próximo passo).
 7. **Publicar para a diretoria:** no Apps Script, **Implantar › Nova implantação › App da Web**
    - *Executar como:* **Eu**
@@ -215,6 +215,20 @@ Um móvel sem linha no ciclo, ou sem marca, aparece **branco (neutro)**.
 | Texto | O conteúdo. Pode ter várias linhas. |
 | Marca | Cor da caixa. |
 | Aponta para (ID Móvel) | Só para `CALLOUT`: desenha uma linha-guia até esse móvel. |
+
+### Aba `Tipos de movimento` — classificação e GMV esperado de cada movimento
+
+Uma linha por movimento do ciclo. O movimento é ligado às etiquetas pelo texto (o mesmo da coluna *Etiqueta* da aba Movimentos; maiúsculas e espaços a mais não importam).
+
+| Coluna | O que é |
+|---|---|
+| **Ciclo** | Igual à aba Movimentos. |
+| **Movimento (etiqueta)** | O texto da etiqueta (ex.: `LÇTO EGEO`, `BOTIPROMO`). |
+| Classificação | `Lançamento`, `Promoção`, `Liquidação / outlet`, `Institucional / portfólio` ou `Outro` (lista suspensa). Outro texto vira uma classificação própria. As opções ficam em `CLASSIFICACOES` ([`src/Config.gs`](src/Config.gs)). |
+| GMV esperado (R$) | Número em reais. Aceita também `R$ 1.500.000,00`, `1,5 mi` ou `250 mil`. |
+| Observação | Aparece ao passar o mouse sobre a etiqueta no painel. |
+
+O app avisa quando um movimento da aba não aparece em nenhuma etiqueta do ciclo, ou quando o mesmo movimento está duas vezes. Etiqueta sem linha aqui aparece como *Sem classificação*. A planilha base (copiando um ciclo) já vem com todas as etiquetas do ciclo nesta aba, para só completar. Em planilhas que já existiam, a aba é criada sozinha na próxima abertura (com o *Ciclo exemplo*, cujos valores de GMV são só ilustrativos); também dá para criá-la em *Configurar planilha*.
 
 ### Aba `Layout` — a planta em si (muda raramente)
 

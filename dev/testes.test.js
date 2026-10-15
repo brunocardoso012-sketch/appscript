@@ -53,7 +53,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   const { ctx, run } = carregarGas(f.globais);
 
   const conf = run('configurarPlanilha()');
-  assert.deepEqual(Array.from(conf.criadas), ['Layout', 'Movimentos', 'Painéis']);
+  assert.deepEqual(Array.from(conf.criadas), ['Layout', 'Movimentos', 'Painéis', 'Tipos de movimento']);
   assert.ok(f.planilha.getSheetByName('Página1'), 'aba do usuário é mantida');
   assert.equal(f.planilha.getSheetByName('Movimentos')._aba.congeladas, 3);
   assert.equal(run('configurarPlanilha()').criadas.length, 0, 'não sobrescreve abas existentes');
@@ -130,7 +130,7 @@ test('modo standalone cria a planilha e guarda o ID', () => {
   assert.equal(run('getDados()').precisaConfigurar, true);
   run('configurarPlanilha()');
   assert.equal(f.propriedades.SPREADSHEET_ID, 'TESTE');
-  assert.deepEqual(f.planilha.getSheets().map((s) => s.getName()), ['Layout', 'Movimentos', 'Painéis']);
+  assert.deepEqual(f.planilha.getSheets().map((s) => s.getName()), ['Layout', 'Movimentos', 'Painéis', 'Tipos de movimento']);
   assert.equal(run('getDados()').plantas.length, 4);
 });
 
@@ -355,4 +355,53 @@ test('validação: senha por papel, quem pode o quê e aba Comentários', () => 
   l = run(`salvarComentario(${V}, { acao: 'excluir', id: '${id}' })`);
   assert.deepEqual(l, []);
   assert.equal(run("lerComentariosDaPlanilha_(planilha_())").length, 1, 'resposta sai junto');
+});
+
+test('tipos de movimento: classificação e GMV esperado por etiqueta do ciclo', () => {
+  const { run } = carregarGas();
+  assert.equal(run("numeroGmv_('R$ 1.500.000,00')"), 1500000);
+  assert.equal(run("numeroGmv_('1.500.000')"), 1500000);
+  assert.equal(run("numeroGmv_('1,5 mi')"), 1500000);
+  assert.equal(run("numeroGmv_('250 mil')"), 250000);
+  assert.equal(run("numeroGmv_('1,500,000.50')"), 1500000.5);
+  assert.equal(run('numeroGmv_(42)'), 42);
+  assert.equal(run("numeroGmv_('')"), null);
+  assert.equal(run("numeroGmv_('abc')"), null);
+  assert.equal(run("normClassificacao_('lançamento')"), 'LANCAMENTO');
+  assert.equal(run("normClassificacao_('Promo')"), 'PROMOCAO');
+  assert.equal(run("normClassificacao_('Sazonal')"), 'Sazonal');
+  const d = run(`montarDados_(valoresLayoutPadrao_(), [
+    ['Ciclo', 'Planta', 'ID Móvel', 'Etiqueta 1'],
+    ['C1', '01', 'PIRAMIDE 1', 'Multi  Promo'],
+  ], null, [
+    ['Ciclo', 'Movimento (etiqueta)', 'Classificação', 'GMV esperado (R$)'],
+    ['C1', 'MULTI PROMO', 'Promoção', 'R$ 2.000.000'],
+    ['C1', 'multi promo', 'Lançamento', ''],
+    ['C1', 'NÃO EXISTE', 'Lançamento', 'x'],
+    ['', '', '', ''],
+  ])`);
+  const c1 = d.tiposMovimento.C1;
+  assert.deepEqual([c1['MULTI PROMO'].classificacao, c1['MULTI PROMO'].gmv], ['PROMOCAO', 2000000]);
+  assert.equal(c1['NÃO EXISTE'].gmv, null);
+  assert.ok(d.avisos.some((a) => /linha 3: "multi promo" já aparece/.test(a)), d.avisos.join('|'));
+  assert.ok(d.avisos.some((a) => /"NÃO EXISTE" não aparece em nenhuma etiqueta/.test(a)));
+  assert.ok(d.avisos.some((a) => /GMV esperado "x"/.test(a)));
+  assert.deepEqual(d.ciclos, ['C1'], 'a aba não cria ciclos sozinha');
+  const ex = run('montarDados_(valoresLayoutPadrao_(), valoresMovimentosExemplo_(), valoresPaineisExemplo_(), valoresTiposExemplo_())');
+  assert.deepEqual(ex.avisos, [], 'exemplo sem avisos');
+  assert.equal(ex.tiposMovimento['Ciclo exemplo']['LÇTO EGEO'].classificacao, 'LANCAMENTO');
+});
+
+test('importar aba Tipos de movimento substitui só o ciclo presente', () => {
+  const f = servicosFalsos();
+  const { ctx, run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  ctx.__tipos = { tipos: [
+    ['Ciclo', 'Movimento (etiqueta)', 'Classificação', 'GMV esperado (R$)'],
+    ['C20', 'BOTIPROMO', 'Promoção', 300000],
+  ] };
+  assert.equal(run('importarPlanilha(__tipos)').tipos, 1);
+  const d = run('getDados()');
+  assert.equal(d.tiposMovimento.C20.BOTIPROMO.gmv, 300000);
+  assert.ok(Object.keys(d.tiposMovimento['Ciclo exemplo']).length > 10, 'exemplo mantido');
 });

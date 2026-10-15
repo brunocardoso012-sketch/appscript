@@ -3,8 +3,8 @@
  * ============================================================================
  *  PLANO DE VAREJO · VISUALIZADOR — versão só de visualização (Apps Script)
  * ============================================================================
- *  Mostra as plantas de cada ciclo a partir de UMA planilha (abas "Movimentos"
- *  e "Painéis"). A estratégia é montada direto na planilha; o app só lê.
+ *  Mostra as plantas de cada ciclo a partir de UMA planilha (abas "Movimentos",
+ *  "Painéis" e, opcional, "Tipos de movimento"). A estratégia é montada direto na planilha; o app só lê.
  *  Não tem o modo "Construir loja" nem "Baixar / Importar planilha": o layout
  *  das lojas fica no código (seção LAYOUT PADRÃO, mais abaixo).
  *
@@ -67,7 +67,8 @@ function getDados() {
         'Use a planilha base do visualizador (abas "' + CONFIG.ABAS.MOVIMENTOS + '" e "' + CONFIG.ABAS.PAINEIS + '").',
     };
   }
-  const dados = montarDados_(valoresLayoutPadrao_(), movimentos, lerAbaTexto_(ss, CONFIG.ABAS.PAINEIS));
+  const dados = montarDados_(valoresLayoutPadrao_(), movimentos, lerAbaTexto_(ss, CONFIG.ABAS.PAINEIS),
+    lerAbaTexto_(ss, CONFIG.ABAS.TIPOS));
   aplicarAjustesSalvos_(dados.plantas);
   dados.planilhaUrl = ss.getUrl();
   dados.precisaConfigurar = false;
@@ -194,6 +195,7 @@ const CONFIG = {
   ABAS: {
     MOVIMENTOS: 'Movimentos',
     PAINEIS: 'Painéis',
+    TIPOS: 'Tipos de movimento',
     LAYOUT: 'Layout',
     COMENTARIOS: 'Comentários',
   },
@@ -297,6 +299,18 @@ const SIMBOLOS = {
   FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
+};
+
+/**
+ * Classificação dos movimentos (aba "Tipos de movimento"): aparece no painel "Espaço por marca",
+ * em "Por tipo de movimento". A planilha também aceita outro texto (vira uma classificação própria).
+ */
+const CLASSIFICACOES = {
+  LANCAMENTO: { nome: 'Lançamento', cor: '#0E7490', apelidos: ['LANCAMENTOS', 'LANC', 'LCTO', 'NOVIDADE', 'NEW'] },
+  PROMOCAO: { nome: 'Promoção', cor: '#C2410C', apelidos: ['PROMO', 'PROMOCIONAL', 'PROMOCOES', 'OFERTA'] },
+  LIQUIDACAO: { nome: 'Liquidação / outlet', cor: '#A16207', apelidos: ['LIQUIDA', 'LIQUIDACAOOUTLET', 'OUTLET', 'EXAUSTAO', 'QUEIMA'] },
+  INSTITUCIONAL: { nome: 'Institucional / portfólio', cor: '#475569', apelidos: ['PORTFOLIO', 'INSTITUCIONALPORTFOLIO', 'PERMANENTE', 'REGULAR'] },
+  OUTRO: { nome: 'Outro', cor: '#6B7280', apelidos: ['OUTROS'] },
 };
 
 /** Seções da aba "Painéis" (textos fora dos móveis). */
@@ -432,6 +446,17 @@ function colunasPaineis_() {
   ];
 }
 
+/** Aba "Tipos de movimento": classificação e GMV esperado de cada movimento (texto da etiqueta) no ciclo. */
+function colunasTipos_() {
+  return [
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true },
+    { chave: 'etiqueta', titulo: 'Movimento (etiqueta)', obrigatoria: true, texto: true, apelidos: ['Movimento', 'Etiqueta', 'Texto da etiqueta'] },
+    { chave: 'classificacao', titulo: 'Classificação', texto: true, apelidos: ['Tipo', 'Tipo de movimento'] },
+    { chave: 'gmv', titulo: 'GMV esperado (R$)', apelidos: ['GMV esperado', 'GMV', 'GMV (R$)'] },
+    { chave: 'observacao', titulo: 'Observação', texto: true, apelidos: ['Obs'] },
+  ];
+}
+
 function colunasLayout_() {
   return [
     { chave: 'planta', titulo: 'Planta', obrigatoria: true, texto: true },
@@ -485,7 +510,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 8;
+const VERSAO_EXEMPLO = 9;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -740,6 +765,34 @@ const EXEMPLO_PAINEIS = [
   ['04', 'NOTA', 'Pirâmide: NE exposição de masculino e SP Masculino + Lily', '', ''],
 ];
 
+/**
+ * Tipos de movimento do ciclo de exemplo: [movimento (texto da etiqueta), classificação, GMV esperado (R$)].
+ * Os valores de GMV são só ilustrativos.
+ */
+const EXEMPLO_TIPOS = [
+  ['LÇTO EGEO', 'LANCAMENTO', 1800000],
+  ['LÇTO UOMINI', 'LANCAMENTO', 950000],
+  ['JUICY MOOD', 'LANCAMENTO', 620000],
+  ['SIÀGE ULTIMATE', 'LANCAMENTO', 780000],
+  ['UOMINI GLORIFICADO', 'LANCAMENTO', 540000],
+  ['SIÀGE GLORIFICADO', 'LANCAMENTO', 480000],
+  ['MON AMIE + LOÇÃO', 'LANCAMENTO', 260000],
+  ['BOTIPROMO', 'PROMOCAO', 2400000],
+  ['BOTI PROMO', 'PROMOCAO', 1200000],
+  ['BOTIPROMO MAKE B.', 'PROMOCAO', 430000],
+  ['MULTI PROMO', 'PROMOCAO', 1500000],
+  ['PRINCIPAIS OPORTUNIDADES', 'PROMOCAO', 700000],
+  ['LIQUIDA QDB', 'LIQUIDACAO', 900000],
+  ['LIQUIDA MAKE', 'LIQUIDACAO', 210000],
+  ['OUTLET EUD', 'LIQUIDACAO', 1100000],
+  ['ISCAS EXAUSTÃO', 'LIQUIDACAO', 380000],
+  ['BOTIK', 'INSTITUCIONAL', 650000],
+  ['UOMINI HERO', 'INSTITUCIONAL', 520000],
+  ['PERFUMARIA', 'INSTITUCIONAL', 870000],
+  ['CUIDADOS', 'INSTITUCIONAL', 610000],
+  ['+PEC REGIONAL', 'OUTRO', 150000],
+];
+
 /* ------------------------- Conversão em matrizes ------------------------- */
 
 /** Matriz [cabeçalho, ...linhas] da aba Layout padrão. */
@@ -790,6 +843,17 @@ function valoresMovimentosExemplo_() {
   return linhas;
 }
 
+/** Matriz [cabeçalho, ...linhas] da aba Tipos de movimento com o ciclo de exemplo. */
+function valoresTiposExemplo_() {
+  const cols = colunasTipos_();
+  const linhas = [cols.map(function (c) { return c.titulo; })];
+  EXEMPLO_TIPOS.forEach(function (t) {
+    const o = { ciclo: EXEMPLO_CICLO, etiqueta: t[0], classificacao: CLASSIFICACOES[t[1]] ? CLASSIFICACOES[t[1]].nome : t[1], gmv: t[2] };
+    linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
+  });
+  return linhas;
+}
+
 /** Matriz [cabeçalho, ...linhas] da aba Painéis com o ciclo de exemplo. */
 function valoresPaineisExemplo_() {
   const cols = colunasPaineis_();
@@ -815,7 +879,7 @@ function valoresPaineisExemplo_() {
  * Converte as matrizes das abas no objeto usado pela página.
  * Função pura (não acessa a planilha) — facilita testes.
  */
-function montarDados_(valoresLayout, valoresMov, valoresPain) {
+function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
   const avisos = [];
   const aviso = function (msg) { if (avisos.length < 60) avisos.push(msg); };
 
@@ -935,19 +999,70 @@ function montarDados_(valoresLayout, valoresMov, valoresPain) {
     });
   }
 
+  // ---------- Tipos de movimento (classificação e GMV esperado por etiqueta) ----------
+  const tiposMovimento = {};
+  if (valoresTipos && valoresTipos.length) {
+    const lido = objetosDeValores_(valoresTipos, colunasTipos_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.TIPOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    }
+    // Etiquetas de cada ciclo (para avisar de movimento que não aparece em nenhuma etiqueta).
+    const etiquetasDoCiclo = function (ciclo) {
+      const vistas = {};
+      const c = movimentos[ciclo] || {};
+      Object.keys(c).forEach(function (p) {
+        Object.keys(c[p]).forEach(function (id) {
+          c[p][id].etiquetas.forEach(function (e) { vistas[chaveEtiqueta_(e.texto)] = true; });
+        });
+      });
+      return vistas;
+    };
+    const etiquetasPorCiclo = {};
+    lido.linhas.forEach(function (l) {
+      const ciclo = texto_(l.ciclo);
+      const texto = texto_(l.etiqueta);
+      const onde = CONFIG.ABAS.TIPOS + ', linha ' + l._linha;
+      if (!ciclo && !texto) return;
+      if (!ciclo || !texto) {
+        aviso(onde + ': Ciclo e Movimento (etiqueta) são obrigatórios — linha ignorada.');
+        return;
+      }
+      const k = chaveEtiqueta_(texto);
+      tiposMovimento[ciclo] = tiposMovimento[ciclo] || {};
+      if (tiposMovimento[ciclo][k]) {
+        aviso(onde + ': "' + texto + '" já aparece antes no ciclo ' + ciclo + ' — linha ignorada.');
+        return;
+      }
+      const gmv = numeroGmv_(l.gmv);
+      if (gmv === null && texto_(l.gmv)) aviso(onde + ': GMV esperado "' + texto_(l.gmv) + '" não é um número — ignorado.');
+      if (movimentos[ciclo]) {
+        etiquetasPorCiclo[ciclo] = etiquetasPorCiclo[ciclo] || etiquetasDoCiclo(ciclo);
+        if (!etiquetasPorCiclo[ciclo][k]) aviso(onde + ': "' + texto + '" não aparece em nenhuma etiqueta do ciclo ' + ciclo + '.');
+      }
+      tiposMovimento[ciclo][k] = {
+        texto: texto,
+        classificacao: normClassificacao_(l.classificacao),
+        gmv: gmv,
+        observacao: texto_(l.observacao),
+      };
+    });
+  }
+
   return {
     versao: 1,
     plantas: plantas,
     ciclos: ciclos,
     movimentos: movimentos,
     paineis: paineis,
+    tiposMovimento: tiposMovimento,
+    classificacoes: CLASSIFICACOES,
     avisos: avisos,
     marcas: MARCAS,
     simbolos: SIMBOLOS,
     secoes: SECOES_PAINEL,
     tipos: TIPOS_MOVEL,
     tiposConstrucao: TIPOS_CONSTRUCAO,
-    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), layout: colunasLayout_() },
+    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), tipos: colunasTipos_(), layout: colunasLayout_() },
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
@@ -1114,6 +1229,54 @@ function normPlanta_(v) {
 /** "01" → "ER P" (ou "PLANTA 05" para planta sem nome em NOMES_PLANTAS). */
 function nomePlanta_(id) {
   return NOMES_PLANTAS[id] || 'PLANTA ' + id;
+}
+
+/** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (igual ao painel "Espaço por marca"). */
+function chaveEtiqueta_(t) {
+  return texto_(t).replace(/\s+/g, ' ').toUpperCase();
+}
+
+/**
+ * Classificação do movimento: código de CLASSIFICACOES ("Lançamento", "promo", "OUTLET" → LANCAMENTO,
+ * PROMOCAO, LIQUIDACAO…). Outro texto fica como está (classificação própria). Vazio → ''.
+ */
+function normClassificacao_(v) {
+  const k = chave_(v);
+  if (!k) return '';
+  const cod = Object.keys(CLASSIFICACOES).filter(function (c) {
+    const x = CLASSIFICACOES[c];
+    return [c, x.nome].concat(x.apelidos || []).map(chave_).indexOf(k) >= 0;
+  })[0];
+  return cod || texto_(v);
+}
+
+/**
+ * GMV em reais: aceita número ou texto ("R$ 1.500.000,00", "1500000", "1,5 mi", "250 mil", "1.2M").
+ * @return {number|null} null quando vazio ou inválido
+ */
+function numeroGmv_(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  let s = texto_(v).toUpperCase().replace(/R\$/g, '').replace(/\s+/g, '');
+  if (!s) return null;
+  let fator = 1;
+  const sufixo = s.match(/(MILHOES|MILHÕES|MILHAO|MILHÃO|MI|MM|M|MIL|K)$/);
+  if (sufixo) {
+    fator = /^(MIL|K)$/.test(sufixo[1]) ? 1e3 : 1e6;
+    s = s.slice(0, -sufixo[1].length);
+  }
+  if (!/^-?[\d.,]+$/.test(s)) return null;
+  const virgula = s.lastIndexOf(',');
+  const ponto = s.lastIndexOf('.');
+  if (virgula >= 0 && ponto >= 0) {
+    // O último separador é o decimal ("1.500,50" ou "1,500.50").
+    s = virgula > ponto ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  } else if (virgula >= 0) {
+    s = /^-?\d{1,3}(,\d{3})+$/.test(s) && fator === 1 ? s.replace(/,/g, '') : s.replace(/\./g, '').replace(',', '.');
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(s) && fator === 1) {
+    s = s.replace(/\./g, ''); // "1.500.000"
+  }
+  const n = Number(s) * fator;
+  return isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 
 /** Giro do móvel (hoje só o balcão recepção usa): 0, 90, 180 ou 270. */

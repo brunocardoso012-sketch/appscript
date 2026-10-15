@@ -11,6 +11,7 @@ const CONFIG = {
   ABAS: {
     MOVIMENTOS: 'Movimentos',
     PAINEIS: 'Painéis',
+    TIPOS: 'Tipos de movimento',
     LAYOUT: 'Layout',
     COMENTARIOS: 'Comentários',
   },
@@ -114,6 +115,18 @@ const SIMBOLOS = {
   FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
+};
+
+/**
+ * Classificação dos movimentos (aba "Tipos de movimento"): aparece no painel "Espaço por marca",
+ * em "Por tipo de movimento". A planilha também aceita outro texto (vira uma classificação própria).
+ */
+const CLASSIFICACOES = {
+  LANCAMENTO: { nome: 'Lançamento', cor: '#0E7490', apelidos: ['LANCAMENTOS', 'LANC', 'LCTO', 'NOVIDADE', 'NEW'] },
+  PROMOCAO: { nome: 'Promoção', cor: '#C2410C', apelidos: ['PROMO', 'PROMOCIONAL', 'PROMOCOES', 'OFERTA'] },
+  LIQUIDACAO: { nome: 'Liquidação / outlet', cor: '#A16207', apelidos: ['LIQUIDA', 'LIQUIDACAOOUTLET', 'OUTLET', 'EXAUSTAO', 'QUEIMA'] },
+  INSTITUCIONAL: { nome: 'Institucional / portfólio', cor: '#475569', apelidos: ['PORTFOLIO', 'INSTITUCIONALPORTFOLIO', 'PERMANENTE', 'REGULAR'] },
+  OUTRO: { nome: 'Outro', cor: '#6B7280', apelidos: ['OUTROS'] },
 };
 
 /** Seções da aba "Painéis" (textos fora dos móveis). */
@@ -246,6 +259,17 @@ function colunasPaineis_() {
     { chave: 'texto', titulo: 'Texto', obrigatoria: true, texto: true },
     { chave: 'marca', titulo: 'Marca', apelidos: ['Cor'] },
     { chave: 'movel', titulo: 'Aponta para (ID Móvel)', texto: true, apelidos: ['ID Móvel', 'Móvel'] },
+  ];
+}
+
+/** Aba "Tipos de movimento": classificação e GMV esperado de cada movimento (texto da etiqueta) no ciclo. */
+function colunasTipos_() {
+  return [
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true },
+    { chave: 'etiqueta', titulo: 'Movimento (etiqueta)', obrigatoria: true, texto: true, apelidos: ['Movimento', 'Etiqueta', 'Texto da etiqueta'] },
+    { chave: 'classificacao', titulo: 'Classificação', texto: true, apelidos: ['Tipo', 'Tipo de movimento'] },
+    { chave: 'gmv', titulo: 'GMV esperado (R$)', apelidos: ['GMV esperado', 'GMV', 'GMV (R$)'] },
+    { chave: 'observacao', titulo: 'Observação', texto: true, apelidos: ['Obs'] },
   ];
 }
 

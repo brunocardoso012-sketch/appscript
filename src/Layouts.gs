@@ -30,7 +30,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 8;
+const VERSAO_EXEMPLO = 9;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -285,6 +285,34 @@ const EXEMPLO_PAINEIS = [
   ['04', 'NOTA', 'Pirâmide: NE exposição de masculino e SP Masculino + Lily', '', ''],
 ];
 
+/**
+ * Tipos de movimento do ciclo de exemplo: [movimento (texto da etiqueta), classificação, GMV esperado (R$)].
+ * Os valores de GMV são só ilustrativos.
+ */
+const EXEMPLO_TIPOS = [
+  ['LÇTO EGEO', 'LANCAMENTO', 1800000],
+  ['LÇTO UOMINI', 'LANCAMENTO', 950000],
+  ['JUICY MOOD', 'LANCAMENTO', 620000],
+  ['SIÀGE ULTIMATE', 'LANCAMENTO', 780000],
+  ['UOMINI GLORIFICADO', 'LANCAMENTO', 540000],
+  ['SIÀGE GLORIFICADO', 'LANCAMENTO', 480000],
+  ['MON AMIE + LOÇÃO', 'LANCAMENTO', 260000],
+  ['BOTIPROMO', 'PROMOCAO', 2400000],
+  ['BOTI PROMO', 'PROMOCAO', 1200000],
+  ['BOTIPROMO MAKE B.', 'PROMOCAO', 430000],
+  ['MULTI PROMO', 'PROMOCAO', 1500000],
+  ['PRINCIPAIS OPORTUNIDADES', 'PROMOCAO', 700000],
+  ['LIQUIDA QDB', 'LIQUIDACAO', 900000],
+  ['LIQUIDA MAKE', 'LIQUIDACAO', 210000],
+  ['OUTLET EUD', 'LIQUIDACAO', 1100000],
+  ['ISCAS EXAUSTÃO', 'LIQUIDACAO', 380000],
+  ['BOTIK', 'INSTITUCIONAL', 650000],
+  ['UOMINI HERO', 'INSTITUCIONAL', 520000],
+  ['PERFUMARIA', 'INSTITUCIONAL', 870000],
+  ['CUIDADOS', 'INSTITUCIONAL', 610000],
+  ['+PEC REGIONAL', 'OUTRO', 150000],
+];
+
 /* ------------------------- Conversão em matrizes ------------------------- */
 
 /** Matriz [cabeçalho, ...linhas] da aba Layout padrão. */
@@ -331,6 +359,17 @@ function valoresMovimentosExemplo_() {
       });
       linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
     });
+  });
+  return linhas;
+}
+
+/** Matriz [cabeçalho, ...linhas] da aba Tipos de movimento com o ciclo de exemplo. */
+function valoresTiposExemplo_() {
+  const cols = colunasTipos_();
+  const linhas = [cols.map(function (c) { return c.titulo; })];
+  EXEMPLO_TIPOS.forEach(function (t) {
+    const o = { ciclo: EXEMPLO_CICLO, etiqueta: t[0], classificacao: CLASSIFICACOES[t[1]] ? CLASSIFICACOES[t[1]].nome : t[1], gmv: t[2] };
+    linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
   });
   return linhas;
 }

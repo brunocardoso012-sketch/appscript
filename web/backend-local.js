@@ -15,6 +15,7 @@
       layout: valoresLayoutPadrao_(),
       movimentos: valoresMovimentosExemplo_(),
       paineis: valoresPaineisExemplo_(),
+      tipos: valoresTiposExemplo_(),
       versoesModelo: versoesAtuais_(),
     };
   }
@@ -45,7 +46,7 @@
   const api = {
     getDados() {
       const abas = ler();
-      const dados = montarDados_(abas.layout, abas.movimentos, abas.paineis);
+      const dados = montarDados_(abas.layout, abas.movimentos, abas.paineis, abas.tipos);
       dados.planilhaUrl = '';
       dados.precisaConfigurar = false;
       dados.modoLocal = true;
@@ -60,9 +61,9 @@
     importarPlanilha(payload) {
       const prep = prepararImportacao_(payload);
       const abas = ler();
-      const resultado = { movimentos: 0, paineis: 0, layout: 0 };
+      const resultado = { movimentos: 0, paineis: 0, tipos: 0, layout: 0 };
       prep.preparados.forEach((p) => {
-        abas[p.bloco.campo] = mesclarLinhas_(abas[p.bloco.campo], p.linhas, p.bloco.colunas);
+        abas[p.bloco.campo] = mesclarLinhas_(abas[p.bloco.campo] || [], p.linhas, p.bloco.colunas);
         resultado[p.bloco.campo] = p.linhas.length;
       });
       gravar(abas);

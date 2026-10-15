@@ -2,8 +2,8 @@
  * ============================================================================
  *  PLANO DE VAREJO · VISUALIZADOR — versão só de visualização (Apps Script)
  * ============================================================================
- *  Mostra as plantas de cada ciclo a partir de UMA planilha (abas "Movimentos"
- *  e "Painéis"). A estratégia é montada direto na planilha; o app só lê.
+ *  Mostra as plantas de cada ciclo a partir de UMA planilha (abas "Movimentos",
+ *  "Painéis" e, opcional, "Tipos de movimento"). A estratégia é montada direto na planilha; o app só lê.
  *  Não tem o modo "Construir loja" nem "Baixar / Importar planilha": o layout
  *  das lojas fica no código (seção LAYOUT PADRÃO, mais abaixo).
  *
@@ -66,7 +66,8 @@ function getDados() {
         'Use a planilha base do visualizador (abas "' + CONFIG.ABAS.MOVIMENTOS + '" e "' + CONFIG.ABAS.PAINEIS + '").',
     };
   }
-  const dados = montarDados_(valoresLayoutPadrao_(), movimentos, lerAbaTexto_(ss, CONFIG.ABAS.PAINEIS));
+  const dados = montarDados_(valoresLayoutPadrao_(), movimentos, lerAbaTexto_(ss, CONFIG.ABAS.PAINEIS),
+    lerAbaTexto_(ss, CONFIG.ABAS.TIPOS));
   aplicarAjustesSalvos_(dados.plantas);
   dados.planilhaUrl = ss.getUrl();
   dados.precisaConfigurar = false;
