@@ -112,9 +112,19 @@
         iE = abas.layout[0].length;
         abas.layout[0].push('Ajuste Etiquetas por espaço (px)');
       }
+      let iT = col('tamanhoEtiquetas');
+      const tamanho = ajustes.LOJA && ajustes.LOJA.escala ? normTamanhoEtiquetas_(ajustes.LOJA.escala) : 0;
+      if (iT < 0 && tamanho) {
+        iT = abas.layout[0].length;
+        abas.layout[0].push('Tamanho das etiquetas (%)');
+      }
       let atualizados = 0;
       abas.layout.slice(1).forEach((row) => {
         if (normPlanta_(row[iPlanta]) !== planta) return;
+        if (normId_(row[iId]) === 'LOJA') {
+          if (tamanho) row[iT] = tamanho;
+          return;
+        }
         const atual = { x: row[iX], y: row[iY], espacos: lerAjustesEspacos_(row[iE]) };
         if (!aplicarAjusteEtiquetas_(row[iId], ajustes, atual)) return;
         row[iX] = Math.round(Number(atual.x) || 0);

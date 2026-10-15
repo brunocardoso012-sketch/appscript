@@ -154,6 +154,43 @@
   }
   .grupo-botoes { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 
+  /* Painéis em destaque (Painel da ER e Espaço por marca), separados das outras ações. */
+  .acoes { align-items: center; }
+  .acoes-paineis { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: #eef2ff; border: 1px solid #d5ddfb; }
+  .btn.painel-botao { border-color: transparent; background: transparent; color: #27367a; }
+  .btn.painel-botao:hover { background: #e0e7ff; }
+  .btn.painel-botao[aria-pressed="true"] { background: #3346b8; border-color: #3346b8; color: #FFFFFF; }
+  .acoes-divisor { width: 1px; align-self: stretch; margin: 2px 4px; background: var(--borda); }
+  .btn.icone { padding: 7px; position: relative; }
+  .btn.icone svg { width: 18px; height: 18px; }
+  .btn.icone .badge { position: absolute; top: -4px; right: -4px; }
+
+  /* Menu de configurações (ícone de engrenagem): validação e ajuste das etiquetas. */
+  .menu-config { position: relative; }
+  .menu-config:has(.menu-item[aria-pressed="true"]) #btnConfig { color: var(--texto); background: var(--destaque); }
+  .menu-lista {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 210px;
+    display: flex; flex-direction: column; padding: 6px; gap: 2px;
+    background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, .14);
+  }
+  .menu-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px;
+    background: transparent; color: var(--texto); font: 600 13px var(--fonte); text-align: left; cursor: pointer;
+  }
+  .menu-item:hover, .menu-item:focus-visible { background: #f0f1f3; outline: none; }
+  .menu-item:disabled { opacity: .5; cursor: default; background: transparent; }
+  .menu-item[aria-pressed="true"] { background: var(--destaque); }
+  .menu-item svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .menu-item .badge {
+    margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #E8590C; color: #fff;
+    font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+  }
+
+  /* Tamanho das etiquetas (modo ajuste). */
+  .tamanho-etq { display: inline-flex; align-items: center; gap: 4px; }
+  .tamanho-etq > span { font-size: 12px; margin-right: 4px; }
+  #etqTamanho { min-width: 52px; justify-content: center; font-variant-numeric: tabular-nums; }
+
   /* ---------- palco (slide) ---------- */
   /* A planta ocupa toda a área abaixo do topo (sem moldura); o desenho fica centralizado nela. */
   .palco {
@@ -163,6 +200,9 @@
     align-items: stretch;
     padding: 8px 0 0;
   }
+  /* A planta e o botão de baixar PNG, no canto de baixo dela. */
+  .area-planta { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+  .btn-png { position: absolute; right: 14px; bottom: 14px; z-index: 5; box-shadow: 0 4px 14px rgba(0, 0, 0, .12); }
   #slide {
     flex: 1 1 auto;
     min-width: 0;
@@ -257,6 +297,7 @@
 
   /* ---------- construir loja ---------- */
   body.construindo .palco { gap: 14px; align-items: flex-start; position: relative; padding: 8px 16px 16px; }
+  body.construindo .area-planta { align-self: flex-start; }
   body.construindo #slide { width: auto; height: auto; aspect-ratio: 16 / 9; align-self: flex-start; }
   #slide.construindo .movel:hover polygon { stroke: #ff9a52; }
   .construtor {
@@ -329,7 +370,7 @@
 
   @media (max-width: 1100px) {
     body.construindo .palco { flex-wrap: wrap; }
-    body.construindo #slide { width: 100%; }
+    body.construindo .area-planta, body.construindo #slide { width: 100%; }
     .construtor { flex: 1 1 100%; max-height: none; }
   }
 
@@ -539,7 +580,8 @@
   @media (max-width: 720px) {
     .topo { padding: 10px 12px; }
     .faixa { padding-left: 12px; padding-right: 12px; }
-    .acoes .btn { flex: 1 1 auto; justify-content: center; }
+    .acoes .btn:not(.icone) { flex: 1 1 auto; justify-content: center; }
+    .acoes-divisor { display: none; }
   }
 
   /* ---------- painel da ER (menu da esquerda) ---------- */
@@ -563,10 +605,10 @@
   /* Telas estreitas: os painéis vão para baixo da planta. */
   @media (max-width: 900px) {
     body.com-painel-espaco .palco, body.com-painel-validacao .palco, body.com-painel-loja .palco { flex-direction: column; }
-    body.com-painel-loja #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
+    body.com-painel-loja .area-planta, body.com-painel-loja #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     .painel-loja { order: 2; border-right: 0; }
-    body.com-painel-validacao #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
-    body.com-painel-espaco #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
+    body.com-painel-validacao .area-planta, body.com-painel-validacao #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
+    body.com-painel-espaco .area-planta, body.com-painel-espaco #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     .painel-espaco { flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--borda); overflow: visible; }
     .esp-topo { position: static; }
   }

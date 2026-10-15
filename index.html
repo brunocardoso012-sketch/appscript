@@ -164,6 +164,43 @@
   }
   .grupo-botoes { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 
+  /* Painéis em destaque (Painel da ER e Espaço por marca), separados das outras ações. */
+  .acoes { align-items: center; }
+  .acoes-paineis { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: #eef2ff; border: 1px solid #d5ddfb; }
+  .btn.painel-botao { border-color: transparent; background: transparent; color: #27367a; }
+  .btn.painel-botao:hover { background: #e0e7ff; }
+  .btn.painel-botao[aria-pressed="true"] { background: #3346b8; border-color: #3346b8; color: #FFFFFF; }
+  .acoes-divisor { width: 1px; align-self: stretch; margin: 2px 4px; background: var(--borda); }
+  .btn.icone { padding: 7px; position: relative; }
+  .btn.icone svg { width: 18px; height: 18px; }
+  .btn.icone .badge { position: absolute; top: -4px; right: -4px; }
+
+  /* Menu de configurações (ícone de engrenagem): validação e ajuste das etiquetas. */
+  .menu-config { position: relative; }
+  .menu-config:has(.menu-item[aria-pressed="true"]) #btnConfig { color: var(--texto); background: var(--destaque); }
+  .menu-lista {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 210px;
+    display: flex; flex-direction: column; padding: 6px; gap: 2px;
+    background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, .14);
+  }
+  .menu-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px;
+    background: transparent; color: var(--texto); font: 600 13px var(--fonte); text-align: left; cursor: pointer;
+  }
+  .menu-item:hover, .menu-item:focus-visible { background: #f0f1f3; outline: none; }
+  .menu-item:disabled { opacity: .5; cursor: default; background: transparent; }
+  .menu-item[aria-pressed="true"] { background: var(--destaque); }
+  .menu-item svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .menu-item .badge {
+    margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #E8590C; color: #fff;
+    font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+  }
+
+  /* Tamanho das etiquetas (modo ajuste). */
+  .tamanho-etq { display: inline-flex; align-items: center; gap: 4px; }
+  .tamanho-etq > span { font-size: 12px; margin-right: 4px; }
+  #etqTamanho { min-width: 52px; justify-content: center; font-variant-numeric: tabular-nums; }
+
   /* ---------- palco (slide) ---------- */
   /* A planta ocupa toda a área abaixo do topo (sem moldura); o desenho fica centralizado nela. */
   .palco {
@@ -173,6 +210,9 @@
     align-items: stretch;
     padding: 8px 0 0;
   }
+  /* A planta e o botão de baixar PNG, no canto de baixo dela. */
+  .area-planta { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+  .btn-png { position: absolute; right: 14px; bottom: 14px; z-index: 5; box-shadow: 0 4px 14px rgba(0, 0, 0, .12); }
   #slide {
     flex: 1 1 auto;
     min-width: 0;
@@ -267,6 +307,7 @@
 
   /* ---------- construir loja ---------- */
   body.construindo .palco { gap: 14px; align-items: flex-start; position: relative; padding: 8px 16px 16px; }
+  body.construindo .area-planta { align-self: flex-start; }
   body.construindo #slide { width: auto; height: auto; aspect-ratio: 16 / 9; align-self: flex-start; }
   #slide.construindo .movel:hover polygon { stroke: #ff9a52; }
   .construtor {
@@ -339,7 +380,7 @@
 
   @media (max-width: 1100px) {
     body.construindo .palco { flex-wrap: wrap; }
-    body.construindo #slide { width: 100%; }
+    body.construindo .area-planta, body.construindo #slide { width: 100%; }
     .construtor { flex: 1 1 100%; max-height: none; }
   }
 
@@ -549,7 +590,8 @@
   @media (max-width: 720px) {
     .topo { padding: 10px 12px; }
     .faixa { padding-left: 12px; padding-right: 12px; }
-    .acoes .btn { flex: 1 1 auto; justify-content: center; }
+    .acoes .btn:not(.icone) { flex: 1 1 auto; justify-content: center; }
+    .acoes-divisor { display: none; }
   }
 
   /* ---------- painel da ER (menu da esquerda) ---------- */
@@ -573,10 +615,10 @@
   /* Telas estreitas: os painéis vão para baixo da planta. */
   @media (max-width: 900px) {
     body.com-painel-espaco .palco, body.com-painel-validacao .palco, body.com-painel-loja .palco { flex-direction: column; }
-    body.com-painel-loja #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
+    body.com-painel-loja .area-planta, body.com-painel-loja #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     .painel-loja { order: 2; border-right: 0; }
-    body.com-painel-validacao #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
-    body.com-painel-espaco #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
+    body.com-painel-validacao .area-planta, body.com-painel-validacao #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
+    body.com-painel-espaco .area-planta, body.com-painel-espaco #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     .painel-espaco { flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--borda); overflow: visible; }
     .esp-topo { position: static; }
   }
@@ -705,7 +747,7 @@ const SIMBOLOS = {
 
 /**
  * Classificação dos movimentos (aba "Tipos de movimento"): aparece no painel "Espaço por marca",
- * em "Por tipo de movimento". A planilha também aceita outro texto (vira uma classificação própria).
+ * em "Por movimentos". A planilha também aceita outro texto (vira uma classificação própria).
  */
 const CLASSIFICACOES = {
   LANCAMENTO: { nome: 'Lançamento', cor: '#0E7490', apelidos: ['LANCAMENTOS', 'LANC', 'LCTO', 'NOVIDADE', 'NEW'] },
@@ -876,6 +918,7 @@ function colunasLayout_() {
     { chave: 'dividido', titulo: 'Meios divididos', texto: true, apelidos: ['Divisão', 'Dividido'] },
     { chave: 'giro', titulo: 'Giro (graus)', apelidos: ['Giro', 'Rotação', 'Rotacao'] },
     { chave: 'ajusteEspacos', titulo: 'Ajuste Etiquetas por espaço (px)', texto: true, apelidos: ['Ajuste por espaço', 'Ajuste Espaços'] },
+    { chave: 'tamanhoEtiquetas', titulo: 'Tamanho das etiquetas (%)', apelidos: ['Tamanho etiquetas', 'Tamanho das etiquetas'] },
   ];
 }
 
@@ -1114,6 +1157,7 @@ function montarPlantas_(linhas, aviso) {
         largura: Math.max(1, numero_(l.largura, 20)),
         profundidade: Math.max(1, numero_(l.profundidade, 20)),
         alturaParede: Math.max(0, numero_(l.altura, 4.5)),
+        escalaEtiquetas: normTamanhoEtiquetas_(l.tamanhoEtiquetas),
       };
       return;
     }
@@ -1243,6 +1287,12 @@ function normPlanta_(v) {
 /** "01" → "ER P" (ou "PLANTA 05" para planta sem nome em NOMES_PLANTAS). */
 function nomePlanta_(id) {
   return NOMES_PLANTAS[id] || 'PLANTA ' + id;
+}
+
+/** Tamanho das etiquetas da planta, em % (linha LOJA do Layout): 60 a 250; vazio ou inválido = 100. */
+function normTamanhoEtiquetas_(v) {
+  const n = Math.round(numero_(String(texto_(v)).replace('%', ''), 100));
+  return n > 0 ? Math.max(60, Math.min(250, n)) : 100;
 }
 
 /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (igual ao painel "Espaço por marca"). */
@@ -1730,6 +1780,7 @@ function salvarAjustesEtiquetas(planta, ajustes) {
     let iX = col('ajusteX');
     let iY = col('ajusteY');
     let iE = col('ajusteEspacos');
+    let iT = col('tamanhoEtiquetas');
     if (iPlanta < 0 || iId < 0) throw new Error('Aba Layout sem as colunas Planta / ID Móvel.');
     let largura = valores[0].length;
     if (iX < 0) { iX = largura++; sh.getRange(1, iX + 1).setValue('Ajuste Etiqueta X (px)'); }
@@ -1737,6 +1788,11 @@ function salvarAjustesEtiquetas(planta, ajustes) {
     if (iE < 0) {
       iE = largura++;
       sh.getRange(1, iE + 1).setValue('Ajuste Etiquetas por espaço (px)');
+    }
+    const tamanho = ajustes.LOJA && ajustes.LOJA.escala ? normTamanhoEtiquetas_(ajustes.LOJA.escala) : 0;
+    if (iT < 0 && tamanho) {
+      iT = largura++;
+      sh.getRange(1, iT + 1).setValue('Tamanho das etiquetas (%)');
     }
 
     const n = valores.length - 1;
@@ -1747,6 +1803,11 @@ function salvarAjustesEtiquetas(planta, ajustes) {
     let atualizados = 0;
     for (let r = 1; r <= n; r++) {
       if (normPlanta_(valores[r][iPlanta]) !== planta) continue;
+      if (normId_(valores[r][iId]) === 'LOJA') {
+        // Linha da loja: guarda o tamanho das etiquetas da planta.
+        if (tamanho) sh.getRange(r + 1, iT + 1).setValue(tamanho);
+        continue;
+      }
       const atual = { x: colX[r - 1][0], y: colY[r - 1][0], espacos: lerAjustesEspacos_(colE[r - 1][0]) };
       if (!aplicarAjusteEtiquetas_(valores[r][iId], ajustes, atual)) continue;
       colX[r - 1][0] = Math.round(Number(atual.x) || 0);
@@ -1849,6 +1910,7 @@ function objetosLayoutDaPlanta_(planta, layout) {
     planta: planta, movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA', x: 0, y: 0, z: 0,
     largura: Math.max(1, n(loja.largura, 20)), profundidade: Math.max(1, n(loja.profundidade, 20)),
     altura: Math.max(0, n(loja.alturaParede, 4.5)), ajusteX: 0, ajusteY: 0,
+    tamanhoEtiquetas: loja.escalaEtiquetas && loja.escalaEtiquetas !== 100 ? normTamanhoEtiquetas_(loja.escalaEtiquetas) : '',
   }];
   const vistos = {};
   layout.moveis.forEach(function (m, i) {
@@ -2864,9 +2926,19 @@ function executarComentario_(ss, acesso, pedido) {
         iE = abas.layout[0].length;
         abas.layout[0].push('Ajuste Etiquetas por espaço (px)');
       }
+      let iT = col('tamanhoEtiquetas');
+      const tamanho = ajustes.LOJA && ajustes.LOJA.escala ? normTamanhoEtiquetas_(ajustes.LOJA.escala) : 0;
+      if (iT < 0 && tamanho) {
+        iT = abas.layout[0].length;
+        abas.layout[0].push('Tamanho das etiquetas (%)');
+      }
       let atualizados = 0;
       abas.layout.slice(1).forEach((row) => {
         if (normPlanta_(row[iPlanta]) !== planta) return;
+        if (normId_(row[iId]) === 'LOJA') {
+          if (tamanho) row[iT] = tamanho;
+          return;
+        }
         const atual = { x: row[iX], y: row[iY], espacos: lerAjustesEspacos_(row[iE]) };
         if (!aplicarAjusteEtiquetas_(row[iId], ajustes, atual)) return;
         row[iX] = Math.round(Number(atual.x) || 0);
@@ -2938,8 +3010,20 @@ function executarComentario_(ss, acesso, pedido) {
       </div>
 
       <div class="acoes">
+        <!-- Painéis em destaque: o da ER (à esquerda da planta) e o de espaço por marca (à direita). -->
+        <div class="acoes-paineis">
+          <button id="btnLoja" class="btn painel-botao" type="button" aria-pressed="false" title="Nome da ER, ciclo, TV / rádio, A, C, notas, legenda dos símbolos e itens fora da planta">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M5.5 8h1.5M5.5 11h1.5M5.5 14h1.5"/></svg>
+            Painel da ER
+          </button>
+          <button id="btnEspaco" class="btn painel-botao" type="button" aria-pressed="false" title="Quantos espaços da ER vão para cada marca, movimento e classificação">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7H3"/></svg>
+            Espaço por marca
+          </button>
+        </div>
+        <span class="acoes-divisor" aria-hidden="true"></span>
         <!-- so-app-completo -->
-        <button id="btnModelo" class="btn primario" type="button">
+        <button id="btnModelo" class="btn" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
           Baixar planilha base
         </button>
@@ -2947,29 +3031,6 @@ function executarComentario_(ss, acesso, pedido) {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-5 5m5-5 5 5M4 19h16"/></svg>
           Importar planilha
         </button>
-        <!-- /so-app-completo -->
-        <button id="btnPng" class="btn" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
-          Baixar PNG
-        </button>
-        <button id="btnLoja" class="btn" type="button" aria-pressed="false" title="Nome da ER, ciclo, TV / rádio, A, C, notas, legenda dos símbolos e itens fora da planta">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M5.5 8h1.5M5.5 11h1.5M5.5 14h1.5"/></svg>
-          Painel da ER
-        </button>
-        <button id="btnEspaco" class="btn" type="button" aria-pressed="false" title="Quantos espaços da ER vão para cada marca e cada etiqueta">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7H3"/></svg>
-          Espaço por marca
-        </button>
-        <button id="btnValidacao" class="btn" type="button" aria-pressed="false" title="Validação da estratégia (pede senha)">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z"/><path d="m8.5 12 2.3 2.3L15.5 9.5"/></svg>
-          Validação
-          <span class="badge" id="valBadge" hidden></span>
-        </button>
-        <button id="btnEditar" class="btn" type="button" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
-          Ajustar etiquetas
-        </button>
-        <!-- so-app-completo -->
         <button id="btnConstruir" class="btn" type="button" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
           Construir loja
@@ -2983,6 +3044,24 @@ function executarComentario_(ss, acesso, pedido) {
           Abrir planilha
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
         </a>
+        <!-- Configurações: só o ícone; abre o menu com a validação e o ajuste das etiquetas. -->
+        <div class="menu-config" id="menuConfig">
+          <button id="btnConfig" class="btn fantasma icone" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menuConfigLista" aria-label="Configurações" title="Configurações">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+            <span class="badge" id="cfgBadge" hidden></span>
+          </button>
+          <div class="menu-lista" id="menuConfigLista" role="menu" hidden>
+            <button id="btnValidacao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Validação da estratégia (pede senha)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z"/><path d="m8.5 12 2.3 2.3L15.5 9.5"/></svg>
+              Validação
+              <span class="badge" id="valBadge" hidden></span>
+            </button>
+            <button id="btnEditar" class="menu-item" type="button" role="menuitem" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
+              Ajustar etiquetas
+            </button>
+          </div>
+        </div>
         <!-- so-app-completo -->
         <input type="file" id="arquivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
         <!-- /so-app-completo -->
@@ -3008,6 +3087,12 @@ function executarComentario_(ss, acesso, pedido) {
 
     <div class="barra-edicao" id="barraEdicao" hidden>
       <span><strong>Modo ajuste:</strong> arraste as etiquetas para reposicionar (cada pilha se move sozinha). <span id="qtdAjustes"></span></span>
+      <span class="tamanho-etq" role="group" aria-label="Tamanho das etiquetas">
+        <span>Tamanho das etiquetas</span>
+        <button id="etqMenor" class="btn pequeno" type="button" aria-label="Diminuir as etiquetas">A−</button>
+        <button id="etqTamanho" class="btn pequeno fantasma" type="button" title="Voltar ao tamanho padrão (100%)">100%</button>
+        <button id="etqMaior" class="btn pequeno" type="button" aria-label="Aumentar as etiquetas">A+</button>
+      </span>
       <span class="grupo-botoes">
         <button id="btnAutoOrganizar" class="btn pequeno" type="button">Organizar automaticamente</button>
         <button id="btnDescartar" class="btn pequeno" type="button">Descartar</button>
@@ -3026,7 +3111,13 @@ function executarComentario_(ss, acesso, pedido) {
         </header>
         <div id="lojaCorpo" class="esp-corpo"></div>
       </aside>
-      <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
+      <div class="area-planta" id="areaPlanta">
+        <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
+        <button id="btnPng" class="btn btn-png" type="button" title="Baixar a planta (ou o slide completo) em PNG">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
+          Baixar PNG
+        </button>
+      </div>
       <aside class="painel-espaco" id="painelEspaco" hidden aria-label="Espaço por marca">
         <header class="esp-topo">
           <div>
@@ -3304,7 +3395,10 @@ const Render = (() => {
   const TELA_BASE = { w: 1920, h: 1080 };
   const TELA = { w: TELA_BASE.w, h: TELA_BASE.h, fundo: '#F3EFEA' };
   const REGIAO_PLANTA = { x: 500, y: 70, w: 1400, h: 950 };
-  const ETQ = { fonte: 12.5, lh: 15, padX: 10, padY: 4, gap: 4, maxTexto: 190, simbolo: 20, raio: 9 };
+  // Etiquetas: medidas no tamanho padrão (ETQ_BASE); ETQ é o tamanho do desenho atual (na visão na planta,
+  // multiplicado pelo "Tamanho das etiquetas" da planta, ajustado em "Ajustar etiquetas").
+  const ETQ_BASE = { fonte: 12.5, lh: 15, padX: 10, padY: 4, gap: 4, maxTexto: 190, simbolo: 20, raio: 9 };
+  const ETQ = Object.assign({}, ETQ_BASE);
   // Fichas da visão simplificada: uma por móvel, em colunas agrupadas por tipo de móvel.
   //   xEsq: primeira coluna (logo depois do painel lateral); mini: miniatura do móvel em cada linha;
   //   legenda: nome do espaço ("LADO A"), entre a miniatura e as etiquetas.
@@ -4347,7 +4441,16 @@ const Render = (() => {
   // cima do móvel (ou no lugar livre mais perto). A planta cresce (slide em 16:9) até as etiquetas
   // caberem perto dos móveis sem cobrir os outros.
 
-  const ROTULO = { chip: 13, vaoChip: 2, fonteChip: 8.5, cel: 6 };
+  const ROTULO_BASE = { chip: 13, vaoChip: 2, fonteChip: 8.5 };
+  const ROTULO = Object.assign({ cel: 6 }, ROTULO_BASE);
+  let escalaEtq = 1; // tamanho das etiquetas no desenho atual (1 = padrão)
+
+  /** Aplica o tamanho das etiquetas (k = 1 é o padrão) às medidas usadas no desenho. */
+  function definirEscalaEtiquetas(k) {
+    escalaEtq = k;
+    Object.keys(ETQ_BASE).forEach((c) => { ETQ[c] = ETQ_BASE[c] * k; });
+    Object.keys(ROTULO_BASE).forEach((c) => { ROTULO[c] = ROTULO_BASE[c] * k; });
+  }
 
   /** Direção (no piso) para onde cada espaço olha: +u/-u nas pontas, +v/-v nos meios e frentes. */
   function direcaoDoEspaco(m, id) {
@@ -4401,7 +4504,7 @@ const Render = (() => {
         const corMarca = !ehNeutro(ln.info.marca) && coresDe(ln.info.marca, 'etiqueta', true);
         const med = medirGrupo(ln.etiquetas, ln.simbolo, corMarca || corEtiquetaPadrao(true));
         const legenda = ln.espacos ? nomeCurto(ln.espacos).toUpperCase() : '';
-        const wChip = legenda ? largura(legenda, ROTULO.fonteChip, 800, 'normal', FONTE_ETQ) + 10 : 0;
+        const wChip = legenda ? largura(legenda, ROTULO.fonteChip, 800, 'normal', FONTE_ETQ) + 10 * escalaEtq : 0;
         const topo = legenda ? ROTULO.chip + ROTULO.vaoChip : 0;
         rotulos.push(Object.assign(med, {
           id: m.id + (ln.espacos ? '/' + ln.espacos.map((e) => e.id).join('+') : ''),
@@ -4632,8 +4735,8 @@ const Render = (() => {
     const g = el('g', Object.assign({ 'data-movel': r.id, 'data-movel-base': r.movel.id, filter: 'url(#sombraEtq)' }, attrs), pai);
     let y = r.y;
     if (r.legenda) {
-      el('rect', { class: 'chip-espaco', x: r.x, y, width: r.wChip, height: ROTULO.chip, rx: 4, fill: '#24282E' }, g);
-      texto(g, r.x + 5, y + ROTULO.chip - 3.6, r.legenda, {
+      el('rect', { class: 'chip-espaco', x: r.x, y, width: r.wChip, height: ROTULO.chip, rx: 4 * escalaEtq, fill: '#24282E' }, g);
+      texto(g, r.x + 5 * escalaEtq, y + ROTULO.chip - 3.6 * escalaEtq, r.legenda, {
         'font-family': FONTE_ETQ, 'font-size': ROTULO.fonteChip, 'font-weight': 800, 'letter-spacing': 0.3, fill: '#FFFFFF',
       });
       y += r.topo;
@@ -4641,12 +4744,12 @@ const Render = (() => {
     r.itens.forEach((it, i) => {
       fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores);
       it.linhas.forEach((l, k) => {
-        texto(g, r.x + r.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6, l, {
+        texto(g, r.x + r.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6 * escalaEtq, l, {
           'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
           fill: '#FFFFFF', 'text-anchor': 'middle',
         });
       });
-      if (i === 0 && r.simbolo) desenharSimbolo(g, r.simbolo, r.x + r.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2);
+      if (i === 0 && r.simbolo) desenharSimbolo(g, r.simbolo, r.x + r.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2, escalaEtq);
       y += it.h + ETQ.gap;
     });
     return g;
@@ -4944,6 +5047,7 @@ const Render = (() => {
   /**
    * @param {SVGSVGElement} svg
    * @param {{dados, planta, ciclo, filtro, filtroEtiqueta, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx
+   *   escalaEtiquetas: tamanho das etiquetas na visão na planta (1 = padrão).
    *   filtroEtiqueta: texto de uma etiqueta (ou lista de textos); só os espaços com ela ficam coloridos e com etiqueta.
    *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).
    *   paineis: false = sem o painel lateral, notas, legenda e itens extras (na tela eles ficam no menu
@@ -4992,7 +5096,7 @@ const Render = (() => {
     });
     const infoDe = (b) => (b.espaco ? infoEspaco[b.movel.id + '/' + b.espaco.id] : info[b.movel.id]);
 
-    // Filtro por etiqueta (painel "Espaço por marca", "Por tipo de movimento"): só os espaços que têm
+    // Filtro por etiqueta (painel "Espaço por marca", "Por movimentos"): só os espaços que têm
     // aquela etiqueta ficam coloridos e com etiquetas (só ela); os outros espaços com movimento ficam
     // em cinza e sem etiquetas. Mesmo texto = mesma etiqueta (sem diferenciar maiúsculas e espaços).
     // Também aceita uma lista de textos (as etiquetas de uma classificação: lançamento, promoção…).
@@ -5030,6 +5134,8 @@ const Render = (() => {
     //  - "simplificada": sem a planta, só as fichas, agrupadas por tipo de móvel (o slide cresce se precisar);
     //  - "planta" (padrão): etiquetas junto dos espaços, com a planta maior se faltar lugar.
     const simplificada = ctx.visao === 'simplificada';
+    // Tamanho das etiquetas: só na visão na planta (as fichas da visão simplificada têm largura fixa).
+    definirEscalaEtiquetas(simplificada ? 1 : Math.max(0.5, Math.min(3, Number(ctx.escalaEtiquetas) || 1)));
     const nSimbolos = comPaineis ? ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length : 0;
     const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide
     const fichas = simplificada ? montarFichas(moveis, infoVis, infoEspacoVis, ctx.dados.config) : [];
@@ -5392,7 +5498,7 @@ const Planilha = (() => {
       '4. "Etiqueta 1…' + dados.config.maxEtiquetas + '" são as caixas de texto; "Marca Etiqueta N" define a cor de cada uma (vazio = cor da linha). Pirâmide e cada espaço da gôndola e das mesas mostram até 4 etiquetas, empilhadas (as colunas que não aparecem na planta ficam cinza).',
       '5. "Símbolo" é opcional e aparece ao lado da primeira etiqueta (tabela abaixo).',
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
-      '6.0 Na aba "' + abas.TIPOS + '" ficam os movimentos do ciclo: uma linha por movimento (o texto da etiqueta, igual ao da aba ' + abas.MOVIMENTOS + '), com a "Classificação" (' + Object.keys(dados.classificacoes || {}).map((k) => dados.classificacoes[k].nome).join(', ') + ' ou outro texto) e o "GMV esperado (R$)". Elas aparecem no painel "Espaço por marca", em "Por tipo de movimento". Maiúsculas e espaços a mais não importam.',
+      '6.0 Na aba "' + abas.TIPOS + '" ficam os movimentos do ciclo: uma linha por movimento (o texto da etiqueta, igual ao da aba ' + abas.MOVIMENTOS + '), com a "Classificação" (' + Object.keys(dados.classificacoes || {}).map((k) => dados.classificacoes[k].nome).join(', ') + ' ou outro texto) e o "GMV esperado (R$)". Elas aparecem no painel "Espaço por marca", em "Por movimentos". Maiúsculas e espaços a mais não importam.',
       '6.1 Gôndola, mesas, totem e móvel make são preenchidos espaço por espaço: não há linha do móvel inteiro (se houver, ela é ignorada). Espaço sem linha fica branco.',
       '6.2 Gôndola: uma linha por espaço — GONDOLA 1/LADO-A, MEIO-A, MEIO-B e LADO-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas, junto dele na planta, com o nome do espaço (LADO A, MEIO B…). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
       '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só.',
@@ -5621,6 +5727,7 @@ const Planilha = (() => {
       const linhas = [{
         planta: plantaNaPlanilha(dados, p.id), movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA', x: 0, y: 0, z: 0,
         largura: p.loja.largura, profundidade: p.loja.profundidade, altura: p.loja.alturaParede, ajusteX: 0, ajusteY: 0,
+        tamanhoEtiquetas: p.loja.escalaEtiquetas && p.loja.escalaEtiquetas !== 100 ? p.loja.escalaEtiquetas : null,
       }].concat(p.moveis.map((m) => ({
         planta: plantaNaPlanilha(dados, p.id), movel: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z,
         largura: m.w, profundidade: m.d, altura: m.h, ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '', giro: m.giro || 0,
@@ -6688,6 +6795,11 @@ const Validacao = (() => {
       btn.setAttribute('aria-pressed', String(painelAberto && ativo()));
       $('valBadge').textContent = abertos ? String(abertos) : '';
       $('valBadge').hidden = !abertos;
+      // O botão fica no menu de configurações: o ícone dele mostra o mesmo número.
+      if ($('cfgBadge')) {
+        $('cfgBadge').textContent = abertos ? String(abertos) : '';
+        $('cfgBadge').hidden = !abertos;
+      }
       btn.title = ativo() ? 'Validação: ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : 'Validação da estratégia (pede senha)';
     }
     const painel = $('painelValidacao');
@@ -6933,10 +7045,10 @@ const App = (() => {
     ciclo: '',
     planta: '',
     filtro: '',
-    filtroEtiqueta: '', // etiqueta escolhida em "Por tipo de movimento" (só os espaços com ela ficam coloridos)
+    filtroEtiqueta: '', // etiqueta escolhida em "Por movimentos" (só os espaços com ela ficam coloridos)
     filtroClassificacao: '', // classificação escolhida em "Por classificação" (lançamento, promoção…)
     edicao: false,
-    ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
+    ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}; LOJA → {escala} (tamanho, em %)
     grupos: [],
     painelEspaco: false, // painel "Espaço por marca" aberto
     painelLoja: false, // menu da esquerda (nome da ER, TV / rádio, A, C, notas, símbolos, itens extras) aberto
@@ -7287,6 +7399,7 @@ const App = (() => {
       filtro: estado.filtro,
       filtroEtiqueta: construcao ? '' : etiquetasDoFiltro(),
       ajustes: estado.ajustes,
+      escalaEtiquetas: construcao ? 1 : tamanhoEtiquetas() / 100,
       edicao: estado.edicao,
       visao: construcao ? 'planta' : estado.visao, // a construção é sempre sobre a planta
       // Na tela, os painéis do slide ficam no menu da esquerda (na construção, no slide, como no PNG).
@@ -7536,8 +7649,30 @@ const App = (() => {
     });
   }
 
+  /* Tamanho das etiquetas na planta (em %), por planta: o salvo na linha LOJA do Layout ou o ainda não salvo. */
+  const TAMANHO_ETQ = { min: 60, max: 250, passo: 10 };
+  function tamanhoEtiquetas() {
+    const a = estado.ajustes.LOJA;
+    if (a && a.escala) return a.escala;
+    const p = plantaAtual();
+    return (p && p.loja && p.loja.escalaEtiquetas) || 100;
+  }
+  function mudarTamanhoEtiquetas(valor) {
+    const p = plantaAtual();
+    if (!p) return;
+    const v = Math.max(TAMANHO_ETQ.min, Math.min(TAMANHO_ETQ.max, Math.round(valor / 5) * 5));
+    if (v === ((p.loja && p.loja.escalaEtiquetas) || 100)) delete estado.ajustes.LOJA;
+    else estado.ajustes.LOJA = { escala: v };
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
   function atualizarBarraEdicao() {
     $('barraEdicao').hidden = !estado.edicao;
+    const tam = tamanhoEtiquetas();
+    $('etqTamanho').textContent = tam + '%';
+    $('etqMenor').disabled = tam <= TAMANHO_ETQ.min;
+    $('etqMaior').disabled = tam >= TAMANHO_ETQ.max;
     $('btnEditar').setAttribute('aria-pressed', String(estado.edicao));
     const n = Object.keys(estado.ajustes).length;
     $('qtdAjustes').textContent = n ? '(' + n + (n === 1 ? ' alteração não salva)' : ' alterações não salvas)') : '';
@@ -7571,6 +7706,7 @@ const App = (() => {
     carregando(true, 'Salvando posições…');
     try {
       const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);
+      if (estado.ajustes.LOJA) planta.loja = Object.assign({}, planta.loja, { escalaEtiquetas: estado.ajustes.LOJA.escala });
       planta.moveis.forEach((m) => {
         Object.keys(estado.ajustes).forEach((id) => {
           const a = estado.ajustes[id];
@@ -7805,49 +7941,10 @@ const App = (() => {
       linha.addEventListener('click', () => alternarFiltro(c));
     });
 
-    // Por classificação (aba Tipos de movimento): espaços, movimentos e GMV esperado de cada uma.
-    // Clicar numa classificação mostra na planta só os espaços com movimentos dela.
-    const classes = ordemDasClassificacoes(Object.keys(r.porClassificacao));
-    if (classes.length) {
-      novo('h3', null, 'Por classificação', corpo);
-      const listaCl = novo('div', 'esp-lista', null, corpo);
-      const gmvTotal = grupos.reduce((s, g) => s + (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0), 0);
-      classes.forEach((c) => {
-        const v = r.porClassificacao[c] || 0;
-        const doTipo = grupos.filter((g) => g.classificacao === c);
-        const gmv = doTipo.reduce((s, g) => s + (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0), 0);
-        const escolhida = estado.filtroClassificacao === c;
-        const apagada = estado.filtroClassificacao && !escolhida;
-        const linha = novo('button', 'esp-linha' + (apagada ? ' atenuado' : '') + (escolhida ? ' ativo' : ''), null, listaCl);
-        linha.type = 'button';
-        linha.setAttribute('aria-pressed', String(escolhida));
-        linha.title = nomeClassificacao(c) + ': ' + qtdEspacos(v) + ' (' + porcento(v, r.total) + ' dos espaços), '
-          + doTipo.length + (doTipo.length === 1 ? ' movimento' : ' movimentos')
-          + (gmv ? ', GMV esperado ' + formatoGmvCompleto.format(gmv) : '') + ' · '
-          + (escolhida ? 'clique para ver todas as etiquetas' : 'clique para ver na planta só onde ela aparece');
-        linha.addEventListener('click', () => alternarFiltroClassificacao(c));
-        const nome = novo('span', 'esp-nome', null, linha);
-        novo('i', null, null, nome).style.background = corClassificacao(c);
-        novo('span', null, nomeClassificacao(c), nome);
-        novo('span', 'esp-valor', qtdEspacos(v), linha);
-        novo('span', 'esp-pct', porcento(v, r.total), linha);
-        const trilho = novo('span', 'esp-trilho', null, linha);
-        const barra = novo('span', 'esp-barra', null, trilho);
-        barra.style.width = (r.total ? (v / r.total) * 100 : 0) + '%';
-        barra.style.background = corClassificacao(c);
-        const info = novo('span', 'esp-info', null, linha);
-        novo('span', null, doTipo.length + (doTipo.length === 1 ? ' movimento' : ' movimentos'), info);
-        if (c !== SEM_CLASSIFICACAO) {
-          novo('span', 'esp-gmv', gmv ? 'GMV esperado ' + gmvCurto(gmv) + (gmvTotal ? ' · ' + porcento(gmv, gmvTotal) + ' do GMV' : '') : 'GMV não informado', info);
-        }
-      });
-      if (gmvTotal) novo('p', 'esp-total', 'GMV esperado dos movimentos desta ER: ' + formatoGmvCompleto.format(gmvTotal), corpo);
-    }
-
-    // Por tipo de movimento: etiquetas com o mesmo texto juntas, barra empilhada pelas marcas, com a
+    // Por movimentos: etiquetas com o mesmo texto juntas, barra empilhada pelas marcas, com a
     // classificação e o GMV esperado da aba Tipos de movimento.
     // Clicar numa etiqueta mostra na planta só os espaços onde ela aparece.
-    novo('h3', null, 'Por tipo de movimento (etiquetas)', corpo);
+    novo('h3', null, 'Por movimentos', corpo);
     if (!grupos.length) novo('p', 'mv-vazio', 'Nenhuma etiqueta neste ciclo.', corpo);
     const maior = Math.max.apply(null, grupos.map((g) => g.espacos).concat([0]));
     const mov = novo('div', 'esp-lista', null, corpo);
@@ -7889,6 +7986,45 @@ const App = (() => {
     if (grupos.length && !Object.keys((estado.dados.tiposMovimento || {})[estado.ciclo] || {}).length) {
       novo('p', 'esp-nota', 'Classifique os movimentos (lançamento, promoção…) e informe o GMV esperado na aba "'
         + estado.dados.config.abas.TIPOS + '" da planilha: uma linha por movimento, com o mesmo texto da etiqueta.', corpo);
+    }
+
+    // Por classificação (aba Tipos de movimento): espaços, movimentos e GMV esperado de cada uma.
+    // Clicar numa classificação mostra na planta só os espaços com movimentos dela.
+    const classes = ordemDasClassificacoes(Object.keys(r.porClassificacao));
+    if (classes.length) {
+      novo('h3', null, 'Por classificação', corpo);
+      const listaCl = novo('div', 'esp-lista', null, corpo);
+      const gmvTotal = grupos.reduce((s, g) => s + (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0), 0);
+      classes.forEach((c) => {
+        const v = r.porClassificacao[c] || 0;
+        const doTipo = grupos.filter((g) => g.classificacao === c);
+        const gmv = doTipo.reduce((s, g) => s + (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0), 0);
+        const escolhida = estado.filtroClassificacao === c;
+        const apagada = estado.filtroClassificacao && !escolhida;
+        const linha = novo('button', 'esp-linha' + (apagada ? ' atenuado' : '') + (escolhida ? ' ativo' : ''), null, listaCl);
+        linha.type = 'button';
+        linha.setAttribute('aria-pressed', String(escolhida));
+        linha.title = nomeClassificacao(c) + ': ' + qtdEspacos(v) + ' (' + porcento(v, r.total) + ' dos espaços), '
+          + doTipo.length + (doTipo.length === 1 ? ' movimento' : ' movimentos')
+          + (gmv ? ', GMV esperado ' + formatoGmvCompleto.format(gmv) : '') + ' · '
+          + (escolhida ? 'clique para ver todas as etiquetas' : 'clique para ver na planta só onde ela aparece');
+        linha.addEventListener('click', () => alternarFiltroClassificacao(c));
+        const nome = novo('span', 'esp-nome', null, linha);
+        novo('i', null, null, nome).style.background = corClassificacao(c);
+        novo('span', null, nomeClassificacao(c), nome);
+        novo('span', 'esp-valor', qtdEspacos(v), linha);
+        novo('span', 'esp-pct', porcento(v, r.total), linha);
+        const trilho = novo('span', 'esp-trilho', null, linha);
+        const barra = novo('span', 'esp-barra', null, trilho);
+        barra.style.width = (r.total ? (v / r.total) * 100 : 0) + '%';
+        barra.style.background = corClassificacao(c);
+        const info = novo('span', 'esp-info', null, linha);
+        novo('span', null, doTipo.length + (doTipo.length === 1 ? ' movimento' : ' movimentos'), info);
+        if (c !== SEM_CLASSIFICACAO) {
+          novo('span', 'esp-gmv', gmv ? 'GMV esperado ' + gmvCurto(gmv) + (gmvTotal ? ' · ' + porcento(gmv, gmvTotal) + ' do GMV' : '') : 'GMV não informado', info);
+        }
+      });
+      if (gmvTotal) novo('p', 'esp-total', 'GMV esperado dos movimentos desta ER: ' + formatoGmvCompleto.format(gmvTotal), corpo);
     }
 
     novo('p', 'esp-nota', 'Conta em quantidade de espaços: na gôndola, cada lado e cada meio é um espaço; mesas e totem contam cada frente e painel; os demais móveis contam como um espaço. Combinações de marcas (BOT+QDB) dividem o espaço igualmente. Etiquetas com o mesmo texto são somadas juntas; clique numa delas (ou numa classificação) para ver na planta só onde ela aparece. A classificação e o GMV esperado vêm da aba Tipos de movimento; o GMV é o do movimento no ciclo, não só desta ER. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);
@@ -8520,6 +8656,22 @@ const App = (() => {
     ao('zoomMenos', 'click', () => zoomPara(estado.zoom.k / 1.5));
     ao('zoomNivel', 'click', () => zoomPara(1));
     ao('btnAutoOrganizar', 'click', autoOrganizar);
+    ao('etqMenor', 'click', () => mudarTamanhoEtiquetas(tamanhoEtiquetas() - TAMANHO_ETQ.passo));
+    ao('etqMaior', 'click', () => mudarTamanhoEtiquetas(tamanhoEtiquetas() + TAMANHO_ETQ.passo));
+    ao('etqTamanho', 'click', () => mudarTamanhoEtiquetas(100));
+    // Menu de configurações (engrenagem): abre e fecha; fecha ao escolher um item, clicar fora ou Esc.
+    const menuCfg = $('menuConfigLista');
+    const abrirMenuCfg = (abrir) => {
+      menuCfg.hidden = !abrir;
+      $('btnConfig').setAttribute('aria-expanded', String(abrir));
+      if (abrir) { const i = menuCfg.querySelector('.menu-item:not(:disabled)'); if (i) i.focus(); }
+    };
+    ao('btnConfig', 'click', () => abrirMenuCfg(menuCfg.hidden));
+    menuCfg.addEventListener('click', (e) => { if (e.target.closest('.menu-item')) abrirMenuCfg(false); });
+    document.addEventListener('pointerdown', (e) => { if (!menuCfg.hidden && !e.target.closest('#menuConfig')) abrirMenuCfg(false); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !menuCfg.hidden) { abrirMenuCfg(false); $('btnConfig').focus(); }
+    });
     ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
     ao('btnSalvarAjustes', 'click', salvarAjustes);
     ao('btnConfigurar', 'click', configurar);

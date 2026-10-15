@@ -25,7 +25,10 @@ const Render = (() => {
   const TELA_BASE = { w: 1920, h: 1080 };
   const TELA = { w: TELA_BASE.w, h: TELA_BASE.h, fundo: '#F3EFEA' };
   const REGIAO_PLANTA = { x: 500, y: 70, w: 1400, h: 950 };
-  const ETQ = { fonte: 12.5, lh: 15, padX: 10, padY: 4, gap: 4, maxTexto: 190, simbolo: 20, raio: 9 };
+  // Etiquetas: medidas no tamanho padrão (ETQ_BASE); ETQ é o tamanho do desenho atual (na visão na planta,
+  // multiplicado pelo "Tamanho das etiquetas" da planta, ajustado em "Ajustar etiquetas").
+  const ETQ_BASE = { fonte: 12.5, lh: 15, padX: 10, padY: 4, gap: 4, maxTexto: 190, simbolo: 20, raio: 9 };
+  const ETQ = Object.assign({}, ETQ_BASE);
   // Fichas da visão simplificada: uma por móvel, em colunas agrupadas por tipo de móvel.
   //   xEsq: primeira coluna (logo depois do painel lateral); mini: miniatura do móvel em cada linha;
   //   legenda: nome do espaço ("LADO A"), entre a miniatura e as etiquetas.
@@ -1068,7 +1071,16 @@ const Render = (() => {
   // cima do móvel (ou no lugar livre mais perto). A planta cresce (slide em 16:9) até as etiquetas
   // caberem perto dos móveis sem cobrir os outros.
 
-  const ROTULO = { chip: 13, vaoChip: 2, fonteChip: 8.5, cel: 6 };
+  const ROTULO_BASE = { chip: 13, vaoChip: 2, fonteChip: 8.5 };
+  const ROTULO = Object.assign({ cel: 6 }, ROTULO_BASE);
+  let escalaEtq = 1; // tamanho das etiquetas no desenho atual (1 = padrão)
+
+  /** Aplica o tamanho das etiquetas (k = 1 é o padrão) às medidas usadas no desenho. */
+  function definirEscalaEtiquetas(k) {
+    escalaEtq = k;
+    Object.keys(ETQ_BASE).forEach((c) => { ETQ[c] = ETQ_BASE[c] * k; });
+    Object.keys(ROTULO_BASE).forEach((c) => { ROTULO[c] = ROTULO_BASE[c] * k; });
+  }
 
   /** Direção (no piso) para onde cada espaço olha: +u/-u nas pontas, +v/-v nos meios e frentes. */
   function direcaoDoEspaco(m, id) {
@@ -1122,7 +1134,7 @@ const Render = (() => {
         const corMarca = !ehNeutro(ln.info.marca) && coresDe(ln.info.marca, 'etiqueta', true);
         const med = medirGrupo(ln.etiquetas, ln.simbolo, corMarca || corEtiquetaPadrao(true));
         const legenda = ln.espacos ? nomeCurto(ln.espacos).toUpperCase() : '';
-        const wChip = legenda ? largura(legenda, ROTULO.fonteChip, 800, 'normal', FONTE_ETQ) + 10 : 0;
+        const wChip = legenda ? largura(legenda, ROTULO.fonteChip, 800, 'normal', FONTE_ETQ) + 10 * escalaEtq : 0;
         const topo = legenda ? ROTULO.chip + ROTULO.vaoChip : 0;
         rotulos.push(Object.assign(med, {
           id: m.id + (ln.espacos ? '/' + ln.espacos.map((e) => e.id).join('+') : ''),
@@ -1353,8 +1365,8 @@ const Render = (() => {
     const g = el('g', Object.assign({ 'data-movel': r.id, 'data-movel-base': r.movel.id, filter: 'url(#sombraEtq)' }, attrs), pai);
     let y = r.y;
     if (r.legenda) {
-      el('rect', { class: 'chip-espaco', x: r.x, y, width: r.wChip, height: ROTULO.chip, rx: 4, fill: '#24282E' }, g);
-      texto(g, r.x + 5, y + ROTULO.chip - 3.6, r.legenda, {
+      el('rect', { class: 'chip-espaco', x: r.x, y, width: r.wChip, height: ROTULO.chip, rx: 4 * escalaEtq, fill: '#24282E' }, g);
+      texto(g, r.x + 5 * escalaEtq, y + ROTULO.chip - 3.6 * escalaEtq, r.legenda, {
         'font-family': FONTE_ETQ, 'font-size': ROTULO.fonteChip, 'font-weight': 800, 'letter-spacing': 0.3, fill: '#FFFFFF',
       });
       y += r.topo;
@@ -1362,12 +1374,12 @@ const Render = (() => {
     r.itens.forEach((it, i) => {
       fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores);
       it.linhas.forEach((l, k) => {
-        texto(g, r.x + r.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6, l, {
+        texto(g, r.x + r.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6 * escalaEtq, l, {
           'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
           fill: '#FFFFFF', 'text-anchor': 'middle',
         });
       });
-      if (i === 0 && r.simbolo) desenharSimbolo(g, r.simbolo, r.x + r.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2);
+      if (i === 0 && r.simbolo) desenharSimbolo(g, r.simbolo, r.x + r.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2, escalaEtq);
       y += it.h + ETQ.gap;
     });
     return g;
@@ -1665,6 +1677,7 @@ const Render = (() => {
   /**
    * @param {SVGSVGElement} svg
    * @param {{dados, planta, ciclo, filtro, filtroEtiqueta, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx
+   *   escalaEtiquetas: tamanho das etiquetas na visão na planta (1 = padrão).
    *   filtroEtiqueta: texto de uma etiqueta (ou lista de textos); só os espaços com ela ficam coloridos e com etiqueta.
    *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).
    *   paineis: false = sem o painel lateral, notas, legenda e itens extras (na tela eles ficam no menu
@@ -1713,7 +1726,7 @@ const Render = (() => {
     });
     const infoDe = (b) => (b.espaco ? infoEspaco[b.movel.id + '/' + b.espaco.id] : info[b.movel.id]);
 
-    // Filtro por etiqueta (painel "Espaço por marca", "Por tipo de movimento"): só os espaços que têm
+    // Filtro por etiqueta (painel "Espaço por marca", "Por movimentos"): só os espaços que têm
     // aquela etiqueta ficam coloridos e com etiquetas (só ela); os outros espaços com movimento ficam
     // em cinza e sem etiquetas. Mesmo texto = mesma etiqueta (sem diferenciar maiúsculas e espaços).
     // Também aceita uma lista de textos (as etiquetas de uma classificação: lançamento, promoção…).
@@ -1751,6 +1764,8 @@ const Render = (() => {
     //  - "simplificada": sem a planta, só as fichas, agrupadas por tipo de móvel (o slide cresce se precisar);
     //  - "planta" (padrão): etiquetas junto dos espaços, com a planta maior se faltar lugar.
     const simplificada = ctx.visao === 'simplificada';
+    // Tamanho das etiquetas: só na visão na planta (as fichas da visão simplificada têm largura fixa).
+    definirEscalaEtiquetas(simplificada ? 1 : Math.max(0.5, Math.min(3, Number(ctx.escalaEtiquetas) || 1)));
     const nSimbolos = comPaineis ? ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length : 0;
     const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide
     const fichas = simplificada ? montarFichas(moveis, infoVis, infoEspacoVis, ctx.dados.config) : [];

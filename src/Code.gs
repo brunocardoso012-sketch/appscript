@@ -275,6 +275,7 @@ function salvarAjustesEtiquetas(planta, ajustes) {
     let iX = col('ajusteX');
     let iY = col('ajusteY');
     let iE = col('ajusteEspacos');
+    let iT = col('tamanhoEtiquetas');
     if (iPlanta < 0 || iId < 0) throw new Error('Aba Layout sem as colunas Planta / ID Móvel.');
     let largura = valores[0].length;
     if (iX < 0) { iX = largura++; sh.getRange(1, iX + 1).setValue('Ajuste Etiqueta X (px)'); }
@@ -282,6 +283,11 @@ function salvarAjustesEtiquetas(planta, ajustes) {
     if (iE < 0) {
       iE = largura++;
       sh.getRange(1, iE + 1).setValue('Ajuste Etiquetas por espaço (px)');
+    }
+    const tamanho = ajustes.LOJA && ajustes.LOJA.escala ? normTamanhoEtiquetas_(ajustes.LOJA.escala) : 0;
+    if (iT < 0 && tamanho) {
+      iT = largura++;
+      sh.getRange(1, iT + 1).setValue('Tamanho das etiquetas (%)');
     }
 
     const n = valores.length - 1;
@@ -292,6 +298,11 @@ function salvarAjustesEtiquetas(planta, ajustes) {
     let atualizados = 0;
     for (let r = 1; r <= n; r++) {
       if (normPlanta_(valores[r][iPlanta]) !== planta) continue;
+      if (normId_(valores[r][iId]) === 'LOJA') {
+        // Linha da loja: guarda o tamanho das etiquetas da planta.
+        if (tamanho) sh.getRange(r + 1, iT + 1).setValue(tamanho);
+        continue;
+      }
       const atual = { x: colX[r - 1][0], y: colY[r - 1][0], espacos: lerAjustesEspacos_(colE[r - 1][0]) };
       if (!aplicarAjusteEtiquetas_(valores[r][iId], ajustes, atual)) continue;
       colX[r - 1][0] = Math.round(Number(atual.x) || 0);
@@ -394,6 +405,7 @@ function objetosLayoutDaPlanta_(planta, layout) {
     planta: planta, movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA', x: 0, y: 0, z: 0,
     largura: Math.max(1, n(loja.largura, 20)), profundidade: Math.max(1, n(loja.profundidade, 20)),
     altura: Math.max(0, n(loja.alturaParede, 4.5)), ajusteX: 0, ajusteY: 0,
+    tamanhoEtiquetas: loja.escalaEtiquetas && loja.escalaEtiquetas !== 100 ? normTamanhoEtiquetas_(loja.escalaEtiquetas) : '',
   }];
   const vistos = {};
   layout.moveis.forEach(function (m, i) {

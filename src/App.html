@@ -10,10 +10,10 @@ const App = (() => {
     ciclo: '',
     planta: '',
     filtro: '',
-    filtroEtiqueta: '', // etiqueta escolhida em "Por tipo de movimento" (só os espaços com ela ficam coloridos)
+    filtroEtiqueta: '', // etiqueta escolhida em "Por movimentos" (só os espaços com ela ficam coloridos)
     filtroClassificacao: '', // classificação escolhida em "Por classificação" (lançamento, promoção…)
     edicao: false,
-    ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
+    ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}; LOJA → {escala} (tamanho, em %)
     grupos: [],
     painelEspaco: false, // painel "Espaço por marca" aberto
     painelLoja: false, // menu da esquerda (nome da ER, TV / rádio, A, C, notas, símbolos, itens extras) aberto
@@ -364,6 +364,7 @@ const App = (() => {
       filtro: estado.filtro,
       filtroEtiqueta: construcao ? '' : etiquetasDoFiltro(),
       ajustes: estado.ajustes,
+      escalaEtiquetas: construcao ? 1 : tamanhoEtiquetas() / 100,
       edicao: estado.edicao,
       visao: construcao ? 'planta' : estado.visao, // a construção é sempre sobre a planta
       // Na tela, os painéis do slide ficam no menu da esquerda (na construção, no slide, como no PNG).
@@ -613,8 +614,30 @@ const App = (() => {
     });
   }
 
+  /* Tamanho das etiquetas na planta (em %), por planta: o salvo na linha LOJA do Layout ou o ainda não salvo. */
+  const TAMANHO_ETQ = { min: 60, max: 250, passo: 10 };
+  function tamanhoEtiquetas() {
+    const a = estado.ajustes.LOJA;
+    if (a && a.escala) return a.escala;
+    const p = plantaAtual();
+    return (p && p.loja && p.loja.escalaEtiquetas) || 100;
+  }
+  function mudarTamanhoEtiquetas(valor) {
+    const p = plantaAtual();
+    if (!p) return;
+    const v = Math.max(TAMANHO_ETQ.min, Math.min(TAMANHO_ETQ.max, Math.round(valor / 5) * 5));
+    if (v === ((p.loja && p.loja.escalaEtiquetas) || 100)) delete estado.ajustes.LOJA;
+    else estado.ajustes.LOJA = { escala: v };
+    atualizarBarraEdicao();
+    desenhar();
+  }
+
   function atualizarBarraEdicao() {
     $('barraEdicao').hidden = !estado.edicao;
+    const tam = tamanhoEtiquetas();
+    $('etqTamanho').textContent = tam + '%';
+    $('etqMenor').disabled = tam <= TAMANHO_ETQ.min;
+    $('etqMaior').disabled = tam >= TAMANHO_ETQ.max;
     $('btnEditar').setAttribute('aria-pressed', String(estado.edicao));
     const n = Object.keys(estado.ajustes).length;
     $('qtdAjustes').textContent = n ? '(' + n + (n === 1 ? ' alteração não salva)' : ' alterações não salvas)') : '';
@@ -648,6 +671,7 @@ const App = (() => {
     carregando(true, 'Salvando posições…');
     try {
       const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);
+      if (estado.ajustes.LOJA) planta.loja = Object.assign({}, planta.loja, { escalaEtiquetas: estado.ajustes.LOJA.escala });
       planta.moveis.forEach((m) => {
         Object.keys(estado.ajustes).forEach((id) => {
           const a = estado.ajustes[id];
@@ -882,49 +906,10 @@ const App = (() => {
       linha.addEventListener('click', () => alternarFiltro(c));
     });
 
-    // Por classificação (aba Tipos de movimento): espaços, movimentos e GMV esperado de cada uma.
-    // Clicar numa classificação mostra na planta só os espaços com movimentos dela.
-    const classes = ordemDasClassificacoes(Object.keys(r.porClassificacao));
-    if (classes.length) {
-      novo('h3', null, 'Por classificação', corpo);
-      const listaCl = novo('div', 'esp-lista', null, corpo);
-      const gmvTotal = grupos.reduce((s, g) => s + (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0), 0);
-      classes.forEach((c) => {
-        const v = r.porClassificacao[c] || 0;
-        const doTipo = grupos.filter((g) => g.classificacao === c);
-        const gmv = doTipo.reduce((s, g) => s + (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0), 0);
-        const escolhida = estado.filtroClassificacao === c;
-        const apagada = estado.filtroClassificacao && !escolhida;
-        const linha = novo('button', 'esp-linha' + (apagada ? ' atenuado' : '') + (escolhida ? ' ativo' : ''), null, listaCl);
-        linha.type = 'button';
-        linha.setAttribute('aria-pressed', String(escolhida));
-        linha.title = nomeClassificacao(c) + ': ' + qtdEspacos(v) + ' (' + porcento(v, r.total) + ' dos espaços), '
-          + doTipo.length + (doTipo.length === 1 ? ' movimento' : ' movimentos')
-          + (gmv ? ', GMV esperado ' + formatoGmvCompleto.format(gmv) : '') + ' · '
-          + (escolhida ? 'clique para ver todas as etiquetas' : 'clique para ver na planta só onde ela aparece');
-        linha.addEventListener('click', () => alternarFiltroClassificacao(c));
-        const nome = novo('span', 'esp-nome', null, linha);
-        novo('i', null, null, nome).style.background = corClassificacao(c);
-        novo('span', null, nomeClassificacao(c), nome);
-        novo('span', 'esp-valor', qtdEspacos(v), linha);
-        novo('span', 'esp-pct', porcento(v, r.total), linha);
-        const trilho = novo('span', 'esp-trilho', null, linha);
-        const barra = novo('span', 'esp-barra', null, trilho);
-        barra.style.width = (r.total ? (v / r.total) * 100 : 0) + '%';
-        barra.style.background = corClassificacao(c);
-        const info = novo('span', 'esp-info', null, linha);
-        novo('span', null, doTipo.length + (doTipo.length === 1 ? ' movimento' : ' movimentos'), info);
-        if (c !== SEM_CLASSIFICACAO) {
-          novo('span', 'esp-gmv', gmv ? 'GMV esperado ' + gmvCurto(gmv) + (gmvTotal ? ' · ' + porcento(gmv, gmvTotal) + ' do GMV' : '') : 'GMV não informado', info);
-        }
-      });
-      if (gmvTotal) novo('p', 'esp-total', 'GMV esperado dos movimentos desta ER: ' + formatoGmvCompleto.format(gmvTotal), corpo);
-    }
-
-    // Por tipo de movimento: etiquetas com o mesmo texto juntas, barra empilhada pelas marcas, com a
+    // Por movimentos: etiquetas com o mesmo texto juntas, barra empilhada pelas marcas, com a
     // classificação e o GMV esperado da aba Tipos de movimento.
     // Clicar numa etiqueta mostra na planta só os espaços onde ela aparece.
-    novo('h3', null, 'Por tipo de movimento (etiquetas)', corpo);
+    novo('h3', null, 'Por movimentos', corpo);
     if (!grupos.length) novo('p', 'mv-vazio', 'Nenhuma etiqueta neste ciclo.', corpo);
     const maior = Math.max.apply(null, grupos.map((g) => g.espacos).concat([0]));
     const mov = novo('div', 'esp-lista', null, corpo);
@@ -966,6 +951,45 @@ const App = (() => {
     if (grupos.length && !Object.keys((estado.dados.tiposMovimento || {})[estado.ciclo] || {}).length) {
       novo('p', 'esp-nota', 'Classifique os movimentos (lançamento, promoção…) e informe o GMV esperado na aba "'
         + estado.dados.config.abas.TIPOS + '" da planilha: uma linha por movimento, com o mesmo texto da etiqueta.', corpo);
+    }
+
+    // Por classificação (aba Tipos de movimento): espaços, movimentos e GMV esperado de cada uma.
+    // Clicar numa classificação mostra na planta só os espaços com movimentos dela.
+    const classes = ordemDasClassificacoes(Object.keys(r.porClassificacao));
+    if (classes.length) {
+      novo('h3', null, 'Por classificação', corpo);
+      const listaCl = novo('div', 'esp-lista', null, corpo);
+      const gmvTotal = grupos.reduce((s, g) => s + (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0), 0);
+      classes.forEach((c) => {
+        const v = r.porClassificacao[c] || 0;
+        const doTipo = grupos.filter((g) => g.classificacao === c);
+        const gmv = doTipo.reduce((s, g) => s + (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0), 0);
+        const escolhida = estado.filtroClassificacao === c;
+        const apagada = estado.filtroClassificacao && !escolhida;
+        const linha = novo('button', 'esp-linha' + (apagada ? ' atenuado' : '') + (escolhida ? ' ativo' : ''), null, listaCl);
+        linha.type = 'button';
+        linha.setAttribute('aria-pressed', String(escolhida));
+        linha.title = nomeClassificacao(c) + ': ' + qtdEspacos(v) + ' (' + porcento(v, r.total) + ' dos espaços), '
+          + doTipo.length + (doTipo.length === 1 ? ' movimento' : ' movimentos')
+          + (gmv ? ', GMV esperado ' + formatoGmvCompleto.format(gmv) : '') + ' · '
+          + (escolhida ? 'clique para ver todas as etiquetas' : 'clique para ver na planta só onde ela aparece');
+        linha.addEventListener('click', () => alternarFiltroClassificacao(c));
+        const nome = novo('span', 'esp-nome', null, linha);
+        novo('i', null, null, nome).style.background = corClassificacao(c);
+        novo('span', null, nomeClassificacao(c), nome);
+        novo('span', 'esp-valor', qtdEspacos(v), linha);
+        novo('span', 'esp-pct', porcento(v, r.total), linha);
+        const trilho = novo('span', 'esp-trilho', null, linha);
+        const barra = novo('span', 'esp-barra', null, trilho);
+        barra.style.width = (r.total ? (v / r.total) * 100 : 0) + '%';
+        barra.style.background = corClassificacao(c);
+        const info = novo('span', 'esp-info', null, linha);
+        novo('span', null, doTipo.length + (doTipo.length === 1 ? ' movimento' : ' movimentos'), info);
+        if (c !== SEM_CLASSIFICACAO) {
+          novo('span', 'esp-gmv', gmv ? 'GMV esperado ' + gmvCurto(gmv) + (gmvTotal ? ' · ' + porcento(gmv, gmvTotal) + ' do GMV' : '') : 'GMV não informado', info);
+        }
+      });
+      if (gmvTotal) novo('p', 'esp-total', 'GMV esperado dos movimentos desta ER: ' + formatoGmvCompleto.format(gmvTotal), corpo);
     }
 
     novo('p', 'esp-nota', 'Conta em quantidade de espaços: na gôndola, cada lado e cada meio é um espaço; mesas e totem contam cada frente e painel; os demais móveis contam como um espaço. Combinações de marcas (BOT+QDB) dividem o espaço igualmente. Etiquetas com o mesmo texto são somadas juntas; clique numa delas (ou numa classificação) para ver na planta só onde ela aparece. A classificação e o GMV esperado vêm da aba Tipos de movimento; o GMV é o do movimento no ciclo, não só desta ER. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);
@@ -1597,6 +1621,22 @@ const App = (() => {
     ao('zoomMenos', 'click', () => zoomPara(estado.zoom.k / 1.5));
     ao('zoomNivel', 'click', () => zoomPara(1));
     ao('btnAutoOrganizar', 'click', autoOrganizar);
+    ao('etqMenor', 'click', () => mudarTamanhoEtiquetas(tamanhoEtiquetas() - TAMANHO_ETQ.passo));
+    ao('etqMaior', 'click', () => mudarTamanhoEtiquetas(tamanhoEtiquetas() + TAMANHO_ETQ.passo));
+    ao('etqTamanho', 'click', () => mudarTamanhoEtiquetas(100));
+    // Menu de configurações (engrenagem): abre e fecha; fecha ao escolher um item, clicar fora ou Esc.
+    const menuCfg = $('menuConfigLista');
+    const abrirMenuCfg = (abrir) => {
+      menuCfg.hidden = !abrir;
+      $('btnConfig').setAttribute('aria-expanded', String(abrir));
+      if (abrir) { const i = menuCfg.querySelector('.menu-item:not(:disabled)'); if (i) i.focus(); }
+    };
+    ao('btnConfig', 'click', () => abrirMenuCfg(menuCfg.hidden));
+    menuCfg.addEventListener('click', (e) => { if (e.target.closest('.menu-item')) abrirMenuCfg(false); });
+    document.addEventListener('pointerdown', (e) => { if (!menuCfg.hidden && !e.target.closest('#menuConfig')) abrirMenuCfg(false); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !menuCfg.hidden) { abrirMenuCfg(false); $('btnConfig').focus(); }
+    });
     ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
     ao('btnSalvarAjustes', 'click', salvarAjustes);
     ao('btnConfigurar', 'click', configurar);

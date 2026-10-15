@@ -232,6 +232,7 @@ function montarPlantas_(linhas, aviso) {
         largura: Math.max(1, numero_(l.largura, 20)),
         profundidade: Math.max(1, numero_(l.profundidade, 20)),
         alturaParede: Math.max(0, numero_(l.altura, 4.5)),
+        escalaEtiquetas: normTamanhoEtiquetas_(l.tamanhoEtiquetas),
       };
       return;
     }
@@ -361,6 +362,12 @@ function normPlanta_(v) {
 /** "01" → "ER P" (ou "PLANTA 05" para planta sem nome em NOMES_PLANTAS). */
 function nomePlanta_(id) {
   return NOMES_PLANTAS[id] || 'PLANTA ' + id;
+}
+
+/** Tamanho das etiquetas da planta, em % (linha LOJA do Layout): 60 a 250; vazio ou inválido = 100. */
+function normTamanhoEtiquetas_(v) {
+  const n = Math.round(numero_(String(texto_(v)).replace('%', ''), 100));
+  return n > 0 ? Math.max(60, Math.min(250, n)) : 100;
 }
 
 /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (igual ao painel "Espaço por marca"). */

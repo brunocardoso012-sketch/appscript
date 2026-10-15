@@ -93,6 +93,13 @@ function salvarAjustesEtiquetas(planta, ajustes) {
     let atualizados = 0;
     Object.keys(ajustes).forEach(function (id) {
       const a = ajustes[id] || {};
+      if (normId_(id) === 'LOJA') {
+        // Tamanho das etiquetas da planta (em %).
+        const t = normTamanhoEtiquetas_(a.escala);
+        if (t !== 100) salvos.LOJA = { escala: t };
+        else delete salvos.LOJA;
+        return;
+      }
       const x = Math.round(Number(a.x) || 0);
       const y = Math.round(Number(a.y) || 0);
       const chave = normId_(id);
@@ -170,6 +177,7 @@ function lerAjustes_(planta) {
 function aplicarAjustesSalvos_(plantas) {
   plantas.forEach(function (p) {
     const ajustes = lerAjustes_(p.id);
+    if (ajustes.LOJA && p.loja) p.loja.escalaEtiquetas = normTamanhoEtiquetas_(ajustes.LOJA.escala);
     p.moveis.forEach(function (m) {
       const atual = { x: m.ajusteX || 0, y: m.ajusteY || 0, espacos: m.ajustesEspacos || {} };
       if (!aplicarAjusteEtiquetas_(m.id, ajustes, atual)) return;

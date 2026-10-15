@@ -156,6 +156,11 @@ const Validacao = (() => {
       btn.setAttribute('aria-pressed', String(painelAberto && ativo()));
       $('valBadge').textContent = abertos ? String(abertos) : '';
       $('valBadge').hidden = !abertos;
+      // O botão fica no menu de configurações: o ícone dele mostra o mesmo número.
+      if ($('cfgBadge')) {
+        $('cfgBadge').textContent = abertos ? String(abertos) : '';
+        $('cfgBadge').hidden = !abertos;
+      }
       btn.title = ativo() ? 'Validação: ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : 'Validação da estratégia (pede senha)';
     }
     const painel = $('painelValidacao');

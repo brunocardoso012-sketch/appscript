@@ -119,7 +119,7 @@ const SIMBOLOS = {
 
 /**
  * Classificação dos movimentos (aba "Tipos de movimento"): aparece no painel "Espaço por marca",
- * em "Por tipo de movimento". A planilha também aceita outro texto (vira uma classificação própria).
+ * em "Por movimentos". A planilha também aceita outro texto (vira uma classificação própria).
  */
 const CLASSIFICACOES = {
   LANCAMENTO: { nome: 'Lançamento', cor: '#0E7490', apelidos: ['LANCAMENTOS', 'LANC', 'LCTO', 'NOVIDADE', 'NEW'] },
@@ -290,5 +290,6 @@ function colunasLayout_() {
     { chave: 'dividido', titulo: 'Meios divididos', texto: true, apelidos: ['Divisão', 'Dividido'] },
     { chave: 'giro', titulo: 'Giro (graus)', apelidos: ['Giro', 'Rotação', 'Rotacao'] },
     { chave: 'ajusteEspacos', titulo: 'Ajuste Etiquetas por espaço (px)', texto: true, apelidos: ['Ajuste por espaço', 'Ajuste Espaços'] },
+    { chave: 'tamanhoEtiquetas', titulo: 'Tamanho das etiquetas (%)', apelidos: ['Tamanho etiquetas', 'Tamanho das etiquetas'] },
   ];
 }

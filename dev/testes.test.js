@@ -149,7 +149,7 @@ test('importar aba Layout substitui só as plantas presentes e mantém números'
   assert.equal(r.layout, 2);
   const d = run('getDados()');
   const p2 = d.plantas.find((p) => p.id === '02');
-  assert.deepEqual(p2.loja, { largura: 30, profundidade: 25, alturaParede: 5 });
+  assert.deepEqual(p2.loja, { largura: 30, profundidade: 25, alturaParede: 5, escalaEtiquetas: 100 });
   assert.equal(p2.moveis.length, 1);
   assert.equal(p2.moveis[0].x, 3);
   assert.equal(d.plantas.find((p) => p.id === '03').moveis.length, 31, 'outras plantas intactas');
@@ -404,4 +404,17 @@ test('importar aba Tipos de movimento substitui só o ciclo presente', () => {
   const d = run('getDados()');
   assert.equal(d.tiposMovimento.C20.BOTIPROMO.gmv, 300000);
   assert.ok(Object.keys(d.tiposMovimento['Ciclo exemplo']).length > 10, 'exemplo mantido');
+});
+
+test('tamanho das etiquetas da planta fica na linha LOJA do Layout', () => {
+  const f = servicosFalsos();
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  assert.equal(run('getDados()').plantas[0].loja.escalaEtiquetas, 100);
+  run("salvarAjustesEtiquetas('01', { LOJA: { escala: 140 }, 'PIRAMIDE 1': { x: 3, y: 4 } })");
+  const p = run('getDados()').plantas[0];
+  assert.equal(p.loja.escalaEtiquetas, 140);
+  assert.deepEqual([p.moveis.find((m) => m.id === 'PIRAMIDE 1').ajusteX, run('getDados()').plantas[1].loja.escalaEtiquetas], [3, 100]);
+  assert.equal(run("normTamanhoEtiquetas_('500%')"), 250);
+  assert.equal(run("normTamanhoEtiquetas_('')"), 100);
 });

@@ -74,6 +74,8 @@ test('posições das etiquetas ficam nas propriedades do script, sem mexer na pl
   assert.deepEqual(JSON.parse(JSON.stringify(g.ajustesEspacos)), { 'LADO-A': { x: 7, y: 9 } });
   assert.deepEqual([g.ajusteX, g.ajusteY], [0, 0]);
   assert.equal(JSON.stringify(falsos.planilha.getSheets().map((a) => a._aba.grade)), antes);
+  run("salvarAjustesEtiquetas('01', { LOJA: { escala: 130 } })"); // tamanho das etiquetas
+  assert.equal(run('getDados()').plantas[0].loja.escalaEtiquetas, 130);
 });
 
 test('Index.html do visualizador não tem Construir loja nem Baixar / Importar planilha', () => {

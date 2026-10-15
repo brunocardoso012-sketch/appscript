@@ -94,6 +94,13 @@ function salvarAjustesEtiquetas(planta, ajustes) {
     let atualizados = 0;
     Object.keys(ajustes).forEach(function (id) {
       const a = ajustes[id] || {};
+      if (normId_(id) === 'LOJA') {
+        // Tamanho das etiquetas da planta (em %).
+        const t = normTamanhoEtiquetas_(a.escala);
+        if (t !== 100) salvos.LOJA = { escala: t };
+        else delete salvos.LOJA;
+        return;
+      }
       const x = Math.round(Number(a.x) || 0);
       const y = Math.round(Number(a.y) || 0);
       const chave = normId_(id);
@@ -171,6 +178,7 @@ function lerAjustes_(planta) {
 function aplicarAjustesSalvos_(plantas) {
   plantas.forEach(function (p) {
     const ajustes = lerAjustes_(p.id);
+    if (ajustes.LOJA && p.loja) p.loja.escalaEtiquetas = normTamanhoEtiquetas_(ajustes.LOJA.escala);
     p.moveis.forEach(function (m) {
       const atual = { x: m.ajusteX || 0, y: m.ajusteY || 0, espacos: m.ajustesEspacos || {} };
       if (!aplicarAjusteEtiquetas_(m.id, ajustes, atual)) return;
@@ -303,7 +311,7 @@ const SIMBOLOS = {
 
 /**
  * Classificação dos movimentos (aba "Tipos de movimento"): aparece no painel "Espaço por marca",
- * em "Por tipo de movimento". A planilha também aceita outro texto (vira uma classificação própria).
+ * em "Por movimentos". A planilha também aceita outro texto (vira uma classificação própria).
  */
 const CLASSIFICACOES = {
   LANCAMENTO: { nome: 'Lançamento', cor: '#0E7490', apelidos: ['LANCAMENTOS', 'LANC', 'LCTO', 'NOVIDADE', 'NEW'] },
@@ -474,6 +482,7 @@ function colunasLayout_() {
     { chave: 'dividido', titulo: 'Meios divididos', texto: true, apelidos: ['Divisão', 'Dividido'] },
     { chave: 'giro', titulo: 'Giro (graus)', apelidos: ['Giro', 'Rotação', 'Rotacao'] },
     { chave: 'ajusteEspacos', titulo: 'Ajuste Etiquetas por espaço (px)', texto: true, apelidos: ['Ajuste por espaço', 'Ajuste Espaços'] },
+    { chave: 'tamanhoEtiquetas', titulo: 'Tamanho das etiquetas (%)', apelidos: ['Tamanho etiquetas', 'Tamanho das etiquetas'] },
   ];
 }
 
@@ -1100,6 +1109,7 @@ function montarPlantas_(linhas, aviso) {
         largura: Math.max(1, numero_(l.largura, 20)),
         profundidade: Math.max(1, numero_(l.profundidade, 20)),
         alturaParede: Math.max(0, numero_(l.altura, 4.5)),
+        escalaEtiquetas: normTamanhoEtiquetas_(l.tamanhoEtiquetas),
       };
       return;
     }
@@ -1229,6 +1239,12 @@ function normPlanta_(v) {
 /** "01" → "ER P" (ou "PLANTA 05" para planta sem nome em NOMES_PLANTAS). */
 function nomePlanta_(id) {
   return NOMES_PLANTAS[id] || 'PLANTA ' + id;
+}
+
+/** Tamanho das etiquetas da planta, em % (linha LOJA do Layout): 60 a 250; vazio ou inválido = 100. */
+function normTamanhoEtiquetas_(v) {
+  const n = Math.round(numero_(String(texto_(v)).replace('%', ''), 100));
+  return n > 0 ? Math.max(60, Math.min(250, n)) : 100;
 }
 
 /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (igual ao painel "Espaço por marca"). */
