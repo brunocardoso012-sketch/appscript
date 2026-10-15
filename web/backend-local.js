@@ -106,13 +106,19 @@
       const cab = abas.layout[0].map(chave_);
       const col = (chave) => acharColuna_(cab, colunasLayout_().filter((c) => c.chave === chave)[0]);
       const [iPlanta, iId, iX, iY] = ['planta', 'movel', 'ajusteX', 'ajusteY'].map(col);
+      let iE = col('ajusteEspacos');
+      if (iE < 0) {
+        iE = abas.layout[0].length;
+        abas.layout[0].push('Ajuste Etiquetas por espaço (px)');
+      }
       let atualizados = 0;
       abas.layout.slice(1).forEach((row) => {
         if (normPlanta_(row[iPlanta]) !== planta) return;
-        const a = ajustes[normId_(row[iId])];
-        if (!a) return;
-        row[iX] = Math.round(Number(a.x) || 0);
-        row[iY] = Math.round(Number(a.y) || 0);
+        const atual = { x: row[iX], y: row[iY], espacos: lerAjustesEspacos_(row[iE]) };
+        if (!aplicarAjusteEtiquetas_(row[iId], ajustes, atual)) return;
+        row[iX] = Math.round(Number(atual.x) || 0);
+        row[iY] = Math.round(Number(atual.y) || 0);
+        row[iE] = textoAjustesEspacos_(atual.espacos);
         atualizados++;
       });
       gravar(abas);

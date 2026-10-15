@@ -77,7 +77,8 @@ function getDados() {
  * Grava a posição das etiquetas arrastadas em "Ajustar etiquetas". Fica nas
  * propriedades do script (a planilha não é alterada).
  * @param {string} planta
- * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel → deslocamento em px.
+ * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel (ajuste do móvel inteiro) ou
+ *   ID da pilha ("GONDOLA 1/LADO-A", ajuste só daquela pilha) → deslocamento em px.
  */
 function salvarAjustesEtiquetas(planta, ajustes) {
   planta = normPlanta_(planta);
@@ -169,8 +170,11 @@ function aplicarAjustesSalvos_(plantas) {
   plantas.forEach(function (p) {
     const ajustes = lerAjustes_(p.id);
     p.moveis.forEach(function (m) {
-      const a = ajustes[m.id];
-      if (a) { m.ajusteX = Number(a.x) || 0; m.ajusteY = Number(a.y) || 0; }
+      const atual = { x: m.ajusteX || 0, y: m.ajusteY || 0, espacos: m.ajustesEspacos || {} };
+      if (!aplicarAjusteEtiquetas_(m.id, ajustes, atual)) return;
+      m.ajusteX = atual.x;
+      m.ajusteY = atual.y;
+      m.ajustesEspacos = atual.espacos;
     });
   });
 }

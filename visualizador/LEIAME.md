@@ -66,4 +66,4 @@ const VISUALIZADOR = {
 
 - **Layout das lojas** (posição e tamanho dos móveis de cada planta): seção `LAYOUT PADRÃO` do `Codigo.gs` (vem de `src/Layouts.gs`). Para mudar uma planta, monte o layout no modo *Construir loja* do app completo, use *Baixar código da loja* e atualize `src/Layouts.gs`.
 - **Marcas, cores, símbolos e nomes das plantas:** seção `CONFIGURAÇÕES` (vem de `src/Config.gs`).
-- **Posições das etiquetas** salvas em *Ajustar etiquetas*: ficam nas propriedades do script, uma por planta (a planilha não é alterada). Quem acessa o app pode ajustá-las.
+- **Posições das etiquetas** salvas em *Ajustar etiquetas*: ficam nas propriedades do script, uma por planta (a planilha não é alterada); cada pilha de etiquetas (cada espaço da gôndola, frente da mesa…) guarda a sua. Quem acessa o app pode ajustá-las.

@@ -12,7 +12,8 @@
  *   - Z é a elevação (0 = chão). Largura = eixo X, Profundidade = eixo Y.
  *
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
- *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270)]
+ *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270),
+ *          (ajuste das pilhas de etiquetas por espaço: { 'LADO-A': {x, y} })]
  *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato.
  */
 
@@ -29,7 +30,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 7;
+const VERSAO_EXEMPLO = 8;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -224,8 +225,9 @@ const EXEMPLO_MOVIMENTOS = {
     'TOTEM OUI 1': ['OUI', [['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
   '03': {
-    'GONDOLA 3/LADO-A': ['MULTI', [['MULTI PROMO', 'MULTI']], 'MOVIMENTO'],
-    'GONDOLA 3/MEIO-A': ['MULTI', [['CURTO PRAZO', 'MULTI']], 'MOVIMENTO'],
+    // Lado A e meio A iguais ao lado B e ao meio B da gôndola 2 da ER M.
+    'GONDOLA 3/LADO-A': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']], 'MOVIMENTO'],
     'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
     'GONDOLA 3/LADO-B': ['MULTI', [], 'MOVIMENTO'],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
@@ -300,6 +302,7 @@ function valoresLayoutPadrao_() {
       linhas.push(linha({
         planta: planta, movel: m[0], descricao: m[1], tipo: m[2], x: m[3], y: m[4], z: m[8] || 0,
         largura: m[5], profundidade: m[6], altura: m[7], ajusteX: m[9] || 0, ajusteY: m[10] || 0, dividido: m[11] || '', giro: m[12] || 0,
+        ajusteEspacos: textoAjustesEspacos_(m[13] || {}),
       }));
     });
   });

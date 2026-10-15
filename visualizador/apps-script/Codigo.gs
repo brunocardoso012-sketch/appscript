@@ -78,7 +78,8 @@ function getDados() {
  * Grava a posição das etiquetas arrastadas em "Ajustar etiquetas". Fica nas
  * propriedades do script (a planilha não é alterada).
  * @param {string} planta
- * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel → deslocamento em px.
+ * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel (ajuste do móvel inteiro) ou
+ *   ID da pilha ("GONDOLA 1/LADO-A", ajuste só daquela pilha) → deslocamento em px.
  */
 function salvarAjustesEtiquetas(planta, ajustes) {
   planta = normPlanta_(planta);
@@ -170,8 +171,11 @@ function aplicarAjustesSalvos_(plantas) {
   plantas.forEach(function (p) {
     const ajustes = lerAjustes_(p.id);
     p.moveis.forEach(function (m) {
-      const a = ajustes[m.id];
-      if (a) { m.ajusteX = Number(a.x) || 0; m.ajusteY = Number(a.y) || 0; }
+      const atual = { x: m.ajusteX || 0, y: m.ajusteY || 0, espacos: m.ajustesEspacos || {} };
+      if (!aplicarAjusteEtiquetas_(m.id, ajustes, atual)) return;
+      m.ajusteX = atual.x;
+      m.ajusteY = atual.y;
+      m.ajustesEspacos = atual.espacos;
     });
   });
 }
@@ -444,6 +448,7 @@ function colunasLayout_() {
     { chave: 'ajusteY', titulo: 'Ajuste Etiqueta Y (px)', apelidos: ['Ajuste Y'] },
     { chave: 'dividido', titulo: 'Meios divididos', texto: true, apelidos: ['Divisão', 'Dividido'] },
     { chave: 'giro', titulo: 'Giro (graus)', apelidos: ['Giro', 'Rotação', 'Rotacao'] },
+    { chave: 'ajusteEspacos', titulo: 'Ajuste Etiquetas por espaço (px)', texto: true, apelidos: ['Ajuste por espaço', 'Ajuste Espaços'] },
   ];
 }
 
@@ -462,7 +467,8 @@ function colunasLayout_() {
  *   - Z é a elevação (0 = chão). Largura = eixo X, Profundidade = eixo Y.
  *
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
- *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270)]
+ *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270),
+ *          (ajuste das pilhas de etiquetas por espaço: { 'LADO-A': {x, y} })]
  *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato.
  */
 
@@ -479,7 +485,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 7;
+const VERSAO_EXEMPLO = 8;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -674,8 +680,9 @@ const EXEMPLO_MOVIMENTOS = {
     'TOTEM OUI 1': ['OUI', [['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
   '03': {
-    'GONDOLA 3/LADO-A': ['MULTI', [['MULTI PROMO', 'MULTI']], 'MOVIMENTO'],
-    'GONDOLA 3/MEIO-A': ['MULTI', [['CURTO PRAZO', 'MULTI']], 'MOVIMENTO'],
+    // Lado A e meio A iguais ao lado B e ao meio B da gôndola 2 da ER M.
+    'GONDOLA 3/LADO-A': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']], 'MOVIMENTO'],
     'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
     'GONDOLA 3/LADO-B': ['MULTI', [], 'MOVIMENTO'],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
@@ -750,6 +757,7 @@ function valoresLayoutPadrao_() {
       linhas.push(linha({
         planta: planta, movel: m[0], descricao: m[1], tipo: m[2], x: m[3], y: m[4], z: m[8] || 0,
         largura: m[5], profundidade: m[6], altura: m[7], ajusteX: m[9] || 0, ajusteY: m[10] || 0, dividido: m[11] || '', giro: m[12] || 0,
+        ajusteEspacos: textoAjustesEspacos_(m[13] || {}),
       }));
     });
   });
@@ -996,6 +1004,7 @@ function montarPlantas_(linhas, aviso) {
       h: Math.max(0.1, numero_(l.altura, 1)),
       ajusteX: numero_(l.ajusteX, 0),
       ajusteY: numero_(l.ajusteY, 0),
+      ajustesEspacos: lerAjustesEspacos_(l.ajusteEspacos),
       dividido: normDivisao_(l.dividido),
       giro: normGiro_(l.giro),
     });
@@ -1111,6 +1120,66 @@ function nomePlanta_(id) {
 function normGiro_(v) {
   const n = Math.round(numero_(v, 0) / 90) * 90;
   return ((n % 360) + 360) % 360;
+}
+
+/**
+ * Posição manual de cada pilha de etiquetas de um móvel com espaços (gôndola, mesas, totem, make),
+ * somada ao ajuste do móvel inteiro. Na planilha: "LADO-A: 10, -5; MEIO-B+LADO-B: 0, 20" (a chave é
+ * o espaço da pilha; espaços vizinhos com as mesmas etiquetas formam uma pilha só, ligados por "+").
+ * Aceita também o objeto já lido ({ 'LADO-A': {x, y} }). Deslocamento zero fica de fora.
+ * @return {Object<string, {x: number, y: number}>}
+ */
+function lerAjustesEspacos_(v) {
+  const mapa = {};
+  const por = function (chave, x, y) {
+    const k = normId_(chave).replace(/\s+/g, '');
+    x = Math.round(numero_(x, 0));
+    y = Math.round(numero_(y, 0));
+    if (k && (x || y)) mapa[k] = { x: x, y: y };
+  };
+  if (v && typeof v === 'object') {
+    Object.keys(v).forEach(function (k) { por(k, v[k] && v[k].x, v[k] && v[k].y); });
+    return mapa;
+  }
+  texto_(v).split(/[;\n]+/).forEach(function (parte) {
+    const m = parte.match(/^\s*([^:=]+?)\s*[:=]\s*(-?\d+(?:[.,]\d+)?)\s*[,/ ]\s*(-?\d+(?:[.,]\d+)?)\s*$/);
+    if (m) por(m[1], m[2].replace(',', '.'), m[3].replace(',', '.'));
+  });
+  return mapa;
+}
+
+/** Texto da coluna "Ajuste Etiquetas por espaço" (inverso de lerAjustesEspacos_). */
+function textoAjustesEspacos_(mapa) {
+  const limpo = lerAjustesEspacos_(mapa || {});
+  return Object.keys(limpo).sort().map(function (k) { return k + ': ' + limpo[k].x + ', ' + limpo[k].y; }).join('; ');
+}
+
+/**
+ * Aplica ajustes de etiquetas ({ id → {x, y} }) às linhas de um móvel: "GONDOLA 1" é o ajuste do
+ * móvel inteiro; "GONDOLA 1/LADO-A" (ou ".../MEIO-B+LADO-B") é o de uma pilha, por cima do do móvel.
+ * @param {{x: number, y: number, espacos: Object}} atual  ajuste do móvel e das pilhas (é alterado)
+ * @return {boolean} se algum ajuste era deste móvel
+ */
+function aplicarAjusteEtiquetas_(movel, ajustes, atual) {
+  let achou = false;
+  const id = normId_(movel);
+  Object.keys(ajustes).forEach(function (chave) {
+    const k = normId_(chave);
+    const a = ajustes[chave] || {};
+    if (k === id) {
+      atual.x = Math.round(Number(a.x) || 0);
+      atual.y = Math.round(Number(a.y) || 0);
+      achou = true;
+    } else if (k.indexOf(id + '/') === 0) {
+      const espaco = k.slice(id.length + 1).replace(/\s+/g, '');
+      const x = Math.round(Number(a.x) || 0);
+      const y = Math.round(Number(a.y) || 0);
+      if (x || y) atual.espacos[espaco] = { x: x, y: y };
+      else delete atual.espacos[espaco];
+      achou = true;
+    }
+  });
+  return achou;
 }
 
 /** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */

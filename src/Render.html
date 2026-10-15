@@ -171,6 +171,9 @@ const Render = (() => {
     return cores.every((c) => c === cinza) ? [cinza] : cores;
   }
 
+  /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços ("Multi  promo" = "MULTI PROMO"). */
+  const chaveEtiqueta = (t) => String(t || '').trim().replace(/\s+/g, ' ').toUpperCase();
+
   /** Cor da etiqueta sem marca: cinza escuro padrão (ou o cinza do filtro, quando há marca filtrada). */
   const corEtiquetaPadrao = (filtrar) => [filtrar && filtroMarca ? COR.cinzaEtiqueta : COR.etiquetaPadrao];
 
@@ -1661,7 +1664,8 @@ const Render = (() => {
 
   /**
    * @param {SVGSVGElement} svg
-   * @param {{dados, planta, ciclo, filtro, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx
+   * @param {{dados, planta, ciclo, filtro, filtroEtiqueta, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx
+   *   filtroEtiqueta: texto de uma etiqueta; só os espaços com ela ficam coloridos e com etiqueta.
    *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).
    *   paineis: false = sem o painel lateral, notas, legenda e itens extras (na tela eles ficam no menu
    *   da esquerda) e a planta na largura toda; true (padrão) = slide completo, como no PNG.
@@ -1709,6 +1713,21 @@ const Render = (() => {
     });
     const infoDe = (b) => (b.espaco ? infoEspaco[b.movel.id + '/' + b.espaco.id] : info[b.movel.id]);
 
+    // Filtro por etiqueta (painel "Espaço por marca", "Por tipo de movimento"): só os espaços que têm
+    // aquela etiqueta ficam coloridos e com etiquetas (só ela); os outros espaços com movimento ficam
+    // em cinza e sem etiquetas. Mesmo texto = mesma etiqueta (sem diferenciar maiúsculas e espaços).
+    const filtroEtq = chaveEtiqueta(ctx.filtroEtiqueta);
+    const soEtiqueta = (i) => {
+      if (!filtroEtq || !i) return i;
+      const iguais = i.etiquetas.filter((e) => chaveEtiqueta(e.texto) === filtroEtq);
+      return iguais.length ? Object.assign({}, i, { etiquetas: iguais }) : { marca: '', etiquetas: [], simbolo: '', apagado: true };
+    };
+    const infoVis = {};
+    const infoEspacoVis = {};
+    Object.keys(info).forEach((k) => { infoVis[k] = soEtiqueta(info[k]); });
+    Object.keys(infoEspaco).forEach((k) => { infoEspacoVis[k] = soEtiqueta(infoEspaco[k]); });
+    const infoVisDe = (b) => (b.espaco ? infoEspacoVis[b.movel.id + '/' + b.espaco.id] : infoVis[b.movel.id]);
+
     // Caixas de destaque: medidas aqui; a posição depende da projeção (situarCallouts).
     const pain = ctx.obterPaineis();
     const porId = {};
@@ -1733,8 +1752,8 @@ const Render = (() => {
     const simplificada = ctx.visao === 'simplificada';
     const nSimbolos = comPaineis ? ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length : 0;
     const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide
-    const fichas = simplificada ? montarFichas(moveis, info, infoEspaco, ctx.dados.config) : [];
-    const rotulos = simplificada ? [] : montarRotulos(moveis, info, infoEspaco, ctx.dados.config);
+    const fichas = simplificada ? montarFichas(moveis, infoVis, infoEspacoVis, ctx.dados.config) : [];
+    const rotulos = simplificada ? [] : montarRotulos(moveis, infoVis, infoEspacoVis, ctx.dados.config);
     // Na visão simplificada, as notas vão estreitas embaixo do painel lateral (se couberem no slide de
     // 1080), e a primeira coluna desce até a legenda; senão, as notas largas, e a coluna para acima delas.
     let medNotas = comPaineis && pain.NOTA.length ? medirNotas(pain.NOTA, !!fichas.length) : null;
@@ -1799,10 +1818,10 @@ const Render = (() => {
       ordenar(prims, P).forEach((b) => {
         const m = b.movel;
         const i = infoDe(b);
-        const corInfo = (x) => (x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);
-        const cores = corInfo(i);
+        const corInfo = (x) => (x && x.apagado ? [COR.cinzaMovel] : x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);
+        const cores = corInfo(infoVisDe(b));
         // Mesas e totem: um só desenho, mas cada frente / painel com a cor da própria linha.
-        if (m.tipo === 'MESA' || m.tipo === 'MESA_3' || m.tipo === 'TOTEM') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id]));
+        if (m.tipo === 'MESA' || m.tipo === 'MESA_3' || m.tipo === 'TOTEM') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspacoVis[m.id + '/' + e.id]));
         const g = el('g', {
           class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
           'data-movel': m.id,
@@ -1846,13 +1865,17 @@ const Render = (() => {
       desenharCallout(camadaEtiquetas, c);
     });
 
-    // Etiquetas na planta: na posição do arranjo, mais o ajuste manual do móvel ("Ajustar etiquetas";
-    // as pilhas de um móvel movem juntas).
+    // Etiquetas na planta: na posição do arranjo, mais o ajuste manual ("Ajustar etiquetas"): o do
+    // móvel inteiro (vale para todas as pilhas dele) somado ao da própria pilha (cada espaço se move sozinho).
     rotulos.forEach((r) => {
       const m = r.movel;
-      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
-      r.x = r.baseX + ajuste.x;
-      r.y = r.baseY + ajuste.y;
+      const ajustes = ctx.ajustes || {};
+      const doMovel = ajustes[m.id] || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
+      const chave = r.espacos ? r.id.slice(m.id.length + 1) : '';
+      const daPilha = (chave && (ajustes[r.id] || (m.ajustesEspacos || {})[chave])) || { x: 0, y: 0 };
+      r.ajusteMovel = doMovel;
+      r.x = r.baseX + doMovel.x + daPilha.x;
+      r.y = r.baseY + doMovel.y + daPilha.y;
       desenharGuiaRotulo(camadaGuias, r);
       r.elemento = desenharRotulo(camadaEtiquetas, r, { class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : '') });
       dica(r.elemento, r.id + (m.descricao ? ' — ' + m.descricao : '') + ' · clique para ver a estratégia do móvel');
@@ -1916,6 +1939,6 @@ const Render = (() => {
     return { grupos, escala: projecao.escala, P, tela: { w: TELA.w, h: TELA.h }, simbolos: Array.from(simbolosUsados) };
   }
 
-  return { desenhar, espacos, caixasGondola, TELA, PRATELEIRAS, FONTE_ETQ };
+  return { desenhar, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
 })();
 </script>

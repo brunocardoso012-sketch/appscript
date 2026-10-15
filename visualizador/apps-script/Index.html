@@ -214,6 +214,8 @@
   button.esp-linha { cursor: pointer; }
   button.esp-linha:hover { background: var(--fundo); }
   .esp-linha.atenuado { opacity: .4; }
+  .esp-linha.ativo { background: var(--fundo); box-shadow: inset 0 0 0 1.5px var(--texto); }
+  .chip.chip-etiqueta { padding-left: 10px; }
   .esp-nome { grid-area: nome; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
   .esp-nome i { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; display: inline-block; }
   .esp-valor { grid-area: valor; font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -652,7 +654,7 @@
     </div>
 
     <div class="barra-edicao" id="barraEdicao" hidden>
-      <span><strong>Modo ajuste:</strong> arraste as etiquetas para reposicionar. <span id="qtdAjustes"></span></span>
+      <span><strong>Modo ajuste:</strong> arraste as etiquetas para reposicionar (cada pilha se move sozinha). <span id="qtdAjustes"></span></span>
       <span class="grupo-botoes">
         <button id="btnAutoOrganizar" class="btn pequeno" type="button">Organizar automaticamente</button>
         <button id="btnDescartar" class="btn pequeno" type="button">Descartar</button>
@@ -930,6 +932,9 @@ const Render = (() => {
     // Combinação toda em cinza vira uma cor só (sem degradê cinza-cinza).
     return cores.every((c) => c === cinza) ? [cinza] : cores;
   }
+
+  /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços ("Multi  promo" = "MULTI PROMO"). */
+  const chaveEtiqueta = (t) => String(t || '').trim().replace(/\s+/g, ' ').toUpperCase();
 
   /** Cor da etiqueta sem marca: cinza escuro padrão (ou o cinza do filtro, quando há marca filtrada). */
   const corEtiquetaPadrao = (filtrar) => [filtrar && filtroMarca ? COR.cinzaEtiqueta : COR.etiquetaPadrao];
@@ -2421,7 +2426,8 @@ const Render = (() => {
 
   /**
    * @param {SVGSVGElement} svg
-   * @param {{dados, planta, ciclo, filtro, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx
+   * @param {{dados, planta, ciclo, filtro, filtroEtiqueta, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx
+   *   filtroEtiqueta: texto de uma etiqueta; só os espaços com ela ficam coloridos e com etiqueta.
    *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).
    *   paineis: false = sem o painel lateral, notas, legenda e itens extras (na tela eles ficam no menu
    *   da esquerda) e a planta na largura toda; true (padrão) = slide completo, como no PNG.
@@ -2469,6 +2475,21 @@ const Render = (() => {
     });
     const infoDe = (b) => (b.espaco ? infoEspaco[b.movel.id + '/' + b.espaco.id] : info[b.movel.id]);
 
+    // Filtro por etiqueta (painel "Espaço por marca", "Por tipo de movimento"): só os espaços que têm
+    // aquela etiqueta ficam coloridos e com etiquetas (só ela); os outros espaços com movimento ficam
+    // em cinza e sem etiquetas. Mesmo texto = mesma etiqueta (sem diferenciar maiúsculas e espaços).
+    const filtroEtq = chaveEtiqueta(ctx.filtroEtiqueta);
+    const soEtiqueta = (i) => {
+      if (!filtroEtq || !i) return i;
+      const iguais = i.etiquetas.filter((e) => chaveEtiqueta(e.texto) === filtroEtq);
+      return iguais.length ? Object.assign({}, i, { etiquetas: iguais }) : { marca: '', etiquetas: [], simbolo: '', apagado: true };
+    };
+    const infoVis = {};
+    const infoEspacoVis = {};
+    Object.keys(info).forEach((k) => { infoVis[k] = soEtiqueta(info[k]); });
+    Object.keys(infoEspaco).forEach((k) => { infoEspacoVis[k] = soEtiqueta(infoEspaco[k]); });
+    const infoVisDe = (b) => (b.espaco ? infoEspacoVis[b.movel.id + '/' + b.espaco.id] : infoVis[b.movel.id]);
+
     // Caixas de destaque: medidas aqui; a posição depende da projeção (situarCallouts).
     const pain = ctx.obterPaineis();
     const porId = {};
@@ -2493,8 +2514,8 @@ const Render = (() => {
     const simplificada = ctx.visao === 'simplificada';
     const nSimbolos = comPaineis ? ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length : 0;
     const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide
-    const fichas = simplificada ? montarFichas(moveis, info, infoEspaco, ctx.dados.config) : [];
-    const rotulos = simplificada ? [] : montarRotulos(moveis, info, infoEspaco, ctx.dados.config);
+    const fichas = simplificada ? montarFichas(moveis, infoVis, infoEspacoVis, ctx.dados.config) : [];
+    const rotulos = simplificada ? [] : montarRotulos(moveis, infoVis, infoEspacoVis, ctx.dados.config);
     // Na visão simplificada, as notas vão estreitas embaixo do painel lateral (se couberem no slide de
     // 1080), e a primeira coluna desce até a legenda; senão, as notas largas, e a coluna para acima delas.
     let medNotas = comPaineis && pain.NOTA.length ? medirNotas(pain.NOTA, !!fichas.length) : null;
@@ -2559,10 +2580,10 @@ const Render = (() => {
       ordenar(prims, P).forEach((b) => {
         const m = b.movel;
         const i = infoDe(b);
-        const corInfo = (x) => (x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);
-        const cores = corInfo(i);
+        const corInfo = (x) => (x && x.apagado ? [COR.cinzaMovel] : x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);
+        const cores = corInfo(infoVisDe(b));
         // Mesas e totem: um só desenho, mas cada frente / painel com a cor da própria linha.
-        if (m.tipo === 'MESA' || m.tipo === 'MESA_3' || m.tipo === 'TOTEM') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id]));
+        if (m.tipo === 'MESA' || m.tipo === 'MESA_3' || m.tipo === 'TOTEM') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspacoVis[m.id + '/' + e.id]));
         const g = el('g', {
           class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),
           'data-movel': m.id,
@@ -2606,13 +2627,17 @@ const Render = (() => {
       desenharCallout(camadaEtiquetas, c);
     });
 
-    // Etiquetas na planta: na posição do arranjo, mais o ajuste manual do móvel ("Ajustar etiquetas";
-    // as pilhas de um móvel movem juntas).
+    // Etiquetas na planta: na posição do arranjo, mais o ajuste manual ("Ajustar etiquetas"): o do
+    // móvel inteiro (vale para todas as pilhas dele) somado ao da própria pilha (cada espaço se move sozinho).
     rotulos.forEach((r) => {
       const m = r.movel;
-      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
-      r.x = r.baseX + ajuste.x;
-      r.y = r.baseY + ajuste.y;
+      const ajustes = ctx.ajustes || {};
+      const doMovel = ajustes[m.id] || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
+      const chave = r.espacos ? r.id.slice(m.id.length + 1) : '';
+      const daPilha = (chave && (ajustes[r.id] || (m.ajustesEspacos || {})[chave])) || { x: 0, y: 0 };
+      r.ajusteMovel = doMovel;
+      r.x = r.baseX + doMovel.x + daPilha.x;
+      r.y = r.baseY + doMovel.y + daPilha.y;
       desenharGuiaRotulo(camadaGuias, r);
       r.elemento = desenharRotulo(camadaEtiquetas, r, { class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : '') });
       dica(r.elemento, r.id + (m.descricao ? ' — ' + m.descricao : '') + ' · clique para ver a estratégia do móvel');
@@ -2676,7 +2701,7 @@ const Render = (() => {
     return { grupos, escala: projecao.escala, P, tela: { w: TELA.w, h: TELA.h }, simbolos: Array.from(simbolosUsados) };
   }
 
-  return { desenhar, espacos, caixasGondola, TELA, PRATELEIRAS, FONTE_ETQ };
+  return { desenhar, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
 })();
 </script>
 
@@ -3083,6 +3108,7 @@ const App = (() => {
     ciclo: '',
     planta: '',
     filtro: '',
+    filtroEtiqueta: '', // etiqueta escolhida em "Por tipo de movimento" (só os espaços com ela ficam coloridos)
     edicao: false,
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}
     grupos: [],
@@ -3320,12 +3346,23 @@ const App = (() => {
       chip.appendChild(document.createTextNode(marcas[cod].nome));
       chip.addEventListener('click', () => {
         estado.filtro = estado.filtro === cod ? '' : cod;
+        estado.filtroEtiqueta = '';
         montarLegenda();
         desenhar();
       });
       box.appendChild(chip);
     });
-    if (estado.filtro) {
+    if (estado.filtroEtiqueta) {
+      // Etiqueta escolhida no painel "Espaço por marca": chip para voltar a ver todas.
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip chip-etiqueta';
+      chip.setAttribute('aria-pressed', 'true');
+      chip.title = 'Voltar a mostrar todas as etiquetas';
+      chip.textContent = 'Só a etiqueta: ' + estado.filtroEtiqueta + ' ✕';
+      chip.addEventListener('click', () => alternarFiltroEtiqueta(estado.filtroEtiqueta));
+      box.appendChild(chip);
+    } else if (estado.filtro) {
       const dica = document.createElement('span');
       dica.className = 'dica';
       dica.textContent = 'Clique de novo para ver todas as marcas.';
@@ -3396,6 +3433,7 @@ const App = (() => {
       planta,
       ciclo: estado.ciclo,
       filtro: estado.filtro,
+      filtroEtiqueta: construcao ? '' : estado.filtroEtiqueta,
       ajustes: estado.ajustes,
       edicao: estado.edicao,
       visao: construcao ? 'planta' : estado.visao, // a construção é sempre sobre a planta
@@ -3610,8 +3648,8 @@ const App = (() => {
 
   function ativarArraste() {
     estado.grupos.forEach((gr) => {
-      // O ajuste é do móvel: arrastar uma etiqueta da gôndola move as etiquetas de todos os blocos dela.
-      // No toque, o arraste não rola a página.
+      // Cada pilha se move sozinha: na gôndola, mesas, totem e móvel make, o ajuste é do espaço (id da
+      // pilha, "GONDOLA 1/LADO-A"); nos móveis de um espaço só, do móvel. No toque, o arraste não rola a página.
       gr.elemento.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });
       gr.elemento.addEventListener('pointerdown', (ev) => {
         ev.preventDefault();
@@ -3634,7 +3672,8 @@ const App = (() => {
             alvo.removeAttribute('transform');
             return;
           }
-          estado.ajustes[gr.movel.id] = { x: Math.round(gr.x + dx - gr.baseX), y: Math.round(gr.y + dy - gr.baseY) };
+          const base = gr.espacos ? gr.ajusteMovel : { x: 0, y: 0 }; // a pilha guarda só o que passa do ajuste do móvel
+          estado.ajustes[gr.id] = { x: Math.round(gr.x + dx - gr.baseX - base.x), y: Math.round(gr.y + dy - gr.baseY - base.y) };
           atualizarBarraEdicao();
           desenhar();
         };
@@ -3666,7 +3705,11 @@ const App = (() => {
 
   function autoOrganizar() {
     const planta = plantaAtual();
-    planta.moveis.forEach((m) => { estado.ajustes[m.id] = { x: 0, y: 0 }; });
+    planta.moveis.forEach((m) => {
+      estado.ajustes[m.id] = { x: 0, y: 0 };
+      Object.keys(m.ajustesEspacos || {}).forEach((k) => { estado.ajustes[m.id + '/' + k] = { x: 0, y: 0 }; });
+    });
+    (estado.grupos || []).forEach((gr) => { if (gr.espacos) estado.ajustes[gr.id] = { x: 0, y: 0 }; });
     atualizarBarraEdicao();
     desenhar();
   }
@@ -3677,8 +3720,18 @@ const App = (() => {
     try {
       const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);
       planta.moveis.forEach((m) => {
-        const a = estado.ajustes[m.id];
-        if (a) { m.ajusteX = a.x; m.ajusteY = a.y; }
+        Object.keys(estado.ajustes).forEach((id) => {
+          const a = estado.ajustes[id];
+          if (id === m.id) {
+            m.ajusteX = a.x;
+            m.ajusteY = a.y;
+          } else if (id.indexOf(m.id + '/') === 0) {
+            const k = id.slice(m.id.length + 1);
+            m.ajustesEspacos = Object.assign({}, m.ajustesEspacos);
+            if (a.x || a.y) m.ajustesEspacos[k] = { x: a.x, y: a.y };
+            else delete m.ajustesEspacos[k];
+          }
+        });
       });
       estado.ajustes = {};
       atualizarBarraEdicao();
@@ -3745,7 +3798,7 @@ const App = (() => {
   }
 
   /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços. */
-  const chaveEtiqueta = (t) => String(t || '').trim().replace(/\s+/g, ' ').toUpperCase();
+  const chaveEtiqueta = Render.chaveEtiqueta;
 
   /**
    * Totais em quantidade de espaços: por marca (combinação de marcas divide o espaço igualmente) e por
@@ -3787,6 +3840,16 @@ const App = (() => {
   function alternarFiltro(cod) {
     if (cod === 'NEUTRO' || cod === 'OUTRA') return;
     estado.filtro = estado.filtro === cod ? '' : cod;
+    estado.filtroEtiqueta = '';
+    montarLegenda();
+    desenhar();
+  }
+
+  /** Mostra na planta só onde a etiqueta aparece (clique de novo para ver todas). */
+  function alternarFiltroEtiqueta(texto) {
+    const igual = chaveEtiqueta(texto) === chaveEtiqueta(estado.filtroEtiqueta);
+    estado.filtroEtiqueta = igual ? '' : String(texto).trim();
+    estado.filtro = '';
     montarLegenda();
     desenhar();
   }
@@ -3811,6 +3874,7 @@ const App = (() => {
     const r = resumoDeEspaco(partesDeEspaco(planta, estado.ciclo));
     const marcas = ordemDasMarcas().filter((c) => r.porMarca[c] || (c !== 'OUTRA' && c !== 'NEUTRO'));
     const atenuar = (c) => (estado.filtro && c !== estado.filtro ? ' atenuado' : '');
+    const etqFiltrada = chaveEtiqueta(estado.filtroEtiqueta);
     const grupos = Object.values(r.porEtiqueta)
       .sort((a, b) => b.espacos - a.espacos || a.texto.localeCompare(b.texto, 'pt-BR'));
 
@@ -3840,14 +3904,21 @@ const App = (() => {
     });
 
     // Por tipo de movimento: etiquetas com o mesmo texto juntas, barra empilhada pelas marcas.
+    // Clicar numa etiqueta mostra na planta só os espaços onde ela aparece.
     novo('h3', null, 'Por tipo de movimento (etiquetas)', corpo);
     if (!grupos.length) novo('p', 'mv-vazio', 'Nenhuma etiqueta neste ciclo.', corpo);
     const maior = Math.max.apply(null, grupos.map((g) => g.espacos).concat([0]));
     const mov = novo('div', 'esp-lista', null, corpo);
     grupos.forEach((g) => {
       const doGrupo = marcas.filter((c) => g.marcas[c]);
-      const linha = novo('div', 'esp-linha' + (estado.filtro && !g.marcas[estado.filtro] ? ' atenuado' : ''), null, mov);
-      linha.title = g.texto + ': ' + qtdEspacos(g.espacos) + ' (' + porcento(g.espacos, r.total) + ' dos espaços)';
+      const escolhida = etqFiltrada === chaveEtiqueta(g.texto);
+      const apagada = (estado.filtro && !g.marcas[estado.filtro]) || (etqFiltrada && !escolhida);
+      const linha = novo('button', 'esp-linha' + (apagada ? ' atenuado' : '') + (escolhida ? ' ativo' : ''), null, mov);
+      linha.type = 'button';
+      linha.setAttribute('aria-pressed', String(escolhida));
+      linha.title = g.texto + ': ' + qtdEspacos(g.espacos) + ' (' + porcento(g.espacos, r.total) + ' dos espaços) · '
+        + (escolhida ? 'clique para ver todas as etiquetas' : 'clique para ver na planta só onde ela aparece');
+      linha.addEventListener('click', () => alternarFiltroEtiqueta(g.texto));
       const nome = novo('span', 'esp-nome', null, linha);
       novo('span', null, g.texto, nome);
       novo('span', 'esp-valor', qtdEspacos(g.espacos), linha);
@@ -3864,7 +3935,7 @@ const App = (() => {
       });
     });
 
-    novo('p', 'esp-nota', 'Conta em quantidade de espaços: na gôndola, cada lado e cada meio é um espaço; mesas e totem contam cada frente e painel; os demais móveis contam como um espaço. Combinações de marcas (BOT+QDB) dividem o espaço igualmente. Etiquetas com o mesmo texto são somadas juntas. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);
+    novo('p', 'esp-nota', 'Conta em quantidade de espaços: na gôndola, cada lado e cada meio é um espaço; mesas e totem contam cada frente e painel; os demais móveis contam como um espaço. Combinações de marcas (BOT+QDB) dividem o espaço igualmente. Etiquetas com o mesmo texto são somadas juntas; clique numa delas para ver na planta só onde ela aparece. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);
   }
 
   /* ------------------- painel da ER (menu da esquerda) -------------------- */
@@ -4333,8 +4404,9 @@ const App = (() => {
     if (!plantaAtual()) return;
     const dlg = $('dlgPng');
     const marca = estado.filtro && estado.dados.marcas[estado.filtro];
-    $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.' : '';
-    $('pngFiltroTexto').hidden = !marca;
+    $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.'
+      : estado.filtroEtiqueta ? 'Só os espaços com a etiqueta ' + estado.filtroEtiqueta + ' ficam coloridos, como na tela.' : '';
+    $('pngFiltroTexto').hidden = !marca && !estado.filtroEtiqueta;
     dlg.returnValue = '';
     dlg.showModal();
   }

@@ -88,7 +88,8 @@ function getDados() {
  * Grava a posição das etiquetas arrastadas em "Ajustar etiquetas". Fica nas
  * propriedades do script (a planilha não é alterada).
  * @param {string} planta
- * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel → deslocamento em px.
+ * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel (ajuste do móvel inteiro) ou
+ *   ID da pilha ("GONDOLA 1/LADO-A", ajuste só daquela pilha) → deslocamento em px.
  */
 function salvarAjustesEtiquetas(planta, ajustes) {
   planta = normPlanta_(planta);
@@ -180,8 +181,11 @@ function aplicarAjustesSalvos_(plantas) {
   plantas.forEach(function (p) {
     const ajustes = lerAjustes_(p.id);
     p.moveis.forEach(function (m) {
-      const a = ajustes[m.id];
-      if (a) { m.ajusteX = Number(a.x) || 0; m.ajusteY = Number(a.y) || 0; }
+      const atual = { x: m.ajusteX || 0, y: m.ajusteY || 0, espacos: m.ajustesEspacos || {} };
+      if (!aplicarAjusteEtiquetas_(m.id, ajustes, atual)) return;
+      m.ajusteX = atual.x;
+      m.ajusteY = atual.y;
+      m.ajustesEspacos = atual.espacos;
     });
   });
 }
@@ -454,6 +458,7 @@ function colunasLayout_() {
     { chave: 'ajusteY', titulo: 'Ajuste Etiqueta Y (px)', apelidos: ['Ajuste Y'] },
     { chave: 'dividido', titulo: 'Meios divididos', texto: true, apelidos: ['Divisão', 'Dividido'] },
     { chave: 'giro', titulo: 'Giro (graus)', apelidos: ['Giro', 'Rotação', 'Rotacao'] },
+    { chave: 'ajusteEspacos', titulo: 'Ajuste Etiquetas por espaço (px)', texto: true, apelidos: ['Ajuste por espaço', 'Ajuste Espaços'] },
   ];
 }
 
@@ -472,7 +477,8 @@ function colunasLayout_() {
  *   - Z é a elevação (0 = chão). Largura = eixo X, Profundidade = eixo Y.
  *
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
- *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270)]
+ *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270),
+ *          (ajuste das pilhas de etiquetas por espaço: { 'LADO-A': {x, y} })]
  *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato.
  */
 
@@ -489,7 +495,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 11, '02': 10, '03': 7, '04': 8 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 7;
+const VERSAO_EXEMPLO = 8;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -684,8 +690,9 @@ const EXEMPLO_MOVIMENTOS = {
     'TOTEM OUI 1': ['OUI', [['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
   '03': {
-    'GONDOLA 3/LADO-A': ['MULTI', [['MULTI PROMO', 'MULTI']], 'MOVIMENTO'],
-    'GONDOLA 3/MEIO-A': ['MULTI', [['CURTO PRAZO', 'MULTI']], 'MOVIMENTO'],
+    // Lado A e meio A iguais ao lado B e ao meio B da gôndola 2 da ER M.
+    'GONDOLA 3/LADO-A': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']], 'MOVIMENTO'],
     'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
     'GONDOLA 3/LADO-B': ['MULTI', [], 'MOVIMENTO'],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
@@ -760,6 +767,7 @@ function valoresLayoutPadrao_() {
       linhas.push(linha({
         planta: planta, movel: m[0], descricao: m[1], tipo: m[2], x: m[3], y: m[4], z: m[8] || 0,
         largura: m[5], profundidade: m[6], altura: m[7], ajusteX: m[9] || 0, ajusteY: m[10] || 0, dividido: m[11] || '', giro: m[12] || 0,
+        ajusteEspacos: textoAjustesEspacos_(m[13] || {}),
       }));
     });
   });
@@ -1006,6 +1014,7 @@ function montarPlantas_(linhas, aviso) {
       h: Math.max(0.1, numero_(l.altura, 1)),
       ajusteX: numero_(l.ajusteX, 0),
       ajusteY: numero_(l.ajusteY, 0),
+      ajustesEspacos: lerAjustesEspacos_(l.ajusteEspacos),
       dividido: normDivisao_(l.dividido),
       giro: normGiro_(l.giro),
     });
@@ -1121,6 +1130,66 @@ function nomePlanta_(id) {
 function normGiro_(v) {
   const n = Math.round(numero_(v, 0) / 90) * 90;
   return ((n % 360) + 360) % 360;
+}
+
+/**
+ * Posição manual de cada pilha de etiquetas de um móvel com espaços (gôndola, mesas, totem, make),
+ * somada ao ajuste do móvel inteiro. Na planilha: "LADO-A: 10, -5; MEIO-B+LADO-B: 0, 20" (a chave é
+ * o espaço da pilha; espaços vizinhos com as mesmas etiquetas formam uma pilha só, ligados por "+").
+ * Aceita também o objeto já lido ({ 'LADO-A': {x, y} }). Deslocamento zero fica de fora.
+ * @return {Object<string, {x: number, y: number}>}
+ */
+function lerAjustesEspacos_(v) {
+  const mapa = {};
+  const por = function (chave, x, y) {
+    const k = normId_(chave).replace(/\s+/g, '');
+    x = Math.round(numero_(x, 0));
+    y = Math.round(numero_(y, 0));
+    if (k && (x || y)) mapa[k] = { x: x, y: y };
+  };
+  if (v && typeof v === 'object') {
+    Object.keys(v).forEach(function (k) { por(k, v[k] && v[k].x, v[k] && v[k].y); });
+    return mapa;
+  }
+  texto_(v).split(/[;\n]+/).forEach(function (parte) {
+    const m = parte.match(/^\s*([^:=]+?)\s*[:=]\s*(-?\d+(?:[.,]\d+)?)\s*[,/ ]\s*(-?\d+(?:[.,]\d+)?)\s*$/);
+    if (m) por(m[1], m[2].replace(',', '.'), m[3].replace(',', '.'));
+  });
+  return mapa;
+}
+
+/** Texto da coluna "Ajuste Etiquetas por espaço" (inverso de lerAjustesEspacos_). */
+function textoAjustesEspacos_(mapa) {
+  const limpo = lerAjustesEspacos_(mapa || {});
+  return Object.keys(limpo).sort().map(function (k) { return k + ': ' + limpo[k].x + ', ' + limpo[k].y; }).join('; ');
+}
+
+/**
+ * Aplica ajustes de etiquetas ({ id → {x, y} }) às linhas de um móvel: "GONDOLA 1" é o ajuste do
+ * móvel inteiro; "GONDOLA 1/LADO-A" (ou ".../MEIO-B+LADO-B") é o de uma pilha, por cima do do móvel.
+ * @param {{x: number, y: number, espacos: Object}} atual  ajuste do móvel e das pilhas (é alterado)
+ * @return {boolean} se algum ajuste era deste móvel
+ */
+function aplicarAjusteEtiquetas_(movel, ajustes, atual) {
+  let achou = false;
+  const id = normId_(movel);
+  Object.keys(ajustes).forEach(function (chave) {
+    const k = normId_(chave);
+    const a = ajustes[chave] || {};
+    if (k === id) {
+      atual.x = Math.round(Number(a.x) || 0);
+      atual.y = Math.round(Number(a.y) || 0);
+      achou = true;
+    } else if (k.indexOf(id + '/') === 0) {
+      const espaco = k.slice(id.length + 1).replace(/\s+/g, '');
+      const x = Math.round(Number(a.x) || 0);
+      const y = Math.round(Number(a.y) || 0);
+      if (x || y) atual.espacos[espaco] = { x: x, y: y };
+      else delete atual.espacos[espaco];
+      achou = true;
+    }
+  });
+  return achou;
 }
 
 /** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */
@@ -1680,6 +1749,8 @@ const PAGINA_ = [
   "  button.esp-linha { cursor: pointer; }",
   "  button.esp-linha:hover { background: var(--fundo); }",
   "  .esp-linha.atenuado { opacity: .4; }",
+  "  .esp-linha.ativo { background: var(--fundo); box-shadow: inset 0 0 0 1.5px var(--texto); }",
+  "  .chip.chip-etiqueta { padding-left: 10px; }",
   "  .esp-nome { grid-area: nome; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }",
   "  .esp-nome i { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; display: inline-block; }",
   "  .esp-valor { grid-area: valor; font-variant-numeric: tabular-nums; font-weight: 600; }",
@@ -2118,7 +2189,7 @@ const PAGINA_ = [
   "    </div>",
   "",
   "    <div class=\"barra-edicao\" id=\"barraEdicao\" hidden>",
-  "      <span><strong>Modo ajuste:</strong> arraste as etiquetas para reposicionar. <span id=\"qtdAjustes\"></span></span>",
+  "      <span><strong>Modo ajuste:</strong> arraste as etiquetas para reposicionar (cada pilha se move sozinha). <span id=\"qtdAjustes\"></span></span>",
   "      <span class=\"grupo-botoes\">",
   "        <button id=\"btnAutoOrganizar\" class=\"btn pequeno\" type=\"button\">Organizar automaticamente</button>",
   "        <button id=\"btnDescartar\" class=\"btn pequeno\" type=\"button\">Descartar</button>",
@@ -2396,6 +2467,9 @@ const PAGINA_ = [
   "    // Combinação toda em cinza vira uma cor só (sem degradê cinza-cinza).",
   "    return cores.every((c) => c === cinza) ? [cinza] : cores;",
   "  }",
+  "",
+  "  /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (\"Multi  promo\" = \"MULTI PROMO\"). */",
+  "  const chaveEtiqueta = (t) => String(t || '').trim().replace(/\\s+/g, ' ').toUpperCase();",
   "",
   "  /** Cor da etiqueta sem marca: cinza escuro padrão (ou o cinza do filtro, quando há marca filtrada). */",
   "  const corEtiquetaPadrao = (filtrar) => [filtrar && filtroMarca ? COR.cinzaEtiqueta : COR.etiquetaPadrao];",
@@ -3887,7 +3961,8 @@ const PAGINA_ = [
   "",
   "  /**",
   "   * @param {SVGSVGElement} svg",
-  "   * @param {{dados, planta, ciclo, filtro, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx",
+  "   * @param {{dados, planta, ciclo, filtro, filtroEtiqueta, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx",
+  "   *   filtroEtiqueta: texto de uma etiqueta; só os espaços com ela ficam coloridos e com etiqueta.",
   "   *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).",
   "   *   paineis: false = sem o painel lateral, notas, legenda e itens extras (na tela eles ficam no menu",
   "   *   da esquerda) e a planta na largura toda; true (padrão) = slide completo, como no PNG.",
@@ -3935,6 +4010,21 @@ const PAGINA_ = [
   "    });",
   "    const infoDe = (b) => (b.espaco ? infoEspaco[b.movel.id + '/' + b.espaco.id] : info[b.movel.id]);",
   "",
+  "    // Filtro por etiqueta (painel \"Espaço por marca\", \"Por tipo de movimento\"): só os espaços que têm",
+  "    // aquela etiqueta ficam coloridos e com etiquetas (só ela); os outros espaços com movimento ficam",
+  "    // em cinza e sem etiquetas. Mesmo texto = mesma etiqueta (sem diferenciar maiúsculas e espaços).",
+  "    const filtroEtq = chaveEtiqueta(ctx.filtroEtiqueta);",
+  "    const soEtiqueta = (i) => {",
+  "      if (!filtroEtq || !i) return i;",
+  "      const iguais = i.etiquetas.filter((e) => chaveEtiqueta(e.texto) === filtroEtq);",
+  "      return iguais.length ? Object.assign({}, i, { etiquetas: iguais }) : { marca: '', etiquetas: [], simbolo: '', apagado: true };",
+  "    };",
+  "    const infoVis = {};",
+  "    const infoEspacoVis = {};",
+  "    Object.keys(info).forEach((k) => { infoVis[k] = soEtiqueta(info[k]); });",
+  "    Object.keys(infoEspaco).forEach((k) => { infoEspacoVis[k] = soEtiqueta(infoEspaco[k]); });",
+  "    const infoVisDe = (b) => (b.espaco ? infoEspacoVis[b.movel.id + '/' + b.espaco.id] : infoVis[b.movel.id]);",
+  "",
   "    // Caixas de destaque: medidas aqui; a posição depende da projeção (situarCallouts).",
   "    const pain = ctx.obterPaineis();",
   "    const porId = {};",
@@ -3959,8 +4049,8 @@ const PAGINA_ = [
   "    const simplificada = ctx.visao === 'simplificada';",
   "    const nSimbolos = comPaineis ? ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length : 0;",
   "    const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide",
-  "    const fichas = simplificada ? montarFichas(moveis, info, infoEspaco, ctx.dados.config) : [];",
-  "    const rotulos = simplificada ? [] : montarRotulos(moveis, info, infoEspaco, ctx.dados.config);",
+  "    const fichas = simplificada ? montarFichas(moveis, infoVis, infoEspacoVis, ctx.dados.config) : [];",
+  "    const rotulos = simplificada ? [] : montarRotulos(moveis, infoVis, infoEspacoVis, ctx.dados.config);",
   "    // Na visão simplificada, as notas vão estreitas embaixo do painel lateral (se couberem no slide de",
   "    // 1080), e a primeira coluna desce até a legenda; senão, as notas largas, e a coluna para acima delas.",
   "    let medNotas = comPaineis && pain.NOTA.length ? medirNotas(pain.NOTA, !!fichas.length) : null;",
@@ -4025,10 +4115,10 @@ const PAGINA_ = [
   "      ordenar(prims, P).forEach((b) => {",
   "        const m = b.movel;",
   "        const i = infoDe(b);",
-  "        const corInfo = (x) => (x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);",
-  "        const cores = corInfo(i);",
+  "        const corInfo = (x) => (x && x.apagado ? [COR.cinzaMovel] : x && !ehNeutro(x.marca) ? coresDe(x.marca, 'movel', true) : null);",
+  "        const cores = corInfo(infoVisDe(b));",
   "        // Mesas e totem: um só desenho, mas cada frente / painel com a cor da própria linha.",
-  "        if (m.tipo === 'MESA' || m.tipo === 'MESA_3' || m.tipo === 'TOTEM') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspaco[m.id + '/' + e.id]));",
+  "        if (m.tipo === 'MESA' || m.tipo === 'MESA_3' || m.tipo === 'TOTEM') b.coresBlocos = espacos(m).map((e) => corInfo(infoEspacoVis[m.id + '/' + e.id]));",
   "        const g = el('g', {",
   "          class: 'movel' + (ctx.selecionado === m.id ? ' selecionado' : ''),",
   "          'data-movel': m.id,",
@@ -4072,13 +4162,17 @@ const PAGINA_ = [
   "      desenharCallout(camadaEtiquetas, c);",
   "    });",
   "",
-  "    // Etiquetas na planta: na posição do arranjo, mais o ajuste manual do móvel (\"Ajustar etiquetas\";",
-  "    // as pilhas de um móvel movem juntas).",
+  "    // Etiquetas na planta: na posição do arranjo, mais o ajuste manual (\"Ajustar etiquetas\"): o do",
+  "    // móvel inteiro (vale para todas as pilhas dele) somado ao da própria pilha (cada espaço se move sozinho).",
   "    rotulos.forEach((r) => {",
   "      const m = r.movel;",
-  "      const ajuste = (ctx.ajustes && ctx.ajustes[m.id]) || { x: m.ajusteX || 0, y: m.ajusteY || 0 };",
-  "      r.x = r.baseX + ajuste.x;",
-  "      r.y = r.baseY + ajuste.y;",
+  "      const ajustes = ctx.ajustes || {};",
+  "      const doMovel = ajustes[m.id] || { x: m.ajusteX || 0, y: m.ajusteY || 0 };",
+  "      const chave = r.espacos ? r.id.slice(m.id.length + 1) : '';",
+  "      const daPilha = (chave && (ajustes[r.id] || (m.ajustesEspacos || {})[chave])) || { x: 0, y: 0 };",
+  "      r.ajusteMovel = doMovel;",
+  "      r.x = r.baseX + doMovel.x + daPilha.x;",
+  "      r.y = r.baseY + doMovel.y + daPilha.y;",
   "      desenharGuiaRotulo(camadaGuias, r);",
   "      r.elemento = desenharRotulo(camadaEtiquetas, r, { class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : '') });",
   "      dica(r.elemento, r.id + (m.descricao ? ' — ' + m.descricao : '') + ' · clique para ver a estratégia do móvel');",
@@ -4142,7 +4236,7 @@ const PAGINA_ = [
   "    return { grupos, escala: projecao.escala, P, tela: { w: TELA.w, h: TELA.h }, simbolos: Array.from(simbolosUsados) };",
   "  }",
   "",
-  "  return { desenhar, espacos, caixasGondola, TELA, PRATELEIRAS, FONTE_ETQ };",
+  "  return { desenhar, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };",
   "})();",
   "</script>",
   "",
@@ -4549,6 +4643,7 @@ const PAGINA_ = [
   "    ciclo: '',",
   "    planta: '',",
   "    filtro: '',",
+  "    filtroEtiqueta: '', // etiqueta escolhida em \"Por tipo de movimento\" (só os espaços com ela ficam coloridos)",
   "    edicao: false,",
   "    ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}",
   "    grupos: [],",
@@ -4786,12 +4881,23 @@ const PAGINA_ = [
   "      chip.appendChild(document.createTextNode(marcas[cod].nome));",
   "      chip.addEventListener('click', () => {",
   "        estado.filtro = estado.filtro === cod ? '' : cod;",
+  "        estado.filtroEtiqueta = '';",
   "        montarLegenda();",
   "        desenhar();",
   "      });",
   "      box.appendChild(chip);",
   "    });",
-  "    if (estado.filtro) {",
+  "    if (estado.filtroEtiqueta) {",
+  "      // Etiqueta escolhida no painel \"Espaço por marca\": chip para voltar a ver todas.",
+  "      const chip = document.createElement('button');",
+  "      chip.type = 'button';",
+  "      chip.className = 'chip chip-etiqueta';",
+  "      chip.setAttribute('aria-pressed', 'true');",
+  "      chip.title = 'Voltar a mostrar todas as etiquetas';",
+  "      chip.textContent = 'Só a etiqueta: ' + estado.filtroEtiqueta + ' ✕';",
+  "      chip.addEventListener('click', () => alternarFiltroEtiqueta(estado.filtroEtiqueta));",
+  "      box.appendChild(chip);",
+  "    } else if (estado.filtro) {",
   "      const dica = document.createElement('span');",
   "      dica.className = 'dica';",
   "      dica.textContent = 'Clique de novo para ver todas as marcas.';",
@@ -4862,6 +4968,7 @@ const PAGINA_ = [
   "      planta,",
   "      ciclo: estado.ciclo,",
   "      filtro: estado.filtro,",
+  "      filtroEtiqueta: construcao ? '' : estado.filtroEtiqueta,",
   "      ajustes: estado.ajustes,",
   "      edicao: estado.edicao,",
   "      visao: construcao ? 'planta' : estado.visao, // a construção é sempre sobre a planta",
@@ -5076,8 +5183,8 @@ const PAGINA_ = [
   "",
   "  function ativarArraste() {",
   "    estado.grupos.forEach((gr) => {",
-  "      // O ajuste é do móvel: arrastar uma etiqueta da gôndola move as etiquetas de todos os blocos dela.",
-  "      // No toque, o arraste não rola a página.",
+  "      // Cada pilha se move sozinha: na gôndola, mesas, totem e móvel make, o ajuste é do espaço (id da",
+  "      // pilha, \"GONDOLA 1/LADO-A\"); nos móveis de um espaço só, do móvel. No toque, o arraste não rola a página.",
   "      gr.elemento.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });",
   "      gr.elemento.addEventListener('pointerdown', (ev) => {",
   "        ev.preventDefault();",
@@ -5100,7 +5207,8 @@ const PAGINA_ = [
   "            alvo.removeAttribute('transform');",
   "            return;",
   "          }",
-  "          estado.ajustes[gr.movel.id] = { x: Math.round(gr.x + dx - gr.baseX), y: Math.round(gr.y + dy - gr.baseY) };",
+  "          const base = gr.espacos ? gr.ajusteMovel : { x: 0, y: 0 }; // a pilha guarda só o que passa do ajuste do móvel",
+  "          estado.ajustes[gr.id] = { x: Math.round(gr.x + dx - gr.baseX - base.x), y: Math.round(gr.y + dy - gr.baseY - base.y) };",
   "          atualizarBarraEdicao();",
   "          desenhar();",
   "        };",
@@ -5132,7 +5240,11 @@ const PAGINA_ = [
   "",
   "  function autoOrganizar() {",
   "    const planta = plantaAtual();",
-  "    planta.moveis.forEach((m) => { estado.ajustes[m.id] = { x: 0, y: 0 }; });",
+  "    planta.moveis.forEach((m) => {",
+  "      estado.ajustes[m.id] = { x: 0, y: 0 };",
+  "      Object.keys(m.ajustesEspacos || {}).forEach((k) => { estado.ajustes[m.id + '/' + k] = { x: 0, y: 0 }; });",
+  "    });",
+  "    (estado.grupos || []).forEach((gr) => { if (gr.espacos) estado.ajustes[gr.id] = { x: 0, y: 0 }; });",
   "    atualizarBarraEdicao();",
   "    desenhar();",
   "  }",
@@ -5143,8 +5255,18 @@ const PAGINA_ = [
   "    try {",
   "      const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);",
   "      planta.moveis.forEach((m) => {",
-  "        const a = estado.ajustes[m.id];",
-  "        if (a) { m.ajusteX = a.x; m.ajusteY = a.y; }",
+  "        Object.keys(estado.ajustes).forEach((id) => {",
+  "          const a = estado.ajustes[id];",
+  "          if (id === m.id) {",
+  "            m.ajusteX = a.x;",
+  "            m.ajusteY = a.y;",
+  "          } else if (id.indexOf(m.id + '/') === 0) {",
+  "            const k = id.slice(m.id.length + 1);",
+  "            m.ajustesEspacos = Object.assign({}, m.ajustesEspacos);",
+  "            if (a.x || a.y) m.ajustesEspacos[k] = { x: a.x, y: a.y };",
+  "            else delete m.ajustesEspacos[k];",
+  "          }",
+  "        });",
   "      });",
   "      estado.ajustes = {};",
   "      atualizarBarraEdicao();",
@@ -5211,7 +5333,7 @@ const PAGINA_ = [
   "  }",
   "",
   "  /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços. */",
-  "  const chaveEtiqueta = (t) => String(t || '').trim().replace(/\\s+/g, ' ').toUpperCase();",
+  "  const chaveEtiqueta = Render.chaveEtiqueta;",
   "",
   "  /**",
   "   * Totais em quantidade de espaços: por marca (combinação de marcas divide o espaço igualmente) e por",
@@ -5253,6 +5375,16 @@ const PAGINA_ = [
   "  function alternarFiltro(cod) {",
   "    if (cod === 'NEUTRO' || cod === 'OUTRA') return;",
   "    estado.filtro = estado.filtro === cod ? '' : cod;",
+  "    estado.filtroEtiqueta = '';",
+  "    montarLegenda();",
+  "    desenhar();",
+  "  }",
+  "",
+  "  /** Mostra na planta só onde a etiqueta aparece (clique de novo para ver todas). */",
+  "  function alternarFiltroEtiqueta(texto) {",
+  "    const igual = chaveEtiqueta(texto) === chaveEtiqueta(estado.filtroEtiqueta);",
+  "    estado.filtroEtiqueta = igual ? '' : String(texto).trim();",
+  "    estado.filtro = '';",
   "    montarLegenda();",
   "    desenhar();",
   "  }",
@@ -5277,6 +5409,7 @@ const PAGINA_ = [
   "    const r = resumoDeEspaco(partesDeEspaco(planta, estado.ciclo));",
   "    const marcas = ordemDasMarcas().filter((c) => r.porMarca[c] || (c !== 'OUTRA' && c !== 'NEUTRO'));",
   "    const atenuar = (c) => (estado.filtro && c !== estado.filtro ? ' atenuado' : '');",
+  "    const etqFiltrada = chaveEtiqueta(estado.filtroEtiqueta);",
   "    const grupos = Object.values(r.porEtiqueta)",
   "      .sort((a, b) => b.espacos - a.espacos || a.texto.localeCompare(b.texto, 'pt-BR'));",
   "",
@@ -5306,14 +5439,21 @@ const PAGINA_ = [
   "    });",
   "",
   "    // Por tipo de movimento: etiquetas com o mesmo texto juntas, barra empilhada pelas marcas.",
+  "    // Clicar numa etiqueta mostra na planta só os espaços onde ela aparece.",
   "    novo('h3', null, 'Por tipo de movimento (etiquetas)', corpo);",
   "    if (!grupos.length) novo('p', 'mv-vazio', 'Nenhuma etiqueta neste ciclo.', corpo);",
   "    const maior = Math.max.apply(null, grupos.map((g) => g.espacos).concat([0]));",
   "    const mov = novo('div', 'esp-lista', null, corpo);",
   "    grupos.forEach((g) => {",
   "      const doGrupo = marcas.filter((c) => g.marcas[c]);",
-  "      const linha = novo('div', 'esp-linha' + (estado.filtro && !g.marcas[estado.filtro] ? ' atenuado' : ''), null, mov);",
-  "      linha.title = g.texto + ': ' + qtdEspacos(g.espacos) + ' (' + porcento(g.espacos, r.total) + ' dos espaços)';",
+  "      const escolhida = etqFiltrada === chaveEtiqueta(g.texto);",
+  "      const apagada = (estado.filtro && !g.marcas[estado.filtro]) || (etqFiltrada && !escolhida);",
+  "      const linha = novo('button', 'esp-linha' + (apagada ? ' atenuado' : '') + (escolhida ? ' ativo' : ''), null, mov);",
+  "      linha.type = 'button';",
+  "      linha.setAttribute('aria-pressed', String(escolhida));",
+  "      linha.title = g.texto + ': ' + qtdEspacos(g.espacos) + ' (' + porcento(g.espacos, r.total) + ' dos espaços) · '",
+  "        + (escolhida ? 'clique para ver todas as etiquetas' : 'clique para ver na planta só onde ela aparece');",
+  "      linha.addEventListener('click', () => alternarFiltroEtiqueta(g.texto));",
   "      const nome = novo('span', 'esp-nome', null, linha);",
   "      novo('span', null, g.texto, nome);",
   "      novo('span', 'esp-valor', qtdEspacos(g.espacos), linha);",
@@ -5330,7 +5470,7 @@ const PAGINA_ = [
   "      });",
   "    });",
   "",
-  "    novo('p', 'esp-nota', 'Conta em quantidade de espaços: na gôndola, cada lado e cada meio é um espaço; mesas e totem contam cada frente e painel; os demais móveis contam como um espaço. Combinações de marcas (BOT+QDB) dividem o espaço igualmente. Etiquetas com o mesmo texto são somadas juntas. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);",
+  "    novo('p', 'esp-nota', 'Conta em quantidade de espaços: na gôndola, cada lado e cada meio é um espaço; mesas e totem contam cada frente e painel; os demais móveis contam como um espaço. Combinações de marcas (BOT+QDB) dividem o espaço igualmente. Etiquetas com o mesmo texto são somadas juntas; clique numa delas para ver na planta só onde ela aparece. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);",
   "  }",
   "",
   "  /* ------------------- painel da ER (menu da esquerda) -------------------- */",
@@ -5799,8 +5939,9 @@ const PAGINA_ = [
   "    if (!plantaAtual()) return;",
   "    const dlg = $('dlgPng');",
   "    const marca = estado.filtro && estado.dados.marcas[estado.filtro];",
-  "    $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.' : '';",
-  "    $('pngFiltroTexto').hidden = !marca;",
+  "    $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.'",
+  "      : estado.filtroEtiqueta ? 'Só os espaços com a etiqueta ' + estado.filtroEtiqueta + ' ficam coloridos, como na tela.' : '';",
+  "    $('pngFiltroTexto').hidden = !marca && !estado.filtroEtiqueta;",
   "    dlg.returnValue = '';",
   "    dlg.showModal();",
   "  }",

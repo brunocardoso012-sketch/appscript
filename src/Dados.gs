@@ -200,6 +200,7 @@ function montarPlantas_(linhas, aviso) {
       h: Math.max(0.1, numero_(l.altura, 1)),
       ajusteX: numero_(l.ajusteX, 0),
       ajusteY: numero_(l.ajusteY, 0),
+      ajustesEspacos: lerAjustesEspacos_(l.ajusteEspacos),
       dividido: normDivisao_(l.dividido),
       giro: normGiro_(l.giro),
     });
@@ -315,6 +316,66 @@ function nomePlanta_(id) {
 function normGiro_(v) {
   const n = Math.round(numero_(v, 0) / 90) * 90;
   return ((n % 360) + 360) % 360;
+}
+
+/**
+ * Posição manual de cada pilha de etiquetas de um móvel com espaços (gôndola, mesas, totem, make),
+ * somada ao ajuste do móvel inteiro. Na planilha: "LADO-A: 10, -5; MEIO-B+LADO-B: 0, 20" (a chave é
+ * o espaço da pilha; espaços vizinhos com as mesmas etiquetas formam uma pilha só, ligados por "+").
+ * Aceita também o objeto já lido ({ 'LADO-A': {x, y} }). Deslocamento zero fica de fora.
+ * @return {Object<string, {x: number, y: number}>}
+ */
+function lerAjustesEspacos_(v) {
+  const mapa = {};
+  const por = function (chave, x, y) {
+    const k = normId_(chave).replace(/\s+/g, '');
+    x = Math.round(numero_(x, 0));
+    y = Math.round(numero_(y, 0));
+    if (k && (x || y)) mapa[k] = { x: x, y: y };
+  };
+  if (v && typeof v === 'object') {
+    Object.keys(v).forEach(function (k) { por(k, v[k] && v[k].x, v[k] && v[k].y); });
+    return mapa;
+  }
+  texto_(v).split(/[;\n]+/).forEach(function (parte) {
+    const m = parte.match(/^\s*([^:=]+?)\s*[:=]\s*(-?\d+(?:[.,]\d+)?)\s*[,/ ]\s*(-?\d+(?:[.,]\d+)?)\s*$/);
+    if (m) por(m[1], m[2].replace(',', '.'), m[3].replace(',', '.'));
+  });
+  return mapa;
+}
+
+/** Texto da coluna "Ajuste Etiquetas por espaço" (inverso de lerAjustesEspacos_). */
+function textoAjustesEspacos_(mapa) {
+  const limpo = lerAjustesEspacos_(mapa || {});
+  return Object.keys(limpo).sort().map(function (k) { return k + ': ' + limpo[k].x + ', ' + limpo[k].y; }).join('; ');
+}
+
+/**
+ * Aplica ajustes de etiquetas ({ id → {x, y} }) às linhas de um móvel: "GONDOLA 1" é o ajuste do
+ * móvel inteiro; "GONDOLA 1/LADO-A" (ou ".../MEIO-B+LADO-B") é o de uma pilha, por cima do do móvel.
+ * @param {{x: number, y: number, espacos: Object}} atual  ajuste do móvel e das pilhas (é alterado)
+ * @return {boolean} se algum ajuste era deste móvel
+ */
+function aplicarAjusteEtiquetas_(movel, ajustes, atual) {
+  let achou = false;
+  const id = normId_(movel);
+  Object.keys(ajustes).forEach(function (chave) {
+    const k = normId_(chave);
+    const a = ajustes[chave] || {};
+    if (k === id) {
+      atual.x = Math.round(Number(a.x) || 0);
+      atual.y = Math.round(Number(a.y) || 0);
+      achou = true;
+    } else if (k.indexOf(id + '/') === 0) {
+      const espaco = k.slice(id.length + 1).replace(/\s+/g, '');
+      const x = Math.round(Number(a.x) || 0);
+      const y = Math.round(Number(a.y) || 0);
+      if (x || y) atual.espacos[espaco] = { x: x, y: y };
+      else delete atual.espacos[espaco];
+      achou = true;
+    }
+  });
+  return achou;
 }
 
 /** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */

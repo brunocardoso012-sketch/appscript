@@ -245,7 +245,8 @@ function verificarImportacao_(valoresLayout, prep) {
 /**
  * Grava a posição manual das etiquetas (arrastadas na tela) na aba Layout.
  * @param {string} planta
- * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel → deslocamento em px.
+ * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel (ajuste do móvel inteiro) ou
+ *   ID da pilha ("GONDOLA 1/LADO-A", ajuste só daquela pilha) → deslocamento em px.
  */
 function salvarAjustesEtiquetas(planta, ajustes) {
   planta = normPlanta_(planta);
@@ -266,25 +267,34 @@ function salvarAjustesEtiquetas(planta, ajustes) {
     const iId = col('movel');
     let iX = col('ajusteX');
     let iY = col('ajusteY');
+    let iE = col('ajusteEspacos');
     if (iPlanta < 0 || iId < 0) throw new Error('Aba Layout sem as colunas Planta / ID Móvel.');
-    if (iX < 0) { iX = valores[0].length; sh.getRange(1, iX + 1).setValue('Ajuste Etiqueta X (px)'); }
-    if (iY < 0) { iY = Math.max(valores[0].length, iX + 1); sh.getRange(1, iY + 1).setValue('Ajuste Etiqueta Y (px)'); }
+    let largura = valores[0].length;
+    if (iX < 0) { iX = largura++; sh.getRange(1, iX + 1).setValue('Ajuste Etiqueta X (px)'); }
+    if (iY < 0) { iY = largura++; sh.getRange(1, iY + 1).setValue('Ajuste Etiqueta Y (px)'); }
+    if (iE < 0) {
+      iE = largura++;
+      sh.getRange(1, iE + 1).setValue('Ajuste Etiquetas por espaço (px)');
+    }
 
     const n = valores.length - 1;
     if (n < 1) return { atualizados: 0 };
     const colX = sh.getRange(2, iX + 1, n, 1).getValues();
     const colY = sh.getRange(2, iY + 1, n, 1).getValues();
+    const colE = sh.getRange(2, iE + 1, n, 1).getValues();
     let atualizados = 0;
     for (let r = 1; r <= n; r++) {
       if (normPlanta_(valores[r][iPlanta]) !== planta) continue;
-      const a = ajustes[normId_(valores[r][iId])];
-      if (!a) continue;
-      colX[r - 1][0] = Math.round(Number(a.x) || 0);
-      colY[r - 1][0] = Math.round(Number(a.y) || 0);
+      const atual = { x: colX[r - 1][0], y: colY[r - 1][0], espacos: lerAjustesEspacos_(colE[r - 1][0]) };
+      if (!aplicarAjusteEtiquetas_(valores[r][iId], ajustes, atual)) continue;
+      colX[r - 1][0] = Math.round(Number(atual.x) || 0);
+      colY[r - 1][0] = Math.round(Number(atual.y) || 0);
+      colE[r - 1][0] = textoAjustesEspacos_(atual.espacos);
       atualizados++;
     }
     sh.getRange(2, iX + 1, n, 1).setValues(colX);
     sh.getRange(2, iY + 1, n, 1).setValues(colY);
+    sh.getRange(2, iE + 1, n, 1).setNumberFormat('@').setValues(colE);
     return { atualizados: atualizados };
   });
 }
@@ -389,6 +399,7 @@ function objetosLayoutDaPlanta_(planta, layout) {
       x: n(m.x, 0), y: n(m.y, 0), z: n(m.z, 0),
       largura: Math.max(0.1, n(m.w, 1)), profundidade: Math.max(0.1, n(m.d, 1)), altura: Math.max(0.1, n(m.h, 1)),
       ajusteX: Math.round(numero_(m.ajusteX, 0)), ajusteY: Math.round(numero_(m.ajusteY, 0)),
+      ajusteEspacos: textoAjustesEspacos_(m.ajustesEspacos),
       dividido: m.tipo === 'GONDOLA' ? normDivisao_(m.dividido) : '',
       giro: normGiro_(m.giro),
     });

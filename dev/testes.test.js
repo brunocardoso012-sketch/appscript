@@ -95,6 +95,24 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   const pir = d3.plantas.find((p) => p.id === '02').moveis.find((m) => m.id === 'PIRAMIDE 1');
   assert.equal(pir.ajusteX, 40);
   assert.equal(pir.ajusteY, -12);
+
+  // Cada pilha da gôndola se move sozinha (por cima do ajuste do móvel inteiro).
+  run("salvarAjustesEtiquetas('02', { 'GONDOLA 2/LADO-A': { x: 15, y: -8 }, 'gondola 2/meio-b+lado-b': { x: -20, y: 30 } })");
+  let g2 = run('getDados()').plantas.find((p) => p.id === '02').moveis.find((m) => m.id === 'GONDOLA 2');
+  assert.deepEqual([g2.ajusteX, g2.ajusteY], [0, 0], 'ajuste do móvel inteiro não muda');
+  assert.deepEqual(JSON.parse(JSON.stringify(g2.ajustesEspacos)), { 'LADO-A': { x: 15, y: -8 }, 'MEIO-B+LADO-B': { x: -20, y: 30 } });
+  run("salvarAjustesEtiquetas('02', { 'GONDOLA 2': { x: 0, y: 0 }, 'GONDOLA 2/LADO-A': { x: 0, y: 0 } })"); // organizar
+  g2 = run('getDados()').plantas.find((p) => p.id === '02').moveis.find((m) => m.id === 'GONDOLA 2');
+  assert.deepEqual(JSON.parse(JSON.stringify(g2.ajustesEspacos)), { 'MEIO-B+LADO-B': { x: -20, y: 30 } });
+});
+
+test('ajuste das pilhas por espaço: texto da planilha ↔ objeto', () => {
+  const { run } = carregarGas();
+  assert.deepEqual(JSON.parse(JSON.stringify(run("lerAjustesEspacos_('lado-a: 10, -5; MEIO-B + LADO-B = -3,5 ; FRENTE-1: 0, 0; lixo')"))),
+    { 'LADO-A': { x: 10, y: -5 }, 'MEIO-B+LADO-B': { x: -3, y: 5 } });
+  assert.equal(run("textoAjustesEspacos_({ 'MEIO-A': { x: 1, y: 2 }, 'LADO-A': { x: -4, y: 0 }, 'LADO-B': { x: 0, y: 0 } })"),
+    'LADO-A: -4, 0; MEIO-A: 1, 2');
+  assert.deepEqual(JSON.parse(JSON.stringify(run("lerAjustesEspacos_('')"))), {});
 });
 
 test('importação com colunas obrigatórias faltando dá erro claro', () => {
@@ -175,7 +193,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
     movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
     movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
-    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 11, '03': 7, '04': 8, _exemplo: 7 }); // só a 02 pendente
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 11, '03': 7, '04': 8, _exemplo: VERSAO_EXEMPLO }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
   assert.equal(r.versoes['02'], 10);

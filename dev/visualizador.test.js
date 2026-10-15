@@ -69,6 +69,10 @@ test('posições das etiquetas ficam nas propriedades do script, sem mexer na pl
   g = run('getDados()').plantas[0].moveis.find((m) => m.id === 'GONDOLA 1');
   assert.deepEqual([g.ajusteX, g.ajusteY], [0, 0]);
   assert.deepEqual(JSON.parse(falsos.propriedades.AJUSTES_ETIQUETAS_01), { 'PIRAMIDE 1': { x: 5, y: 0 } });
+  run("salvarAjustesEtiquetas('01', { 'GONDOLA 1/LADO-A': { x: 7, y: 9 } })"); // uma pilha só
+  g = run('getDados()').plantas[0].moveis.find((m) => m.id === 'GONDOLA 1');
+  assert.deepEqual(JSON.parse(JSON.stringify(g.ajustesEspacos)), { 'LADO-A': { x: 7, y: 9 } });
+  assert.deepEqual([g.ajusteX, g.ajusteY], [0, 0]);
   assert.equal(JSON.stringify(falsos.planilha.getSheets().map((a) => a._aba.grade)), antes);
 });
 
