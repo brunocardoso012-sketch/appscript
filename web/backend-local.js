@@ -118,11 +118,18 @@
         iT = abas.layout[0].length;
         abas.layout[0].push('Tamanho das etiquetas (%)');
       }
+      let iS = col('slide');
+      const slide = ajustes.LOJA ? normSlide_(ajustes.LOJA.slide) : 0;
+      if (iS < 0 && slide) {
+        iS = abas.layout[0].length;
+        abas.layout[0].push('Largura do slide (px)');
+      }
       let atualizados = 0;
       abas.layout.slice(1).forEach((row) => {
         if (normPlanta_(row[iPlanta]) !== planta) return;
         if (normId_(row[iId]) === 'LOJA') {
           if (tamanho) row[iT] = tamanho;
+          if (slide) row[iS] = slide;
           return;
         }
         const atual = { x: row[iX], y: row[iY], espacos: lerAjustesEspacos_(row[iE]) };

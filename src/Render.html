@@ -221,7 +221,7 @@ const Render = (() => {
     const ox = R.x + (R.w - larg * s) / 2 - minX * s;
     const oy = R.y + (R.h - alt * s) / 2 - minY * s;
     return {
-      escala: s,
+      escala: s, ox, oy,
       P: (x, y, z) => [ox + (x - y) * COS30 * s, oy + ((x + y) * 0.5 - (z || 0)) * s],
     };
   }
@@ -1359,7 +1359,16 @@ const Render = (() => {
     const guias = [];
     let somaDist = 0;
     let somaPena = 0;
-    const ordem = rotulos.slice().sort((a, b) => (a.dir ? 0 : 1) - (b.dir ? 0 : 1) || b.pontos[0][1] - a.pontos[0][1]);
+    // Pilhas com posição fixa (salva em "Ajustar etiquetas"): a de baixo fica onde foi posta e a pilha
+    // cresce para cima; as outras se arranjam em volta delas.
+    rotulos.filter((r) => r.fixoAqui).forEach((r) => {
+      r.baseX = r.fixoAqui.x;
+      r.baseY = r.fixoAqui.y - r.h;
+      const ret = { x: r.baseX, y: r.baseY, w: r.w, h: r.h };
+      colocados.push(ret);
+      r.pontos.forEach((p) => guias.push([p, pontoDaGuia(ret, p)]));
+    });
+    const ordem = rotulos.filter((r) => !r.fixoAqui).sort((a, b) => (a.dir ? 0 : 1) - (b.dir ? 0 : 1) || b.pontos[0][1] - a.pontos[0][1]);
     ordem.forEach((r) => {
       let melhor = null;
       // Onde a linha sai do desenho do próprio móvel, andando na direção do espaço.
@@ -1450,12 +1459,24 @@ const Render = (() => {
    */
   function arranjarNaPlanta(loja, moveis, rotulos, painel) {
     let melhor = null;
-    [1, 1.15, 1.3, 1.45, 1.6].some((fator) => {
-      const W = Math.round((TELA_BASE.w * fator) / 16) * 16;
+    // Planta com posições fixas: o slide tem sempre a largura salva junto com elas (a planta não muda de
+    // tamanho com o ciclo, e as posições valem em qualquer ciclo).
+    const larguras = loja && loja.slide > 0
+      ? [Math.round(loja.slide)]
+      : [1, 1.15, 1.3, 1.45, 1.6].map((fator) => Math.round((TELA_BASE.w * fator) / 16) * 16);
+    larguras.some((W) => {
+      const fator = W / TELA_BASE.w;
       const H = (W / 16) * 9;
       const projecao = criarProjecao(loja, regiaoPlanta(W, H));
       limites = limitesDe(W, H);
       const callouts = painel.situarCallouts(projecao.P);
+      // Posições fixas são da tela (planta na largura toda); no slide com painéis a planta fica em outro
+      // lugar e menor, e as posições acompanham a planta.
+      const naTela = criarProjecao(loja, { x: 40, y: REGIAO_PLANTA.y, w: W - 80, h: H - 130 });
+      const k = projecao.escala / naTela.escala;
+      rotulos.forEach((r) => {
+        r.fixoAqui = r.fixo ? { x: projecao.ox + (r.fixo.x - naTela.ox) * k, y: projecao.oy + (r.fixo.y - naTela.oy) * k } : null;
+      });
       const obstaculos = (comPaineis ? [{ x: 0, y: 0, w: 470, h: H }] : []).concat(painel.obstaculos(W, H), callouts);
       rotulos.forEach((r) => ancorarRotulo(r, projecao.P));
       const q = posicionarRotulos(rotulos, silhuetas(moveis, projecao.P), obstaculos, W, H);
@@ -1472,6 +1493,30 @@ const Render = (() => {
       [r.baseX, r.baseY] = melhor.posicoes[i];
     });
     return melhor;
+  }
+
+  /**
+   * Posição fixa de uma pilha (planta com largura do slide salva): canto de baixo à esquerda da
+   * etiqueta mais baixa, em px do slide. Vem do ajuste ainda não salvo ou do salvo: o do móvel (móveis
+   * de um espaço só) ou o da pilha do espaço; se os espaços se juntaram (ou o meio se dividiu) de outro
+   * jeito neste ciclo, vale o de um deles. Null = posição automática.
+   */
+  function posicaoFixa(r, pendentes) {
+    const m = r.movel;
+    const valida = (a) => (a && (a.x || a.y) ? { x: Number(a.x) || 0, y: Number(a.y) || 0 } : null);
+    if (!r.espacos) return valida(m.id in pendentes ? pendentes[m.id] : { x: m.ajusteX, y: m.ajusteY });
+    const salvos = m.ajustesEspacos || {};
+    const chave = r.id.slice(m.id.length + 1);
+    const partes = chave.split('+');
+    // Meio dividido neste ciclo: a 1ª metade fica onde estava o meio inteiro (a 2ª se arranja ao lado).
+    const candidatas = [chave].concat(partes, partes.filter((k) => /-1$/.test(k)).map((k) => k.slice(0, -2)));
+    for (let i = 0; i < candidatas.length; i++) {
+      const k = candidatas[i];
+      if (m.id + '/' + k in pendentes) return valida(pendentes[m.id + '/' + k]);
+      if (valida(salvos[k])) return valida(salvos[k]);
+    }
+    const outra = Object.keys(salvos).filter((k) => k.split('+').some((p) => partes.indexOf(p) >= 0))[0];
+    return outra ? valida(salvos[outra]) : null;
   }
 
   /** Ponto da caixa mais perto da âncora: de onde sai a linha-guia. */
@@ -1838,6 +1883,11 @@ const Render = (() => {
       });
       limites = arranjo.limites;
     } else if (rotulos.length) {
+      const modoFixo = planta.loja && planta.loja.slide > 0;
+      rotulos.forEach((r) => {
+        r.modoFixo = modoFixo;
+        r.fixo = modoFixo ? posicaoFixa(r, ctx.ajustes || {}) : null;
+      });
       arranjo = arranjarNaPlanta(planta.loja, moveis, rotulos, { situarCallouts, obstaculos: obstaculosPaineis });
       limites = arranjo.limites;
     } else {
@@ -1932,8 +1982,9 @@ const Render = (() => {
       const chave = r.espacos ? r.id.slice(m.id.length + 1) : '';
       const daPilha = (chave && (ajustes[r.id] || (m.ajustesEspacos || {})[chave])) || { x: 0, y: 0 };
       r.ajusteMovel = doMovel;
-      r.x = r.baseX + doMovel.x + daPilha.x;
-      r.y = r.baseY + doMovel.y + daPilha.y;
+      // Com posições fixas, o arranjo já pôs cada pilha no lugar dela.
+      r.x = r.modoFixo ? r.baseX : r.baseX + doMovel.x + daPilha.x;
+      r.y = r.modoFixo ? r.baseY : r.baseY + doMovel.y + daPilha.y;
       desenharGuiaRotulo(camadaGuias, r);
       r.elemento = desenharRotulo(camadaEtiquetas, r, { class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : '') });
       dica(r.elemento, r.id + (m.descricao ? ' — ' + m.descricao : '') + ' · clique para ver a estratégia do móvel');

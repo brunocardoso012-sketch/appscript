@@ -77,6 +77,9 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
         aviso(onde + ': planta "' + planta + '" não existe no Layout.');
       } else if (!existeMovel(planta, id)) {
         aviso(onde + ': móvel "' + id + '" não existe no Layout da planta ' + planta + '.');
+      } else if (movelDe(id) && TIPOS_SEM_ETIQUETA.indexOf(movelDe(id).tipo) >= 0) {
+        aviso(onde + ': "' + id + '" é móvel de atendimento, que não leva cor nem etiqueta — linha ignorada.');
+        return;
       } else if (comEspacos[id]) {
         aviso(onde + ': "' + id + '" é preenchido por espaço (ex.: ' + id + '/' + espacosDoMovel_(movelDe(id))[0].id + ') — linha do móvel inteiro ignorada.');
         return;
@@ -233,6 +236,8 @@ function montarPlantas_(linhas, aviso) {
         profundidade: Math.max(1, numero_(l.profundidade, 20)),
         alturaParede: Math.max(0, numero_(l.altura, 4.5)),
         escalaEtiquetas: normTamanhoEtiquetas_(l.tamanhoEtiquetas),
+        // Com largura do slide, os ajustes de etiqueta da planta são posições fixas (valem em qualquer ciclo).
+        slide: normSlide_(l.slide),
       };
       return;
     }
@@ -482,6 +487,12 @@ function aplicarAjusteEtiquetas_(movel, ajustes, atual) {
     }
   });
   return achou;
+}
+
+/** Largura do slide da planta (px): 0 = automática (o slide cresce com as etiquetas). */
+function normSlide_(v) {
+  const n = Math.round(numero_(v, 0));
+  return n >= 960 && n <= 9600 ? n : 0;
 }
 
 /** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */

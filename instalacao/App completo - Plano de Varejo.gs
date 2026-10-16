@@ -62,6 +62,9 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
  */
 const ETIQUETAS_POR_TIPO = { VITRINE_L: 3 };
 
+/** Tipos de móvel que não levam cor nem etiqueta (móvel de atendimento): linhas deles na planilha são ignoradas. */
+const TIPOS_SEM_ETIQUETA = ['CAIXA'];
+
 /**
  * Quantas etiquetas a linha de um espaço mostra (GONDOLA 1/LADO-A,
  * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
@@ -301,6 +304,7 @@ function colunasLayout_() {
     { chave: 'giro', titulo: 'Giro (graus)', apelidos: ['Giro', 'Rotação', 'Rotacao'] },
     { chave: 'ajusteEspacos', titulo: 'Ajuste Etiquetas por espaço (px)', texto: true, apelidos: ['Ajuste por espaço', 'Ajuste Espaços'] },
     { chave: 'tamanhoEtiquetas', titulo: 'Tamanho das etiquetas (%)', apelidos: ['Tamanho etiquetas', 'Tamanho das etiquetas'] },
+    { chave: 'slide', titulo: 'Largura do slide (px)', apelidos: ['Largura do slide', 'Slide'] },
   ];
 }
 
@@ -384,6 +388,9 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
         aviso(onde + ': planta "' + planta + '" não existe no Layout.');
       } else if (!existeMovel(planta, id)) {
         aviso(onde + ': móvel "' + id + '" não existe no Layout da planta ' + planta + '.');
+      } else if (movelDe(id) && TIPOS_SEM_ETIQUETA.indexOf(movelDe(id).tipo) >= 0) {
+        aviso(onde + ': "' + id + '" é móvel de atendimento, que não leva cor nem etiqueta — linha ignorada.');
+        return;
       } else if (comEspacos[id]) {
         aviso(onde + ': "' + id + '" é preenchido por espaço (ex.: ' + id + '/' + espacosDoMovel_(movelDe(id))[0].id + ') — linha do móvel inteiro ignorada.');
         return;
@@ -540,6 +547,8 @@ function montarPlantas_(linhas, aviso) {
         profundidade: Math.max(1, numero_(l.profundidade, 20)),
         alturaParede: Math.max(0, numero_(l.altura, 4.5)),
         escalaEtiquetas: normTamanhoEtiquetas_(l.tamanhoEtiquetas),
+        // Com largura do slide, os ajustes de etiqueta da planta são posições fixas (valem em qualquer ciclo).
+        slide: normSlide_(l.slide),
       };
       return;
     }
@@ -789,6 +798,12 @@ function aplicarAjusteEtiquetas_(movel, ajustes, atual) {
     }
   });
   return achou;
+}
+
+/** Largura do slide da planta (px): 0 = automática (o slide cresce com as etiquetas). */
+function normSlide_(v) {
+  const n = Math.round(numero_(v, 0));
+  return n >= 960 && n <= 9600 ? n : 0;
 }
 
 /** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */
@@ -1164,6 +1179,7 @@ function salvarAjustesEtiquetas(planta, ajustes) {
     let iY = col('ajusteY');
     let iE = col('ajusteEspacos');
     let iT = col('tamanhoEtiquetas');
+    let iS = col('slide');
     if (iPlanta < 0 || iId < 0) throw new Error('Aba Layout sem as colunas Planta / ID Móvel.');
     let largura = valores[0].length;
     if (iX < 0) { iX = largura++; sh.getRange(1, iX + 1).setValue('Ajuste Etiqueta X (px)'); }
@@ -1177,6 +1193,11 @@ function salvarAjustesEtiquetas(planta, ajustes) {
       iT = largura++;
       sh.getRange(1, iT + 1).setValue('Tamanho das etiquetas (%)');
     }
+    const slide = ajustes.LOJA ? normSlide_(ajustes.LOJA.slide) : 0;
+    if (iS < 0 && slide) {
+      iS = largura++;
+      sh.getRange(1, iS + 1).setValue('Largura do slide (px)');
+    }
 
     const n = valores.length - 1;
     if (n < 1) return { atualizados: 0 };
@@ -1189,6 +1210,7 @@ function salvarAjustesEtiquetas(planta, ajustes) {
       if (normId_(valores[r][iId]) === 'LOJA') {
         // Linha da loja: guarda o tamanho das etiquetas da planta.
         if (tamanho) sh.getRange(r + 1, iT + 1).setValue(tamanho);
+        if (slide) sh.getRange(r + 1, iS + 1).setValue(slide);
         continue;
       }
       const atual = { x: colX[r - 1][0], y: colY[r - 1][0], espacos: lerAjustesEspacos_(colE[r - 1][0]) };
@@ -1295,6 +1317,7 @@ function objetosLayoutDaPlanta_(planta, layout) {
     largura: Math.max(1, n(loja.largura, 20)), profundidade: Math.max(1, n(loja.profundidade, 20)),
     altura: Math.max(0, n(loja.alturaParede, 4.5)), ajusteX: 0, ajusteY: 0,
     tamanhoEtiquetas: loja.escalaEtiquetas && loja.escalaEtiquetas !== 100 ? normTamanhoEtiquetas_(loja.escalaEtiquetas) : '',
+    slide: normSlide_(loja.slide) || '',
   }];
   const vistos = {};
   layout.moveis.forEach(function (m, i) {
@@ -1576,7 +1599,10 @@ function removerAbaPadraoVazia_(ss) {
  *   - Y cresce ao longo da parede do fundo à ESQUERDA (em direção à frente/caixas).
  *   - Z é a elevação (0 = chão). Largura = eixo X, Profundidade = eixo Y.
  *
- *  Loja: [largura, profundidade, altura da parede, (tamanho das etiquetas em %, padrão 100)].
+ *  Loja: [largura, profundidade, altura da parede, (tamanho das etiquetas em %, padrão 100),
+ *         (largura do slide em px: com ela, os ajustes de etiqueta são posições fixas — veja abaixo)].
+ *  Posições fixas: ajuste X/Y = canto de baixo à esquerda da etiqueta mais baixa da pilha, em px do
+ *  slide; a pilha cresce para cima. Valem em qualquer ciclo (o slide fica com a largura salva).
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
  *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270),
  *          (ajuste das pilhas de etiquetas por espaço: { 'LADO-A': {x, y} })]
@@ -1590,14 +1616,14 @@ function removerAbaPadraoVazia_(ss) {
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 12, '02': 11, '03': 8, '04': 9 };
+const VERSAO_MODELO_PLANTAS = { '01': 12, '02': 11, '03': 8, '04': 11 };
 
 /**
  * Versão do ciclo de exemplo inteiro (Movimentos + Painéis, todas as plantas e TODAS).
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 12;
+const VERSAO_EXEMPLO = 13;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -1692,46 +1718,46 @@ const LAYOUT_PADRAO = {
       ['MOVEL DE PAREDE 4', 'CBEM/NSPA', 'GONDOLA_PAREDE', 8, 0, 2.5, 1.1, 3.2],
     ],
   },
-  // PLANTA 04 (ER GG): layout montado no modo "Construir loja".
+  // PLANTA 04 (ER GG): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
   '04': {
-    loja: [17, 20, 4.6],
+    loja: [17, 20, 4.6, 100, 3072], // posições fixas das etiquetas (slide de 3072 px)
     moveis: [
       ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
-      ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 14.5, 2.5, 1.02, 1.02, 1.94],
-      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3.5, 2.5, 1.6, 4, 1.94],
-      ['PDV MOVEL 1', 'PDV móvel 1', 'CUBO', 6, 17, 1.3, 1.3, 1.44],
-      ['BALCAO RECEPCAO 1', 'Balcão recepção 1', 'VITRINE_L', 14.5, 17.5, 2.4, 2.4, 1.28],
+      ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 14.5, 2.5, 1.02, 1.02, 1.94, 0, 2352, 1006, '', 0],
+      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3.5, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1454, y: 695 }, 'LADO-B': { x: 1699, y: 514 }, 'MEIO-A': { x: 1585, y: 648 }, 'MEIO-B': { x: 1435, y: 552 } }],
+      ['PDV MOVEL 1', 'PDV móvel 1', 'CUBO', 6, 17, 1.3, 1.3, 1.44, 0, 985, 1151, '', 0],
+      ['BALCAO RECEPCAO 1', 'Balcão recepção 1', 'VITRINE_L', 14.5, 17.5, 2.4, 2.4, 1.28, 0, 1222, 1566, '', 0],
       ['MOVEL DE ATENDIMENTO 3', 'Móvel de atendimento 3', 'CAIXA', 0, 17, 1.2, 1.8, 1.7],
-      ['MOVEL DE FILA 6', 'Móvel de fila 6', 'FILA', 3, 17, 1.5, 0.4, 1.46],
-      ['TOTEM OUI 1', 'Totem O.U.i 1', 'EXPOSITOR_OUI', 6.5, 16, 0.8, 0.8, 1.94],
-      ['MOVEL DE PAREDE 1', 'Perf. Fem. BOT', 'GONDOLA_PAREDE', 0, -0.5, 4, 1.1, 3.2],
-      ['MOVEL DE PAREDE 2', 'Perf. Masc. BOT', 'GONDOLA_PAREDE', 4, -0.5, 4, 1.1, 3.2],
-      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 7, 2.5, 1.6, 4, 1.94],
-      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 10.5, 2.5, 1.6, 4, 1.94],
-      ['GONDOLA 4', 'Gôndola 4', 'GONDOLA', 3.5, 8, 1.6, 4, 1.94],
-      ['GONDOLA 5', 'Gôndola 5', 'GONDOLA', 7, 8, 1.6, 4, 1.94],
-      ['GONDOLA 6', 'Gôndola 6', 'GONDOLA', 10.5, 8, 1.6, 4, 1.94],
-      ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 14.5, 4.5, 1.02, 1.02, 1.94],
-      ['PIRAMIDE 3', 'Pirâmide 3', 'PIRAMIDE', 14.5, 6.5, 1.02, 1.02, 1.94],
-      ['PIRAMIDE 4', 'Pirâmide 4', 'PIRAMIDE', 14.5, 8.5, 1.02, 1.02, 1.94],
-      ['PIRAMIDE 5', 'Pirâmide 5', 'PIRAMIDE', 14.5, 10.5, 1.02, 1.02, 1.94],
+      ['MOVEL DE FILA 6', 'Móvel de fila 6', 'FILA', 3, 17, 1.5, 0.4, 1.46, 0, 791, 1054, '', 0],
+      ['TOTEM OUI 1', 'Totem O.U.i 1', 'EXPOSITOR_OUI', 6.5, 16, 0.8, 0.8, 1.94, 0, 1029, 1088, '', 0],
+      ['MOVEL DE PAREDE 1', 'Perf. Fem. BOT', 'GONDOLA_PAREDE', 0, -0.5, 4, 1.1, 3.2, 0, 1643, 329, '', 0],
+      ['MOVEL DE PAREDE 2', 'Perf. Masc. BOT', 'GONDOLA_PAREDE', 4, -0.5, 4, 1.1, 3.2, 0, 1876, 464, '', 0],
+      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 7, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1642, y: 817 }, 'LADO-B': { x: 1914, y: 642 }, 'MEIO-A': { x: 1799, y: 791 }, 'MEIO-B': { x: 1688, y: 706 } }],
+      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 10.5, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1847, y: 927 }, 'LADO-B': { x: 2115, y: 760 }, 'MEIO-A': { x: 2042, y: 873 }, 'MEIO-B': { x: 1927, y: 796 } }],
+      ['GONDOLA 4', 'Gôndola 4', 'GONDOLA', 3.5, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1025, y: 824 }, 'LADO-B': { x: 1344, y: 694 }, 'MEIO-A': { x: 1282, y: 824 }, 'MEIO-B': { x: 1157, y: 753 } }],
+      ['GONDOLA 5', 'Gôndola 5', 'GONDOLA', 7, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1307, y: 999 }, 'MEIO-A': { x: 1484, y: 988 }, 'MEIO-B': { x: 1368, y: 911 }, 'LADO-B': { x: 1524, y: 835 } }],
+      ['GONDOLA 6', 'Gôndola 6', 'GONDOLA', 10.5, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1539, y: 1114 }, 'MEIO-A': { x: 1715, y: 1089 }, 'MEIO-B': { x: 1622, y: 1001 }, 'LADO-B': { x: 1743, y: 953 } }],
+      ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 14.5, 4.5, 1.02, 1.02, 1.94, 0, 2229, 1079, '', 0],
+      ['PIRAMIDE 3', 'Pirâmide 3', 'PIRAMIDE', 14.5, 6.5, 1.02, 1.02, 1.94, 0, 2096, 1155, '', 0],
+      ['PIRAMIDE 4', 'Pirâmide 4', 'PIRAMIDE', 14.5, 8.5, 1.02, 1.02, 1.94, 0, 1981, 1231, '', 0],
+      ['PIRAMIDE 5', 'Pirâmide 5', 'PIRAMIDE', 14.5, 10.5, 1.02, 1.02, 1.94, 0, 1866, 1297, '', 0],
       ['MOVEL DE ATENDIMENTO 2', 'Móvel de atendimento 2', 'CAIXA', 0, 15, 1.2, 1.8, 1.7],
-      ['MOVEL DE FILA 7', 'Móvel de fila 7', 'FILA', 1.5, 19, 1.5, 0.4, 1.46],
-      ['MOVEL DE FILA 5', 'Móvel de fila 5', 'FILA', 1.5, 17, 1.5, 0.4, 1.46],
-      ['MOVEL DE FILA 2', 'Móvel de fila 2', 'FILA', 3, 13, 1.5, 0.4, 1.46],
-      ['MOVEL DE FILA 3', 'Móvel de fila 3', 'FILA', 1.5, 15, 1.5, 0.4, 1.46],
-      ['MOVEL DE FILA 4', 'Móvel de fila 4', 'FILA', 3, 15, 1.5, 0.4, 1.46],
-      ['MOVEL DE FILA 8', 'Móvel de fila 8', 'FILA', 3, 19, 1.5, 0.4, 1.46],
-      ['MESA DESTAQUE 3 FRENTES 1', 'Mesa destaque 3 frentes 1', 'MESA_3', 8.5, 14.5, 3.9, 1.4, 2.6],
-      ['TOTEM 1', 'Totem 1', 'TOTEM', 7, 18.5, 0.35, 1.5, 3.4],
-      ['MOVEL DE PAREDE 3', 'Perf. Fem. EUD', 'GONDOLA_PAREDE', 8, -0.5, 4, 1.1, 3.2],
-      ['MOVEL DE FILA 1', 'Móvel de fila 1', 'FILA', 1.5, 13, 1.5, 0.4, 1.46],
+      ['MOVEL DE FILA 7', 'Móvel de fila 7', 'FILA', 1.5, 19, 1.5, 0.4, 1.46, 0, 568, 1062, '', 0],
+      ['MOVEL DE FILA 5', 'Móvel de fila 5', 'FILA', 1.5, 17, 1.5, 0.4, 1.46, 0, 679, 994, '', 0],
+      ['MOVEL DE FILA 2', 'Móvel de fila 2', 'FILA', 3, 13, 1.5, 0.4, 1.46, 0, 957, 906, '', 0],
+      ['MOVEL DE FILA 3', 'Móvel de fila 3', 'FILA', 1.5, 15, 1.5, 0.4, 1.46, 0, 820, 932, '', 0],
+      ['MOVEL DE FILA 4', 'Móvel de fila 4', 'FILA', 3, 15, 1.5, 0.4, 1.46, 0, 914, 988, '', 0],
+      ['MOVEL DE FILA 8', 'Móvel de fila 8', 'FILA', 3, 19, 1.5, 0.4, 1.46, 0, 691, 1119, '', 0],
+      ['MESA DESTAQUE 3 FRENTES 1', 'Mesa destaque 3 frentes 1', 'MESA_3', 8.5, 14.5, 3.9, 1.4, 2.6, 0, 0, 0, '', 0, { 'FRENTE-1': { x: 1130, y: 1169 }, 'FRENTE-2': { x: 1220, y: 1242 }, 'FRENTE-3': { x: 1311, y: 1332 } }],
+      ['TOTEM 1', 'Totem 1', 'TOTEM', 7, 18.5, 0.35, 1.5, 3.4, 0, 0, 0, '', 0, { 'PAINEL-1': { x: 806, y: 1137 }, 'PAINEL-2': { x: 806, y: 1179 }, 'PAINEL-3': { x: 804, y: 1225 } }],
+      ['MOVEL DE PAREDE 3', 'Perf. Fem. EUD', 'GONDOLA_PAREDE', 8, -0.5, 4, 1.1, 3.2, 0, 2113, 598, '', 0],
+      ['MOVEL DE FILA 1', 'Móvel de fila 1', 'FILA', 1.5, 13, 1.5, 0.4, 1.46, 0, 877, 847, '', 0],
       ['MOVEL DE ATENDIMENTO 1', 'Móvel de atendimento 1', 'CAIXA', 0, 13, 1.2, 1.8, 1.7],
-      ['MOVEL MAKE 1', 'Móvel make 1', 'MAKE', 0, 3.5, 1.4, 6, 3.2],
-      ['MOVEL DE PAREDE 4', 'CBEM/NSPA', 'GONDOLA_PAREDE', 12, -0.5, 4, 1.1, 3.2],
-      ['ILHA PREMIUM OUI 1', 'Ilha premium O.U.i 1', 'ILHA_OUI', 13.5, 14, 3, 1.6, 3],
+      ['MOVEL MAKE 1', 'Móvel make 1', 'MAKE', 0, 3.5, 1.4, 6, 3.2, 0, 0, 0, '', 0, { 'TESTEIRA-1': { x: 1384, y: 381 }, 'TESTEIRA-2': { x: 1244, y: 432 }, 'TESTEIRA-3': { x: 1163, y: 483 }, 'TESTEIRA-4': { x: 1075, y: 533 } }],
+      ['MOVEL DE PAREDE 4', 'CBEM/NSPA', 'GONDOLA_PAREDE', 12, -0.5, 4, 1.1, 3.2, 0, 2308, 732, '', 0],
+      ['ILHA PREMIUM OUI 1', 'Ilha premium O.U.i 1', 'ILHA_OUI', 13.5, 14, 3, 1.6, 3, 0, 1647, 1445, '', 0],
     ],
   },
 };
@@ -1885,7 +1911,7 @@ const EXEMPLO_TIPOS = [
  *  ver a planta com o máximo de etiquetas (e posicioná-las no modo ajuste).
  *  Etiquetas por móvel: gôndola (cada espaço), pirâmide, móvel de fila e PDV móvel: 2;
  *  móvel de parede: 3; totem: 1 por painel; mesa destaque: 2 por frente; O.U.i: 3;
- *  balcão recepção: 3; móvel de atendimento: 1; móvel make: 1 por testeira; itens fora da planta: 1.
+ *  balcão recepção: 3; móvel make: 1 por testeira; itens fora da planta: 1 (móvel de atendimento não leva etiqueta).
  * ------------------------------------------------------------------------ */
 
 const EXEMPLO_CICLO_CHEIO = 'Ciclo exemplo cheio';
@@ -1915,7 +1941,6 @@ const EXEMPLO_CHEIO = {
   ],
   oui: [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI'], ['LÇTO MON AMIE', 'OUI']],
   balcao: [['LÇTO EGEO', 'BOT+QDB'], ['JUICY MOOD', 'QDB'], ['SIÀGE ULTIMATE', 'EUD']],
-  atendimento: [['STOPPER LÇTO EGEO', 'BOT'], ['OUTLET EUD', 'EUD'], ['LIQUIDA QDB', 'QDB']],
   make: [['MAKE B.', 'BOT'], ['BOTIPROMO MAKE B.', 'BOT'], ['OUTLET MAKE EUD', 'EUD'], ['LIQUIDA MAKE', 'QDB']],
   extras: { 'EXTRA-CESTINHAS': ['LÇTO EGEO', 'BOT+QDB'], 'EXTRA-BELEZA': ['BOTIPROMO MAKE B.', 'BOT'], 'EXTRA-CAVALETE': ['SIÀGE ULTIMATE', 'EUD'] },
   // Movimentos que não estão em EXEMPLO_TIPOS: [texto, classificação, GMV esperado (ilustrativo)].
@@ -1930,7 +1955,6 @@ const EXEMPLO_CHEIO = {
     ['LÇTO MON AMIE', 'LANCAMENTO', 240000],
     ['Hôtel de Ville 193', 'LANCAMENTO', 180000],
     ['VM PERMANENTE MULTI PROMO', 'PROMOCAO', 300000],
-    ['STOPPER LÇTO EGEO', 'LANCAMENTO', 120000],
     ['MAKE B.', 'INSTITUCIONAL', 350000],
     ['OUTLET MAKE EUD', 'LIQUIDACAO', 160000],
   ],
@@ -1969,8 +1993,6 @@ function movimentosExemploCheio_(planta) {
       saida[id] = ['OUI', E.oui, tipo === 'ILHA_OUI' ? 'EXPOSICAO' : ''];
     } else if (tipo === 'VITRINE_L') {
       saida[id] = ['BOT', E.balcao, ''];
-    } else if (tipo === 'CAIXA') {
-      saida[id] = linha([E.atendimento[(num - 1) % E.atendimento.length]]);
     } else if (tipo === 'MAKE') {
       E.make.forEach(function (et, i) { saida[id + '/TESTEIRA-' + (i + 1)] = linha([et]); });
     } else if (tipo === 'EXTRA' && E.extras[id]) {
@@ -1992,7 +2014,7 @@ function valoresLayoutPadrao_() {
     linhas.push(linha({
       planta: planta, movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA',
       x: 0, y: 0, z: 0, largura: p.loja[0], profundidade: p.loja[1], altura: p.loja[2], ajusteX: 0, ajusteY: 0,
-      tamanhoEtiquetas: p.loja[3] || '',
+      tamanhoEtiquetas: p.loja[3] && p.loja[3] !== 100 ? p.loja[3] : '', slide: p.loja[4] || '',
     }));
     p.moveis.forEach(function (m) {
       linhas.push(linha({
@@ -3588,7 +3610,7 @@ const PAGINA_ = [
   "    const ox = R.x + (R.w - larg * s) / 2 - minX * s;",
   "    const oy = R.y + (R.h - alt * s) / 2 - minY * s;",
   "    return {",
-  "      escala: s,",
+  "      escala: s, ox, oy,",
   "      P: (x, y, z) => [ox + (x - y) * COS30 * s, oy + ((x + y) * 0.5 - (z || 0)) * s],",
   "    };",
   "  }",
@@ -4726,7 +4748,16 @@ const PAGINA_ = [
   "    const guias = [];",
   "    let somaDist = 0;",
   "    let somaPena = 0;",
-  "    const ordem = rotulos.slice().sort((a, b) => (a.dir ? 0 : 1) - (b.dir ? 0 : 1) || b.pontos[0][1] - a.pontos[0][1]);",
+  "    // Pilhas com posição fixa (salva em \"Ajustar etiquetas\"): a de baixo fica onde foi posta e a pilha",
+  "    // cresce para cima; as outras se arranjam em volta delas.",
+  "    rotulos.filter((r) => r.fixoAqui).forEach((r) => {",
+  "      r.baseX = r.fixoAqui.x;",
+  "      r.baseY = r.fixoAqui.y - r.h;",
+  "      const ret = { x: r.baseX, y: r.baseY, w: r.w, h: r.h };",
+  "      colocados.push(ret);",
+  "      r.pontos.forEach((p) => guias.push([p, pontoDaGuia(ret, p)]));",
+  "    });",
+  "    const ordem = rotulos.filter((r) => !r.fixoAqui).sort((a, b) => (a.dir ? 0 : 1) - (b.dir ? 0 : 1) || b.pontos[0][1] - a.pontos[0][1]);",
   "    ordem.forEach((r) => {",
   "      let melhor = null;",
   "      // Onde a linha sai do desenho do próprio móvel, andando na direção do espaço.",
@@ -4817,12 +4848,24 @@ const PAGINA_ = [
   "   */",
   "  function arranjarNaPlanta(loja, moveis, rotulos, painel) {",
   "    let melhor = null;",
-  "    [1, 1.15, 1.3, 1.45, 1.6].some((fator) => {",
-  "      const W = Math.round((TELA_BASE.w * fator) / 16) * 16;",
+  "    // Planta com posições fixas: o slide tem sempre a largura salva junto com elas (a planta não muda de",
+  "    // tamanho com o ciclo, e as posições valem em qualquer ciclo).",
+  "    const larguras = loja && loja.slide > 0",
+  "      ? [Math.round(loja.slide)]",
+  "      : [1, 1.15, 1.3, 1.45, 1.6].map((fator) => Math.round((TELA_BASE.w * fator) / 16) * 16);",
+  "    larguras.some((W) => {",
+  "      const fator = W / TELA_BASE.w;",
   "      const H = (W / 16) * 9;",
   "      const projecao = criarProjecao(loja, regiaoPlanta(W, H));",
   "      limites = limitesDe(W, H);",
   "      const callouts = painel.situarCallouts(projecao.P);",
+  "      // Posições fixas são da tela (planta na largura toda); no slide com painéis a planta fica em outro",
+  "      // lugar e menor, e as posições acompanham a planta.",
+  "      const naTela = criarProjecao(loja, { x: 40, y: REGIAO_PLANTA.y, w: W - 80, h: H - 130 });",
+  "      const k = projecao.escala / naTela.escala;",
+  "      rotulos.forEach((r) => {",
+  "        r.fixoAqui = r.fixo ? { x: projecao.ox + (r.fixo.x - naTela.ox) * k, y: projecao.oy + (r.fixo.y - naTela.oy) * k } : null;",
+  "      });",
   "      const obstaculos = (comPaineis ? [{ x: 0, y: 0, w: 470, h: H }] : []).concat(painel.obstaculos(W, H), callouts);",
   "      rotulos.forEach((r) => ancorarRotulo(r, projecao.P));",
   "      const q = posicionarRotulos(rotulos, silhuetas(moveis, projecao.P), obstaculos, W, H);",
@@ -4839,6 +4882,30 @@ const PAGINA_ = [
   "      [r.baseX, r.baseY] = melhor.posicoes[i];",
   "    });",
   "    return melhor;",
+  "  }",
+  "",
+  "  /**",
+  "   * Posição fixa de uma pilha (planta com largura do slide salva): canto de baixo à esquerda da",
+  "   * etiqueta mais baixa, em px do slide. Vem do ajuste ainda não salvo ou do salvo: o do móvel (móveis",
+  "   * de um espaço só) ou o da pilha do espaço; se os espaços se juntaram (ou o meio se dividiu) de outro",
+  "   * jeito neste ciclo, vale o de um deles. Null = posição automática.",
+  "   */",
+  "  function posicaoFixa(r, pendentes) {",
+  "    const m = r.movel;",
+  "    const valida = (a) => (a && (a.x || a.y) ? { x: Number(a.x) || 0, y: Number(a.y) || 0 } : null);",
+  "    if (!r.espacos) return valida(m.id in pendentes ? pendentes[m.id] : { x: m.ajusteX, y: m.ajusteY });",
+  "    const salvos = m.ajustesEspacos || {};",
+  "    const chave = r.id.slice(m.id.length + 1);",
+  "    const partes = chave.split('+');",
+  "    // Meio dividido neste ciclo: a 1ª metade fica onde estava o meio inteiro (a 2ª se arranja ao lado).",
+  "    const candidatas = [chave].concat(partes, partes.filter((k) => /-1$/.test(k)).map((k) => k.slice(0, -2)));",
+  "    for (let i = 0; i < candidatas.length; i++) {",
+  "      const k = candidatas[i];",
+  "      if (m.id + '/' + k in pendentes) return valida(pendentes[m.id + '/' + k]);",
+  "      if (valida(salvos[k])) return valida(salvos[k]);",
+  "    }",
+  "    const outra = Object.keys(salvos).filter((k) => k.split('+').some((p) => partes.indexOf(p) >= 0))[0];",
+  "    return outra ? valida(salvos[outra]) : null;",
   "  }",
   "",
   "  /** Ponto da caixa mais perto da âncora: de onde sai a linha-guia. */",
@@ -5205,6 +5272,11 @@ const PAGINA_ = [
   "      });",
   "      limites = arranjo.limites;",
   "    } else if (rotulos.length) {",
+  "      const modoFixo = planta.loja && planta.loja.slide > 0;",
+  "      rotulos.forEach((r) => {",
+  "        r.modoFixo = modoFixo;",
+  "        r.fixo = modoFixo ? posicaoFixa(r, ctx.ajustes || {}) : null;",
+  "      });",
   "      arranjo = arranjarNaPlanta(planta.loja, moveis, rotulos, { situarCallouts, obstaculos: obstaculosPaineis });",
   "      limites = arranjo.limites;",
   "    } else {",
@@ -5299,8 +5371,9 @@ const PAGINA_ = [
   "      const chave = r.espacos ? r.id.slice(m.id.length + 1) : '';",
   "      const daPilha = (chave && (ajustes[r.id] || (m.ajustesEspacos || {})[chave])) || { x: 0, y: 0 };",
   "      r.ajusteMovel = doMovel;",
-  "      r.x = r.baseX + doMovel.x + daPilha.x;",
-  "      r.y = r.baseY + doMovel.y + daPilha.y;",
+  "      // Com posições fixas, o arranjo já pôs cada pilha no lugar dela.",
+  "      r.x = r.modoFixo ? r.baseX : r.baseX + doMovel.x + daPilha.x;",
+  "      r.y = r.modoFixo ? r.baseY : r.baseY + doMovel.y + daPilha.y;",
   "      desenharGuiaRotulo(camadaGuias, r);",
   "      r.elemento = desenharRotulo(camadaEtiquetas, r, { class: 'grupo-etiquetas' + (ctx.edicao ? ' arrastavel' : '') });",
   "      dica(r.elemento, r.id + (m.descricao ? ' — ' + m.descricao : '') + ' · clique para ver a estratégia do móvel');",
@@ -5768,6 +5841,7 @@ const PAGINA_ = [
   "        planta: plantaNaPlanilha(dados, p.id), movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA', x: 0, y: 0, z: 0,",
   "        largura: p.loja.largura, profundidade: p.loja.profundidade, altura: p.loja.alturaParede, ajusteX: 0, ajusteY: 0,",
   "        tamanhoEtiquetas: p.loja.escalaEtiquetas && p.loja.escalaEtiquetas !== 100 ? p.loja.escalaEtiquetas : null,",
+  "        slide: p.loja.slide || null,",
   "      }].concat(p.moveis.map((m) => ({",
   "        planta: plantaNaPlanilha(dados, p.id), movel: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z,",
   "        largura: m.w, profundidade: m.d, altura: m.h, ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '', giro: m.giro || 0,",
@@ -6339,7 +6413,9 @@ const PAGINA_ = [
   "    ];",
   "    plantas.forEach((p, i) => {",
   "      L.push('    ' + JSON.stringify(p.id) + ': {');",
-  "      L.push('      \"loja\": ' + JSON.stringify([p.loja.largura, p.loja.profundidade, p.loja.alturaParede]) + ',');",
+  "      const loja = [p.loja.largura, p.loja.profundidade, p.loja.alturaParede];",
+  "      if (p.loja.slide) loja.push(p.loja.escalaEtiquetas || 100, p.loja.slide); // posições fixas das etiquetas",
+  "      L.push('      \"loja\": ' + JSON.stringify(loja) + ',');",
   "      L.push('      \"moveis\": [');",
   "      p.moveis.forEach((m, j) => {",
   "        const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0, m.dividido || '', m.giro || 0];",
@@ -6371,7 +6447,7 @@ const PAGINA_ = [
   "      for (const id of ids) {",
   "        const p = json.plantas[id];",
   "        await app.chamar('salvarLayout', id, {",
-  "          loja: { largura: p.loja[0], profundidade: p.loja[1], alturaParede: p.loja[2] },",
+  "          loja: { largura: p.loja[0], profundidade: p.loja[1], alturaParede: p.loja[2], escalaEtiquetas: p.loja[3] || 100, slide: p.loja[4] || 0 },",
   "          moveis: p.moveis.map((t) => ({",
   "            id: t[0], descricao: t[1], tipo: t[2], x: t[3], y: t[4], w: t[5], d: t[6], h: t[7], z: t[8] || 0,",
   "            ajusteX: t[9] || 0, ajusteY: t[10] || 0, dividido: t[11] || '', giro: t[12] || 0, ajustesEspacos: t[13] || {},",
@@ -8330,8 +8406,13 @@ const PAGINA_ = [
   "            alvo.removeAttribute('transform');",
   "            return;",
   "          }",
-  "          const base = gr.espacos ? gr.ajusteMovel : { x: 0, y: 0 }; // a pilha guarda só o que passa do ajuste do móvel",
-  "          estado.ajustes[gr.id] = { x: Math.round(gr.x + dx - gr.baseX - base.x), y: Math.round(gr.y + dy - gr.baseY - base.y) };",
+  "          if (gr.modoFixo) {",
+  "            // Posição fixa: canto de baixo à esquerda da etiqueta mais baixa (a pilha cresce para cima).",
+  "            estado.ajustes[gr.id] = { x: Math.round(gr.x + dx), y: Math.round(gr.y + dy + gr.h) };",
+  "          } else {",
+  "            const base = gr.espacos ? gr.ajusteMovel : { x: 0, y: 0 }; // a pilha guarda só o que passa do ajuste do móvel",
+  "            estado.ajustes[gr.id] = { x: Math.round(gr.x + dx - gr.baseX - base.x), y: Math.round(gr.y + dy - gr.baseY - base.y) };",
+  "          }",
   "          atualizarBarraEdicao();",
   "          desenhar();",
   "        };",
@@ -8394,12 +8475,34 @@ const PAGINA_ = [
   "    desenhar();",
   "  }",
   "",
+  "  /**",
+  "   * Ajustes a salvar. As posições ficam fixas (valem em qualquer ciclo): numa planta que ainda guarda",
+  "   * deslocamentos (sem largura do slide), todas as pilhas ficam na posição em que estão agora (as",
+  "   * ajustadas e as automáticas, para o desenho não mudar), e a largura do slide atual é salva junto;",
+  "   * os ajustes de pilhas que não aparecem neste ciclo são zerados.",
+  "   */",
+  "  function ajustesParaSalvar(planta) {",
+  "    const tamanho = tamanhoEtiquetas();",
+  "    if (planta.loja && planta.loja.slide) {",
+  "      return estado.ajustes.LOJA ? estado.ajustes : Object.assign({ LOJA: { escala: tamanho } }, estado.ajustes);",
+  "    }",
+  "    const ajustes = { LOJA: { escala: tamanho, slide: estado.tela.w } };",
+  "    planta.moveis.forEach((m) => {",
+  "      ajustes[m.id] = { x: 0, y: 0 };",
+  "      Object.keys(m.ajustesEspacos || {}).forEach((k) => { ajustes[m.id + '/' + k] = { x: 0, y: 0 }; });",
+  "    });",
+  "    (estado.grupos || []).forEach((gr) => { ajustes[gr.id] = { x: Math.round(gr.x), y: Math.round(gr.y + gr.h) }; });",
+  "    return ajustes;",
+  "  }",
+  "",
   "  async function salvarAjustes() {",
   "    const planta = plantaAtual();",
   "    carregando(true, 'Salvando posições…');",
   "    try {",
+  "      estado.ajustes = ajustesParaSalvar(planta);",
   "      const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);",
-  "      if (estado.ajustes.LOJA) planta.loja = Object.assign({}, planta.loja, { escalaEtiquetas: estado.ajustes.LOJA.escala });",
+  "      const L = estado.ajustes.LOJA;",
+  "      if (L) planta.loja = Object.assign({}, planta.loja, { escalaEtiquetas: L.escala }, L.slide ? { slide: L.slide } : {});",
   "      planta.moveis.forEach((m) => {",
   "        Object.keys(estado.ajustes).forEach((id) => {",
   "          const a = estado.ajustes[id];",
@@ -8446,7 +8549,7 @@ const PAGINA_ = [
   "      moveis[m.id] = { x: a.x || 0, y: a.y || 0 };",
   "      if (Object.keys(espacos).length) moveis[m.id].espacos = espacos;",
   "    });",
-  "    return { tamanho, moveis };",
+  "    return { tamanho, slide: (pendentes.LOJA && pendentes.LOJA.slide) || (p.loja && p.loja.slide) || 0, moveis };",
   "  }",
   "",
   "  /** Baixa a posição das etiquetas de todas as plantas (para virar a base do código, em Layouts.gs). */",
@@ -8459,7 +8562,7 @@ const PAGINA_ = [
   "      '  \"versao\": 1,',",
   "      '  \"geradoEm\": ' + JSON.stringify(new Date().toISOString()) + ',',",
   "      '  \"ciclo\": ' + JSON.stringify(estado.ciclo || '') + ',',",
-  "      '  \"legenda\": \"por planta: tamanho das etiquetas (%) e, por móvel, o deslocamento da pilha em px (x, y) a partir da posição automática; espacos = deslocamento de cada pilha de espaço, somado ao do móvel\",',",
+  "      '  \"legenda\": \"por planta: tamanho das etiquetas (%), largura do slide (px) e, por móvel, a posição da pilha (x, y). Com slide: posição fixa = canto de baixo à esquerda da etiqueta mais baixa, em px do slide; sem slide (0): deslocamento a partir da posição automática. espacos = pilha de cada espaço\",',",
   "      '  \"plantas\": {',",
   "    ];",
   "    const ids = Object.keys(plantas);",
@@ -8468,6 +8571,7 @@ const PAGINA_ = [
   "      const movs = Object.keys(p.moveis);",
   "      L.push('    ' + JSON.stringify(id) + ': {');",
   "      L.push('      \"tamanho\": ' + p.tamanho + ',');",
+  "      L.push('      \"slide\": ' + p.slide + ',');",
   "      L.push('      \"moveis\": {' + (movs.length ? '' : '}'));",
   "      movs.forEach((m, j) => L.push('        ' + JSON.stringify(m) + ': ' + JSON.stringify(p.moveis[m]) + (j < movs.length - 1 ? ',' : '')));",
   "      if (movs.length) L.push('      }');",

@@ -602,8 +602,13 @@ const App = (() => {
             alvo.removeAttribute('transform');
             return;
           }
-          const base = gr.espacos ? gr.ajusteMovel : { x: 0, y: 0 }; // a pilha guarda só o que passa do ajuste do móvel
-          estado.ajustes[gr.id] = { x: Math.round(gr.x + dx - gr.baseX - base.x), y: Math.round(gr.y + dy - gr.baseY - base.y) };
+          if (gr.modoFixo) {
+            // Posição fixa: canto de baixo à esquerda da etiqueta mais baixa (a pilha cresce para cima).
+            estado.ajustes[gr.id] = { x: Math.round(gr.x + dx), y: Math.round(gr.y + dy + gr.h) };
+          } else {
+            const base = gr.espacos ? gr.ajusteMovel : { x: 0, y: 0 }; // a pilha guarda só o que passa do ajuste do móvel
+            estado.ajustes[gr.id] = { x: Math.round(gr.x + dx - gr.baseX - base.x), y: Math.round(gr.y + dy - gr.baseY - base.y) };
+          }
           atualizarBarraEdicao();
           desenhar();
         };
@@ -666,12 +671,34 @@ const App = (() => {
     desenhar();
   }
 
+  /**
+   * Ajustes a salvar. As posições ficam fixas (valem em qualquer ciclo): numa planta que ainda guarda
+   * deslocamentos (sem largura do slide), todas as pilhas ficam na posição em que estão agora (as
+   * ajustadas e as automáticas, para o desenho não mudar), e a largura do slide atual é salva junto;
+   * os ajustes de pilhas que não aparecem neste ciclo são zerados.
+   */
+  function ajustesParaSalvar(planta) {
+    const tamanho = tamanhoEtiquetas();
+    if (planta.loja && planta.loja.slide) {
+      return estado.ajustes.LOJA ? estado.ajustes : Object.assign({ LOJA: { escala: tamanho } }, estado.ajustes);
+    }
+    const ajustes = { LOJA: { escala: tamanho, slide: estado.tela.w } };
+    planta.moveis.forEach((m) => {
+      ajustes[m.id] = { x: 0, y: 0 };
+      Object.keys(m.ajustesEspacos || {}).forEach((k) => { ajustes[m.id + '/' + k] = { x: 0, y: 0 }; });
+    });
+    (estado.grupos || []).forEach((gr) => { ajustes[gr.id] = { x: Math.round(gr.x), y: Math.round(gr.y + gr.h) }; });
+    return ajustes;
+  }
+
   async function salvarAjustes() {
     const planta = plantaAtual();
     carregando(true, 'Salvando posições…');
     try {
+      estado.ajustes = ajustesParaSalvar(planta);
       const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);
-      if (estado.ajustes.LOJA) planta.loja = Object.assign({}, planta.loja, { escalaEtiquetas: estado.ajustes.LOJA.escala });
+      const L = estado.ajustes.LOJA;
+      if (L) planta.loja = Object.assign({}, planta.loja, { escalaEtiquetas: L.escala }, L.slide ? { slide: L.slide } : {});
       planta.moveis.forEach((m) => {
         Object.keys(estado.ajustes).forEach((id) => {
           const a = estado.ajustes[id];
@@ -718,7 +745,7 @@ const App = (() => {
       moveis[m.id] = { x: a.x || 0, y: a.y || 0 };
       if (Object.keys(espacos).length) moveis[m.id].espacos = espacos;
     });
-    return { tamanho, moveis };
+    return { tamanho, slide: (pendentes.LOJA && pendentes.LOJA.slide) || (p.loja && p.loja.slide) || 0, moveis };
   }
 
   /** Baixa a posição das etiquetas de todas as plantas (para virar a base do código, em Layouts.gs). */
@@ -731,7 +758,7 @@ const App = (() => {
       '  "versao": 1,',
       '  "geradoEm": ' + JSON.stringify(new Date().toISOString()) + ',',
       '  "ciclo": ' + JSON.stringify(estado.ciclo || '') + ',',
-      '  "legenda": "por planta: tamanho das etiquetas (%) e, por móvel, o deslocamento da pilha em px (x, y) a partir da posição automática; espacos = deslocamento de cada pilha de espaço, somado ao do móvel",',
+      '  "legenda": "por planta: tamanho das etiquetas (%), largura do slide (px) e, por móvel, a posição da pilha (x, y). Com slide: posição fixa = canto de baixo à esquerda da etiqueta mais baixa, em px do slide; sem slide (0): deslocamento a partir da posição automática. espacos = pilha de cada espaço",',
       '  "plantas": {',
     ];
     const ids = Object.keys(plantas);
@@ -740,6 +767,7 @@ const App = (() => {
       const movs = Object.keys(p.moveis);
       L.push('    ' + JSON.stringify(id) + ': {');
       L.push('      "tamanho": ' + p.tamanho + ',');
+      L.push('      "slide": ' + p.slide + ',');
       L.push('      "moveis": {' + (movs.length ? '' : '}'));
       movs.forEach((m, j) => L.push('        ' + JSON.stringify(m) + ': ' + JSON.stringify(p.moveis[m]) + (j < movs.length - 1 ? ',' : '')));
       if (movs.length) L.push('      }');

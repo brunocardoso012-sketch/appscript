@@ -151,7 +151,7 @@ test('importar aba Layout substitui só as plantas presentes e mantém números'
   assert.equal(r.layout, 2);
   const d = run('getDados()');
   const p2 = d.plantas.find((p) => p.id === '02');
-  assert.deepEqual(p2.loja, { largura: 30, profundidade: 25, alturaParede: 5, escalaEtiquetas: 100 });
+  assert.deepEqual(p2.loja, { largura: 30, profundidade: 25, alturaParede: 5, escalaEtiquetas: 100, slide: 0 });
   assert.equal(p2.moveis.length, 1);
   assert.equal(p2.moveis[0].x, 3);
   assert.equal(d.plantas.find((p) => p.id === '03').moveis.length, 31, 'outras plantas intactas');
@@ -195,7 +195,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
     const movimentos = valoresMovimentosExemplo_().filter(function (l, i) { return i === 0 || l[1] !== '02'; });
     movimentos.push(['Ciclo exemplo', '02', 'VELHO-01', '', 'BOT']);
     movimentos.push(['C9', '02', 'VELHO-01', '', 'EUD']);
-    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 12, '03': 8, '04': 9, _exemplo: VERSAO_EXEMPLO }); // só a 02 pendente
+    return atualizarModelosPlantas_({ layout: layout, movimentos: movimentos }, { '01': 12, '03': 8, '04': 11, _exemplo: VERSAO_EXEMPLO }); // só a 02 pendente
   })()`);
   assert.deepEqual(r.plantas, ['02']);
   assert.equal(r.versoes['02'], 11);
@@ -256,7 +256,7 @@ test('ciclo de exemplo novo troca todas as linhas dele (e só dele)', () => {
       ['Ciclo exemplo', 'TODAS', 'GON-01', '', 'BOT'], ['C9', '01', 'GONDOLA 1', '', 'EUD']],
     paineis: [colunasPaineis_().map(function (c) { return c.titulo; }),
       ['Ciclo exemplo', 'TODAS', 'CALLOUT', 'velho', 'BOT', 'PAR-02'], ['C9', 'TODAS', 'NOTA', 'minha nota', '', '']],
-  }, { '01': 12, '02': 11, '03': 8, '04': 9, _exemplo: 1 })`);
+  }, { '01': 12, '02': 11, '03': 8, '04': 11, _exemplo: 1 })`);
   assert.deepEqual(r.plantas, ['exemplo']);
   assert.ok(!r.abas.movimentos.some((l) => l[2] === 'GON-01'), 'linha antiga do exemplo sai');
   assert.ok(r.abas.movimentos.some((l) => l[0] === 'C9'), 'outro ciclo fica');
@@ -424,11 +424,15 @@ test('tamanho das etiquetas da planta fica na linha LOJA do Layout', () => {
 test('ciclo de exemplo cheio: todos os móveis com etiquetas, na quantidade de cada tipo', () => {
   const { run } = carregarGas();
   const d = run('montarDados_(valoresLayoutPadrao_(), valoresMovimentosExemplo_())');
-  const qtd = { GONDOLA: 2, PIRAMIDE: 2, FILA: 2, CUBO: 2, GONDOLA_PAREDE: 3, TOTEM: 1, MESA: 2, MESA_3: 2, PAINEL: 3, EXPOSITOR_OUI: 3, ILHA_OUI: 3, VITRINE_L: 3, CAIXA: 1, MAKE: 1, EXTRA: 1 };
+  const qtd = { GONDOLA: 2, PIRAMIDE: 2, FILA: 2, CUBO: 2, GONDOLA_PAREDE: 3, TOTEM: 1, MESA: 2, MESA_3: 2, PAINEL: 3, EXPOSITOR_OUI: 3, ILHA_OUI: 3, VITRINE_L: 3, MAKE: 1, EXTRA: 1 };
   const espacos = { GONDOLA: ['LADO-A', 'MEIO-A', 'MEIO-B', 'LADO-B'], TOTEM: ['PAINEL-1', 'PAINEL-2', 'PAINEL-3'], MESA: ['FRENTE-1', 'FRENTE-2'], MESA_3: ['FRENTE-1', 'FRENTE-2', 'FRENTE-3'], MAKE: ['TESTEIRA-1', 'TESTEIRA-2', 'TESTEIRA-3', 'TESTEIRA-4'] };
   d.plantas.forEach((p) => {
     const movs = d.movimentos['Ciclo exemplo cheio'][p.id];
     p.moveis.forEach((m) => {
+      if (m.tipo === 'CAIXA') {
+        assert.ok(!movs[m.id], 'móvel de atendimento sem etiqueta');
+        return;
+      }
       (espacos[m.tipo] || ['']).forEach((e) => {
         const linha = movs[m.id + (e ? '/' + e : '')];
         assert.ok(linha, p.id + ' ' + m.id + ' ' + e + ' preenchido');
@@ -436,4 +440,27 @@ test('ciclo de exemplo cheio: todos os móveis com etiquetas, na quantidade de c
       });
     });
   });
+});
+
+test('móvel de atendimento não leva etiqueta: a linha dele é ignorada, com aviso', () => {
+  const { run } = carregarGas();
+  const d = run(`montarDados_(valoresLayoutPadrao_(), [
+    ['Ciclo', 'Planta', 'ID Móvel', 'Marca do Móvel', 'Etiqueta 1', 'Marca Etiqueta 1'],
+    ['C1', '01', 'MOVEL DE ATENDIMENTO 1', 'BOT', 'STOPPER', 'BOT'],
+    ['C1', '01', 'PIRAMIDE 1', 'BOT', 'BOTIPROMO', 'BOT'],
+  ])`);
+  assert.ok(!d.movimentos.C1['01']['MOVEL DE ATENDIMENTO 1']);
+  assert.ok(d.movimentos.C1['01']['PIRAMIDE 1']);
+  assert.ok(d.avisos.some((a) => /atendimento/.test(a)));
+});
+
+test('ER GG: posições fixas das etiquetas (largura do slide salva na linha LOJA)', () => {
+  const { run } = carregarGas();
+  const d = run('montarDados_(valoresLayoutPadrao_(), [])');
+  const gg = d.plantas.filter((p) => p.id === '04')[0];
+  assert.equal(gg.loja.slide, 3072);
+  const g1 = gg.moveis.filter((m) => m.id === 'GONDOLA 1')[0];
+  assert.ok(g1.ajustesEspacos['LADO-A'].x > 0, 'pilha com posição fixa');
+  assert.equal(d.plantas.filter((p) => p.id === '01')[0].loja.slide, 0, 'outras plantas: slide automático');
+  assert.equal(run("normSlide_('abc')"), 0);
 });
