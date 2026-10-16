@@ -697,6 +697,60 @@ const App = (() => {
     }
   }
 
+  /**
+   * Ajustes de etiqueta de uma planta, já com os não salvos (estado.ajustes) quando é a planta aberta:
+   * { tamanho, moveis: { ID: { x, y, espacos: { 'LADO-A': { x, y } } } } } (só os que têm ajuste).
+   */
+  function ajustesDaPlanta(p) {
+    const pendentes = p.id === (plantaAtual() || {}).id ? estado.ajustes : {};
+    const tamanho = (pendentes.LOJA && pendentes.LOJA.escala) || (p.loja && p.loja.escalaEtiquetas) || 100;
+    const moveis = {};
+    p.moveis.forEach((m) => {
+      const a = pendentes[m.id] || { x: m.ajusteX || 0, y: m.ajusteY || 0 };
+      const espacos = Object.assign({}, m.ajustesEspacos);
+      Object.keys(pendentes).forEach((id) => {
+        if (id.indexOf(m.id + '/') !== 0) return;
+        const k = id.slice(m.id.length + 1);
+        if (pendentes[id].x || pendentes[id].y) espacos[k] = { x: pendentes[id].x, y: pendentes[id].y };
+        else delete espacos[k];
+      });
+      if (!a.x && !a.y && !Object.keys(espacos).length) return;
+      moveis[m.id] = { x: a.x || 0, y: a.y || 0 };
+      if (Object.keys(espacos).length) moveis[m.id].espacos = espacos;
+    });
+    return { tamanho, moveis };
+  }
+
+  /** Baixa a posição das etiquetas de todas as plantas (para virar a base do código, em Layouts.gs). */
+  function baixarPosicoes() {
+    const plantas = {};
+    estado.dados.plantas.forEach((p) => { plantas[p.id] = ajustesDaPlanta(p); });
+    const L = [
+      '{',
+      '  "formato": "plano-varejo-etiquetas",',
+      '  "versao": 1,',
+      '  "geradoEm": ' + JSON.stringify(new Date().toISOString()) + ',',
+      '  "ciclo": ' + JSON.stringify(estado.ciclo || '') + ',',
+      '  "legenda": "por planta: tamanho das etiquetas (%) e, por móvel, o deslocamento da pilha em px (x, y) a partir da posição automática; espacos = deslocamento de cada pilha de espaço, somado ao do móvel",',
+      '  "plantas": {',
+    ];
+    const ids = Object.keys(plantas);
+    ids.forEach((id, i) => {
+      const p = plantas[id];
+      const movs = Object.keys(p.moveis);
+      L.push('    ' + JSON.stringify(id) + ': {');
+      L.push('      "tamanho": ' + p.tamanho + ',');
+      L.push('      "moveis": {' + (movs.length ? '' : '}'));
+      movs.forEach((m, j) => L.push('        ' + JSON.stringify(m) + ': ' + JSON.stringify(p.moveis[m]) + (j < movs.length - 1 ? ',' : '')));
+      if (movs.length) L.push('      }');
+      L.push('    }' + (i < ids.length - 1 ? ',' : ''));
+    });
+    L.push('  }', '}', '');
+    const data = new Date().toISOString().slice(0, 10);
+    Planilha.baixarBlob(new Blob([L.join('\n')], { type: 'application/json' }), 'posicoes-etiquetas-' + data + '.json');
+    toast(Object.keys(estado.ajustes).length ? 'Posições baixadas (inclui as alterações ainda não salvas).' : 'Posições das etiquetas baixadas.');
+  }
+
   /* ------------------------ espaço por marca (painel) ---------------------- */
 
   const COR_SEM_MARCA = '#C4C4C4';
@@ -1715,6 +1769,7 @@ const App = (() => {
     // O menu fecha no clique; o tour começa depois, para não destacar o menu ainda aberto.
     ao('btnTutorial', 'click', () => estado.dados && setTimeout(() => Tutorial.iniciar(), 0));
     ao('btnSalvarAjustes', 'click', salvarAjustes);
+    ao('btnBaixarPosicoes', 'click', baixarPosicoes);
     ao('btnConfigurar', 'click', configurar);
     ao('btnConstruir', 'click', () => {
       if (!estado.dados) return;

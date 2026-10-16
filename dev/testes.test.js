@@ -33,7 +33,7 @@ test('layout padrão + ciclo de exemplo são lidos sem avisos', () => {
   const d = run('montarDados_(valoresLayoutPadrao_(), valoresMovimentosExemplo_(), valoresPaineisExemplo_())');
   assert.deepEqual(d.plantas.map((p) => p.id), ['01', '02', '03', '04']);
   assert.deepEqual(d.plantas.map((p) => p.nome), ['ER P', 'ER M', 'ER G', 'ER GG']);
-  assert.deepEqual(d.ciclos, ['Ciclo exemplo']);
+  assert.deepEqual(d.ciclos, ['Ciclo exemplo', 'Ciclo exemplo cheio']);
   assert.deepEqual(d.avisos, []);
   assert.ok(d.movimentos['Ciclo exemplo'].TODAS['EXTRA-CESTINHAS']);
   assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1/LADO-A']);
@@ -82,7 +82,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.equal(r.paineis, 1);
 
   const d2 = run('getDados()');
-  assert.deepEqual(Array.from(d2.ciclos), ['Ciclo exemplo', 'C15/2026']);
+  assert.deepEqual(Array.from(d2.ciclos), ['Ciclo exemplo', 'Ciclo exemplo cheio', 'C15/2026']);
   const ilha = d2.movimentos['C15/2026']['02']['ILHA-01'];
   assert.equal(ilha.marca, 'EUD');
   assert.equal(ilha.simbolo, 'FIXO');
@@ -419,4 +419,21 @@ test('tamanho das etiquetas da planta fica na linha LOJA do Layout', () => {
   assert.deepEqual([p.moveis.find((m) => m.id === 'PIRAMIDE 1').ajusteX, run('getDados()').plantas[1].loja.escalaEtiquetas], [3, 100]);
   assert.equal(run("normTamanhoEtiquetas_('500%')"), 250);
   assert.equal(run("normTamanhoEtiquetas_('')"), 100);
+});
+
+test('ciclo de exemplo cheio: todos os móveis com etiquetas, na quantidade de cada tipo', () => {
+  const { run } = carregarGas();
+  const d = run('montarDados_(valoresLayoutPadrao_(), valoresMovimentosExemplo_())');
+  const qtd = { GONDOLA: 2, PIRAMIDE: 2, FILA: 2, CUBO: 2, GONDOLA_PAREDE: 3, TOTEM: 1, MESA: 2, MESA_3: 2, PAINEL: 3, EXPOSITOR_OUI: 3, ILHA_OUI: 3, VITRINE_L: 3, CAIXA: 1, MAKE: 1, EXTRA: 1 };
+  const espacos = { GONDOLA: ['LADO-A', 'MEIO-A', 'MEIO-B', 'LADO-B'], TOTEM: ['PAINEL-1', 'PAINEL-2', 'PAINEL-3'], MESA: ['FRENTE-1', 'FRENTE-2'], MESA_3: ['FRENTE-1', 'FRENTE-2', 'FRENTE-3'], MAKE: ['TESTEIRA-1', 'TESTEIRA-2', 'TESTEIRA-3', 'TESTEIRA-4'] };
+  d.plantas.forEach((p) => {
+    const movs = d.movimentos['Ciclo exemplo cheio'][p.id];
+    p.moveis.forEach((m) => {
+      (espacos[m.tipo] || ['']).forEach((e) => {
+        const linha = movs[m.id + (e ? '/' + e : '')];
+        assert.ok(linha, p.id + ' ' + m.id + ' ' + e + ' preenchido');
+        assert.equal(linha.etiquetas.length, qtd[m.tipo], p.id + ' ' + m.id + ' ' + e);
+      });
+    });
+  });
 });
