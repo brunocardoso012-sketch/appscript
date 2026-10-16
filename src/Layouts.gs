@@ -28,7 +28,7 @@
  * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
-const VERSAO_MODELO_PLANTAS = { '01': 12, '02': 11, '03': 8, '04': 11 };
+const VERSAO_MODELO_PLANTAS = { '01': 12, '02': 11, '03': 9, '04': 11 };
 
 /**
  * Versão do ciclo de exemplo inteiro (Movimentos + Painéis, todas as plantas e TODAS).
@@ -93,41 +93,41 @@ const LAYOUT_PADRAO = {
       ['MOVEL DE PAREDE 4', 'CBEM/NSPA', 'GONDOLA_PAREDE', 9, 0, 3, 1.1, 3.2],
     ],
   },
-  // PLANTA 03 (ER G): layout montado no modo "Construir loja".
+  // PLANTA 03 (ER G): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
   '03': {
-    loja: [14, 16, 4.6],
+    loja: [14, 16, 4.6, 100, 2784], // posições fixas das etiquetas (slide de 2784 px)
     moveis: [
       ['EXTRA-CESTINHAS', 'Cestinhas', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
-      ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 12.5, 2.5, 1.02, 1.02, 1.94],
-      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3, 2.5, 1.6, 4, 1.94],
-      ['PDV MOVEL 1', 'PDV móvel 1', 'CUBO', 6.5, 12, 1.3, 1.3, 1.44],
-      ['BALCAO RECEPCAO 1', 'Balcão recepção 1', 'VITRINE_L', 11.5, 12.5, 2.4, 2.4, 1.28, 0, 0, 0, '', 90],
+      ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 12.5, 2.5, 1.02, 1.02, 1.94, 0, 2092, 992, '', 0],
+      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1230, y: 721 }, 'LADO-B': { x: 1497, y: 520 }, 'MEIO-A': { x: 1455, y: 611 }, 'MEIO-B': { x: 1225, y: 561 } }],
+      ['PDV MOVEL 1', 'PDV móvel 1', 'CUBO', 6.5, 12, 1.3, 1.3, 1.44, 0, 1101, 1084, '', 0],
+      ['BALCAO RECEPCAO 1', 'Balcão recepção 1', 'VITRINE_L', 11.5, 12.5, 2.4, 2.4, 1.28, 0, 1166, 1371, '', 90],
       ['MOVEL DE ATENDIMENTO 3', 'Móvel de atendimento 3', 'CAIXA', 0, 13, 1.2, 1.8, 1.7],
-      ['PAREDE OUI 1', 'Parede O.U.i 1', 'PAINEL', 11, 0.5, 3, 0.8, 4.5],
-      ['MOVEL DE FILA 6', 'Móvel de fila 6', 'FILA', 3.5, 13, 1.5, 0.4, 1.46],
-      ['TOTEM OUI 1', 'Totem O.U.i 1', 'EXPOSITOR_OUI', 7, 10.4, 0.8, 0.8, 1.94],
-      ['MOVEL DE PAREDE 1', 'Perf. Fem. BOT', 'GONDOLA_PAREDE', 0.5, 0, 2.5, 1.1, 3.2],
-      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 6, 2.5, 1.6, 4, 1.94],
-      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 9, 2.5, 1.6, 4, 1.94],
-      ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 12.5, 4.5, 1.02, 1.02, 1.94],
-      ['PIRAMIDE 3', 'Pirâmide 3', 'PIRAMIDE', 12.5, 6.5, 1.02, 1.02, 1.94],
+      ['PAREDE OUI 1', 'Parede O.U.i 1', 'PAINEL', 11, 0.5, 3, 0.8, 4.5, 0, 2070, 733, '', 0],
+      ['MOVEL DE FILA 6', 'Móvel de fila 6', 'FILA', 3.5, 13, 1.5, 0.4, 1.46, 0, 846, 974, '', 0],
+      ['TOTEM OUI 1', 'Totem O.U.i 1', 'EXPOSITOR_OUI', 7, 10.4, 0.8, 0.8, 1.94, 0, 1208, 1042, '', 0],
+      ['MOVEL DE PAREDE 1', 'Perf. Fem. BOT', 'GONDOLA_PAREDE', 0.5, 0, 2.5, 1.1, 3.2, 0, 1432, 353, '', 0],
+      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 6, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1364, y: 812 }, 'LADO-B': { x: 1698, y: 619 }, 'MEIO-A': { x: 1646, y: 726 }, 'MEIO-B': { x: 1424, y: 694 } }],
+      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 9, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1561, y: 925 }, 'LADO-B': { x: 1871, y: 747 }, 'MEIO-A': { x: 1798, y: 886 }, 'MEIO-B': { x: 1658, y: 794 } }],
+      ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 12.5, 4.5, 1.02, 1.02, 1.94, 0, 1961, 1067, '', 0],
+      ['PIRAMIDE 3', 'Pirâmide 3', 'PIRAMIDE', 12.5, 6.5, 1.02, 1.02, 1.94, 0, 1835, 1146, '', 0],
       ['MOVEL DE ATENDIMENTO 2', 'Móvel de atendimento 2', 'CAIXA', 0, 11, 1.2, 1.8, 1.7],
-      ['MOVEL DE FILA 1', 'Móvel de fila 1', 'FILA', 2, 9, 1.5, 0.4, 1.46],
-      ['MOVEL DE FILA 7', 'Móvel de fila 7', 'FILA', 2, 15, 1.5, 0.4, 1.46],
-      ['MOVEL DE FILA 3', 'Móvel de fila 3', 'FILA', 2, 11, 1.5, 0.4, 1.46],
-      ['MOVEL DE FILA 5', 'Móvel de fila 5', 'FILA', 2, 13, 1.5, 0.4, 1.46],
-      ['MOVEL DE FILA 4', 'Móvel de fila 4', 'FILA', 3.5, 11, 1.5, 0.4, 1.46],
-      ['MOVEL DE FILA 8', 'Móvel de fila 8', 'FILA', 3.5, 15, 1.5, 0.4, 1.46],
-      ['MOVEL DE FILA 2', 'Móvel de fila 2', 'FILA', 3.5, 9, 1.5, 0.4, 1.46],
-      ['MESA DESTAQUE 3 FRENTES 1', 'Mesa destaque 3 frentes 1', 'MESA_3', 9, 9, 3.9, 1.4, 2.6],
-      ['TOTEM 1', 'Totem 1', 'TOTEM', 7.5, 14, 0.35, 1.5, 3.4],
-      ['MOVEL MAKE 1', 'Móvel make 1', 'MAKE', -0.5, 1.5, 1.4, 6, 3.2],
+      ['MOVEL DE FILA 1', 'Móvel de fila 1', 'FILA', 2, 9, 1.5, 0.4, 1.46, 0, 958, 764, '', 0],
+      ['MOVEL DE FILA 7', 'Móvel de fila 7', 'FILA', 2, 15, 1.5, 0.4, 1.46, 0, 619, 977, '', 0],
+      ['MOVEL DE FILA 3', 'Móvel de fila 3', 'FILA', 2, 11, 1.5, 0.4, 1.46, 0, 836, 847, '', 0],
+      ['MOVEL DE FILA 5', 'Móvel de fila 5', 'FILA', 2, 13, 1.5, 0.4, 1.46, 0, 721, 905, '', 0],
+      ['MOVEL DE FILA 4', 'Móvel de fila 4', 'FILA', 3.5, 11, 1.5, 0.4, 1.46, 0, 893, 916, '', 0],
+      ['MOVEL DE FILA 8', 'Móvel de fila 8', 'FILA', 3.5, 15, 1.5, 0.4, 1.46, 0, 717, 1050, '', 0],
+      ['MOVEL DE FILA 2', 'Móvel de fila 2', 'FILA', 3.5, 9, 1.5, 0.4, 1.46, 0, 1089, 841, '', 0],
+      ['MESA DESTAQUE 3 FRENTES 1', 'Mesa destaque 3 frentes 1', 'MESA_3', 9, 9, 3.9, 1.4, 2.6, 0, 0, 0, '', 0, { 'FRENTE-1': { x: 1346, y: 967 }, 'FRENTE-2': { x: 1435, y: 1040 }, 'FRENTE-3': { x: 1519, y: 1130 } }],
+      ['TOTEM 1', 'Totem 1', 'TOTEM', 7.5, 14, 0.35, 1.5, 3.4, 0, 0, 0, '', 0, { 'PAINEL-1': { x: 903, y: 1048 }, 'PAINEL-2': { x: 901, y: 1098 }, 'PAINEL-3': { x: 899, y: 1146 } }],
+      ['MOVEL MAKE 1', 'Móvel make 1', 'MAKE', -0.5, 1.5, 1.4, 6, 3.2, 0, 0, 0, '', 0, { 'TESTEIRA-1': { x: 1268, y: 309 }, 'TESTEIRA-2': { x: 1135, y: 362 }, 'TESTEIRA-3': { x: 1050, y: 415 }, 'TESTEIRA-4': { x: 971, y: 469 } }],
       ['MOVEL DE ATENDIMENTO 1', 'Móvel de atendimento 1', 'CAIXA', 0, 9, 1.2, 1.8, 1.7],
-      ['MOVEL DE PAREDE 2', 'Perf. Masc. BOT', 'GONDOLA_PAREDE', 3, 0, 2.5, 1.1, 3.2],
-      ['MOVEL DE PAREDE 3', 'Perf. Fem. EUD', 'GONDOLA_PAREDE', 5.5, 0, 2.5, 1.1, 3.2],
-      ['MOVEL DE PAREDE 4', 'CBEM/NSPA', 'GONDOLA_PAREDE', 8, 0, 2.5, 1.1, 3.2],
+      ['MOVEL DE PAREDE 2', 'Perf. Masc. BOT', 'GONDOLA_PAREDE', 3, 0, 2.5, 1.1, 3.2, 0, 1610, 442, '', 0],
+      ['MOVEL DE PAREDE 3', 'Perf. Fem. EUD', 'GONDOLA_PAREDE', 5.5, 0, 2.5, 1.1, 3.2, 0, 1781, 543, '', 0],
+      ['MOVEL DE PAREDE 4', 'CBEM/NSPA', 'GONDOLA_PAREDE', 8, 0, 2.5, 1.1, 3.2, 0, 1921, 619, '', 0],
     ],
   },
   // PLANTA 04 (ER GG): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
