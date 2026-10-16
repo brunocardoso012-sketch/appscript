@@ -95,8 +95,10 @@ function salvarAjustesEtiquetas(planta, ajustes) {
       const a = ajustes[id] || {};
       if (normId_(id) === 'LOJA') {
         // Tamanho das etiquetas da planta (em %).
+        // Tamanho das etiquetas (%) e largura do slide (posições fixas) da planta.
         const t = normTamanhoEtiquetas_(a.escala);
-        if (t !== 100) salvos.LOJA = { escala: t };
+        const s = normSlide_(a.slide) || (salvos.LOJA && salvos.LOJA.slide) || 0;
+        if (t !== 100 || s) salvos.LOJA = { escala: t, slide: s };
         else delete salvos.LOJA;
         return;
       }
@@ -177,7 +179,10 @@ function lerAjustes_(planta) {
 function aplicarAjustesSalvos_(plantas) {
   plantas.forEach(function (p) {
     const ajustes = lerAjustes_(p.id);
-    if (ajustes.LOJA && p.loja) p.loja.escalaEtiquetas = normTamanhoEtiquetas_(ajustes.LOJA.escala);
+    if (ajustes.LOJA && p.loja) {
+      p.loja.escalaEtiquetas = normTamanhoEtiquetas_(ajustes.LOJA.escala);
+      if (normSlide_(ajustes.LOJA.slide)) p.loja.slide = normSlide_(ajustes.LOJA.slide);
+    }
     p.moveis.forEach(function (m) {
       const atual = { x: m.ajusteX || 0, y: m.ajusteY || 0, espacos: m.ajustesEspacos || {} };
       if (!aplicarAjusteEtiquetas_(m.id, ajustes, atual)) return;

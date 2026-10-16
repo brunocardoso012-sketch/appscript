@@ -276,6 +276,7 @@ function salvarAjustesEtiquetas(planta, ajustes) {
     let iY = col('ajusteY');
     let iE = col('ajusteEspacos');
     let iT = col('tamanhoEtiquetas');
+    let iS = col('slide');
     if (iPlanta < 0 || iId < 0) throw new Error('Aba Layout sem as colunas Planta / ID Móvel.');
     let largura = valores[0].length;
     if (iX < 0) { iX = largura++; sh.getRange(1, iX + 1).setValue('Ajuste Etiqueta X (px)'); }
@@ -289,6 +290,11 @@ function salvarAjustesEtiquetas(planta, ajustes) {
       iT = largura++;
       sh.getRange(1, iT + 1).setValue('Tamanho das etiquetas (%)');
     }
+    const slide = ajustes.LOJA ? normSlide_(ajustes.LOJA.slide) : 0;
+    if (iS < 0 && slide) {
+      iS = largura++;
+      sh.getRange(1, iS + 1).setValue('Largura do slide (px)');
+    }
 
     const n = valores.length - 1;
     if (n < 1) return { atualizados: 0 };
@@ -301,6 +307,7 @@ function salvarAjustesEtiquetas(planta, ajustes) {
       if (normId_(valores[r][iId]) === 'LOJA') {
         // Linha da loja: guarda o tamanho das etiquetas da planta.
         if (tamanho) sh.getRange(r + 1, iT + 1).setValue(tamanho);
+        if (slide) sh.getRange(r + 1, iS + 1).setValue(slide);
         continue;
       }
       const atual = { x: colX[r - 1][0], y: colY[r - 1][0], espacos: lerAjustesEspacos_(colE[r - 1][0]) };
@@ -407,6 +414,7 @@ function objetosLayoutDaPlanta_(planta, layout) {
     largura: Math.max(1, n(loja.largura, 20)), profundidade: Math.max(1, n(loja.profundidade, 20)),
     altura: Math.max(0, n(loja.alturaParede, 4.5)), ajusteX: 0, ajusteY: 0,
     tamanhoEtiquetas: loja.escalaEtiquetas && loja.escalaEtiquetas !== 100 ? normTamanhoEtiquetas_(loja.escalaEtiquetas) : '',
+    slide: normSlide_(loja.slide) || '',
   }];
   const vistos = {};
   layout.moveis.forEach(function (m, i) {

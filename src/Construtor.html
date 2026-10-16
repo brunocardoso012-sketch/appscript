@@ -461,7 +461,9 @@ const Construtor = (() => {
     ];
     plantas.forEach((p, i) => {
       L.push('    ' + JSON.stringify(p.id) + ': {');
-      L.push('      "loja": ' + JSON.stringify([p.loja.largura, p.loja.profundidade, p.loja.alturaParede]) + ',');
+      const loja = [p.loja.largura, p.loja.profundidade, p.loja.alturaParede];
+      if (p.loja.slide) loja.push(p.loja.escalaEtiquetas || 100, p.loja.slide); // posições fixas das etiquetas
+      L.push('      "loja": ' + JSON.stringify(loja) + ',');
       L.push('      "moveis": [');
       p.moveis.forEach((m, j) => {
         const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0, m.dividido || '', m.giro || 0];
@@ -493,7 +495,7 @@ const Construtor = (() => {
       for (const id of ids) {
         const p = json.plantas[id];
         await app.chamar('salvarLayout', id, {
-          loja: { largura: p.loja[0], profundidade: p.loja[1], alturaParede: p.loja[2] },
+          loja: { largura: p.loja[0], profundidade: p.loja[1], alturaParede: p.loja[2], escalaEtiquetas: p.loja[3] || 100, slide: p.loja[4] || 0 },
           moveis: p.moveis.map((t) => ({
             id: t[0], descricao: t[1], tipo: t[2], x: t[3], y: t[4], w: t[5], d: t[6], h: t[7], z: t[8] || 0,
             ajusteX: t[9] || 0, ajusteY: t[10] || 0, dividido: t[11] || '', giro: t[12] || 0, ajustesEspacos: t[13] || {},

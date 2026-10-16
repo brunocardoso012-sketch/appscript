@@ -293,5 +293,6 @@ function colunasLayout_() {
     { chave: 'giro', titulo: 'Giro (graus)', apelidos: ['Giro', 'Rotação', 'Rotacao'] },
     { chave: 'ajusteEspacos', titulo: 'Ajuste Etiquetas por espaço (px)', texto: true, apelidos: ['Ajuste por espaço', 'Ajuste Espaços'] },
     { chave: 'tamanhoEtiquetas', titulo: 'Tamanho das etiquetas (%)', apelidos: ['Tamanho etiquetas', 'Tamanho das etiquetas'] },
+    { chave: 'slide', titulo: 'Largura do slide (px)', apelidos: ['Largura do slide', 'Slide'] },
   ];
 }

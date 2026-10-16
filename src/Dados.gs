@@ -236,6 +236,8 @@ function montarPlantas_(linhas, aviso) {
         profundidade: Math.max(1, numero_(l.profundidade, 20)),
         alturaParede: Math.max(0, numero_(l.altura, 4.5)),
         escalaEtiquetas: normTamanhoEtiquetas_(l.tamanhoEtiquetas),
+        // Com largura do slide, os ajustes de etiqueta da planta são posições fixas (valem em qualquer ciclo).
+        slide: normSlide_(l.slide),
       };
       return;
     }
@@ -485,6 +487,12 @@ function aplicarAjusteEtiquetas_(movel, ajustes, atual) {
     }
   });
   return achou;
+}
+
+/** Largura do slide da planta (px): 0 = automática (o slide cresce com as etiquetas). */
+function normSlide_(v) {
+  const n = Math.round(numero_(v, 0));
+  return n >= 960 && n <= 9600 ? n : 0;
 }
 
 /** Meios divididos da gôndola: "a", "B", "A e B", "sim" → '', 'A', 'B' ou 'AB'. */
