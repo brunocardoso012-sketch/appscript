@@ -1304,6 +1304,25 @@ const Render = (() => {
     return { direita: g === 0 || g === 270, frente: g === 0 || g === 90 };
   }
 
+  /**
+   * Móvel de parede: uma placa de comunicação (o espaço destaque) no meio de cada módulo, na parte
+   * de cima, um pouco saltada da frente, com o prendedor preto no alto. Devolve as caixas de cada uma.
+   */
+  function placasParede(m) {
+    const [L, C] = eixos(m);
+    const n = Math.max(1, Math.round(L / 2.2));
+    const passo = L / n;
+    const meia = Math.min(0.45, passo * 0.3);
+    const z0 = m.h * 0.6, z1 = m.h * 0.76;
+    return Array.from({ length: n }, (_, k) => {
+      const uc = passo * (k + 0.5);
+      return {
+        placa: caixaLocal(m, uc - meia, uc + meia, C - 0.02, C + 0.05, z0, z1),
+        prendedor: caixaLocal(m, uc - 0.07, uc + 0.07, C + 0.05, C + 0.07, z1 - 0.13, z1 - 0.03),
+      };
+    });
+  }
+
   /** Móvel make: altura onde começa a testeira e fundo da testeira. */
   const testeiraMake = (m) => ({ z: m.h * 0.8, fundo: Math.min(eixos(m)[1], 0.4) });
 
@@ -1326,23 +1345,14 @@ const Render = (() => {
   function desenharPrimitiva(pai, P, b, cores) {
     const m = b.movel;
     switch (m.tipo) {
-      case 'GONDOLA_PAREDE': {
-        // Estante com prateleiras e, no meio de cada módulo, uma placa cinza para comunicação
-        // (um pouco saltada da frente, na parte de cima), com o prendedor preto no alto.
-        caixa(pai, P, b, { cores, prateleiras: PRATELEIRAS.GONDOLA_PAREDE, modulo: 2.2 });
-        const [L, C] = eixos(b);
-        const loc = (u0, u1, v0, v1, z0, z1) => caixaLocal(b, u0, u1, v0, v1, z0, z1);
-        const n = Math.max(1, Math.round(L / 2.2));
-        const passo = L / n;
-        const meia = Math.min(0.45, passo * 0.3);
-        const [z0, z1] = [b.h * 0.6, b.h * 0.76];
-        for (let k = 0; k < n; k++) {
-          const uc = passo * (k + 0.5);
-          caixa(pai, P, loc(uc - meia, uc + meia, C - 0.02, C + 0.05, z0, z1), { cores: null, corNeutra: '#CFD2D6' });
-          caixa(pai, P, loc(uc - 0.07, uc + 0.07, C + 0.05, C + 0.07, z1 - 0.13, z1 - 0.03), { cores: ['#2B2B2B'] });
-        }
+      case 'GONDOLA_PAREDE':
+        // Estante neutra com prateleiras; a cor do móvel vai só nas placas de comunicação (espaço destaque).
+        caixa(pai, P, b, { cores: null, prateleiras: PRATELEIRAS.GONDOLA_PAREDE, modulo: 2.2 });
+        placasParede(b).forEach((pl) => {
+          caixa(pai, P, pl.placa, cores ? { cores } : { cores: null, corNeutra: '#CFD2D6' });
+          caixa(pai, P, pl.prendedor, { cores: ['#2B2B2B'] });
+        });
         break;
-      }
       case 'CUBO': {
         // Cubo de vidro sobre um rodapé escuro.
         const r = Math.min(0.12, b.h * 0.1);
@@ -1852,7 +1862,15 @@ const Render = (() => {
       const t = espessuraL(m);
       return P(m.x + m.w / 2, cantoL(m).frente ? m.y + m.d - t / 2 : m.y + t / 2, m.z + m.h);
     }
+    if (m.tipo === 'GONDOLA_PAREDE') return pontosPlacas(m, P)[0];
     return P(m.x + m.w / 2, m.y + m.d / 2, m.z + m.h);
+  }
+
+  /** Móvel de parede: meio da frente de cada placa de comunicação (onde chegam as linhas-guia). */
+  function pontosPlacas(m, P) {
+    return placasParede(m).map(({ placa: b }) => (m.w >= m.d
+      ? P(b.x + b.w / 2, b.y + b.d, b.z + b.h / 2)
+      : P(b.x + b.w, b.y + b.d / 2, b.z + b.h / 2)));
   }
 
   /** Seções da visão simplificada: tipos de móvel, nesta ordem (os demais vão em "Outros"). */
@@ -2016,7 +2034,8 @@ const Render = (() => {
       linhas.forEach((ln) => {
         const corMarca = !ehNeutro(ln.info.marca) && coresDe(ln.info.marca, 'etiqueta', true);
         const med = medirGrupo(ln.etiquetas, ln.simbolo, corMarca || corEtiquetaPadrao(true));
-        const legenda = ln.espacos ? nomeCurto(ln.espacos).toUpperCase() : '';
+        // Móvel de parede: a plaquinha leva o nome do móvel (a categoria do espaço destaque).
+        const legenda = ln.espacos ? nomeCurto(ln.espacos).toUpperCase() : m.tipo === 'GONDOLA_PAREDE' ? String(m.descricao || '').toUpperCase() : '';
         const wChip = legenda ? largura(legenda, ROTULO.fonteChip, 800, 'normal', FONTE_ETQ) + 10 * escalaEtq : 0;
         const topo = legenda ? ROTULO.chip + ROTULO.vaoChip : 0;
         rotulos.push(Object.assign(med, {
@@ -2034,7 +2053,7 @@ const Render = (() => {
   function ancorarRotulo(r, P) {
     const m = r.movel;
     if (!r.espacos) {
-      r.pontos = [ancoraDe(m, P)];
+      r.pontos = m.tipo === 'GONDOLA_PAREDE' ? pontosPlacas(m, P) : [ancoraDe(m, P)];
       r.dir = null;
       return;
     }
@@ -2220,6 +2239,8 @@ const Render = (() => {
         // Cobrir outro móvel confunde (parece etiqueta dele); cobrir o próprio, bem menos.
         const proprio = cobreProprio(ret, r.movel.id);
         let pena = Math.max(0, cobre(ret) - proprio) * 520 + (r.dir ? proprio * 50 : 0);
+        // Móvel de parede: a pilha não cobre a placa de comunicação (fica ao lado, com a linha-guia).
+        if (r.movel.tipo === 'GONDOLA_PAREDE' && r.pontos.some((p) => sobrepoe(ret, { x: p[0] - 22, y: p[1] - 16, w: 44, h: 32 }, 0))) pena += 300;
         if (c.custo + pena >= (melhor ? melhor.custo : Infinity)) return;
         guias.forEach((g) => { if (segmentoNoRet(g[0], g[1], ret)) pena += 90; });
         r.pontos.forEach((p) => {
