@@ -196,7 +196,7 @@ const Planilha = (() => {
     });
     r++;
     titulo('Símbolos');
-    const desenho = { MOVIMENTO: '▶', FIXO: '◆', EXPOSICAO: 'Ⓔ', NOVO: 'NEW' };
+    const desenho = { FIXO: '🔒', EXPOSICAO: 'Ⓔ', NOVO: 'NEW' };
     Object.keys(dados.simbolos).forEach((s) => {
       ws.getCell(r, 2).value = s;
       ws.getCell(r, 2).font = { bold: true };

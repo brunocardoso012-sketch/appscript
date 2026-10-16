@@ -19,7 +19,9 @@ test('normalizações', () => {
   assert.equal(run("normMarca_('bot + qdb')"), 'BOT+QDB');
   assert.equal(run("normMarca_('#ff8800')"), '#FF8800');
   assert.equal(run("normMarca_('Quem disse, berenice?')"), 'QDB');
-  assert.equal(run("normSimbolo_('▶')"), 'MOVIMENTO');
+  assert.equal(run("normSimbolo_('▶')"), '', 'o antigo símbolo movimento saiu (sem aviso)');
+  assert.equal(run("normSimbolo_('🔒')"), 'FIXO');
+  assert.equal(run("normSimbolo_('cadeado')"), 'FIXO');
   assert.equal(run("normSimbolo_('e')"), 'EXPOSICAO');
   assert.equal(run("normSecao_('TV/Rádio')"), 'TV');
   assert.equal(run("numero_('1,5')"), 1.5);
@@ -66,7 +68,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   ctx.__payload = {
     movimentos: [
       ['Planta', 'Ciclo', 'ID Móvel', 'Marca do Móvel', 'Etiqueta 1', 'Marca Etiqueta 1', 'Símbolo'],
-      ['2', 'C15/2026', 'ilha-01', 'Eudora', 'OUTLET EUD', 'EUD', '▶'],
+      ['2', 'C15/2026', 'ilha-01', 'Eudora', 'OUTLET EUD', 'EUD', '🔒'],
       ['01', 'Ciclo exemplo', 'Pirâmide 1', 'BOT+QDB', '10/2026', '', ''],
       ['', '', '', '', '', '', ''],
     ],
@@ -83,7 +85,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.deepEqual(Array.from(d2.ciclos), ['Ciclo exemplo', 'C15/2026']);
   const ilha = d2.movimentos['C15/2026']['02']['ILHA-01'];
   assert.equal(ilha.marca, 'EUD');
-  assert.equal(ilha.simbolo, 'MOVIMENTO');
+  assert.equal(ilha.simbolo, 'FIXO');
   assert.deepEqual(Object.keys(d2.movimentos['Ciclo exemplo']['01']), ['PIRAMIDE 1'], 'par (ciclo, planta) substituído; ID sem acento');
   assert.equal(d2.movimentos['Ciclo exemplo']['01']['PIRAMIDE 1'].etiquetas[0].texto, '10/2026');
   assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 10, 'outras plantas intactas');

@@ -30,7 +30,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 12, '02': 11, '03': 8, '04': 9 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 10;
+const VERSAO_EXEMPLO = 11;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -215,10 +215,10 @@ const EXEMPLO_MOVIMENTOS = {
   },
   '02': {
     'GONDOLA 2/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
-    'GONDOLA 2/MEIO-B': ['EUD', [['CUIDADOS', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 2/LADO-B': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']]],
+    'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']]],
+    'GONDOLA 2/MEIO-B': ['EUD', [['CUIDADOS', 'EUD']]],
+    'GONDOLA 2/LADO-B': ['EUD', [['OUTLET EUD', 'EUD']]],
     'PIRAMIDE 3': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'MOVEL DE FILA 3': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 4': ['QDB', [['LIQUIDA QDB', 'QDB']]],
@@ -227,10 +227,10 @@ const EXEMPLO_MOVIMENTOS = {
   },
   '03': {
     // Lado A e meio A iguais ao lado B e ao meio B da gôndola 2 da ER M.
-    'GONDOLA 3/LADO-A': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
-    'GONDOLA 3/LADO-B': ['MULTI', [], 'MOVIMENTO'],
+    'GONDOLA 3/LADO-A': ['EUD', [['OUTLET EUD', 'EUD']]],
+    'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']]],
+    'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']]],
+    'GONDOLA 3/LADO-B': ['MULTI', []],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 8': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
@@ -238,20 +238,20 @@ const EXEMPLO_MOVIMENTOS = {
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-3': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
   },
   '04': {
-    'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']], 'MOVIMENTO'],
-    'PIRAMIDE 5': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
-    'GONDOLA 4/LADO-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']], 'MOVIMENTO'],
-    'GONDOLA 4/MEIO-A': ['OUI', [], 'MOVIMENTO'],
-    'GONDOLA 4/MEIO-B': ['OUI', [], 'MOVIMENTO'],
-    'GONDOLA 4/LADO-B': ['OUI', [], 'MOVIMENTO'],
+    'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']]],
+    'PIRAMIDE 5': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']]],
+    'GONDOLA 4/LADO-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']]],
+    'GONDOLA 4/MEIO-A': ['OUI', []],
+    'GONDOLA 4/MEIO-B': ['OUI', []],
+    'GONDOLA 4/LADO-B': ['OUI', []],
     'GONDOLA 5/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'GONDOLA 5/MEIO-A': ['QDB'],
     'GONDOLA 5/MEIO-B': ['QDB'],
     'GONDOLA 5/LADO-B': ['QDB'],
-    'GONDOLA 6/LADO-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 6/MEIO-A': ['EUD', [], 'MOVIMENTO'],
-    'GONDOLA 6/MEIO-B': ['EUD', [], 'MOVIMENTO'],
-    'GONDOLA 6/LADO-B': ['EUD', [], 'MOVIMENTO'],
+    'GONDOLA 6/LADO-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']]],
+    'GONDOLA 6/MEIO-A': ['EUD', []],
+    'GONDOLA 6/MEIO-B': ['EUD', []],
+    'GONDOLA 6/LADO-B': ['EUD', []],
     'ILHA PREMIUM OUI 1': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
 };

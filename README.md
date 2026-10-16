@@ -17,7 +17,7 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 
 - **Abre com a planta limpa** (sem cores, etiquetas nem caixas de destaque) até você escolher um ciclo no seletor; a opção *Sem ciclo (planta limpa)* volta a esse estado.
 - **Seletor de ciclo e abas por planta** (ER P, ER M, ER G e ER GG = plantas 01 a 04). As setas ← → do teclado trocam de planta.
-- **Móveis coloridos pela marca**, com as etiquetas (caixas de texto) de cada móvel, os símbolos ▶ ◆ Ⓔ e NEW, as caixas de destaque que apontam para um móvel, a lateral TV/rádio, (A), (C), as notas e a faixa Cestinhas / Espaço da Beleza / Cavalete.
+- **Móveis coloridos pela marca**, com as etiquetas (caixas de texto) de cada móvel, os símbolos 🔒 (espaço fixo, com a etiqueta de borda dupla na mesma cor), Ⓔ e NEW, as caixas de destaque que apontam para um móvel, a lateral TV/rádio, (A), (C), as notas e a faixa Cestinhas / Espaço da Beleza / Cavalete.
 - **Botão "Baixar planilha base"**: gera um `.xlsx` com uma linha por móvel de cada planta, listas suspensas e cores por marca. Pode vir em branco ou já preenchido com um ciclo existente, para servir de ponto de partida do próximo.
 - **Botão "Importar planilha"**: lê o `.xlsx` preenchido, grava no Google Sheets e já mostra o ciclo importado.
 - **Zoom na planta**: role o mouse sobre a planta (ou use a pinça no celular, os botões − / + acima dela ou as teclas <kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd>). Com zoom, arraste para mover a planta. As etiquetas crescem junto com a planta, para ler melhor; as caixas de destaque continuam do mesmo tamanho na tela. Clique no percentual para voltar a 100%. O PNG sai sempre sem zoom.
@@ -209,7 +209,7 @@ Se você já tinha um ciclo próprio com os IDs antigos (`GON-01`, `PIR-02`…),
 | **Marca do Móvel** | Cor do móvel: `BOT`, `QDB`, `EUD`, `OUI`, `MULTI`, `NEUTRO`. Aceita combinação (`BOT+QDB` gera degradê) ou cor livre (`#FF8800`). |
 | Etiqueta 1…4 | Texto de cada caixinha. Quebra de linha na célula (Alt+Enter) vira quebra na etiqueta. Pirâmide, espaço da gôndola e frente de mesa mostram até 4, empilhadas; balcão, até 3; painel do totem e testeira do make, 1. No ID Móvel, o espaço depois da "/" aceita variações (`TOTEM 1/PAINEL 1`, `GONDOLA 1/LADO A`). Na planilha base, as colunas que não aparecem na planta ficam cinza. |
 | Marca Etiqueta 1…4 | Cor de cada etiqueta. Se vazio, usa a cor do móvel. |
-| Símbolo | `MOVIMENTO` (▶), `FIXO` (◆), `EXPOSICAO` (Ⓔ), `NOVO` (selo NEW). |
+| Símbolo | `FIXO` (cadeado 🔒; a etiqueta ganha borda dupla na cor dela), `EXPOSICAO` (Ⓔ), `NOVO` (selo NEW). O antigo `MOVIMENTO` (▶) saiu: se ainda estiver na planilha, é ignorado. |
 | Observação | Aparece ao passar o mouse sobre o móvel. |
 
 Um móvel sem linha no ciclo, ou sem marca, aparece **branco (neutro)**.

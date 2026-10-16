@@ -1625,10 +1625,11 @@ const Render = (() => {
   function desenharSimbolo(pai, simbolo, cx, cy, escala) {
     const k = escala || 1;
     const g = el('g', { transform: 'translate(' + cx + ',' + cy + ') scale(' + k + ')' }, pai);
-    if (simbolo === 'MOVIMENTO') {
-      poligono(g, [[-6, -7.5], [8, 0], [-6, 7.5]], { fill: '#111' });
-    } else if (simbolo === 'FIXO') {
-      poligono(g, [[0, -8.5], [8.5, 0], [0, 8.5], [-8.5, 0]], { fill: '#111' });
+    if (simbolo === 'FIXO') { // cadeado
+      el('path', { d: 'M-4.2,-1.5 V-4.6 a4.2,4.2 0 0 1 8.4,0 V-1.5', fill: 'none', stroke: '#111', 'stroke-width': 2.2 }, g);
+      el('rect', { x: -6.8, y: -1.8, width: 13.6, height: 10.3, rx: 1.8, fill: '#111' }, g);
+      el('circle', { cx: 0, cy: 2.6, r: 1.6, fill: '#FFF' }, g);
+      el('rect', { x: -0.7, y: 3.2, width: 1.4, height: 2.8, fill: '#FFF' }, g);
     } else if (simbolo === 'EXPOSICAO') {
       el('circle', { r: 8.5, fill: '#111', stroke: '#fff', 'stroke-width': 1.2 }, g);
       texto(g, 0, 4, 'E', { 'font-size': 11, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' });
@@ -1645,8 +1646,18 @@ const Render = (() => {
     return g;
   }
 
-  /** Retângulo arredondado de etiqueta: pílula numa linha, cantos suaves em várias; borda um pouco mais escura. */
-  function fundoEtiqueta(pai, x, y, w, h, cores) {
+  /**
+   * Retângulo arredondado de etiqueta: pílula numa linha, cantos suaves em várias; borda um pouco mais escura.
+   * Espaço fixo: borda dupla, um contorno a mais por fora na cor da etiqueta (com um fio branco no meio).
+   */
+  function fundoEtiqueta(pai, x, y, w, h, cores, fixo) {
+    if (fixo) {
+      const f = 2.4 * escalaEtq;
+      el('rect', {
+        class: 'etq-fixo', x: x - f, y: y - f, width: w + 2 * f, height: h + 2 * f, rx: Math.min(ETQ.raio, h / 2) + f,
+        fill: '#FFFFFF', stroke: cores[0], 'stroke-width': 1.6 * escalaEtq,
+      }, pai);
+    }
     return el('rect', {
       class: 'etq', x, y, width: w, height: h, rx: Math.min(ETQ.raio, h / 2), fill: tinta(cores, 0),
       stroke: misturar(cores[0], '#000000', 0.2), 'stroke-width': 0.8,
@@ -1841,7 +1852,7 @@ const Render = (() => {
       }));
       let ye = y + (ln.h - ln.med.h) / 2;
       ln.med.itens.forEach((it, i) => {
-        fundoEtiqueta(gl, xEtq, ye, ln.med.wEtq, it.h, it.cores);
+        fundoEtiqueta(gl, xEtq, ye, ln.med.wEtq, it.h, it.cores, ln.simbolo === 'FIXO');
         it.linhas.forEach((l, j) => {
           texto(gl, xEtq + ln.med.wEtq / 2, ye + ETQ.padY + ETQ.lh * (j + 1) - 3.6, l, {
             'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
@@ -2276,7 +2287,7 @@ const Render = (() => {
       y += r.topo;
     }
     r.itens.forEach((it, i) => {
-      fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores);
+      fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores, r.simbolo === 'FIXO');
       it.linhas.forEach((l, k) => {
         texto(g, r.x + r.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6 * escalaEtq, l, {
           'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
@@ -2470,7 +2481,7 @@ const Render = (() => {
   }
 
   function desenharLegendaSimbolos(pai, usados, simbolos) {
-    const ordem = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((s) => usados.has(s));
+    const ordem = ['FIXO', 'EXPOSICAO', 'NOVO'].filter((s) => usados.has(s));
     let y = TELA.h - 28 - (ordem.length - 1) * 44;
     const topo = y - 22;
     ordem.forEach((s) => {
@@ -2670,7 +2681,7 @@ const Render = (() => {
     const simplificada = ctx.visao === 'simplificada';
     // Tamanho das etiquetas: só na visão na planta (as fichas da visão simplificada têm largura fixa).
     definirEscalaEtiquetas(simplificada ? 1 : Math.max(0.5, Math.min(3, Number(ctx.escalaEtiquetas) || 1)));
-    const nSimbolos = comPaineis ? ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length : 0;
+    const nSimbolos = comPaineis ? ['FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length : 0;
     const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide
     const fichas = simplificada ? montarFichas(moveis, infoVis, infoEspacoVis, ctx.dados.config) : [];
     const rotulos = simplificada ? [] : montarRotulos(moveis, infoVis, infoEspacoVis, ctx.dados.config);
@@ -2685,7 +2696,7 @@ const Render = (() => {
       medNotas ? [{ x: 15, y: yNotas(H), w: medNotas.w, h: medNotas.h }] : [],
       comPaineis && extras.length ? [{ x: W - 16 - 206 * extras.length, y: H - 100, w: 206 * extras.length, h: 84 }] : [],
     );
-    const larguraLegenda = 58 + Math.max.apply(null, [0].concat(['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO']
+    const larguraLegenda = 58 + Math.max.apply(null, [0].concat(['FIXO', 'EXPOSICAO', 'NOVO']
       .filter((x) => simbolosUsados.has(x)).map((x) => largura((ctx.dados.simbolos[x] && ctx.dados.simbolos[x].descricao) || x, 19, 400))));
     const semPlanta = fichas.length > 0; // visão simplificada com etiquetas: só as fichas
     let arranjo;
@@ -4916,7 +4927,7 @@ const App = (() => {
     TV: '<svg class="lj-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="1.5"/><path d="M9 20.5h6M12 17v3.5"/></svg>',
     RADIO: '<svg class="lj-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M5 8 17 3M3 12h18"/><circle cx="8" cy="16.5" r="2.3"/><path d="M13 15.5h5M13 18h5"/></svg>',
   };
-  const GLIFOS_SIMBOLO = { MOVIMENTO: '▶', FIXO: '◆', EXPOSICAO: 'Ⓔ', NOVO: 'NEW' };
+  const GLIFOS_SIMBOLO = { FIXO: '🔒', EXPOSICAO: 'Ⓔ', NOVO: 'NEW' };
 
   /** Cor de uma etiqueta do painel: a da marca (com uma marca no filtro, as outras em cinza, como no slide). */
   function corEtiquetaPainel(marca) {
@@ -4982,7 +4993,7 @@ const App = (() => {
         }
       });
     }
-    const usados = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => estado.simbolos.indexOf(x) >= 0);
+    const usados = ['FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => estado.simbolos.indexOf(x) >= 0);
     if (usados.length) {
       const ul = novo('ul', 'lj-simbolos', null, secao('Símbolos').sec);
       usados.forEach((x) => {
@@ -5053,7 +5064,7 @@ const App = (() => {
       const sim = novo('div', 'mv-linha', null, sec);
       novo('span', 'mv-rotulo', 'Símbolo', sim);
       const d = estado.dados.simbolos[i.simbolo];
-      novo('span', null, ({ MOVIMENTO: '▶ ', FIXO: '◆ ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
+      novo('span', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
     }
     const etiquetas = i.etiquetas.slice(0, op.limite || i.etiquetas.length);
     const lista = novo('div', 'mv-linha mv-etiquetas', null, sec);
