@@ -20,7 +20,7 @@ Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (pas
 
 - **Espaço por marca:** "Por movimentos", que mostra cada movimento com a classificação e o GMV esperado, e "Por classificação". Clicar numa linha mostra na planta só os espaços onde aquele movimento ou tipo de movimento aparece.
 - **Aba nova na planilha, "Tipos de movimento":** nela você informa a classificação (lançamento, promoção…) e o GMV esperado de cada movimento.
-- **Topo reorganizado:** *Painel da ER* e *Espaço por marca* ficam em destaque. *Validação*, *Ajustar etiquetas* e *Ver o tutorial* ficam na engrenagem. *Baixar PNG* fica no canto de baixo da planta.
+- **Topo reorganizado:** *Comunicações ER* e *Espaço por marca* ficam em destaque. *Validação*, *Ajustar etiquetas* e *Ver o tutorial* ficam na engrenagem. *Baixar PNG* fica no canto de baixo da planta.
 - **Ajustar etiquetas:** cada pilha de etiquetas se move sozinha, e dá para mudar o tamanho das etiquetas.
 - **Baixar PNG:** escolha o conteúdo (planta, visão simplificada ou **estratégia**, que é o espaço por marca em gráficos) e o formato (PNG recortado ou slide completo).
 - **Tutorial guiado:** quem abre o app pela primeira vez recebe um convite para um tour de cerca de 2 minutos.
@@ -200,7 +200,7 @@ Abra o link do app e confira:
 
 - [ ] Aparece o convite **"Bem-vindo ao Plano de Varejo"**. Ele aparece uma vez por navegador. Faça o tour ou clique em *Agora não*.
 - [ ] O seletor de ciclo mostra os **seus** ciclos e a planta abre com as cores e as etiquetas.
-- [ ] O topo tem **Painel da ER** e **Espaço por marca** em destaque e a **engrenagem** com *Validação*, *Ajustar etiquetas* e *Ver o tutorial*.
+- [ ] O topo tem **Comunicações ER** e **Espaço por marca** em destaque e a **engrenagem** com *Validação*, *Ajustar etiquetas* e *Ver o tutorial*.
 - [ ] O **Espaço por marca** mostra *Por marca*, *Por movimentos* e *Por classificação*. A classificação e o GMV só aparecem para os movimentos que estão na aba *Tipos de movimento*.
 - [ ] **Baixar PNG** (canto de baixo da planta) baixa a planta, a visão simplificada e a estratégia.
 - [ ] As posições de etiquetas que você já tinha salvado continuam no lugar.

@@ -2,7 +2,7 @@
 
 Versão **só de visualização** do app: mostra as plantas de cada ciclo a partir de **uma única planilha** no Google Sheets. A estratégia é montada direto na planilha; o app só lê (a única coisa que ele grava são os comentários da validação, na aba **Comentários**).
 
-Comparado ao app completo, esta versão **não tem** *Construir loja*, *Baixar planilha base* nem *Importar planilha*. Ficam: seletor de ciclo, abas das plantas (setas ← →), as visões *Na planta* e *Visão simplificada*, *Painel da ER* (menu da esquerda), *Espaço por marca*, *Validação*, filtro por marca, zoom, *Baixar PNG*, *Ajustar etiquetas*, *Atualizar* e *Abrir planilha*.
+Comparado ao app completo, esta versão **não tem** *Construir loja*, *Baixar planilha base* nem *Importar planilha*. Ficam: seletor de ciclo, abas das plantas (setas ← →), as visões *Na planta* e *Visão simplificada*, *Comunicações ER* (menu da esquerda), *Espaço por marca*, *Validação*, filtro por marca, zoom, *Baixar PNG*, *Ajustar etiquetas*, *Atualizar* e *Abrir planilha*.
 
 ## Arquivos
 

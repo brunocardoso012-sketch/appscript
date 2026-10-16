@@ -154,7 +154,7 @@
   }
   .grupo-botoes { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 
-  /* Painéis em destaque (Painel da ER e Espaço por marca), separados das outras ações. */
+  /* Painéis em destaque (Comunicações ER e Espaço por marca), separados das outras ações. */
   .acoes { align-items: center; }
   .acoes-paineis { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: #eef2ff; border: 1px solid #d5ddfb; }
   .btn.painel-botao { border-color: transparent; background: transparent; color: #27367a; }
@@ -595,11 +595,12 @@
   .lj-letra { display: inline-grid; place-items: center; width: 20px; height: 20px; border: 1.8px solid var(--texto); border-radius: 50%; font-size: 12px; font-weight: 600; color: var(--texto); }
   .lj-chips { display: flex; flex-direction: column; gap: 5px; }
   .lj-chip { display: block; padding: 5px 10px; border-radius: 7px; color: #fff; font: 800 11.5px/1.3 Nunito, 'Segoe UI', Arial, sans-serif; letter-spacing: .2px; }
-  .lj-nota { margin: 0 0 8px; color: #1F3B73; font-size: 13px; line-height: 1.45; }
-  .lj-nota strong { color: #0B2A5B; }
-  .lj-simbolos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
-  .lj-simbolos li { display: flex; align-items: center; gap: 10px; }
-  .lj-simbolo { width: 30px; text-align: center; font-weight: 700; }
+  .lj-destaque { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--borda); }
+  .lj-destaque:first-of-type { border-top: 0; padding-top: 0; }
+  .lj-destaque-ref { display: flex; align-items: center; gap: 8px; }
+  .lj-mini { width: 64px; height: 44px; flex: 0 0 auto; }
+  .lj-destaque-nome { font-size: 12px; font-weight: 600; color: var(--texto-2); }
+  .lj-destaque-texto { white-space: pre-line; }
   .lj-extra { display: grid; grid-template-columns: 1fr; gap: 5px; padding: 10px 0; border-top: 1px solid var(--borda); }
   .lj-extra:first-of-type { border-top: 0; padding-top: 0; }
   .lj-extra-nome { font-size: 12px; font-style: italic; color: var(--texto-2); }

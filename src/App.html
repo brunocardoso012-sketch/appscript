@@ -1083,7 +1083,6 @@ const App = (() => {
     TV: '<svg class="lj-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="1.5"/><path d="M9 20.5h6M12 17v3.5"/></svg>',
     RADIO: '<svg class="lj-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M5 8 17 3M3 12h18"/><circle cx="8" cy="16.5" r="2.3"/><path d="M13 15.5h5M13 18h5"/></svg>',
   };
-  const GLIFOS_SIMBOLO = { FIXO: '🔒', EXPOSICAO: 'Ⓔ', NOVO: 'NEW' };
 
   /** Cor de uma etiqueta do painel: a da marca (com uma marca no filtro, as outras em cinza, como no slide). */
   function corEtiquetaPainel(marca) {
@@ -1098,8 +1097,9 @@ const App = (() => {
   }
 
   /**
-   * Menu da esquerda: o que no PNG do slide fica no painel lateral e nos cantos de baixo — nome da ER,
-   * ciclo, TV / rádio, (A), (C), notas, legenda dos símbolos e itens fora da planta.
+   * Menu da esquerda ("Comunicações ER"): o que no PNG do slide fica no painel lateral e no canto de
+   * baixo — nome da ER, ciclo, TV / rádio, (A), (C), destaques (com a miniatura do móvel) e itens fora
+   * da planta. As notas e a legenda dos símbolos ficam no desenho da planta.
    */
   function atualizarPainelLoja() {
     const painel = $('painelLoja');
@@ -1115,7 +1115,7 @@ const App = (() => {
     const corpo = $('lojaCorpo');
     corpo.innerHTML = '';
     if (!estado.ciclo) {
-      novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver os painéis da ER.', corpo);
+      novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver as comunicações da ER.', corpo);
       return;
     }
     const pain = paineisDe(estado.ciclo, planta.id);
@@ -1136,26 +1136,23 @@ const App = (() => {
       novo('span', 'lj-letra', letra, s.h);
       chipsLoja(s.sec, pain[letra]);
     });
-    if (pain.NOTA.length) {
-      const s = secao('Notas');
-      pain.NOTA.forEach((n) => {
-        const p = novo('p', 'lj-nota', null, s.sec);
-        const i = n.texto.indexOf(':');
-        if (i > 0 && i < 60) {
-          novo('strong', null, n.texto.slice(0, i + 1), p);
-          p.appendChild(document.createTextNode(n.texto.slice(i + 1)));
-        } else {
-          p.textContent = n.texto;
+    if (pain.CALLOUT.length) {
+      // Destaques (aba Painéis, seção CALLOUT): o texto e a miniatura do móvel a que ele se refere.
+      const sec = secao('Destaques').sec;
+      pain.CALLOUT.forEach((c) => {
+        const m = c.movel && planta.moveis.find((x) => x.id === c.movel);
+        const bloco = novo('div', 'lj-destaque', null, sec);
+        const ref = novo('div', 'lj-destaque-ref', null, bloco);
+        if (m && m.tipo !== 'EXTRA') {
+          const mini = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          mini.setAttribute('class', 'lj-mini');
+          mini.setAttribute('aria-hidden', 'true');
+          Render.miniatura(mini, m, c.marca, 64, 44);
+          ref.appendChild(mini);
         }
-      });
-    }
-    const usados = ['FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => estado.simbolos.indexOf(x) >= 0);
-    if (usados.length) {
-      const ul = novo('ul', 'lj-simbolos', null, secao('Símbolos').sec);
-      usados.forEach((x) => {
-        const li = novo('li', null, null, ul);
-        novo('span', 'lj-simbolo', GLIFOS_SIMBOLO[x], li);
-        novo('span', null, (estado.dados.simbolos[x] && estado.dados.simbolos[x].descricao) || x, li);
+        novo('span', 'lj-destaque-nome', m ? m.descricao || m.id : 'Geral', ref);
+        const txt = novo('div', 'lj-chip lj-destaque-texto', c.texto, bloco);
+        txt.style.background = corEtiquetaPainel(c.marca);
       });
     }
     const extras = planta.moveis.filter((m) => m.tipo === 'EXTRA');
