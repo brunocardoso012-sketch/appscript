@@ -19,7 +19,9 @@ test('normalizações', () => {
   assert.equal(run("normMarca_('bot + qdb')"), 'BOT+QDB');
   assert.equal(run("normMarca_('#ff8800')"), '#FF8800');
   assert.equal(run("normMarca_('Quem disse, berenice?')"), 'QDB');
-  assert.equal(run("normSimbolo_('▶')"), 'MOVIMENTO');
+  assert.equal(run("normSimbolo_('▶')"), '', 'o antigo símbolo movimento saiu (sem aviso)');
+  assert.equal(run("normSimbolo_('🔒')"), 'FIXO');
+  assert.equal(run("normSimbolo_('cadeado')"), 'FIXO');
   assert.equal(run("normSimbolo_('e')"), 'EXPOSICAO');
   assert.equal(run("normSecao_('TV/Rádio')"), 'TV');
   assert.equal(run("numero_('1,5')"), 1.5);
@@ -31,7 +33,7 @@ test('layout padrão + ciclo de exemplo são lidos sem avisos', () => {
   const d = run('montarDados_(valoresLayoutPadrao_(), valoresMovimentosExemplo_(), valoresPaineisExemplo_())');
   assert.deepEqual(d.plantas.map((p) => p.id), ['01', '02', '03', '04']);
   assert.deepEqual(d.plantas.map((p) => p.nome), ['ER P', 'ER M', 'ER G', 'ER GG']);
-  assert.deepEqual(d.ciclos, ['Ciclo exemplo']);
+  assert.deepEqual(d.ciclos, ['Ciclo exemplo', 'Ciclo exemplo cheio']);
   assert.deepEqual(d.avisos, []);
   assert.ok(d.movimentos['Ciclo exemplo'].TODAS['EXTRA-CESTINHAS']);
   assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1/LADO-A']);
@@ -66,7 +68,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   ctx.__payload = {
     movimentos: [
       ['Planta', 'Ciclo', 'ID Móvel', 'Marca do Móvel', 'Etiqueta 1', 'Marca Etiqueta 1', 'Símbolo'],
-      ['2', 'C15/2026', 'ilha-01', 'Eudora', 'OUTLET EUD', 'EUD', '▶'],
+      ['2', 'C15/2026', 'ilha-01', 'Eudora', 'OUTLET EUD', 'EUD', '🔒'],
       ['01', 'Ciclo exemplo', 'Pirâmide 1', 'BOT+QDB', '10/2026', '', ''],
       ['', '', '', '', '', '', ''],
     ],
@@ -80,10 +82,10 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.equal(r.paineis, 1);
 
   const d2 = run('getDados()');
-  assert.deepEqual(Array.from(d2.ciclos), ['Ciclo exemplo', 'C15/2026']);
+  assert.deepEqual(Array.from(d2.ciclos), ['Ciclo exemplo', 'Ciclo exemplo cheio', 'C15/2026']);
   const ilha = d2.movimentos['C15/2026']['02']['ILHA-01'];
   assert.equal(ilha.marca, 'EUD');
-  assert.equal(ilha.simbolo, 'MOVIMENTO');
+  assert.equal(ilha.simbolo, 'FIXO');
   assert.deepEqual(Object.keys(d2.movimentos['Ciclo exemplo']['01']), ['PIRAMIDE 1'], 'par (ciclo, planta) substituído; ID sem acento');
   assert.equal(d2.movimentos['Ciclo exemplo']['01']['PIRAMIDE 1'].etiquetas[0].texto, '10/2026');
   assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 10, 'outras plantas intactas');
@@ -417,4 +419,21 @@ test('tamanho das etiquetas da planta fica na linha LOJA do Layout', () => {
   assert.deepEqual([p.moveis.find((m) => m.id === 'PIRAMIDE 1').ajusteX, run('getDados()').plantas[1].loja.escalaEtiquetas], [3, 100]);
   assert.equal(run("normTamanhoEtiquetas_('500%')"), 250);
   assert.equal(run("normTamanhoEtiquetas_('')"), 100);
+});
+
+test('ciclo de exemplo cheio: todos os móveis com etiquetas, na quantidade de cada tipo', () => {
+  const { run } = carregarGas();
+  const d = run('montarDados_(valoresLayoutPadrao_(), valoresMovimentosExemplo_())');
+  const qtd = { GONDOLA: 2, PIRAMIDE: 2, FILA: 2, CUBO: 2, GONDOLA_PAREDE: 3, TOTEM: 1, MESA: 2, MESA_3: 2, PAINEL: 3, EXPOSITOR_OUI: 3, ILHA_OUI: 3, VITRINE_L: 3, CAIXA: 1, MAKE: 1, EXTRA: 1 };
+  const espacos = { GONDOLA: ['LADO-A', 'MEIO-A', 'MEIO-B', 'LADO-B'], TOTEM: ['PAINEL-1', 'PAINEL-2', 'PAINEL-3'], MESA: ['FRENTE-1', 'FRENTE-2'], MESA_3: ['FRENTE-1', 'FRENTE-2', 'FRENTE-3'], MAKE: ['TESTEIRA-1', 'TESTEIRA-2', 'TESTEIRA-3', 'TESTEIRA-4'] };
+  d.plantas.forEach((p) => {
+    const movs = d.movimentos['Ciclo exemplo cheio'][p.id];
+    p.moveis.forEach((m) => {
+      (espacos[m.tipo] || ['']).forEach((e) => {
+        const linha = movs[m.id + (e ? '/' + e : '')];
+        assert.ok(linha, p.id + ' ' + m.id + ' ' + e + ' preenchido');
+        assert.equal(linha.etiquetas.length, qtd[m.tipo], p.id + ' ' + m.id + ' ' + e);
+      });
+    });
+  });
 });

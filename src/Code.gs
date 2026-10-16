@@ -376,7 +376,8 @@ function atualizarModelosPlantas_(abas, versoes) {
     const semExemplo = function (valores, colunas) {
       if (!valores || !valores.length) return valores || [];
       const i = acharColuna_(valores[0].map(chave_), colunas.filter(function (c) { return c.chave === 'ciclo'; })[0]);
-      return i < 0 ? valores : [valores[0]].concat(valores.slice(1).filter(function (l) { return texto_(l[i]) !== EXEMPLO_CICLO; }));
+      const exemplos = [EXEMPLO_CICLO, EXEMPLO_CICLO_CHEIO];
+      return i < 0 ? valores : [valores[0]].concat(valores.slice(1).filter(function (l) { return exemplos.indexOf(texto_(l[i])) < 0; }));
     };
     const trocar = function (valores, padrao, colunas) {
       const novos = objetosDeValores_(padrao, colunas).linhas;

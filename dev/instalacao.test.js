@@ -59,5 +59,5 @@ test('atualização numa planilha que já existe: ganha a aba Tipos de movimento
   const d = run('getDados()');
   assert.ok(falsos.planilha.getSheetByName('Tipos de movimento'), 'aba criada na primeira abertura');
   assert.equal(d.movimentos['C15/2026']['01']['PIRAMIDE 1'].etiquetas[0].texto, 'MEU MOVIMENTO', 'ciclo do usuário intacto');
-  assert.deepEqual(d.ciclos.sort(), ['C15/2026', 'Ciclo exemplo']);
+  assert.deepEqual(d.ciclos.sort(), ['C15/2026', 'Ciclo exemplo', 'Ciclo exemplo cheio']);
 });

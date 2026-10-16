@@ -313,8 +313,7 @@ const MARCAS = {
 
 /** Símbolos exibidos ao lado da primeira etiqueta do móvel. */
 const SIMBOLOS = {
-  MOVIMENTO: { descricao: 'Movimento definido nesta planta', apelidos: ['MOV', 'SETA', '▶', '>'] },
-  FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', '◆', 'LOSANGO'] },
+  FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', 'CADEADO', '🔒', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
 };
@@ -510,10 +509,12 @@ function colunasLayout_() {
  *   - Y cresce ao longo da parede do fundo à ESQUERDA (em direção à frente/caixas).
  *   - Z é a elevação (0 = chão). Largura = eixo X, Profundidade = eixo Y.
  *
+ *  Loja: [largura, profundidade, altura da parede, (tamanho das etiquetas em %, padrão 100)].
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
  *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270),
  *          (ajuste das pilhas de etiquetas por espaço: { 'LADO-A': {x, y} })]
- *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato.
+ *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato; o botão "Baixar
+ *  posições" (modo ajuste das etiquetas) gera os ajustes de etiqueta (índices 9, 10 e 13) e o tamanho.
  */
 
 /**
@@ -529,7 +530,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 12, '02': 11, '03': 8, '04': 9 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 10;
+const VERSAO_EXEMPLO = 12;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -714,10 +715,10 @@ const EXEMPLO_MOVIMENTOS = {
   },
   '02': {
     'GONDOLA 2/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
-    'GONDOLA 2/MEIO-B': ['EUD', [['CUIDADOS', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 2/LADO-B': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']]],
+    'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']]],
+    'GONDOLA 2/MEIO-B': ['EUD', [['CUIDADOS', 'EUD']]],
+    'GONDOLA 2/LADO-B': ['EUD', [['OUTLET EUD', 'EUD']]],
     'PIRAMIDE 3': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'MOVEL DE FILA 3': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 4': ['QDB', [['LIQUIDA QDB', 'QDB']]],
@@ -726,10 +727,10 @@ const EXEMPLO_MOVIMENTOS = {
   },
   '03': {
     // Lado A e meio A iguais ao lado B e ao meio B da gôndola 2 da ER M.
-    'GONDOLA 3/LADO-A': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
-    'GONDOLA 3/LADO-B': ['MULTI', [], 'MOVIMENTO'],
+    'GONDOLA 3/LADO-A': ['EUD', [['OUTLET EUD', 'EUD']]],
+    'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']]],
+    'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']]],
+    'GONDOLA 3/LADO-B': ['MULTI', []],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 8': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
@@ -737,20 +738,20 @@ const EXEMPLO_MOVIMENTOS = {
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-3': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
   },
   '04': {
-    'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']], 'MOVIMENTO'],
-    'PIRAMIDE 5': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
-    'GONDOLA 4/LADO-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']], 'MOVIMENTO'],
-    'GONDOLA 4/MEIO-A': ['OUI', [], 'MOVIMENTO'],
-    'GONDOLA 4/MEIO-B': ['OUI', [], 'MOVIMENTO'],
-    'GONDOLA 4/LADO-B': ['OUI', [], 'MOVIMENTO'],
+    'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']]],
+    'PIRAMIDE 5': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']]],
+    'GONDOLA 4/LADO-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']]],
+    'GONDOLA 4/MEIO-A': ['OUI', []],
+    'GONDOLA 4/MEIO-B': ['OUI', []],
+    'GONDOLA 4/LADO-B': ['OUI', []],
     'GONDOLA 5/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'GONDOLA 5/MEIO-A': ['QDB'],
     'GONDOLA 5/MEIO-B': ['QDB'],
     'GONDOLA 5/LADO-B': ['QDB'],
-    'GONDOLA 6/LADO-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 6/MEIO-A': ['EUD', [], 'MOVIMENTO'],
-    'GONDOLA 6/MEIO-B': ['EUD', [], 'MOVIMENTO'],
-    'GONDOLA 6/LADO-B': ['EUD', [], 'MOVIMENTO'],
+    'GONDOLA 6/LADO-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']]],
+    'GONDOLA 6/MEIO-A': ['EUD', []],
+    'GONDOLA 6/MEIO-B': ['EUD', []],
+    'GONDOLA 6/LADO-B': ['EUD', []],
     'ILHA PREMIUM OUI 1': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
 };
@@ -812,6 +813,106 @@ const EXEMPLO_TIPOS = [
   ['+PEC REGIONAL', 'OUTRO', 150000],
 ];
 
+/* --------------------------------------------------------------------------
+ *  CICLO DE EXEMPLO CHEIO: todos os móveis de todas as plantas preenchidos, para
+ *  ver a planta com o máximo de etiquetas (e posicioná-las no modo ajuste).
+ *  Etiquetas por móvel: gôndola (cada espaço), pirâmide, móvel de fila e PDV móvel: 2;
+ *  móvel de parede: 3; totem: 1 por painel; mesa destaque: 2 por frente; O.U.i: 3;
+ *  balcão recepção: 3; móvel de atendimento: 1; móvel make: 1 por testeira; itens fora da planta: 1.
+ * ------------------------------------------------------------------------ */
+
+const EXEMPLO_CICLO_CHEIO = 'Ciclo exemplo cheio';
+
+const EXEMPLO_CHEIO = {
+  // Pares que se revezam nas gôndolas, pirâmides, móveis de fila e PDV móvel.
+  pares: [
+    [['BOTIPROMO', 'BOT'], ['LÇTO EGEO', 'BOT']],
+    [['OUTLET EUD', 'EUD'], ['SIÀGE ULTIMATE', 'EUD']],
+    [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']],
+    [['MULTI PROMO', 'MULTI'], ['PRINCIPAIS OPORTUNIDADES', 'BOT']],
+    [['UOMINI HERO', 'BOT'], ['LÇTO UOMINI', 'BOT']],
+    [['CUIDADOS', 'EUD'], ['PERFUMARIA', 'EUD']],
+  ],
+  // Móveis de parede (pelo número): marca das placas e as 3 etiquetas.
+  parede: {
+    1: ['BOT', [['PERF FEM', 'BOT'], ['FLORATTA', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    2: ['BOT', [['PERF MASC', 'BOT'], ['MALBEC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    3: ['EUD', [['PERF FEM', 'EUD'], ['SIÀGE', 'EUD'], ['OUTLET EUD', 'EUD']]],
+    4: ['BOT', [['CUIDADOS (CBEM/NSPA)', 'BOT'], ['NATIVA SPA', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+  },
+  totem: [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT'], ['LIQUIDA QDB', 'QDB']],
+  mesa: [
+    [['UOMINI GLORIFICADO', 'BOT'], ['LÇTO UOMINI', 'BOT']],
+    [['SIÀGE GLORIFICADO', 'EUD'], ['SIÀGE ULTIMATE', 'EUD']],
+    [['VM PERMANENTE MULTI PROMO', 'MULTI'], ['MULTI PROMO', 'MULTI']],
+  ],
+  oui: [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI'], ['LÇTO MON AMIE', 'OUI']],
+  balcao: [['LÇTO EGEO', 'BOT+QDB'], ['JUICY MOOD', 'QDB'], ['SIÀGE ULTIMATE', 'EUD']],
+  atendimento: [['STOPPER LÇTO EGEO', 'BOT'], ['OUTLET EUD', 'EUD'], ['LIQUIDA QDB', 'QDB']],
+  make: [['MAKE B.', 'BOT'], ['BOTIPROMO MAKE B.', 'BOT'], ['OUTLET MAKE EUD', 'EUD'], ['LIQUIDA MAKE', 'QDB']],
+  extras: { 'EXTRA-CESTINHAS': ['LÇTO EGEO', 'BOT+QDB'], 'EXTRA-BELEZA': ['BOTIPROMO MAKE B.', 'BOT'], 'EXTRA-CAVALETE': ['SIÀGE ULTIMATE', 'EUD'] },
+  // Movimentos que não estão em EXEMPLO_TIPOS: [texto, classificação, GMV esperado (ilustrativo)].
+  tipos: [
+    ['PERF FEM', 'INSTITUCIONAL', 980000],
+    ['PERF MASC', 'INSTITUCIONAL', 760000],
+    ['FLORATTA', 'INSTITUCIONAL', 540000],
+    ['MALBEC', 'INSTITUCIONAL', 610000],
+    ['SIÀGE', 'INSTITUCIONAL', 470000],
+    ['CUIDADOS (CBEM/NSPA)', 'INSTITUCIONAL', 520000],
+    ['NATIVA SPA', 'INSTITUCIONAL', 390000],
+    ['LÇTO MON AMIE', 'LANCAMENTO', 240000],
+    ['Hôtel de Ville 193', 'LANCAMENTO', 180000],
+    ['VM PERMANENTE MULTI PROMO', 'PROMOCAO', 300000],
+    ['STOPPER LÇTO EGEO', 'LANCAMENTO', 120000],
+    ['MAKE B.', 'INSTITUCIONAL', 350000],
+    ['OUTLET MAKE EUD', 'LIQUIDACAO', 160000],
+  ],
+};
+
+/**
+ * Linhas do ciclo cheio de uma planta: { 'ID' ou 'ID/ESPACO': [marca, [[etiqueta, marca]...], símbolo] }.
+ * Cada planta tem todas as suas linhas (não depende da cascata entre plantas).
+ */
+function movimentosExemploCheio_(planta) {
+  const E = EXEMPLO_CHEIO;
+  const saida = {};
+  let k = 0; // reveza os pares entre os móveis
+  const par = function () { return E.pares[k++ % E.pares.length]; };
+  const linha = function (etiquetas, simbolo) { return [etiquetas[0][1].split('+')[0], etiquetas, simbolo || '']; };
+  LAYOUT_PADRAO[planta].moveis.forEach(function (m) {
+    const id = m[0], tipo = m[2];
+    const num = Number((/(\d+)\s*$/.exec(id) || [0, 1])[1]);
+    if (tipo === 'GONDOLA') {
+      const div = String(m[11] || '').toUpperCase();
+      const ids = ['LADO-A'];
+      ['A', 'B'].forEach(function (l) { if (div.indexOf(l) >= 0) ids.push('MEIO-' + l + '-1', 'MEIO-' + l + '-2'); else ids.push('MEIO-' + l); });
+      ids.push('LADO-B');
+      ids.forEach(function (e) { saida[id + '/' + e] = linha(par(), num === 1 && /^MEIO/.test(e) ? 'FIXO' : ''); });
+    } else if (tipo === 'PIRAMIDE' || tipo === 'FILA' || tipo === 'CUBO') {
+      saida[id] = linha(par(), tipo === 'PIRAMIDE' && num === 1 ? 'NOVO' : '');
+    } else if (tipo === 'GONDOLA_PAREDE') {
+      const p = E.parede[num] || E.parede[1];
+      saida[id] = [p[0], p[1], ''];
+    } else if (tipo === 'TOTEM') {
+      E.totem.forEach(function (et, i) { saida[id + '/PAINEL-' + (i + 1)] = linha([et]); });
+    } else if (tipo === 'MESA' || tipo === 'MESA_3') {
+      const n = tipo === 'MESA' ? 2 : 3;
+      for (let i = 0; i < n; i++) saida[id + '/FRENTE-' + (i + 1)] = linha(E.mesa[i]);
+    } else if (tipo === 'PAINEL' || tipo === 'EXPOSITOR_OUI' || tipo === 'ILHA_OUI') {
+      saida[id] = ['OUI', E.oui, tipo === 'ILHA_OUI' ? 'EXPOSICAO' : ''];
+    } else if (tipo === 'VITRINE_L') {
+      saida[id] = ['BOT', E.balcao, ''];
+    } else if (tipo === 'CAIXA') {
+      saida[id] = linha([E.atendimento[(num - 1) % E.atendimento.length]]);
+    } else if (tipo === 'MAKE') {
+      E.make.forEach(function (et, i) { saida[id + '/TESTEIRA-' + (i + 1)] = linha([et]); });
+    } else if (tipo === 'EXTRA' && E.extras[id]) {
+      saida[id] = ['NEUTRO', [E.extras[id]], ''];
+    }
+  });
+  return saida;
+}
+
 /* ------------------------- Conversão em matrizes ------------------------- */
 
 /** Matriz [cabeçalho, ...linhas] da aba Layout padrão. */
@@ -824,6 +925,7 @@ function valoresLayoutPadrao_() {
     linhas.push(linha({
       planta: planta, movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA',
       x: 0, y: 0, z: 0, largura: p.loja[0], profundidade: p.loja[1], altura: p.loja[2], ajusteX: 0, ajusteY: 0,
+      tamanhoEtiquetas: p.loja[3] || '',
     }));
     p.moveis.forEach(function (m) {
       linhas.push(linha({
@@ -844,12 +946,16 @@ function valoresMovimentosExemplo_() {
   Object.keys(LAYOUT_PADRAO).forEach(function (planta) {
     LAYOUT_PADRAO[planta].moveis.forEach(function (m) { descricoes[m[0]] = descricoes[m[0]] || m[1]; });
   });
-  Object.keys(EXEMPLO_MOVIMENTOS).forEach(function (planta) {
-    const moveis = EXEMPLO_MOVIMENTOS[planta];
+  const ciclos = [[EXEMPLO_CICLO, EXEMPLO_MOVIMENTOS]];
+  const cheio = {};
+  Object.keys(LAYOUT_PADRAO).forEach(function (planta) { cheio[planta] = movimentosExemploCheio_(planta); });
+  ciclos.push([EXEMPLO_CICLO_CHEIO, cheio]);
+  ciclos.forEach(function (c) { Object.keys(c[1]).forEach(function (planta) {
+    const moveis = c[1][planta];
     Object.keys(moveis).forEach(function (id) {
       const m = moveis[id];
       const o = {
-        ciclo: EXEMPLO_CICLO, planta: planta, movel: id, descricao: descricoes[id.split('/')[0]] || '',
+        ciclo: c[0], planta: planta, movel: id, descricao: descricoes[id.split('/')[0]] || '',
         marca: m[0], simbolo: m[2] || '', observacao: '',
       };
       (m[1] || []).slice(0, CONFIG.MAX_ETIQUETAS).forEach(function (e, i) {
@@ -858,7 +964,7 @@ function valoresMovimentosExemplo_() {
       });
       linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
     });
-  });
+  }); });
   return linhas;
 }
 
@@ -866,10 +972,18 @@ function valoresMovimentosExemplo_() {
 function valoresTiposExemplo_() {
   const cols = colunasTipos_();
   const linhas = [cols.map(function (c) { return c.titulo; })];
-  EXEMPLO_TIPOS.forEach(function (t) {
-    const o = { ciclo: EXEMPLO_CICLO, etiqueta: t[0], classificacao: CLASSIFICACOES[t[1]] ? CLASSIFICACOES[t[1]].nome : t[1], gmv: t[2] };
-    linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
+  // Ciclo cheio: só os movimentos que aparecem nas etiquetas dele.
+  const usados = {};
+  Object.keys(LAYOUT_PADRAO).forEach(function (planta) {
+    const movs = movimentosExemploCheio_(planta);
+    Object.keys(movs).forEach(function (id) { movs[id][1].forEach(function (e) { usados[e[0]] = true; }); });
   });
+  const doCheio = EXEMPLO_TIPOS.concat(EXEMPLO_CHEIO.tipos).filter(function (t) { return usados[t[0]]; });
+  const tipos = [[EXEMPLO_CICLO, EXEMPLO_TIPOS], [EXEMPLO_CICLO_CHEIO, doCheio]];
+  tipos.forEach(function (c) { c[1].forEach(function (t) {
+    const o = { ciclo: c[0], etiqueta: t[0], classificacao: CLASSIFICACOES[t[1]] ? CLASSIFICACOES[t[1]].nome : t[1], gmv: t[2] };
+    linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
+  }); });
   return linhas;
 }
 
@@ -877,10 +991,10 @@ function valoresTiposExemplo_() {
 function valoresPaineisExemplo_() {
   const cols = colunasPaineis_();
   const linhas = [cols.map(function (c) { return c.titulo; })];
-  EXEMPLO_PAINEIS.forEach(function (p) {
-    const o = { ciclo: EXEMPLO_CICLO, planta: p[0], secao: p[1], texto: p[2], marca: p[3], movel: p[4] };
+  [EXEMPLO_CICLO, EXEMPLO_CICLO_CHEIO].forEach(function (ciclo) { EXEMPLO_PAINEIS.forEach(function (p) {
+    const o = { ciclo: ciclo, planta: p[0], secao: p[1], texto: p[2], marca: p[3], movel: p[4] };
     linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
-  });
+  }); });
   return linhas;
 }
 
@@ -1449,6 +1563,8 @@ function normSimbolo_(v, aviso, onde) {
       if (n === bruto || (k && chave_(n) === k)) return codigos[i];
     }
   }
+  // O antigo símbolo "movimento" (▶) saiu: planilhas antigas que ainda o têm ficam sem símbolo, sem aviso.
+  if (['MOVIMENTO', 'MOV', 'SETA', '▶', '>'].some(function (n) { return n === bruto || (k && chave_(n) === k); })) return '';
   if (aviso) aviso(onde + ': símbolo "' + s + '" não reconhecido (use ' + codigos.join(', ') + ').');
   return '';
 }
@@ -2466,6 +2582,7 @@ const PAGINA_ = [
   "      </span>",
   "      <span class=\"grupo-botoes\">",
   "        <button id=\"btnAutoOrganizar\" class=\"btn pequeno\" type=\"button\">Organizar automaticamente</button>",
+  "        <button id=\"btnBaixarPosicoes\" class=\"btn pequeno\" type=\"button\" title=\"Baixa um arquivo com a posição das etiquetas de todas as plantas (inclui as alterações ainda não salvas desta planta)\">Baixar posições</button>",
   "        <button id=\"btnDescartar\" class=\"btn pequeno\" type=\"button\">Descartar</button>",
   "        <button id=\"btnSalvarAjustes\" class=\"btn pequeno primario\" type=\"button\">Salvar posições</button>",
   "      </span>",
@@ -3019,22 +3136,18 @@ const PAGINA_ = [
   "  }",
   "",
   "  /**",
-  "   * Móvel de parede: uma placa de comunicação (o espaço destaque) no meio de cada módulo, na parte",
-  "   * de cima, um pouco saltada da frente, com o prendedor preto no alto. Devolve as caixas de cada uma.",
+  "   * Móvel de parede: uma placa de comunicação só (o espaço destaque), no meio do móvel, na parte",
+  "   * de cima, um pouco saltada da frente, com o prendedor preto no alto. Devolve as caixas dela.",
   "   */",
   "  function placasParede(m) {",
   "    const [L, C] = eixos(m);",
-  "    const n = Math.max(1, Math.round(L / 2.2));",
-  "    const passo = L / n;",
-  "    const meia = Math.min(0.45, passo * 0.3);",
+  "    const uc = L / 2;",
+  "    const meia = Math.min(0.45, L * 0.15);",
   "    const z0 = m.h * 0.6, z1 = m.h * 0.76;",
-  "    return Array.from({ length: n }, (_, k) => {",
-  "      const uc = passo * (k + 0.5);",
-  "      return {",
-  "        placa: caixaLocal(m, uc - meia, uc + meia, C - 0.02, C + 0.05, z0, z1),",
-  "        prendedor: caixaLocal(m, uc - 0.07, uc + 0.07, C + 0.05, C + 0.07, z1 - 0.13, z1 - 0.03),",
-  "      };",
-  "    });",
+  "    return [{",
+  "      placa: caixaLocal(m, uc - meia, uc + meia, C - 0.02, C + 0.05, z0, z1),",
+  "      prendedor: caixaLocal(m, uc - 0.07, uc + 0.07, C + 0.05, C + 0.07, z1 - 0.13, z1 - 0.03),",
+  "    }];",
   "  }",
   "",
   "  /** Móvel make: altura onde começa a testeira e fundo da testeira. */",
@@ -3339,10 +3452,11 @@ const PAGINA_ = [
   "  function desenharSimbolo(pai, simbolo, cx, cy, escala) {",
   "    const k = escala || 1;",
   "    const g = el('g', { transform: 'translate(' + cx + ',' + cy + ') scale(' + k + ')' }, pai);",
-  "    if (simbolo === 'MOVIMENTO') {",
-  "      poligono(g, [[-6, -7.5], [8, 0], [-6, 7.5]], { fill: '#111' });",
-  "    } else if (simbolo === 'FIXO') {",
-  "      poligono(g, [[0, -8.5], [8.5, 0], [0, 8.5], [-8.5, 0]], { fill: '#111' });",
+  "    if (simbolo === 'FIXO') { // cadeado",
+  "      el('path', { d: 'M-4.2,-1.5 V-4.6 a4.2,4.2 0 0 1 8.4,0 V-1.5', fill: 'none', stroke: '#111', 'stroke-width': 2.2 }, g);",
+  "      el('rect', { x: -6.8, y: -1.8, width: 13.6, height: 10.3, rx: 1.8, fill: '#111' }, g);",
+  "      el('circle', { cx: 0, cy: 2.6, r: 1.6, fill: '#FFF' }, g);",
+  "      el('rect', { x: -0.7, y: 3.2, width: 1.4, height: 2.8, fill: '#FFF' }, g);",
   "    } else if (simbolo === 'EXPOSICAO') {",
   "      el('circle', { r: 8.5, fill: '#111', stroke: '#fff', 'stroke-width': 1.2 }, g);",
   "      texto(g, 0, 4, 'E', { 'font-size': 11, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' });",
@@ -3359,8 +3473,18 @@ const PAGINA_ = [
   "    return g;",
   "  }",
   "",
-  "  /** Retângulo arredondado de etiqueta: pílula numa linha, cantos suaves em várias; borda um pouco mais escura. */",
-  "  function fundoEtiqueta(pai, x, y, w, h, cores) {",
+  "  /**",
+  "   * Retângulo arredondado de etiqueta: pílula numa linha, cantos suaves em várias; borda um pouco mais escura.",
+  "   * Espaço fixo: borda dupla, um contorno a mais por fora na cor da etiqueta (com um fio branco no meio).",
+  "   */",
+  "  function fundoEtiqueta(pai, x, y, w, h, cores, fixo) {",
+  "    if (fixo) {",
+  "      const f = 2.4 * escalaEtq;",
+  "      el('rect', {",
+  "        class: 'etq-fixo', x: x - f, y: y - f, width: w + 2 * f, height: h + 2 * f, rx: Math.min(ETQ.raio, h / 2) + f,",
+  "        fill: '#FFFFFF', stroke: cores[0], 'stroke-width': 1.6 * escalaEtq,",
+  "      }, pai);",
+  "    }",
   "    return el('rect', {",
   "      class: 'etq', x, y, width: w, height: h, rx: Math.min(ETQ.raio, h / 2), fill: tinta(cores, 0),",
   "      stroke: misturar(cores[0], '#000000', 0.2), 'stroke-width': 0.8,",
@@ -3555,7 +3679,7 @@ const PAGINA_ = [
   "      }));",
   "      let ye = y + (ln.h - ln.med.h) / 2;",
   "      ln.med.itens.forEach((it, i) => {",
-  "        fundoEtiqueta(gl, xEtq, ye, ln.med.wEtq, it.h, it.cores);",
+  "        fundoEtiqueta(gl, xEtq, ye, ln.med.wEtq, it.h, it.cores, ln.simbolo === 'FIXO');",
   "        it.linhas.forEach((l, j) => {",
   "          texto(gl, xEtq + ln.med.wEtq / 2, ye + ETQ.padY + ETQ.lh * (j + 1) - 3.6, l, {",
   "            'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,",
@@ -3580,7 +3704,7 @@ const PAGINA_ = [
   "    return P(m.x + m.w / 2, m.y + m.d / 2, m.z + m.h);",
   "  }",
   "",
-  "  /** Móvel de parede: meio da frente de cada placa de comunicação (onde chegam as linhas-guia). */",
+  "  /** Móvel de parede: meio da frente da placa de comunicação (onde chega a linha-guia). */",
   "  function pontosPlacas(m, P) {",
   "    return placasParede(m).map(({ placa: b }) => (m.w >= m.d",
   "      ? P(b.x + b.w / 2, b.y + b.d, b.z + b.h / 2)",
@@ -3990,7 +4114,7 @@ const PAGINA_ = [
   "      y += r.topo;",
   "    }",
   "    r.itens.forEach((it, i) => {",
-  "      fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores);",
+  "      fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores, r.simbolo === 'FIXO');",
   "      it.linhas.forEach((l, k) => {",
   "        texto(g, r.x + r.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6 * escalaEtq, l, {",
   "          'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,",
@@ -4184,7 +4308,7 @@ const PAGINA_ = [
   "  }",
   "",
   "  function desenharLegendaSimbolos(pai, usados, simbolos) {",
-  "    const ordem = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((s) => usados.has(s));",
+  "    const ordem = ['FIXO', 'EXPOSICAO', 'NOVO'].filter((s) => usados.has(s));",
   "    let y = TELA.h - 28 - (ordem.length - 1) * 44;",
   "    const topo = y - 22;",
   "    ordem.forEach((s) => {",
@@ -4384,7 +4508,7 @@ const PAGINA_ = [
   "    const simplificada = ctx.visao === 'simplificada';",
   "    // Tamanho das etiquetas: só na visão na planta (as fichas da visão simplificada têm largura fixa).",
   "    definirEscalaEtiquetas(simplificada ? 1 : Math.max(0.5, Math.min(3, Number(ctx.escalaEtiquetas) || 1)));",
-  "    const nSimbolos = comPaineis ? ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length : 0;",
+  "    const nSimbolos = comPaineis ? ['FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length : 0;",
   "    const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide",
   "    const fichas = simplificada ? montarFichas(moveis, infoVis, infoEspacoVis, ctx.dados.config) : [];",
   "    const rotulos = simplificada ? [] : montarRotulos(moveis, infoVis, infoEspacoVis, ctx.dados.config);",
@@ -4399,7 +4523,7 @@ const PAGINA_ = [
   "      medNotas ? [{ x: 15, y: yNotas(H), w: medNotas.w, h: medNotas.h }] : [],",
   "      comPaineis && extras.length ? [{ x: W - 16 - 206 * extras.length, y: H - 100, w: 206 * extras.length, h: 84 }] : [],",
   "    );",
-  "    const larguraLegenda = 58 + Math.max.apply(null, [0].concat(['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO']",
+  "    const larguraLegenda = 58 + Math.max.apply(null, [0].concat(['FIXO', 'EXPOSICAO', 'NOVO']",
   "      .filter((x) => simbolosUsados.has(x)).map((x) => largura((ctx.dados.simbolos[x] && ctx.dados.simbolos[x].descricao) || x, 19, 400))));",
   "    const semPlanta = fichas.length > 0; // visão simplificada com etiquetas: só as fichas",
   "    let arranjo;",
@@ -6326,6 +6450,60 @@ const PAGINA_ = [
   "    }",
   "  }",
   "",
+  "  /**",
+  "   * Ajustes de etiqueta de uma planta, já com os não salvos (estado.ajustes) quando é a planta aberta:",
+  "   * { tamanho, moveis: { ID: { x, y, espacos: { 'LADO-A': { x, y } } } } } (só os que têm ajuste).",
+  "   */",
+  "  function ajustesDaPlanta(p) {",
+  "    const pendentes = p.id === (plantaAtual() || {}).id ? estado.ajustes : {};",
+  "    const tamanho = (pendentes.LOJA && pendentes.LOJA.escala) || (p.loja && p.loja.escalaEtiquetas) || 100;",
+  "    const moveis = {};",
+  "    p.moveis.forEach((m) => {",
+  "      const a = pendentes[m.id] || { x: m.ajusteX || 0, y: m.ajusteY || 0 };",
+  "      const espacos = Object.assign({}, m.ajustesEspacos);",
+  "      Object.keys(pendentes).forEach((id) => {",
+  "        if (id.indexOf(m.id + '/') !== 0) return;",
+  "        const k = id.slice(m.id.length + 1);",
+  "        if (pendentes[id].x || pendentes[id].y) espacos[k] = { x: pendentes[id].x, y: pendentes[id].y };",
+  "        else delete espacos[k];",
+  "      });",
+  "      if (!a.x && !a.y && !Object.keys(espacos).length) return;",
+  "      moveis[m.id] = { x: a.x || 0, y: a.y || 0 };",
+  "      if (Object.keys(espacos).length) moveis[m.id].espacos = espacos;",
+  "    });",
+  "    return { tamanho, moveis };",
+  "  }",
+  "",
+  "  /** Baixa a posição das etiquetas de todas as plantas (para virar a base do código, em Layouts.gs). */",
+  "  function baixarPosicoes() {",
+  "    const plantas = {};",
+  "    estado.dados.plantas.forEach((p) => { plantas[p.id] = ajustesDaPlanta(p); });",
+  "    const L = [",
+  "      '{',",
+  "      '  \"formato\": \"plano-varejo-etiquetas\",',",
+  "      '  \"versao\": 1,',",
+  "      '  \"geradoEm\": ' + JSON.stringify(new Date().toISOString()) + ',',",
+  "      '  \"ciclo\": ' + JSON.stringify(estado.ciclo || '') + ',',",
+  "      '  \"legenda\": \"por planta: tamanho das etiquetas (%) e, por móvel, o deslocamento da pilha em px (x, y) a partir da posição automática; espacos = deslocamento de cada pilha de espaço, somado ao do móvel\",',",
+  "      '  \"plantas\": {',",
+  "    ];",
+  "    const ids = Object.keys(plantas);",
+  "    ids.forEach((id, i) => {",
+  "      const p = plantas[id];",
+  "      const movs = Object.keys(p.moveis);",
+  "      L.push('    ' + JSON.stringify(id) + ': {');",
+  "      L.push('      \"tamanho\": ' + p.tamanho + ',');",
+  "      L.push('      \"moveis\": {' + (movs.length ? '' : '}'));",
+  "      movs.forEach((m, j) => L.push('        ' + JSON.stringify(m) + ': ' + JSON.stringify(p.moveis[m]) + (j < movs.length - 1 ? ',' : '')));",
+  "      if (movs.length) L.push('      }');",
+  "      L.push('    }' + (i < ids.length - 1 ? ',' : ''));",
+  "    });",
+  "    L.push('  }', '}', '');",
+  "    const data = new Date().toISOString().slice(0, 10);",
+  "    Planilha.baixarBlob(new Blob([L.join('\\n')], { type: 'application/json' }), 'posicoes-etiquetas-' + data + '.json');",
+  "    toast(Object.keys(estado.ajustes).length ? 'Posições baixadas (inclui as alterações ainda não salvas).' : 'Posições das etiquetas baixadas.');",
+  "  }",
+  "",
   "  /* ------------------------ espaço por marca (painel) ---------------------- */",
   "",
   "  const COR_SEM_MARCA = '#C4C4C4';",
@@ -6630,7 +6808,7 @@ const PAGINA_ = [
   "    TV: '<svg class=\"lj-icone\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"><rect x=\"2.5\" y=\"4\" width=\"19\" height=\"13\" rx=\"1.5\"/><path d=\"M9 20.5h6M12 17v3.5\"/></svg>',",
   "    RADIO: '<svg class=\"lj-icone\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"8\" width=\"18\" height=\"13\" rx=\"2\"/><path d=\"M5 8 17 3M3 12h18\"/><circle cx=\"8\" cy=\"16.5\" r=\"2.3\"/><path d=\"M13 15.5h5M13 18h5\"/></svg>',",
   "  };",
-  "  const GLIFOS_SIMBOLO = { MOVIMENTO: '▶', FIXO: '◆', EXPOSICAO: 'Ⓔ', NOVO: 'NEW' };",
+  "  const GLIFOS_SIMBOLO = { FIXO: '🔒', EXPOSICAO: 'Ⓔ', NOVO: 'NEW' };",
   "",
   "  /** Cor de uma etiqueta do painel: a da marca (com uma marca no filtro, as outras em cinza, como no slide). */",
   "  function corEtiquetaPainel(marca) {",
@@ -6696,7 +6874,7 @@ const PAGINA_ = [
   "        }",
   "      });",
   "    }",
-  "    const usados = ['MOVIMENTO', 'FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => estado.simbolos.indexOf(x) >= 0);",
+  "    const usados = ['FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => estado.simbolos.indexOf(x) >= 0);",
   "    if (usados.length) {",
   "      const ul = novo('ul', 'lj-simbolos', null, secao('Símbolos').sec);",
   "      usados.forEach((x) => {",
@@ -6767,7 +6945,7 @@ const PAGINA_ = [
   "      const sim = novo('div', 'mv-linha', null, sec);",
   "      novo('span', 'mv-rotulo', 'Símbolo', sim);",
   "      const d = estado.dados.simbolos[i.simbolo];",
-  "      novo('span', null, ({ MOVIMENTO: '▶ ', FIXO: '◆ ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);",
+  "      novo('span', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);",
   "    }",
   "    const etiquetas = i.etiquetas.slice(0, op.limite || i.etiquetas.length);",
   "    const lista = novo('div', 'mv-linha mv-etiquetas', null, sec);",
@@ -7344,6 +7522,7 @@ const PAGINA_ = [
   "    // O menu fecha no clique; o tour começa depois, para não destacar o menu ainda aberto.",
   "    ao('btnTutorial', 'click', () => estado.dados && setTimeout(() => Tutorial.iniciar(), 0));",
   "    ao('btnSalvarAjustes', 'click', salvarAjustes);",
+  "    ao('btnBaixarPosicoes', 'click', baixarPosicoes);",
   "    ao('btnConfigurar', 'click', configurar);",
   "    ao('btnConstruir', 'click', () => {",
   "      if (!estado.dados) return;",

@@ -562,6 +562,8 @@ function normSimbolo_(v, aviso, onde) {
       if (n === bruto || (k && chave_(n) === k)) return codigos[i];
     }
   }
+  // O antigo símbolo "movimento" (▶) saiu: planilhas antigas que ainda o têm ficam sem símbolo, sem aviso.
+  if (['MOVIMENTO', 'MOV', 'SETA', '▶', '>'].some(function (n) { return n === bruto || (k && chave_(n) === k); })) return '';
   if (aviso) aviso(onde + ': símbolo "' + s + '" não reconhecido (use ' + codigos.join(', ') + ').');
   return '';
 }

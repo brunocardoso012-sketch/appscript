@@ -303,8 +303,7 @@ const MARCAS = {
 
 /** Símbolos exibidos ao lado da primeira etiqueta do móvel. */
 const SIMBOLOS = {
-  MOVIMENTO: { descricao: 'Movimento definido nesta planta', apelidos: ['MOV', 'SETA', '▶', '>'] },
-  FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', '◆', 'LOSANGO'] },
+  FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', 'CADEADO', '🔒', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
 };
@@ -500,10 +499,12 @@ function colunasLayout_() {
  *   - Y cresce ao longo da parede do fundo à ESQUERDA (em direção à frente/caixas).
  *   - Z é a elevação (0 = chão). Largura = eixo X, Profundidade = eixo Y.
  *
+ *  Loja: [largura, profundidade, altura da parede, (tamanho das etiquetas em %, padrão 100)].
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
  *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270),
  *          (ajuste das pilhas de etiquetas por espaço: { 'LADO-A': {x, y} })]
- *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato.
+ *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato; o botão "Baixar
+ *  posições" (modo ajuste das etiquetas) gera os ajustes de etiqueta (índices 9, 10 e 13) e o tamanho.
  */
 
 /**
@@ -519,7 +520,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 12, '02': 11, '03': 8, '04': 9 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 10;
+const VERSAO_EXEMPLO = 12;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja".
@@ -704,10 +705,10 @@ const EXEMPLO_MOVIMENTOS = {
   },
   '02': {
     'GONDOLA 2/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
-    'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']], 'MOVIMENTO'],
-    'GONDOLA 2/MEIO-B': ['EUD', [['CUIDADOS', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 2/LADO-B': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
+    'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']]],
+    'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']]],
+    'GONDOLA 2/MEIO-B': ['EUD', [['CUIDADOS', 'EUD']]],
+    'GONDOLA 2/LADO-B': ['EUD', [['OUTLET EUD', 'EUD']]],
     'PIRAMIDE 3': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'MOVEL DE FILA 3': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 4': ['QDB', [['LIQUIDA QDB', 'QDB']]],
@@ -716,10 +717,10 @@ const EXEMPLO_MOVIMENTOS = {
   },
   '03': {
     // Lado A e meio A iguais ao lado B e ao meio B da gôndola 2 da ER M.
-    'GONDOLA 3/LADO-A': ['EUD', [['OUTLET EUD', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']], 'MOVIMENTO'],
-    'GONDOLA 3/LADO-B': ['MULTI', [], 'MOVIMENTO'],
+    'GONDOLA 3/LADO-A': ['EUD', [['OUTLET EUD', 'EUD']]],
+    'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']]],
+    'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']]],
+    'GONDOLA 3/LADO-B': ['MULTI', []],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 8': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
@@ -727,20 +728,20 @@ const EXEMPLO_MOVIMENTOS = {
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-3': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
   },
   '04': {
-    'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']], 'MOVIMENTO'],
-    'PIRAMIDE 5': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']], 'MOVIMENTO'],
-    'GONDOLA 4/LADO-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']], 'MOVIMENTO'],
-    'GONDOLA 4/MEIO-A': ['OUI', [], 'MOVIMENTO'],
-    'GONDOLA 4/MEIO-B': ['OUI', [], 'MOVIMENTO'],
-    'GONDOLA 4/LADO-B': ['OUI', [], 'MOVIMENTO'],
+    'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']]],
+    'PIRAMIDE 5': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']]],
+    'GONDOLA 4/LADO-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']]],
+    'GONDOLA 4/MEIO-A': ['OUI', []],
+    'GONDOLA 4/MEIO-B': ['OUI', []],
+    'GONDOLA 4/LADO-B': ['OUI', []],
     'GONDOLA 5/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'GONDOLA 5/MEIO-A': ['QDB'],
     'GONDOLA 5/MEIO-B': ['QDB'],
     'GONDOLA 5/LADO-B': ['QDB'],
-    'GONDOLA 6/LADO-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']], 'MOVIMENTO'],
-    'GONDOLA 6/MEIO-A': ['EUD', [], 'MOVIMENTO'],
-    'GONDOLA 6/MEIO-B': ['EUD', [], 'MOVIMENTO'],
-    'GONDOLA 6/LADO-B': ['EUD', [], 'MOVIMENTO'],
+    'GONDOLA 6/LADO-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']]],
+    'GONDOLA 6/MEIO-A': ['EUD', []],
+    'GONDOLA 6/MEIO-B': ['EUD', []],
+    'GONDOLA 6/LADO-B': ['EUD', []],
     'ILHA PREMIUM OUI 1': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
 };
@@ -802,6 +803,106 @@ const EXEMPLO_TIPOS = [
   ['+PEC REGIONAL', 'OUTRO', 150000],
 ];
 
+/* --------------------------------------------------------------------------
+ *  CICLO DE EXEMPLO CHEIO: todos os móveis de todas as plantas preenchidos, para
+ *  ver a planta com o máximo de etiquetas (e posicioná-las no modo ajuste).
+ *  Etiquetas por móvel: gôndola (cada espaço), pirâmide, móvel de fila e PDV móvel: 2;
+ *  móvel de parede: 3; totem: 1 por painel; mesa destaque: 2 por frente; O.U.i: 3;
+ *  balcão recepção: 3; móvel de atendimento: 1; móvel make: 1 por testeira; itens fora da planta: 1.
+ * ------------------------------------------------------------------------ */
+
+const EXEMPLO_CICLO_CHEIO = 'Ciclo exemplo cheio';
+
+const EXEMPLO_CHEIO = {
+  // Pares que se revezam nas gôndolas, pirâmides, móveis de fila e PDV móvel.
+  pares: [
+    [['BOTIPROMO', 'BOT'], ['LÇTO EGEO', 'BOT']],
+    [['OUTLET EUD', 'EUD'], ['SIÀGE ULTIMATE', 'EUD']],
+    [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']],
+    [['MULTI PROMO', 'MULTI'], ['PRINCIPAIS OPORTUNIDADES', 'BOT']],
+    [['UOMINI HERO', 'BOT'], ['LÇTO UOMINI', 'BOT']],
+    [['CUIDADOS', 'EUD'], ['PERFUMARIA', 'EUD']],
+  ],
+  // Móveis de parede (pelo número): marca das placas e as 3 etiquetas.
+  parede: {
+    1: ['BOT', [['PERF FEM', 'BOT'], ['FLORATTA', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    2: ['BOT', [['PERF MASC', 'BOT'], ['MALBEC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+    3: ['EUD', [['PERF FEM', 'EUD'], ['SIÀGE', 'EUD'], ['OUTLET EUD', 'EUD']]],
+    4: ['BOT', [['CUIDADOS (CBEM/NSPA)', 'BOT'], ['NATIVA SPA', 'BOT'], ['MULTI PROMO', 'MULTI']]],
+  },
+  totem: [['LÇTO UOMINI', 'BOT'], ['BOTIPROMO', 'BOT'], ['LIQUIDA QDB', 'QDB']],
+  mesa: [
+    [['UOMINI GLORIFICADO', 'BOT'], ['LÇTO UOMINI', 'BOT']],
+    [['SIÀGE GLORIFICADO', 'EUD'], ['SIÀGE ULTIMATE', 'EUD']],
+    [['VM PERMANENTE MULTI PROMO', 'MULTI'], ['MULTI PROMO', 'MULTI']],
+  ],
+  oui: [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI'], ['LÇTO MON AMIE', 'OUI']],
+  balcao: [['LÇTO EGEO', 'BOT+QDB'], ['JUICY MOOD', 'QDB'], ['SIÀGE ULTIMATE', 'EUD']],
+  atendimento: [['STOPPER LÇTO EGEO', 'BOT'], ['OUTLET EUD', 'EUD'], ['LIQUIDA QDB', 'QDB']],
+  make: [['MAKE B.', 'BOT'], ['BOTIPROMO MAKE B.', 'BOT'], ['OUTLET MAKE EUD', 'EUD'], ['LIQUIDA MAKE', 'QDB']],
+  extras: { 'EXTRA-CESTINHAS': ['LÇTO EGEO', 'BOT+QDB'], 'EXTRA-BELEZA': ['BOTIPROMO MAKE B.', 'BOT'], 'EXTRA-CAVALETE': ['SIÀGE ULTIMATE', 'EUD'] },
+  // Movimentos que não estão em EXEMPLO_TIPOS: [texto, classificação, GMV esperado (ilustrativo)].
+  tipos: [
+    ['PERF FEM', 'INSTITUCIONAL', 980000],
+    ['PERF MASC', 'INSTITUCIONAL', 760000],
+    ['FLORATTA', 'INSTITUCIONAL', 540000],
+    ['MALBEC', 'INSTITUCIONAL', 610000],
+    ['SIÀGE', 'INSTITUCIONAL', 470000],
+    ['CUIDADOS (CBEM/NSPA)', 'INSTITUCIONAL', 520000],
+    ['NATIVA SPA', 'INSTITUCIONAL', 390000],
+    ['LÇTO MON AMIE', 'LANCAMENTO', 240000],
+    ['Hôtel de Ville 193', 'LANCAMENTO', 180000],
+    ['VM PERMANENTE MULTI PROMO', 'PROMOCAO', 300000],
+    ['STOPPER LÇTO EGEO', 'LANCAMENTO', 120000],
+    ['MAKE B.', 'INSTITUCIONAL', 350000],
+    ['OUTLET MAKE EUD', 'LIQUIDACAO', 160000],
+  ],
+};
+
+/**
+ * Linhas do ciclo cheio de uma planta: { 'ID' ou 'ID/ESPACO': [marca, [[etiqueta, marca]...], símbolo] }.
+ * Cada planta tem todas as suas linhas (não depende da cascata entre plantas).
+ */
+function movimentosExemploCheio_(planta) {
+  const E = EXEMPLO_CHEIO;
+  const saida = {};
+  let k = 0; // reveza os pares entre os móveis
+  const par = function () { return E.pares[k++ % E.pares.length]; };
+  const linha = function (etiquetas, simbolo) { return [etiquetas[0][1].split('+')[0], etiquetas, simbolo || '']; };
+  LAYOUT_PADRAO[planta].moveis.forEach(function (m) {
+    const id = m[0], tipo = m[2];
+    const num = Number((/(\d+)\s*$/.exec(id) || [0, 1])[1]);
+    if (tipo === 'GONDOLA') {
+      const div = String(m[11] || '').toUpperCase();
+      const ids = ['LADO-A'];
+      ['A', 'B'].forEach(function (l) { if (div.indexOf(l) >= 0) ids.push('MEIO-' + l + '-1', 'MEIO-' + l + '-2'); else ids.push('MEIO-' + l); });
+      ids.push('LADO-B');
+      ids.forEach(function (e) { saida[id + '/' + e] = linha(par(), num === 1 && /^MEIO/.test(e) ? 'FIXO' : ''); });
+    } else if (tipo === 'PIRAMIDE' || tipo === 'FILA' || tipo === 'CUBO') {
+      saida[id] = linha(par(), tipo === 'PIRAMIDE' && num === 1 ? 'NOVO' : '');
+    } else if (tipo === 'GONDOLA_PAREDE') {
+      const p = E.parede[num] || E.parede[1];
+      saida[id] = [p[0], p[1], ''];
+    } else if (tipo === 'TOTEM') {
+      E.totem.forEach(function (et, i) { saida[id + '/PAINEL-' + (i + 1)] = linha([et]); });
+    } else if (tipo === 'MESA' || tipo === 'MESA_3') {
+      const n = tipo === 'MESA' ? 2 : 3;
+      for (let i = 0; i < n; i++) saida[id + '/FRENTE-' + (i + 1)] = linha(E.mesa[i]);
+    } else if (tipo === 'PAINEL' || tipo === 'EXPOSITOR_OUI' || tipo === 'ILHA_OUI') {
+      saida[id] = ['OUI', E.oui, tipo === 'ILHA_OUI' ? 'EXPOSICAO' : ''];
+    } else if (tipo === 'VITRINE_L') {
+      saida[id] = ['BOT', E.balcao, ''];
+    } else if (tipo === 'CAIXA') {
+      saida[id] = linha([E.atendimento[(num - 1) % E.atendimento.length]]);
+    } else if (tipo === 'MAKE') {
+      E.make.forEach(function (et, i) { saida[id + '/TESTEIRA-' + (i + 1)] = linha([et]); });
+    } else if (tipo === 'EXTRA' && E.extras[id]) {
+      saida[id] = ['NEUTRO', [E.extras[id]], ''];
+    }
+  });
+  return saida;
+}
+
 /* ------------------------- Conversão em matrizes ------------------------- */
 
 /** Matriz [cabeçalho, ...linhas] da aba Layout padrão. */
@@ -814,6 +915,7 @@ function valoresLayoutPadrao_() {
     linhas.push(linha({
       planta: planta, movel: 'LOJA', descricao: 'Piso e paredes da loja', tipo: 'LOJA',
       x: 0, y: 0, z: 0, largura: p.loja[0], profundidade: p.loja[1], altura: p.loja[2], ajusteX: 0, ajusteY: 0,
+      tamanhoEtiquetas: p.loja[3] || '',
     }));
     p.moveis.forEach(function (m) {
       linhas.push(linha({
@@ -834,12 +936,16 @@ function valoresMovimentosExemplo_() {
   Object.keys(LAYOUT_PADRAO).forEach(function (planta) {
     LAYOUT_PADRAO[planta].moveis.forEach(function (m) { descricoes[m[0]] = descricoes[m[0]] || m[1]; });
   });
-  Object.keys(EXEMPLO_MOVIMENTOS).forEach(function (planta) {
-    const moveis = EXEMPLO_MOVIMENTOS[planta];
+  const ciclos = [[EXEMPLO_CICLO, EXEMPLO_MOVIMENTOS]];
+  const cheio = {};
+  Object.keys(LAYOUT_PADRAO).forEach(function (planta) { cheio[planta] = movimentosExemploCheio_(planta); });
+  ciclos.push([EXEMPLO_CICLO_CHEIO, cheio]);
+  ciclos.forEach(function (c) { Object.keys(c[1]).forEach(function (planta) {
+    const moveis = c[1][planta];
     Object.keys(moveis).forEach(function (id) {
       const m = moveis[id];
       const o = {
-        ciclo: EXEMPLO_CICLO, planta: planta, movel: id, descricao: descricoes[id.split('/')[0]] || '',
+        ciclo: c[0], planta: planta, movel: id, descricao: descricoes[id.split('/')[0]] || '',
         marca: m[0], simbolo: m[2] || '', observacao: '',
       };
       (m[1] || []).slice(0, CONFIG.MAX_ETIQUETAS).forEach(function (e, i) {
@@ -848,7 +954,7 @@ function valoresMovimentosExemplo_() {
       });
       linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
     });
-  });
+  }); });
   return linhas;
 }
 
@@ -856,10 +962,18 @@ function valoresMovimentosExemplo_() {
 function valoresTiposExemplo_() {
   const cols = colunasTipos_();
   const linhas = [cols.map(function (c) { return c.titulo; })];
-  EXEMPLO_TIPOS.forEach(function (t) {
-    const o = { ciclo: EXEMPLO_CICLO, etiqueta: t[0], classificacao: CLASSIFICACOES[t[1]] ? CLASSIFICACOES[t[1]].nome : t[1], gmv: t[2] };
-    linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
+  // Ciclo cheio: só os movimentos que aparecem nas etiquetas dele.
+  const usados = {};
+  Object.keys(LAYOUT_PADRAO).forEach(function (planta) {
+    const movs = movimentosExemploCheio_(planta);
+    Object.keys(movs).forEach(function (id) { movs[id][1].forEach(function (e) { usados[e[0]] = true; }); });
   });
+  const doCheio = EXEMPLO_TIPOS.concat(EXEMPLO_CHEIO.tipos).filter(function (t) { return usados[t[0]]; });
+  const tipos = [[EXEMPLO_CICLO, EXEMPLO_TIPOS], [EXEMPLO_CICLO_CHEIO, doCheio]];
+  tipos.forEach(function (c) { c[1].forEach(function (t) {
+    const o = { ciclo: c[0], etiqueta: t[0], classificacao: CLASSIFICACOES[t[1]] ? CLASSIFICACOES[t[1]].nome : t[1], gmv: t[2] };
+    linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
+  }); });
   return linhas;
 }
 
@@ -867,10 +981,10 @@ function valoresTiposExemplo_() {
 function valoresPaineisExemplo_() {
   const cols = colunasPaineis_();
   const linhas = [cols.map(function (c) { return c.titulo; })];
-  EXEMPLO_PAINEIS.forEach(function (p) {
-    const o = { ciclo: EXEMPLO_CICLO, planta: p[0], secao: p[1], texto: p[2], marca: p[3], movel: p[4] };
+  [EXEMPLO_CICLO, EXEMPLO_CICLO_CHEIO].forEach(function (ciclo) { EXEMPLO_PAINEIS.forEach(function (p) {
+    const o = { ciclo: ciclo, planta: p[0], secao: p[1], texto: p[2], marca: p[3], movel: p[4] };
     linhas.push(cols.map(function (c) { return o[c.chave] === undefined ? '' : o[c.chave]; }));
-  });
+  }); });
   return linhas;
 }
 
@@ -1439,6 +1553,8 @@ function normSimbolo_(v, aviso, onde) {
       if (n === bruto || (k && chave_(n) === k)) return codigos[i];
     }
   }
+  // O antigo símbolo "movimento" (▶) saiu: planilhas antigas que ainda o têm ficam sem símbolo, sem aviso.
+  if (['MOVIMENTO', 'MOV', 'SETA', '▶', '>'].some(function (n) { return n === bruto || (k && chave_(n) === k); })) return '';
   if (aviso) aviso(onde + ': símbolo "' + s + '" não reconhecido (use ' + codigos.join(', ') + ').');
   return '';
 }

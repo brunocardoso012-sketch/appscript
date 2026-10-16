@@ -35,7 +35,7 @@ test('visualizador lê os ciclos da planilha vinculada, com o layout do código'
   const { run } = carregarVisualizador();
   const d = run('getDados()');
   assert.equal(d.precisaConfigurar, false);
-  assert.deepEqual(d.ciclos, ['Ciclo exemplo']);
+  assert.deepEqual(d.ciclos, ['Ciclo exemplo', 'Ciclo exemplo cheio']);
   assert.deepEqual(d.avisos, []);
   assert.deepEqual(d.plantas.map((p) => p.nome), ['ER P', 'ER M', 'ER G', 'ER GG']);
   assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1/LADO-A']);
@@ -55,7 +55,7 @@ test('visualizador sem planilha conectada ou sem a aba Movimentos pede configura
 test('visualizador abre a planilha pelo link colado em VISUALIZADOR.PLANILHA', () => {
   const { run, abertas } = carregarVisualizador({ vinculada: false });
   run("VISUALIZADOR.PLANILHA = 'https://docs.google.com/spreadsheets/d/1AbC-d_9/edit#gid=0'");
-  assert.deepEqual(run('getDados()').ciclos, ['Ciclo exemplo']);
+  assert.deepEqual(run('getDados()').ciclos, ['Ciclo exemplo', 'Ciclo exemplo cheio']);
   assert.deepEqual(abertas, ['1AbC-d_9']);
 });
 
@@ -115,5 +115,5 @@ test('arquivo único para o Apps Script: atualizado, serve a página embutida e 
   run('HtmlService = { createHtmlOutput: (html) => { globalThis.__pagina = html; const o = { setTitle: () => o, addMetaTag: () => o }; return o; } }');
   run('doGet()');
   assert.equal(run('globalThis.__pagina'), gerarIndex(), 'a página servida é o Index.html do visualizador');
-  assert.deepEqual(run('getDados()').ciclos, ['Ciclo exemplo']);
+  assert.deepEqual(run('getDados()').ciclos, ['Ciclo exemplo', 'Ciclo exemplo cheio']);
 });
