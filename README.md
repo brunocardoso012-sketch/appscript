@@ -154,6 +154,7 @@ Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`
    | HTML | `Validacao` | [`src/Validacao.html`](src/Validacao.html) |
    | HTML | `Estrategia` | [`src/Estrategia.html`](src/Estrategia.html) |
    | HTML | `Tutorial` | [`src/Tutorial.html`](src/Tutorial.html) |
+   | HTML | `Analytics` | [`src/Analytics.html`](src/Analytics.html) |
    | HTML | `App` | [`src/App.html`](src/App.html) |
 
 5. Salve, volte para a planilha e recarregue a página. Vai aparecer o menu **Plano de Varejo**. Clique em **Configurar planilha (criar abas que faltam)** e autorize o script. Ele cria as abas `Layout`, `Movimentos`, `Painéis` e `Tipos de movimento` com o layout das 4 plantas e um *Ciclo exemplo*.

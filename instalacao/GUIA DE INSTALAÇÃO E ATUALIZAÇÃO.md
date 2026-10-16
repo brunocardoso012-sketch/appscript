@@ -12,6 +12,8 @@ Este guia é para quem **já usa o app no Apps Script e já tem a planilha com o
 
 Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (passo 1).
 
+> **Já tem *Comunicações ER* e *Espaço por marca* no topo do app?** Então falta só a atualização do **Analytics**: use o passo a passo curto em [ATUALIZAÇÃO ANALYTICS - PASSO A PASSO.md](ATUALIZA%C3%87%C3%83O%20ANALYTICS%20-%20PASSO%20A%20PASSO.md).
+
 > Para abrir um `.gs` no computador e copiar o conteúdo: abra com o Bloco de Notas (Windows) ou o TextEdit (Mac), ou abra o arquivo no GitHub e clique em **Raw**. Depois use <kbd>Ctrl</kbd>+<kbd>A</kbd> e <kbd>Ctrl</kbd>+<kbd>C</kbd> (no Mac, <kbd>Cmd</kbd>).
 
 ---
@@ -153,14 +155,15 @@ O jeito mais simples é usar **um arquivo só**:
 <details>
 <summary>Prefere manter os arquivos separados?</summary>
 
-Também funciona. Substitua o conteúdo de cada arquivo pelo da pasta `src/` do projeto e **crie dois arquivos HTML novos**:
+Também funciona. Substitua o conteúdo de cada arquivo pelo da pasta `src/` do projeto e **crie os arquivos HTML novos**:
 
 | Tipo | Nome | Conteúdo |
 |---|---|---|
 | HTML | `Estrategia` | `src/Estrategia.html` (novo) |
 | HTML | `Tutorial` | `src/Tutorial.html` (novo) |
+| HTML | `Analytics` | `src/Analytics.html` (novo) |
 
-Os demais (`Code`, `Config`, `Dados`, `Layouts`, `Validacao`, `Index`, `Styles`, `Render`, `Planilha`, `Construtor`, `Validacao` html, `App`) recebem o conteúdo novo do arquivo de mesmo nome em `src/`. Sem os dois arquivos novos, a página não abre.
+Os demais (`Code`, `Config`, `Dados`, `Layouts`, `Validacao`, `Index`, `Styles`, `Render`, `Planilha`, `Construtor`, `Validacao` html, `App`) recebem o conteúdo novo do arquivo de mesmo nome em `src/`. Sem os arquivos novos, a página não abre.
 </details>
 
 ### B3. Teste antes de publicar (opcional, recomendado)
