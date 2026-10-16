@@ -78,6 +78,16 @@ test('posições das etiquetas ficam nas propriedades do script, sem mexer na pl
   assert.equal(run('getDados()').plantas[0].loja.escalaEtiquetas, 130);
 });
 
+test('ER GG: posições salvas antes das posições fixas não estragam as do código; as fixas salvas valem', () => {
+  const { run } = carregarVisualizador();
+  const gg = () => run('getDados()').plantas.find((p) => p.id === '04');
+  const doCodigo = gg().moveis.find((m) => m.id === 'PIRAMIDE 1');
+  run("salvarAjustesEtiquetas('04', { 'PIRAMIDE 1': { x: 96, y: 105 } })"); // deslocamento da versão anterior
+  assert.deepEqual([gg().moveis.find((m) => m.id === 'PIRAMIDE 1').ajusteX, gg().loja.slide], [doCodigo.ajusteX, 3072]);
+  run("salvarAjustesEtiquetas('04', { LOJA: { escala: 100, slide: 3072 }, 'PIRAMIDE 1': { x: 2000, y: 900 } })"); // posição fixa
+  assert.deepEqual([gg().moveis.find((m) => m.id === 'PIRAMIDE 1').ajusteX, gg().loja.slide], [2000, 3072]);
+});
+
 test('Index.html do visualizador não tem Construir loja nem Baixar / Importar planilha', () => {
   const html = gerarIndex();
   ['btnModelo', 'btnImportar', 'btnConstruir', 'painelConstrutor', 'dlgModelo', 'dlgResultado', 'btnConfigurar']

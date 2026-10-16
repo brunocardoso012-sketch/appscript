@@ -184,6 +184,9 @@ function aplicarAjustesSalvos_(plantas) {
       p.loja.escalaEtiquetas = normTamanhoEtiquetas_(ajustes.LOJA.escala);
       if (normSlide_(ajustes.LOJA.slide)) p.loja.slide = normSlide_(ajustes.LOJA.slide);
     }
+    // Posições salvas antes de a planta ter posições fixas (deslocamentos a partir do arranjo automático)
+    // não valem mais quando o código traz a largura do slide: ficam as posições fixas do código.
+    if (p.loja && p.loja.slide && !(ajustes.LOJA && normSlide_(ajustes.LOJA.slide))) return;
     p.moveis.forEach(function (m) {
       const atual = { x: m.ajusteX || 0, y: m.ajusteY || 0, espacos: m.ajustesEspacos || {} };
       if (!aplicarAjusteEtiquetas_(m.id, ajustes, atual)) return;
