@@ -75,7 +75,7 @@ Clique em **Construir loja** para abrir o editor ao lado da planta. A planta **a
 | **Mesa destaque** (`MESA DESTAQUE 1`…) | Estrutura com pernas e **2 frentes**, cada uma com nicho baixo em cima, lâmina de vidro ao fundo e cartaz na frente (do chão até o topo do nicho). | **Uma linha por frente** (`MESA DESTAQUE 1/FRENTE-1` e `FRENTE-2`), cada uma com **cor e até 4 etiquetas próprias**; frente sem linha fica branca. Frentes com as mesmas etiquetas e cor ficam com uma pilha só. |
 | **Mesa destaque 3 frentes** (`MESA DESTAQUE 3 FRENTES 1`…) | Igual à mesa destaque, com **3 frentes** (padrão 3,9 × 1,4 × 2,6). | Uma linha por frente (`FRENTE-1` a `FRENTE-3`), com cor e etiqueta próprias, como na mesa destaque. |
 | **Balcão recepção** (`BALCAO RECEPCAO 1`…) | Balcão de vidro em L com os dois lados sempre do mesmo tamanho (mudar um muda o outro); um espaço só (sem divisão entre os braços), 2 níveis; padrão 2,4 × 2,4 × 1,28. *Girar* muda o canto do L. | Uma linha, **uma cor só**, até 3 etiquetas empilhadas. |
-| **Móvel de atendimento** (`MOVEL DE ATENDIMENTO 1`…) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | **Fica fora da planilha** (não leva cor nem etiqueta). |
+| **Móvel de atendimento** (`MOVEL DE ATENDIMENTO 1`…) | Balcão com a telinha preta em cima, no lado do fundo (padrão 1,8 × 1,2 × 1,7). | **Fica fora da planilha** (não leva cor nem etiqueta; uma linha dele na aba Movimentos é ignorada, com aviso). |
 | **Parede O.U.i** (`PAREDE OUI 1`…) | Painel alto com moldura, para a parede (padrão 3,6 × 0,9 × 5). | Uma linha. |
 | **Totem O.U.i** (`TOTEM OUI 1`…) | Expositor de base quadrada com moldura, na altura da gôndola (padrão 0,8 × 0,8 × 1,94). | Uma linha. |
 | **Ilha premium O.U.i** (`ILHA PREMIUM OUI 1`…) | Base com prateleiras e, centralizado em cima dela, painel alto com duas faixas verticais mais claras nas laterais (padrão 3 × 1,6 × 3). | Uma linha. |
@@ -123,7 +123,7 @@ Para **ajustar a planta** (posição e tamanho dos móveis):
 2. Mude X, Y, Largura, Profundidade e Altura no Excel e importe. As plantas presentes na aba são substituídas por inteiro.
 3. Quando estiver tudo certo, baixe a planilha com a aba Layout e importe na versão Apps Script. O Apps Script aceita o mesmo arquivo.
 
-Além do *Ciclo exemplo*, vem o *Ciclo exemplo cheio*, com todos os móveis de todas as plantas preenchidos (gôndolas, pirâmides, móveis de fila e PDV móvel com 2 etiquetas; móveis de parede com 3; totem com 1 por painel; mesa destaque com 2 por frente; O.U.i e balcão recepção com 3; móvel de atendimento com 1; móvel make com 1 por testeira), para ver a planta no máximo e posicionar as etiquetas.
+Além do *Ciclo exemplo*, vem o *Ciclo exemplo cheio*, com todos os móveis de todas as plantas preenchidos (gôndolas, pirâmides, móveis de fila e PDV móvel com 2 etiquetas; móveis de parede com 3; totem com 1 por painel; mesa destaque com 2 por frente; O.U.i e balcão recepção com 3; móvel make com 1 por testeira; o móvel de atendimento não leva etiqueta), para ver a planta no máximo e posicionar as etiquetas.
 
 Quando o modelo base de uma planta muda no código (`VERSAO_MODELO_PLANTAS` em [`src/Layouts.gs`](src/Layouts.gs)), essa planta e as linhas dela no *Ciclo exemplo* são atualizadas sozinhas na próxima abertura, na versão web e no Apps Script. As outras plantas e os outros ciclos não mudam.
 

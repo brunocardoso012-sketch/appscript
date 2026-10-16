@@ -51,6 +51,9 @@ const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' 
  */
 const ETIQUETAS_POR_TIPO = { VITRINE_L: 3 };
 
+/** Tipos de móvel que não levam cor nem etiqueta (móvel de atendimento): linhas deles na planilha são ignoradas. */
+const TIPOS_SEM_ETIQUETA = ['CAIXA'];
+
 /**
  * Quantas etiquetas a linha de um espaço mostra (GONDOLA 1/LADO-A,
  * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
