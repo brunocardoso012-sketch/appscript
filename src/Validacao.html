@@ -13,7 +13,7 @@
 const Validacao = (() => {
   const CHAVE = 'planoVarejo.validacao';
   const $ = (id) => document.getElementById(id);
-  let app = null; // { estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, fecharEspaco }
+  let app = null; // { estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, fecharAnalytics }
   let acesso = null; // { papel, senha, nome, nomePapel }
   let comentarios = [];
   let painelAberto = false;
@@ -83,7 +83,7 @@ const Validacao = (() => {
       dlg.close();
       app.toast('Você entrou como ' + r.nomePapel.toLowerCase() + '.');
       painelAberto = true;
-      if (app.fecharEspaco) app.fecharEspaco(); // um painel lateral por vez
+      if (app.fecharAnalytics) app.fecharAnalytics(); // o Analytics cobre a planta e os painéis
       await recarregar();
     } catch (e) {
       $('acessoErro').textContent = (e && e.message) || String(e);
@@ -135,7 +135,7 @@ const Validacao = (() => {
   function abrirPainel() {
     if (!acesso) { abrirAcesso(); return; }
     painelAberto = true;
-    if (app.fecharEspaco) app.fecharEspaco();
+    if (app.fecharAnalytics) app.fecharAnalytics();
     atualizar();
     recarregar();
   }
@@ -352,7 +352,7 @@ const Validacao = (() => {
   function focar(id) {
     filtro = 'ABERTO';
     painelAberto = true;
-    if (app.fecharEspaco) app.fecharEspaco();
+    if (app.fecharAnalytics) app.fecharAnalytics();
     atualizar();
     const cartoes = Array.from($('valCorpo').querySelectorAll('.val-cartao'))
       .filter((el) => (doCiclo().find((c) => c.id === el.dataset.comentario) || {}).movel === id);

@@ -375,7 +375,7 @@ function normTamanhoEtiquetas_(v) {
   return n > 0 ? Math.max(60, Math.min(250, n)) : 100;
 }
 
-/** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (igual ao painel "Espaço por marca"). */
+/** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (igual ao Analytics). */
 function chaveEtiqueta_(t) {
   return texto_(t).replace(/\s+/g, ' ').toUpperCase();
 }

@@ -9,7 +9,7 @@
  *  em "Ver o tutorial".
  *
  *  Passos cujo alvo não existe nesta versão (ex.: Construir loja no visualizador) ou está escondido
- *  são pulados sozinhos. O tour não grava nada na planilha: só abre o painel "Espaço por marca" e
+ *  são pulados sozinhos. O tour não grava nada na planilha: só abre (e fecha) o Analytics e
  *  escolhe um ciclo, se nenhum estiver escolhido, para a tela ter o que mostrar.
  */
 const Tutorial = (() => {
@@ -46,12 +46,20 @@ const Tutorial = (() => {
     sel.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  function abrirEspaco() {
-    const b = $('btnEspaco');
+  function abrirAnalytics() {
+    const b = $('btnAnalytics');
     if (b && b.getAttribute('aria-pressed') !== 'true') b.click();
   }
 
-  /** Os passos do tour. alvo: seletor (ou lista; vale o primeiro visível); antes: ação ao entrar no passo. */
+  function fecharAnalytics() {
+    const b = $('btnAnalytics');
+    if (b && b.getAttribute('aria-pressed') === 'true') b.click();
+  }
+
+  /**
+   * Os passos do tour. alvo: seletor (ou lista; vale o primeiro visível); antes: ação ao entrar no passo;
+   * comAnalytics: o passo é dentro do Analytics (nos outros, ele fecha, para a planta aparecer).
+   */
   function montarPassos() {
     return [
       {
@@ -87,21 +95,21 @@ const Tutorial = (() => {
         texto: 'Abre, à esquerda, as comunicações da ER: nome e ciclo, TV e rádio, (A), (C), os destaques (com a miniatura do móvel a que cada um se refere) e os itens fora da planta (cestinhas, espaço da beleza, cavalete).',
       },
       {
-        alvo: '#btnEspaco',
-        titulo: 'Espaço por marca',
-        texto: 'Mostra quanto do espaço da ER vai para cada marca, cada movimento e cada classificação (lançamento, promoção…), com o GMV esperado.',
+        alvo: '#btnAnalytics',
+        titulo: 'Analytics',
+        texto: 'Um dashboard do ciclo no lugar da planta: quanto do espaço de cada ER vai para cada movimento, marca e classificação (lançamento, promoção…), com o GMV esperado e insights rápidos.',
       },
       {
-        alvo: '#painelEspaco',
-        titulo: 'Clique para ver na planta',
-        texto: 'Em "Por movimentos" e "Por classificação", clique numa linha para ver na planta só os espaços onde aquele movimento (ou aquele tipo de movimento) aparece. A classificação e o GMV vêm da aba "Tipos de movimento" da planilha.',
-        antes: () => { garantirCiclo(); abrirEspaco(); },
-        posicao: 'esquerda',
+        alvo: '.an-mapa-cartao',
+        titulo: 'Movimento × ER',
+        texto: 'Cada linha é um movimento e cada coluna uma ER: quanto mais escuro, maior a fatia da ER. Clique numa célula (ou num insight) para ver na planta daquela ER só onde o movimento aparece. "Voltar à planta" (ou Esc) fecha o Analytics.',
+        antes: () => { garantirCiclo(); abrirAnalytics(); },
+        comAnalytics: true,
       },
       {
         alvo: '#btnPng',
         titulo: 'Leve para a apresentação',
-        texto: 'Baixe a planta, a visão simplificada ou a estratégia (o espaço por marca em gráficos). Escolha "PNG" para só o conteúdo, com fundo transparente, ou "Slide completo" para o slide 16:9 pronto para colar.',
+        texto: 'Baixe a planta, a visão simplificada ou a estratégia (o espaço da ER em gráficos). Escolha "PNG" para só o conteúdo, com fundo transparente, ou "Slide completo" para o slide 16:9 pronto para colar.',
       },
       {
         alvo: '#btnConfig',
@@ -204,6 +212,7 @@ const Tutorial = (() => {
     const dir = i >= atual ? 1 : -1;
     while (i >= 0 && i < passos.length) {
       const p = passos[i];
+      if (!p.comAnalytics) fecharAnalytics();
       if (p.antes) p.antes();
       if (!p.alvo || alvoDe(p)) break;
       i += dir;
@@ -316,7 +325,7 @@ const Tutorial = (() => {
   function boasVindas() {
     passos = [{
       titulo: 'Bem-vindo ao Plano de Varejo',
-      texto: 'Aqui você vê, em cada ER, onde fica cada marca e cada movimento do ciclo, com as etiquetas na planta, o espaço por marca e o GMV esperado. Quer um tour rápido (cerca de 2 minutos) pelas principais funções?',
+      texto: 'Aqui você vê, em cada ER, onde fica cada marca e cada movimento do ciclo, com as etiquetas na planta e, no Analytics, como o espaço se divide em cada ER. Quer um tour rápido (cerca de 2 minutos) pelas principais funções?',
     }];
     criarCamada();
     atual = 0;

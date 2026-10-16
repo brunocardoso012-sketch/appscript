@@ -120,8 +120,8 @@ const SIMBOLOS = {
 };
 
 /**
- * Classificação dos movimentos (aba "Tipos de movimento"): aparece no painel "Espaço por marca",
- * em "Por movimentos". A planilha também aceita outro texto (vira uma classificação própria).
+ * Classificação dos movimentos (aba "Tipos de movimento"): aparece no Analytics (movimentos e
+ * classificação em cada ER). A planilha também aceita outro texto (vira uma classificação própria).
  */
 const CLASSIFICACOES = {
   LANCAMENTO: { nome: 'Lançamento', cor: '#0E7490', apelidos: ['LANCAMENTOS', 'LANC', 'LCTO', 'NOVIDADE', 'NEW'] },

@@ -37,15 +37,15 @@
       </div>
 
       <div class="acoes">
-        <!-- Painéis em destaque: o da ER (à esquerda da planta) e o de espaço por marca (à direita). -->
+        <!-- Em destaque: o painel da ER (à esquerda da planta) e o Analytics (no lugar da planta). -->
         <div class="acoes-paineis">
           <button id="btnLoja" class="btn painel-botao" type="button" aria-pressed="false" title="Nome da ER, ciclo, TV / rádio, A, C, destaques e itens fora da planta">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M5.5 8h1.5M5.5 11h1.5M5.5 14h1.5"/></svg>
             Comunicações ER
           </button>
-          <button id="btnEspaco" class="btn painel-botao" type="button" aria-pressed="false" title="Quantos espaços da ER vão para cada marca, movimento e classificação">
+          <button id="btnAnalytics" class="btn painel-botao" type="button" aria-pressed="false" title="Dashboard: como o espaço de cada ER se divide entre os movimentos, as marcas e as classificações">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7H3"/></svg>
-            Espaço por marca
+            Analytics
           </button>
         </div>
         <span class="acoes-divisor" aria-hidden="true"></span>
@@ -150,16 +150,16 @@
           Baixar PNG
         </button>
       </div>
-      <aside class="painel-espaco" id="painelEspaco" hidden aria-label="Espaço por marca">
-        <header class="esp-topo">
+      <section class="analytics" id="painelAnalytics" hidden aria-label="Analytics">
+        <header class="an-topo">
           <div>
-            <h2>Espaço por marca</h2>
-            <span id="espSub"></span>
+            <h2>Analytics</h2>
+            <span id="anSub"></span>
           </div>
-          <button id="espFechar" class="btn fantasma pequeno" type="button" title="Fechar o painel">✕</button>
+          <button id="anFechar" class="btn" type="button" title="Voltar à planta (Esc)">Voltar à planta ✕</button>
         </header>
-        <div id="espCorpo" class="esp-corpo"></div>
-      </aside>
+        <div id="anCorpo" class="an-corpo"></div>
+      </section>
       <aside class="painel-espaco painel-validacao" id="painelValidacao" hidden aria-label="Validação da estratégia">
         <header class="esp-topo">
           <div>
@@ -337,7 +337,7 @@
           <legend>Conteúdo</legend>
           <label class="opcao"><input type="radio" name="pngConteudo" value="planta" checked> <span>Planta <small>— a loja com as etiquetas junto de cada espaço</small></span></label>
           <label class="opcao"><input type="radio" name="pngConteudo" value="simplificada"> <span>Visão simplificada <small>— as fichas dos móveis, por tipo</small></span></label>
-          <label class="opcao"><input type="radio" name="pngConteudo" value="estrategia"> <span>Estratégia <small>— o espaço por marca, os movimentos e as classificações em gráficos</small></span></label>
+          <label class="opcao"><input type="radio" name="pngConteudo" value="estrategia"> <span>Estratégia <small>— o espaço da ER por marca, movimento e classificação, em gráficos</small></span></label>
         </fieldset>
         <fieldset class="campo bloco">
           <legend>Formato</legend>
@@ -413,6 +413,7 @@
     <!-- /so-app-completo -->
     <?!= include('Validacao'); ?>
     <?!= include('Estrategia'); ?>
+    <?!= include('Analytics'); ?>
     <?!= include('Tutorial'); ?>
     <?!= include('App'); ?>
   </body>

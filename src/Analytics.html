@@ -1,0 +1,484 @@
+<script>
+/**
+ * ============================================================================
+ *  ANALYTICS: dashboard de como o espaço do ciclo se divide entre os movimentos, em cada ER
+ * ============================================================================
+ *  Analytics.desenhar(corpo, dados, acoes) monta, no lugar da planta:
+ *   - números principais (espaços, ocupação com movimento, movimentos, GMV esperado e concentração);
+ *   - insights rápidos, escritos a partir dos números (maior movimento, o que muda entre as ERs,
+ *     movimentos de uma ER só, espaço sem movimento, GMV × espaço…);
+ *   - o mapa de calor movimento × ER (quanto de cada ER vai para cada movimento);
+ *   - as marcas e as classificações em cada ER (barras 100%);
+ *   - GMV esperado × espaço de cada movimento.
+ *  Os dados vêm prontos da aplicação (App.dadosAnalytics); aqui só o desenho. Clicar num número
+ *  chama acoes.verNaPlanta({ er, etiqueta | marca | classificacao }), que abre a planta já filtrada.
+ */
+const Analytics = (() => {
+  const COR_MAPA = [51, 70, 184]; // o azul dos botões em destaque (#3346B8), do claro ao escuro
+  const COR_SEM_MOVIMENTO = '#E6E8EB';
+  const COR_ESPACO = '#8C93A3';
+  const COR_GMV = '#2F9E6B';
+  // Escolhas da tela (valem até recarregar): medida do mapa e ordem das linhas.
+  const vista = { medida: 'pct', ordem: 'total' };
+
+  const fmtNum = (n) => (Math.round(n * 10) / 10).toLocaleString('pt-BR');
+  const fmtPct = (v, total) => (total ? Math.round((v / total) * 100) : 0) + '%';
+  const fmtPctNum = (p) => Math.round(p * 100) + '%';
+  const espacos = (n) => fmtNum(n) + (n === 1 ? ' espaço' : ' espaços');
+  const gmvCurto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 });
+  const gmvCompleto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
+  /** Texto escuro sobre cores claras (cinza "sem marca", amarelos…), branco sobre as demais. */
+  function corClara(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+    if (!m) return false;
+    const n = parseInt(m[1], 16);
+    const lin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    return 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255) > 0.45;
+  }
+
+  function novo(tag, classe, conteudo, pai) {
+    const n = document.createElement(tag);
+    if (classe) n.className = classe;
+    if (conteudo !== undefined && conteudo !== null) n.textContent = conteudo;
+    if (pai) pai.appendChild(n);
+    return n;
+  }
+
+  /** Texto com trechos em negrito: partes = ['texto', ['negrito'], 'texto'…]. */
+  function frase(pai, partes) {
+    partes.forEach((p) => {
+      if (Array.isArray(p)) novo('strong', null, p[0], pai);
+      else pai.appendChild(document.createTextNode(p));
+    });
+    return pai;
+  }
+
+  function cartao(pai, titulo, sub, classe) {
+    const c = novo('section', 'an-cartao' + (classe ? ' ' + classe : ''), null, pai);
+    const h = novo('header', 'an-cartao-topo', null, c);
+    novo('h3', null, titulo, h);
+    if (sub) novo('p', null, sub, h);
+    return c;
+  }
+
+  /* ------------------------------- contas -------------------------------- */
+
+  /** Fatia de cada ER (0..1) que vai para o movimento. */
+  const fatia = (m, er) => (er.total ? (m.porEr[er.id] || 0) / er.total : 0);
+
+  /** Insights: frases curtas, da mais importante para a menos. Cada uma pode abrir a planta filtrada. */
+  function insights(d) {
+    const lista = [];
+    const ers = d.ers.filter((e) => e.total);
+    const movs = d.movimentos;
+    const totalMov = movs.reduce((s, m) => s + m.total, 0);
+    if (!movs.length) return lista;
+
+    // 1. O maior movimento do ciclo.
+    const top = movs[0];
+    const ondeTop = ers.filter((e) => top.porEr[e.id]);
+    lista.push({
+      tipo: 'destaque', rotulo: 'Maior movimento',
+      partes: [[top.texto], ' é o movimento com mais espaço: ' + espacos(top.total) + ' (' + fmtPct(top.total, d.total) + ' de todo o espaço)'
+        + (ers.length > 1 ? (ondeTop.length === ers.length ? ', presente em todas as ERs.' : ', em ' + ondeTop.length + ' de ' + ers.length + ' ERs.') : '.')],
+      acao: { er: d.erAtual, etiqueta: top.texto },
+    });
+
+    // 2. O movimento que mais muda de tamanho entre as ERs (em % do espaço de cada uma).
+    if (ers.length > 1) {
+      let melhor = null;
+      movs.forEach((m) => {
+        const fs = ers.map((e) => ({ er: e, f: fatia(m, e) }));
+        const max = fs.reduce((a, b) => (b.f > a.f ? b : a));
+        const min = fs.reduce((a, b) => (b.f < a.f ? b : a));
+        if (!melhor || max.f - min.f > melhor.dif) melhor = { m, max, min, dif: max.f - min.f };
+      });
+      if (melhor && melhor.dif >= 0.05) {
+        lista.push({
+          tipo: 'atencao', rotulo: 'Muda entre as ERs',
+          partes: [[melhor.m.texto], ' ocupa ', [fmtPctNum(melhor.max.f)], ' da ' + melhor.max.er.nome + ' e '
+            + (melhor.min.f ? fmtPctNum(melhor.min.f) + ' da ' + melhor.min.er.nome : 'não aparece na ' + melhor.min.er.nome) + '.'],
+          acao: { er: melhor.max.er.id, etiqueta: melhor.m.texto },
+        });
+      }
+    }
+
+    // 3. Movimentos que estão numa ER só, e os que faltam numa ER só.
+    if (ers.length > 1) {
+      const ondeEsta = (m) => ers.filter((e) => m.porEr[e.id]);
+      const exclusivos = movs.filter((m) => ondeEsta(m).length === 1);
+      if (exclusivos.length) {
+        const nomes = exclusivos.slice(0, 3).map((m) => m.texto + ' (' + ondeEsta(m)[0].nome + ')').join(', ');
+        lista.push({
+          tipo: 'info', rotulo: 'Só numa ER',
+          partes: [[exclusivos.length + (exclusivos.length === 1 ? ' movimento está' : ' movimentos estão')], ' em uma ER só: '
+            + nomes + (exclusivos.length > 3 ? ' e mais ' + (exclusivos.length - 3) : '') + '.'],
+          acao: { er: ondeEsta(exclusivos[0])[0].id, etiqueta: exclusivos[0].texto },
+        });
+      }
+      if (ers.length > 2) {
+        const quase = movs.filter((m) => ondeEsta(m).length === ers.length - 1);
+        if (quase.length) {
+          const falta = (m) => ers.find((e) => !m.porEr[e.id]);
+          lista.push({
+            tipo: 'atencao', rotulo: 'Falta numa ER',
+            partes: [[quase[0].texto], ' está em todas as ERs, menos na ' + falta(quase[0]).nome
+              + (quase.length > 1 ? ' (e mais ' + (quase.length - 1) + (quase.length === 2 ? ' movimento assim' : ' movimentos assim') + ')' : '') + '.'],
+            acao: { er: falta(quase[0]).id },
+          });
+        }
+      }
+    }
+
+    // 4. GMV esperado × espaço: quem rende mais (e menos) por espaço.
+    const comGmv = movs.filter((m) => m.gmv > 0);
+    const gmvTotal = comGmv.reduce((s, m) => s + m.gmv, 0);
+    const espComGmv = comGmv.reduce((s, m) => s + m.total, 0);
+    if (comGmv.length >= 2 && gmvTotal && espComGmv) {
+      const indice = (m) => (m.gmv / gmvTotal) / (m.total / espComGmv);
+      const ordem = comGmv.slice().sort((a, b) => indice(b) - indice(a));
+      const alto = ordem[0];
+      const baixo = ordem[ordem.length - 1];
+      if (indice(alto) >= 1.3) {
+        lista.push({
+          tipo: 'oportunidade', rotulo: 'Rende mais por espaço',
+          partes: [[alto.texto], ' traz ', [fmtPct(alto.gmv, gmvTotal) + ' do GMV esperado'], ' com ' + fmtPct(alto.total, espComGmv)
+            + ' do espaço dos movimentos com GMV: pode merecer mais espaço.'],
+          acao: { er: d.erAtual, etiqueta: alto.texto },
+        });
+      }
+      if (indice(baixo) <= 0.7 && baixo !== alto) {
+        lista.push({
+          tipo: 'atencao', rotulo: 'Rende menos por espaço',
+          partes: [[baixo.texto], ' ocupa ' + fmtPct(baixo.total, espComGmv) + ' do espaço dos movimentos com GMV para ',
+            [fmtPct(baixo.gmv, gmvTotal) + ' do GMV esperado'], '.'],
+          acao: { er: d.erAtual, etiqueta: baixo.texto },
+        });
+      }
+    }
+
+    // 5. Espaço sem movimento: a ER com a maior fatia livre.
+    const livre = ers.map((e) => ({ e, f: e.semMovimento / e.total })).sort((a, b) => b.f - a.f)[0];
+    if (livre && livre.e.semMovimento) {
+      lista.push({
+        tipo: livre.f >= 0.2 ? 'atencao' : 'info', rotulo: 'Sem movimento',
+        partes: [[livre.e.nome], ' tem ' + (ers.length > 1 ? 'a maior fatia sem movimento: ' : '') + espacos(livre.e.semMovimento)
+          + ' sem etiqueta (' + fmtPctNum(livre.f) + ' da ER).'],
+        acao: { er: livre.e.id },
+      });
+    }
+
+    // 6. A marca que mais muda de fatia entre as ERs.
+    if (ers.length > 1) {
+      let melhor = null;
+      d.marcas.forEach((mc) => {
+        const fs = ers.map((e) => ({ er: e, f: (e.porMarca[mc.cod] || 0) / e.total }));
+        const max = fs.reduce((a, b) => (b.f > a.f ? b : a));
+        const min = fs.reduce((a, b) => (b.f < a.f ? b : a));
+        if (!melhor || max.f - min.f > melhor.dif) melhor = { mc, max, min, dif: max.f - min.f };
+      });
+      if (melhor && melhor.dif >= 0.08) {
+        lista.push({
+          tipo: 'info', rotulo: 'Marcas',
+          partes: [[melhor.mc.nome], ' vai de ' + fmtPctNum(melhor.min.f) + ' do espaço na ' + melhor.min.er.nome
+            + ' a ' + fmtPctNum(melhor.max.f) + ' na ' + melhor.max.er.nome + '.'],
+          acao: melhor.mc.filtravel ? { er: melhor.max.er.id, marca: melhor.mc.cod } : null,
+        });
+      }
+    }
+
+    // 7. Concentração: quanto do espaço com movimento fica nos 3 maiores.
+    if (movs.length > 4 && totalMov) {
+      const top3 = movs.slice(0, 3).reduce((s, m) => s + m.total, 0);
+      lista.push({
+        tipo: top3 / totalMov >= 0.6 ? 'atencao' : 'info', rotulo: 'Concentração',
+        partes: ['Os 3 maiores movimentos ficam com ', [fmtPct(top3, totalMov)], ' do espaço com movimento; os outros '
+          + (movs.length - 3) + ' dividem o resto.'],
+      });
+    }
+
+    // 8. Dados que faltam na aba Tipos de movimento.
+    const semClasse = movs.filter((m) => !m.classe).length;
+    if (semClasse) {
+      lista.push({
+        tipo: 'info', rotulo: 'Planilha',
+        partes: [[semClasse + (semClasse === 1 ? ' movimento' : ' movimentos')], ' sem classificação na aba "' + d.abaTipos + '"'
+          + (comGmv.length < movs.length ? ' (' + (movs.length - comGmv.length) + ' sem GMV esperado)' : '') + '.'],
+      });
+    }
+    return lista;
+  }
+
+  /* ------------------------------- desenho ------------------------------- */
+
+  function numeros(pai, d) {
+    const box = novo('div', 'an-numeros', null, pai);
+    const tile = (valor, rotulo, sub) => {
+      const t = novo('div', 'an-numero', null, box);
+      novo('span', 'an-numero-rotulo', rotulo, t);
+      novo('strong', null, valor, t);
+      if (sub) novo('span', 'an-numero-sub', sub, t);
+    };
+    const totalMov = d.movimentos.reduce((s, m) => s + m.total, 0);
+    const semMov = d.ers.reduce((s, e) => s + e.semMovimento, 0);
+    const ers = d.ers.filter((e) => e.total);
+    const emTodas = d.movimentos.filter((m) => ers.every((e) => m.porEr[e.id])).length;
+    const gmv = d.movimentos.reduce((s, m) => s + (m.gmv || 0), 0);
+    tile(fmtNum(d.total), d.ers.length > 1 ? 'Espaços nas ' + d.ers.length + ' ERs' : 'Espaços na ER',
+      d.ers.length > 1 ? d.ers.map((e) => e.nome.replace(/^ER\s+/i, '') + ' ' + fmtNum(e.total)).join(' · ') : null);
+    tile(fmtPct(d.total - semMov, d.total), 'Com movimento', semMov ? espacos(semMov) + ' sem etiqueta' : 'Todos os espaços têm etiqueta');
+    tile(String(d.movimentos.length), 'Movimentos', ers.length > 1 ? emTodas + ' em todas as ERs' : null);
+    tile(gmv ? gmvCurto.format(gmv) : '—', 'GMV esperado', gmv && totalMov ? '≈ ' + gmvCurto.format(gmv / (d.total - semMov || 1)) + ' por espaço com movimento'
+      : 'Informe na aba "' + d.abaTipos + '"');
+    if (d.movimentos.length > 3 && totalMov) {
+      const top3 = d.movimentos.slice(0, 3).reduce((s, m) => s + m.total, 0);
+      tile(fmtPct(top3, totalMov), 'Top 3 movimentos', 'do espaço com movimento');
+    }
+  }
+
+  function listaInsights(pai, d, acoes) {
+    const c = cartao(pai, 'Insights rápidos', 'O que chama a atenção neste ciclo. Clique para ver na planta.', 'an-insights');
+    const lista = insights(d);
+    if (!lista.length) { novo('p', 'an-vazio', 'Sem etiquetas neste ciclo: nada para comparar ainda.', c); return; }
+    const ul = novo('ul', null, null, c);
+    lista.slice(0, 7).forEach((it) => {
+      const li = novo('li', null, null, ul);
+      const alvo = it.acao ? novo('button', 'an-insight', null, li) : novo('div', 'an-insight', null, li);
+      if (it.acao) {
+        alvo.type = 'button';
+        alvo.title = 'Ver na planta';
+        alvo.addEventListener('click', () => acoes.verNaPlanta(it.acao));
+      }
+      novo('span', 'an-tag an-tag-' + it.tipo, it.rotulo, alvo);
+      frase(novo('span', 'an-insight-texto', null, alvo), it.partes);
+    });
+  }
+
+  /** Mapa de calor: uma linha por movimento, uma coluna por ER (% do espaço de cada ER ou espaços). */
+  function mapa(pai, d, acoes, redesenhar) {
+    const c = cartao(pai, 'Espaço de cada movimento em cada ER',
+      'Quanto mais escuro, maior a fatia da ER. Um espaço com dois movimentos conta nos dois. Clique numa célula para ver na planta.', 'an-mapa-cartao');
+    const ctrl = novo('div', 'an-controles', null, c.querySelector('.an-cartao-topo'));
+    const seg = novo('div', 'an-segmentado', null, ctrl);
+    seg.setAttribute('role', 'group');
+    seg.setAttribute('aria-label', 'Medida');
+    [['pct', '% da ER'], ['qtd', 'Espaços']].forEach(([v, rot]) => {
+      const b = novo('button', null, rot, seg);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(vista.medida === v));
+      b.addEventListener('click', () => { vista.medida = v; redesenhar(); });
+    });
+    if (!d.movimentos.length) { novo('p', 'an-vazio', 'Nenhuma etiqueta neste ciclo.', c); return; }
+
+    const ers = d.ers;
+    const movs = d.movimentos.slice();
+    if (vista.ordem !== 'total') {
+      const er = ers.find((e) => e.id === vista.ordem);
+      if (er) movs.sort((a, b) => fatia(b, er) - fatia(a, er) || b.total - a.total);
+    }
+    const valor = (m, e) => (vista.medida === 'pct' ? fatia(m, e) : (m.porEr[e.id] || 0));
+    const maior = Math.max.apply(null, movs.reduce((acc, m) => acc.concat(ers.map((e) => valor(m, e))), [0]));
+
+    const rolagem = novo('div', 'an-tabela-rolagem', null, c);
+    const tab = novo('table', 'an-mapa', null, rolagem);
+    const thead = novo('thead', null, null, tab);
+    const trh = novo('tr', null, null, thead);
+    novo('th', 'an-col-mov', 'Movimento', trh).scope = 'col';
+    ers.forEach((e) => {
+      const th = novo('th', 'an-col-er' + (e.id === d.erAtual ? ' atual' : ''), null, trh);
+      th.scope = 'col';
+      const b = novo('button', null, null, th);
+      b.type = 'button';
+      b.title = 'Ordenar pela ' + e.nome + (vista.ordem === e.id ? ' (clique de novo para ordenar pelo total)' : '');
+      novo('span', null, e.nome + (vista.ordem === e.id ? ' ▾' : ''), b);
+      novo('small', null, espacos(e.total), b);
+      b.addEventListener('click', () => { vista.ordem = vista.ordem === e.id ? 'total' : e.id; redesenhar(); });
+    });
+    const thT = novo('th', 'an-col-total', null, trh);
+    thT.scope = 'col';
+    const bT = novo('button', null, null, thT);
+    bT.type = 'button';
+    bT.title = 'Ordenar pelo total';
+    novo('span', null, 'Total' + (vista.ordem === 'total' ? ' ▾' : ''), bT);
+    novo('small', null, espacos(d.total), bT);
+    bT.addEventListener('click', () => { vista.ordem = 'total'; redesenhar(); });
+    novo('th', 'an-col-marcas', 'Marcas', trh).scope = 'col';
+
+    const tbody = novo('tbody', null, null, tab);
+    const filtrada = d.filtroEtiqueta;
+    movs.forEach((m) => {
+      const tr = novo('tr', m.chave === filtrada ? 'ativo' : null, null, tbody);
+      const th = novo('th', 'an-col-mov', null, tr);
+      th.scope = 'row';
+      const nome = novo('div', 'an-mov-nome', null, th);
+      const ponto = novo('i', null, null, nome);
+      ponto.style.background = m.classe ? m.classe.cor : 'transparent';
+      if (!m.classe) ponto.className = 'sem';
+      novo('span', null, m.texto, nome);
+      const info = novo('div', 'an-mov-info', null, th);
+      novo('span', null, m.classe ? m.classe.nome : 'Sem classificação', info);
+      if (m.gmv > 0) novo('span', 'an-gmv', 'GMV ' + gmvCurto.format(m.gmv), info);
+      ers.forEach((e) => {
+        const td = novo('td', 'an-celula' + (e.id === d.erAtual ? ' atual' : ''), null, tr);
+        const n = m.porEr[e.id] || 0;
+        const tituloCel = m.texto + ' · ' + e.nome + ': ' + (n ? espacos(n) + ' (' + fmtPct(n, e.total) + ' da ER)' : 'não aparece');
+        if (!n) {
+          const vazio = novo('span', 'an-cel-vazia', '—', td);
+          vazio.title = tituloCel;
+          return;
+        }
+        const b = novo('button', null, null, td);
+        b.type = 'button';
+        b.title = tituloCel + ' · clique para ver na planta';
+        const k = maior ? valor(m, e) / maior : 0;
+        const alfa = 0.07 + 0.83 * k;
+        b.style.background = 'rgba(' + COR_MAPA.join(',') + ',' + alfa.toFixed(3) + ')';
+        if (alfa > 0.55) b.classList.add('escuro');
+        novo('strong', null, vista.medida === 'pct' ? fmtPct(n, e.total) : fmtNum(n), b);
+        novo('small', null, vista.medida === 'pct' ? fmtNum(n) : fmtPct(n, e.total), b);
+        b.addEventListener('click', () => acoes.verNaPlanta({ er: e.id, etiqueta: m.texto }));
+      });
+      const tdT = novo('td', 'an-col-total', null, tr);
+      novo('strong', null, vista.medida === 'pct' ? fmtPct(m.total, d.total) : fmtNum(m.total), tdT);
+      novo('small', null, vista.medida === 'pct' ? fmtNum(m.total) : fmtPct(m.total, d.total), tdT);
+      tdT.title = m.texto + ' nas ERs: ' + espacos(m.total) + ' (' + fmtPct(m.total, d.total) + ' do espaço)';
+      const tdM = novo('td', 'an-col-marcas', null, tr);
+      const pilha = novo('span', 'an-pilha', null, tdM);
+      const somaM = m.marcas.reduce((s, x) => s + x.valor, 0);
+      m.marcas.forEach((x) => {
+        const s = novo('span', null, null, pilha);
+        s.style.flexGrow = x.valor;
+        s.style.background = x.cor;
+        s.title = m.texto + ' · ' + x.nome + ': ' + espacos(x.valor) + ' (' + fmtPct(x.valor, somaM) + ')';
+      });
+    });
+    // Linha dos espaços sem movimento, para fechar a conta de cada ER.
+    const tr = novo('tr', 'an-linha-livre', null, tbody);
+    const th = novo('th', 'an-col-mov', null, tr);
+    th.scope = 'row';
+    novo('div', 'an-mov-nome', 'Sem movimento', th);
+    ers.forEach((e) => {
+      const td = novo('td', 'an-celula' + (e.id === d.erAtual ? ' atual' : ''), null, tr);
+      const sp = novo('span', 'an-cel-livre', null, td);
+      novo('strong', null, vista.medida === 'pct' ? fmtPct(e.semMovimento, e.total) : fmtNum(e.semMovimento), sp);
+      sp.title = e.nome + ': ' + espacos(e.semMovimento) + ' sem etiqueta';
+    });
+    const semMov = ers.reduce((s, e) => s + e.semMovimento, 0);
+    const tdT = novo('td', 'an-col-total', null, tr);
+    novo('strong', null, vista.medida === 'pct' ? fmtPct(semMov, d.total) : fmtNum(semMov), tdT);
+    novo('td', 'an-col-marcas', null, tr);
+  }
+
+  /** Barras 100% por ER (marcas ou classificações), com a legenda em cima. */
+  function barrasPorEr(pai, titulo, sub, d, chave, legenda, filtroDe, acoes) {
+    const c = cartao(pai, titulo, sub);
+    const leg = novo('div', 'an-legenda', null, c);
+    legenda.forEach((x) => {
+      const s = novo('span', null, null, leg);
+      const i = novo('i', null, null, s);
+      i.style.background = x.cor;
+      if (x.borda) i.classList.add('borda');
+      novo('span', null, x.nome, s);
+    });
+    const linhas = novo('div', 'an-barras', null, c);
+    const linhasDe = d.ers.length > 1
+      ? [{ id: '', nome: 'Todas', total: d.total, valores: somar(d.ers, chave) }].concat(d.ers.map((e) => ({ id: e.id, nome: e.nome, total: e.total, valores: e[chave] })))
+      : d.ers.map((e) => ({ id: e.id, nome: e.nome, total: e.total, valores: e[chave] }));
+    linhasDe.forEach((er) => {
+      const linha = novo('div', 'an-barra-linha' + (er.id === d.erAtual ? ' atual' : '') + (er.id ? '' : ' todas'), null, linhas);
+      novo('span', 'an-barra-nome', er.nome, linha);
+      const barra = novo('div', 'an-barra', null, linha);
+      legenda.forEach((x) => {
+        const v = er.valores[x.cod] || 0;
+        if (!v) return;
+        const ok = er.id && filtroDe(x);
+        const s = novo(ok ? 'button' : 'span', 'an-seg', null, barra);
+        s.style.flexGrow = v;
+        s.style.background = x.cor;
+        if (x.borda) s.classList.add('borda');
+        if (corClara(x.cor)) s.classList.add('clara');
+        s.title = er.nome + ' · ' + x.nome + ': ' + espacos(v) + ' (' + fmtPct(v, er.total) + ')' + (ok ? ' · clique para ver na planta' : '');
+        if (v / er.total >= 0.09) novo('span', null, fmtPct(v, er.total), s);
+        if (ok) {
+          s.type = 'button';
+          s.addEventListener('click', () => acoes.verNaPlanta(Object.assign({ er: er.id }, ok)));
+        }
+      });
+    });
+  }
+
+  function somar(ers, chave) {
+    const r = {};
+    ers.forEach((e) => Object.keys(e[chave]).forEach((k) => { r[k] = (r[k] || 0) + e[chave][k]; }));
+    return r;
+  }
+
+  /** GMV esperado × espaço: duas barras por movimento, na mesma escala (% do total de cada medida). */
+  function gmvEspaco(pai, d, acoes) {
+    const comGmv = d.movimentos.filter((m) => m.gmv > 0);
+    if (!comGmv.length) return;
+    const gmvTotal = comGmv.reduce((s, m) => s + m.gmv, 0);
+    const espTotal = comGmv.reduce((s, m) => s + m.total, 0);
+    const c = cartao(pai, 'GMV esperado × espaço',
+      'Fatia de cada movimento no GMV esperado e no espaço (somando as ERs), entre os movimentos com GMV. Acima de 1× rende mais que o espaço que ocupa.', 'an-gmv-cartao');
+    const leg = novo('div', 'an-legenda', null, c);
+    [['Espaço', COR_ESPACO], ['GMV esperado', COR_GMV]].forEach(([n, cor]) => {
+      const s = novo('span', null, null, leg);
+      novo('i', null, null, s).style.background = cor;
+      novo('span', null, n, s);
+    });
+    const ordem = comGmv.slice().sort((a, b) => b.gmv - a.gmv).slice(0, 12);
+    const maior = Math.max.apply(null, ordem.map((m) => Math.max(m.gmv / gmvTotal, m.total / espTotal)));
+    const lista = novo('div', 'an-gmv-lista', null, c);
+    ordem.forEach((m) => {
+      const fe = m.total / espTotal;
+      const fg = m.gmv / gmvTotal;
+      const idx = fg / fe;
+      const linha = novo('button', 'an-gmv-linha', null, lista);
+      linha.type = 'button';
+      linha.title = m.texto + ': ' + fmtPctNum(fg) + ' do GMV esperado (' + gmvCompleto.format(m.gmv) + ') com ' + fmtPctNum(fe)
+        + ' do espaço (' + espacos(m.total) + ') · clique para ver na planta';
+      linha.addEventListener('click', () => acoes.verNaPlanta({ er: d.erAtual, etiqueta: m.texto }));
+      novo('span', 'an-gmv-nome', m.texto, linha);
+      const barras = novo('span', 'an-gmv-barras', null, linha);
+      [[fe, COR_ESPACO], [fg, COR_GMV]].forEach(([f, cor]) => {
+        const t = novo('span', 'an-gmv-trilho', null, barras);
+        const b = novo('span', 'an-gmv-barra', null, t);
+        b.style.width = (maior ? (f / maior) * 100 : 0) + '%';
+        b.style.background = cor;
+        novo('small', null, fmtPctNum(f), t);
+      });
+      const ind = novo('span', 'an-indice' + (idx >= 1.3 ? ' alto' : idx <= 0.7 ? ' baixo' : ''), null, linha);
+      ind.textContent = (idx >= 1.3 ? '▲ ' : idx <= 0.7 ? '▼ ' : '') + idx.toLocaleString('pt-BR', { maximumFractionDigits: 1, minimumFractionDigits: 1 }) + '×';
+    });
+    if (comGmv.length > ordem.length) novo('p', 'an-nota', 'Mostrando os ' + ordem.length + ' movimentos com maior GMV esperado.', c);
+  }
+
+  /**
+   * Desenha o dashboard em corpo. dados: App.dadosAnalytics; acoes: { verNaPlanta(filtro) }.
+   */
+  function desenhar(corpo, d, acoes) {
+    const redesenhar = () => desenhar(corpo, d, acoes);
+    const rolagem = corpo.scrollTop;
+    corpo.innerHTML = '';
+    numeros(corpo, d);
+    const grade = novo('div', 'an-grade', null, corpo);
+    listaInsights(grade, d, acoes);
+    mapa(grade, d, acoes, redesenhar);
+    const dupla = novo('div', 'an-dupla', null, grade);
+    const legMarcas = d.marcas.map((m) => ({ cod: m.cod, nome: m.nome, cor: m.cor, borda: m.cod === 'NEUTRO', filtravel: m.filtravel }));
+    barrasPorEr(dupla, 'Marcas em cada ER', 'Fatia do espaço de cada ER por marca. Combinações de marcas dividem o espaço igualmente.',
+      d, 'porMarca', legMarcas, (x) => (x.filtravel ? { marca: x.cod } : null), acoes);
+    const legClasses = d.classes.map((c) => ({ cod: c.cod, nome: c.nome, cor: c.cor, filtravel: true }))
+      .concat([{ cod: '__LIVRE__', nome: 'Sem movimento', cor: COR_SEM_MOVIMENTO, borda: true }]);
+    barrasPorEr(dupla, 'Classificação em cada ER', 'Fatia do espaço de cada ER por tipo de movimento (aba "' + d.abaTipos + '"). Um espaço com movimentos de dois tipos se divide entre eles.',
+      d, 'porClasse', legClasses, (x) => (x.cod === '__LIVRE__' ? null : { classificacao: x.cod }), acoes);
+    gmvEspaco(grade, d, acoes);
+    novo('p', 'an-nota', 'Conta em quantidade de espaços: na gôndola, cada lado e cada meio é um espaço; mesas e totem contam cada frente e painel; os demais móveis contam como um espaço. Etiquetas com o mesmo texto somam juntas. O GMV esperado é o do movimento no ciclo (aba "' + d.abaTipos + '"), não de uma ER só. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);
+    corpo.scrollTop = rolagem;
+  }
+
+  return { desenhar, insights };
+})();
+</script>
