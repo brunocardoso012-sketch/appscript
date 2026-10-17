@@ -255,7 +255,7 @@ const ETIQUETAS_POR_TIPO = { VITRINE_L: 3 };
 const TIPOS_SEM_ETIQUETA = ['CAIXA'];
 
 /**
- * Quantas etiquetas a linha de um espaço mostra (GONDOLA 1/LADO-A,
+ * Quantas etiquetas a linha de um espaço mostra (GONDOLA 1/PONTA-A,
  * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
  * (painéis do totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
  * mesmas etiquetas (texto e cor) viram uma pilha só.
@@ -354,12 +354,12 @@ const SECOES_PAINEL = {
 const TIPOS_MOVEL = {
   LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
   PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados (até 4 etiquetas)',
-  GONDOLA: 'Gôndola: lado A, meio A, meio B e lado B (o A virado para quem olha; cada meio pode ser dividido em dois), 4 níveis, até 4 etiquetas por bloco',
+  GONDOLA: 'Gôndola: ponta A, meio A, meio B e ponta B (o A virado para quem olha; cada meio pode ser dividido em dois), 4 níveis, até 4 etiquetas por bloco',
   FILA: 'Móvel de fila: bloco único retangular com 3 níveis',
   GONDOLA_PAREDE: 'Móvel de parede: estante encostada na parede, com prateleiras',
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
-  MESA: 'Mesa destaque: 2 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
-  MESA_3: 'Mesa destaque 3 frentes: 3 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
+  MESA: 'Mesa destaque: 2 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias, e o verso (atrás das lâminas)',
+  MESA_3: 'Mesa destaque 3 frentes: 3 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias, e o verso (atrás das lâminas)',
   TOTEM: 'Totem: estrutura metálica com 3 painéis, cada um com cor e etiqueta próprias (Etiqueta 1–3 = painel 1, o de cima, 2 e 3)',
   PAINEL: 'Parede O.U.i: painel alto com moldura',
   EXPOSITOR_OUI: 'Totem O.U.i: expositor estreito com moldura, na altura da gôndola',
@@ -377,18 +377,19 @@ const TIPOS_CONSTRUCAO = [
 
 /**
  * Espaços (blocos) de um móvel, cada um com cor e etiqueta próprias na planilha:
- *  - gôndola: Lado A, Meio A, Meio B e Lado B (o "A" é sempre o lado virado para
+ *  - gôndola: Ponta A, Meio A, Meio B e Ponta B (o "A" é sempre o lado virado para
  *    quem olha a planta; cada meio pode ser dividido em dois);
- *  - mesa destaque: Frente 1 e 2 (3 frentes: Frente 1, 2 e 3);
+ *  - mesa destaque: Frente 1 e 2 (3 frentes: Frente 1, 2 e 3) e o Verso, atrás das lâminas
+ *    (espaço de VM: vm = true);
  *  - totem: Painel 1 a 3 (o 1 é o de cima);
  *  - móvel make: Testeira 1 a 4.
  * Na planilha, cada espaço é endereçado como "<ID do móvel>/<espaço>", ex.:
- * GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A-2, MESA DESTAQUE 1/FRENTE-2.
+ * GONDOLA 1/PONTA-A, GONDOLA 1/MEIO-A-2, MESA DESTAQUE 1/FRENTE-2, MESA DESTAQUE 1/VERSO.
  * Móvel com espaços é preenchido só espaço por espaço: a linha só com o ID do móvel
  * é ignorada (espaço sem linha fica branco).
  * (A página tem uma cópia desta regra em Render.espacos.)
  * @param {{tipo: string, dividido: string}} m  dividido = '', 'A', 'B' ou 'AB'
- * @return {Array<{id: string, nome: string}>}
+ * @return {Array<{id: string, nome: string, vm?: boolean}>}
  */
 function espacosDoMovel_(m) {
   const numerados = function (prefixo, nome, n) {
@@ -398,12 +399,13 @@ function espacosDoMovel_(m) {
   };
   if (!m) return [];
   if (m.tipo === 'MAKE') return numerados('TESTEIRA', 'Testeira', 4);
-  if (m.tipo === 'MESA') return numerados('FRENTE', 'Frente', 2);
-  if (m.tipo === 'MESA_3') return numerados('FRENTE', 'Frente', 3);
+  if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
+    return numerados('FRENTE', 'Frente', m.tipo === 'MESA' ? 2 : 3).concat([{ id: 'VERSO', nome: 'Verso', vm: true }]);
+  }
   if (m.tipo === 'TOTEM') return numerados('PAINEL', 'Painel', 3);
   if (m.tipo !== 'GONDOLA') return [];
   const div = String(m.dividido || '').toUpperCase();
-  const lista = [{ id: 'LADO-A', nome: 'Lado A' }];
+  const lista = [{ id: 'PONTA-A', nome: 'Ponta A' }];
   ['A', 'B'].forEach(function (lado) {
     if (div.indexOf(lado) >= 0) {
       lista.push({ id: 'MEIO-' + lado + '-1', nome: 'Meio ' + lado + ' (metade 1)' });
@@ -412,7 +414,7 @@ function espacosDoMovel_(m) {
       lista.push({ id: 'MEIO-' + lado, nome: 'Meio ' + lado });
     }
   });
-  lista.push({ id: 'LADO-B', nome: 'Lado B' });
+  lista.push({ id: 'PONTA-B', nome: 'Ponta B' });
   return lista;
 }
 
@@ -517,7 +519,7 @@ function colunasLayout_() {
  *  slide; a pilha cresce para cima. Valem em qualquer ciclo (o slide fica com a largura salva).
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
  *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270),
- *          (ajuste das pilhas de etiquetas por espaço: { 'LADO-A': {x, y} })]
+ *          (ajuste das pilhas de etiquetas por espaço: { 'PONTA-A': {x, y} })]
  *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato; o botão "Baixar
  *  posições" (modo ajuste das etiquetas) gera os ajustes de etiqueta (índices 9, 10 e 13) e o tamanho.
  */
@@ -535,7 +537,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 13, '02': 12, '03': 9, '04': 11 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 13;
+const VERSAO_EXEMPLO = 14;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
@@ -543,7 +545,7 @@ const LAYOUT_PADRAO = {
     loja: [12, 10, 4.4, 100, 1920], // posições fixas das etiquetas (slide de 1920 px)
     moveis: [
       ['MOVEL DE PAREDE 1', 'Perf. Fem. BOT', 'GONDOLA_PAREDE', 0, 0, 3, 1.1, 3.2, 0, 910, 237, '', 0],
-      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 2.5, 2, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 707, y: 559 }, 'LADO-B': { x: 947, y: 414 }, 'MEIO-A': { x: 861, y: 530 }, 'MEIO-B': { x: 788, y: 452 } }],
+      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 2.5, 2, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 707, y: 559 }, 'PONTA-B': { x: 947, y: 414 }, 'MEIO-A': { x: 861, y: 530 }, 'MEIO-B': { x: 788, y: 452 } }],
       ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 6, 2.5, 1.02, 1.02, 1.94, 0, 1036, 573, '', 0],
       ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 6, 4.5, 1.02, 1.02, 1.94, 0, 921, 630, '', 0],
       ['MESA DESTAQUE 1', 'Mesa destaque 1', 'MESA', 8.5, 3.5, 2.6, 1.4, 2.6, 0, 0, 0, '', 0, { 'FRENTE-1': { x: 1156, y: 656 }, 'FRENTE-2': { x: 1213, y: 749 } }],
@@ -566,8 +568,8 @@ const LAYOUT_PADRAO = {
   '02': {
     loja: [16, 14, 4.4, 100, 2208], // posições fixas das etiquetas (slide de 2208 px)
     moveis: [
-      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3.5, 3, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 839, y: 588 }, 'LADO-B': { x: 1090, y: 441 }, 'MEIO-A': { x: 1005, y: 553 }, 'MEIO-B': { x: 910, y: 470 } }],
-      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 7, 3, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1031, y: 680 }, 'LADO-B': { x: 1267, y: 542 }, 'MEIO-A': { x: 1201, y: 648 }, 'MEIO-B': { x: 1121, y: 576 } }],
+      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3.5, 3, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 839, y: 588 }, 'PONTA-B': { x: 1090, y: 441 }, 'MEIO-A': { x: 1005, y: 553 }, 'MEIO-B': { x: 910, y: 470 } }],
+      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 7, 3, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1031, y: 680 }, 'PONTA-B': { x: 1267, y: 542 }, 'MEIO-A': { x: 1201, y: 648 }, 'MEIO-B': { x: 1121, y: 576 } }],
       ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 10, 3.5, 1.02, 1.02, 1.94, 0, 1355, 649, '', 0],
       ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 12, 3.5, 1.02, 1.02, 1.94, 0, 1472, 707, '', 0],
       ['MESA DESTAQUE 1', 'Mesa destaque 1', 'MESA', 11.5, 7.5, 2.6, 1.4, 2.6, 0, 0, 0, '', 0, { 'FRENTE-1': { x: 1149, y: 811 }, 'FRENTE-2': { x: 1255, y: 904 } }],
@@ -601,7 +603,7 @@ const LAYOUT_PADRAO = {
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
       ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 12.5, 2.5, 1.02, 1.02, 1.94, 0, 2092, 992, '', 0],
-      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1230, y: 721 }, 'LADO-B': { x: 1497, y: 520 }, 'MEIO-A': { x: 1455, y: 611 }, 'MEIO-B': { x: 1225, y: 561 } }],
+      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1230, y: 721 }, 'PONTA-B': { x: 1497, y: 520 }, 'MEIO-A': { x: 1455, y: 611 }, 'MEIO-B': { x: 1225, y: 561 } }],
       ['PDV MOVEL 1', 'PDV móvel 1', 'CUBO', 6.5, 12, 1.3, 1.3, 1.44, 0, 1101, 1084, '', 0],
       ['BALCAO RECEPCAO 1', 'Balcão recepção 1', 'VITRINE_L', 11.5, 12.5, 2.4, 2.4, 1.28, 0, 1166, 1371, '', 90],
       ['MOVEL DE ATENDIMENTO 3', 'Móvel de atendimento 3', 'CAIXA', 0, 13, 1.2, 1.8, 1.7],
@@ -609,8 +611,8 @@ const LAYOUT_PADRAO = {
       ['MOVEL DE FILA 6', 'Móvel de fila 6', 'FILA', 3.5, 13, 1.5, 0.4, 1.46, 0, 846, 974, '', 0],
       ['TOTEM OUI 1', 'Totem O.U.i 1', 'EXPOSITOR_OUI', 7, 10.4, 0.8, 0.8, 1.94, 0, 1208, 1042, '', 0],
       ['MOVEL DE PAREDE 1', 'Perf. Fem. BOT', 'GONDOLA_PAREDE', 0.5, 0, 2.5, 1.1, 3.2, 0, 1432, 353, '', 0],
-      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 6, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1364, y: 812 }, 'LADO-B': { x: 1698, y: 619 }, 'MEIO-A': { x: 1646, y: 726 }, 'MEIO-B': { x: 1424, y: 694 } }],
-      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 9, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1561, y: 925 }, 'LADO-B': { x: 1871, y: 747 }, 'MEIO-A': { x: 1798, y: 886 }, 'MEIO-B': { x: 1658, y: 794 } }],
+      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 6, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1364, y: 812 }, 'PONTA-B': { x: 1698, y: 619 }, 'MEIO-A': { x: 1646, y: 726 }, 'MEIO-B': { x: 1424, y: 694 } }],
+      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 9, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1561, y: 925 }, 'PONTA-B': { x: 1871, y: 747 }, 'MEIO-A': { x: 1798, y: 886 }, 'MEIO-B': { x: 1658, y: 794 } }],
       ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 12.5, 4.5, 1.02, 1.02, 1.94, 0, 1961, 1067, '', 0],
       ['PIRAMIDE 3', 'Pirâmide 3', 'PIRAMIDE', 12.5, 6.5, 1.02, 1.02, 1.94, 0, 1835, 1146, '', 0],
       ['MOVEL DE ATENDIMENTO 2', 'Móvel de atendimento 2', 'CAIXA', 0, 11, 1.2, 1.8, 1.7],
@@ -638,7 +640,7 @@ const LAYOUT_PADRAO = {
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
       ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 14.5, 2.5, 1.02, 1.02, 1.94, 0, 2352, 1006, '', 0],
-      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3.5, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1454, y: 695 }, 'LADO-B': { x: 1699, y: 514 }, 'MEIO-A': { x: 1585, y: 648 }, 'MEIO-B': { x: 1435, y: 552 } }],
+      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3.5, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1454, y: 695 }, 'PONTA-B': { x: 1699, y: 514 }, 'MEIO-A': { x: 1585, y: 648 }, 'MEIO-B': { x: 1435, y: 552 } }],
       ['PDV MOVEL 1', 'PDV móvel 1', 'CUBO', 6, 17, 1.3, 1.3, 1.44, 0, 985, 1151, '', 0],
       ['BALCAO RECEPCAO 1', 'Balcão recepção 1', 'VITRINE_L', 14.5, 17.5, 2.4, 2.4, 1.28, 0, 1222, 1566, '', 0],
       ['MOVEL DE ATENDIMENTO 3', 'Móvel de atendimento 3', 'CAIXA', 0, 17, 1.2, 1.8, 1.7],
@@ -646,11 +648,11 @@ const LAYOUT_PADRAO = {
       ['TOTEM OUI 1', 'Totem O.U.i 1', 'EXPOSITOR_OUI', 6.5, 16, 0.8, 0.8, 1.94, 0, 1029, 1088, '', 0],
       ['MOVEL DE PAREDE 1', 'Perf. Fem. BOT', 'GONDOLA_PAREDE', 0, -0.5, 4, 1.1, 3.2, 0, 1643, 329, '', 0],
       ['MOVEL DE PAREDE 2', 'Perf. Masc. BOT', 'GONDOLA_PAREDE', 4, -0.5, 4, 1.1, 3.2, 0, 1876, 464, '', 0],
-      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 7, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1642, y: 817 }, 'LADO-B': { x: 1914, y: 642 }, 'MEIO-A': { x: 1799, y: 791 }, 'MEIO-B': { x: 1688, y: 706 } }],
-      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 10.5, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1847, y: 927 }, 'LADO-B': { x: 2115, y: 760 }, 'MEIO-A': { x: 2042, y: 873 }, 'MEIO-B': { x: 1927, y: 796 } }],
-      ['GONDOLA 4', 'Gôndola 4', 'GONDOLA', 3.5, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1025, y: 824 }, 'LADO-B': { x: 1344, y: 694 }, 'MEIO-A': { x: 1282, y: 824 }, 'MEIO-B': { x: 1157, y: 753 } }],
-      ['GONDOLA 5', 'Gôndola 5', 'GONDOLA', 7, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1307, y: 999 }, 'MEIO-A': { x: 1484, y: 988 }, 'MEIO-B': { x: 1368, y: 911 }, 'LADO-B': { x: 1524, y: 835 } }],
-      ['GONDOLA 6', 'Gôndola 6', 'GONDOLA', 10.5, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1539, y: 1114 }, 'MEIO-A': { x: 1715, y: 1089 }, 'MEIO-B': { x: 1622, y: 1001 }, 'LADO-B': { x: 1743, y: 953 } }],
+      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 7, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1642, y: 817 }, 'PONTA-B': { x: 1914, y: 642 }, 'MEIO-A': { x: 1799, y: 791 }, 'MEIO-B': { x: 1688, y: 706 } }],
+      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 10.5, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1847, y: 927 }, 'PONTA-B': { x: 2115, y: 760 }, 'MEIO-A': { x: 2042, y: 873 }, 'MEIO-B': { x: 1927, y: 796 } }],
+      ['GONDOLA 4', 'Gôndola 4', 'GONDOLA', 3.5, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1025, y: 824 }, 'PONTA-B': { x: 1344, y: 694 }, 'MEIO-A': { x: 1282, y: 824 }, 'MEIO-B': { x: 1157, y: 753 } }],
+      ['GONDOLA 5', 'Gôndola 5', 'GONDOLA', 7, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1307, y: 999 }, 'MEIO-A': { x: 1484, y: 988 }, 'MEIO-B': { x: 1368, y: 911 }, 'PONTA-B': { x: 1524, y: 835 } }],
+      ['GONDOLA 6', 'Gôndola 6', 'GONDOLA', 10.5, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1539, y: 1114 }, 'MEIO-A': { x: 1715, y: 1089 }, 'MEIO-B': { x: 1622, y: 1001 }, 'PONTA-B': { x: 1743, y: 953 } }],
       ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 14.5, 4.5, 1.02, 1.02, 1.94, 0, 2229, 1079, '', 0],
       ['PIRAMIDE 3', 'Pirâmide 3', 'PIRAMIDE', 14.5, 6.5, 1.02, 1.02, 1.94, 0, 2096, 1155, '', 0],
       ['PIRAMIDE 4', 'Pirâmide 4', 'PIRAMIDE', 14.5, 8.5, 1.02, 1.02, 1.94, 0, 1981, 1231, '', 0],
@@ -681,7 +683,7 @@ const LAYOUT_PADRAO = {
  *  (ER P → ER M → ER G → ER GG), então cada móvel aparece só na primeira planta
  *  que o tem. Uma linha da própria planta tem prioridade; "TODAS" vale para todas.
  *  Gôndola, mesas, totem e móvel make são preenchidos espaço por espaço
- *  (GONDOLA 1/LADO-A, MESA DESTAQUE 1/FRENTE-1, TOTEM 1/PAINEL-1…), sem linha do móvel inteiro.
+ *  (GONDOLA 1/PONTA-A, MESA DESTAQUE 1/FRENTE-1, TOTEM 1/PAINEL-1…), sem linha do móvel inteiro.
  * ------------------------------------------------------------------------ */
 
 const EXEMPLO_CICLO = 'Ciclo exemplo';
@@ -698,14 +700,15 @@ const EXEMPLO_MOVIMENTOS = {
     'MOVEL DE PAREDE 2': ['NEUTRO', [['PERF MASC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 3': ['NEUTRO', [['PERF FEM', 'EUD'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 4': ['NEUTRO', [['CUIDADOS (CBEM/NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'GONDOLA 1/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']]],
+    'GONDOLA 1/PONTA-A': ['QDB', [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']]],
     'GONDOLA 1/MEIO-A': ['BOT', [['BOTIK', 'BOT']], 'FIXO'],
     'GONDOLA 1/MEIO-B': ['BOT', [['UOMINI HERO', 'BOT']], 'FIXO'],
-    'GONDOLA 1/LADO-B': ['BOT', [['BOTI PROMO', 'BOT']], 'FIXO'],
+    'GONDOLA 1/PONTA-B': ['BOT', [['BOTI PROMO', 'BOT']], 'FIXO'],
     'PIRAMIDE 1': ['EUD', [['MULTI PROMO', 'MULTI']]],
-    'PIRAMIDE 2': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT']]],
+    'PIRAMIDE 2': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT'], ['BOTIPROMO', 'BOT']]],
     'MESA DESTAQUE 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
     'MESA DESTAQUE 1/FRENTE-2': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
+    'MESA DESTAQUE 1/VERSO': ['BOT', [['LÇTO UOMINI', 'BOT']]],
     'PDV MOVEL 1': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
     'BALCAO RECEPCAO 1': ['BOT', [['LÇTO EGEO', 'BOT+QDB'], ['JUICY MOOD', 'QDB'], ['SIÀGE ULTIMATE', 'EUD']]],
     'MOVEL DE FILA 1': ['EUD', [['OUTLET EUD', 'EUD']]],
@@ -719,11 +722,11 @@ const EXEMPLO_MOVIMENTOS = {
     'MOVEL MAKE 1/TESTEIRA-4': ['EUD'],
   },
   '02': {
-    'GONDOLA 2/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 2/PONTA-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']]],
     'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']]],
     'GONDOLA 2/MEIO-B': ['EUD', [['CUIDADOS', 'EUD']]],
-    'GONDOLA 2/LADO-B': ['EUD', [['OUTLET EUD', 'EUD']]],
+    'GONDOLA 2/PONTA-B': ['EUD', [['OUTLET EUD', 'EUD']]],
     'PIRAMIDE 3': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'MOVEL DE FILA 3': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 4': ['QDB', [['LIQUIDA QDB', 'QDB']]],
@@ -731,32 +734,33 @@ const EXEMPLO_MOVIMENTOS = {
     'TOTEM OUI 1': ['OUI', [['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
   '03': {
-    // Lado A e meio A iguais ao lado B e ao meio B da gôndola 2 da ER M.
-    'GONDOLA 3/LADO-A': ['EUD', [['OUTLET EUD', 'EUD']]],
+    // Ponta A e meio A iguais à ponta B e ao meio B da gôndola 2 da ER M.
+    'GONDOLA 3/PONTA-A': ['EUD', [['OUTLET EUD', 'EUD']]],
     'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']]],
     'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']]],
-    'GONDOLA 3/LADO-B': ['MULTI', []],
+    'GONDOLA 3/PONTA-B': ['MULTI', []],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 8': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-2': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-3': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
+    'MESA DESTAQUE 3 FRENTES 1/VERSO': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
   },
   '04': {
     'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']]],
     'PIRAMIDE 5': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']]],
-    'GONDOLA 4/LADO-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']]],
+    'GONDOLA 4/PONTA-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']]],
     'GONDOLA 4/MEIO-A': ['OUI', []],
     'GONDOLA 4/MEIO-B': ['OUI', []],
-    'GONDOLA 4/LADO-B': ['OUI', []],
-    'GONDOLA 5/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 4/PONTA-B': ['OUI', []],
+    'GONDOLA 5/PONTA-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'GONDOLA 5/MEIO-A': ['QDB'],
     'GONDOLA 5/MEIO-B': ['QDB'],
-    'GONDOLA 5/LADO-B': ['QDB'],
-    'GONDOLA 6/LADO-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']]],
+    'GONDOLA 5/PONTA-B': ['QDB'],
+    'GONDOLA 6/PONTA-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']]],
     'GONDOLA 6/MEIO-A': ['EUD', []],
     'GONDOLA 6/MEIO-B': ['EUD', []],
-    'GONDOLA 6/LADO-B': ['EUD', []],
+    'GONDOLA 6/PONTA-B': ['EUD', []],
     'ILHA PREMIUM OUI 1': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
 };
@@ -887,9 +891,9 @@ function movimentosExemploCheio_(planta) {
     const num = Number((/(\d+)\s*$/.exec(id) || [0, 1])[1]);
     if (tipo === 'GONDOLA') {
       const div = String(m[11] || '').toUpperCase();
-      const ids = ['LADO-A'];
+      const ids = ['PONTA-A'];
       ['A', 'B'].forEach(function (l) { if (div.indexOf(l) >= 0) ids.push('MEIO-' + l + '-1', 'MEIO-' + l + '-2'); else ids.push('MEIO-' + l); });
-      ids.push('LADO-B');
+      ids.push('PONTA-B');
       ids.forEach(function (e) { saida[id + '/' + e] = linha(par(), num === 1 && /^MEIO/.test(e) ? 'FIXO' : ''); });
     } else if (tipo === 'PIRAMIDE' || tipo === 'FILA' || tipo === 'CUBO') {
       saida[id] = linha(par(), tipo === 'PIRAMIDE' && num === 1 ? 'NOVO' : '');
@@ -901,6 +905,7 @@ function movimentosExemploCheio_(planta) {
     } else if (tipo === 'MESA' || tipo === 'MESA_3') {
       const n = tipo === 'MESA' ? 2 : 3;
       for (let i = 0; i < n; i++) saida[id + '/FRENTE-' + (i + 1)] = linha(E.mesa[i]);
+      saida[id + '/VERSO'] = linha([E.totem[0]]);
     } else if (tipo === 'PAINEL' || tipo === 'EXPOSITOR_OUI' || tipo === 'ILHA_OUI') {
       saida[id] = ['OUI', E.oui, tipo === 'ILHA_OUI' ? 'EXPOSICAO' : ''];
     } else if (tipo === 'VITRINE_L') {
@@ -1068,7 +1073,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     lido.linhas.forEach(function (l) {
       const ciclo = texto_(l.ciclo);
       const planta = normPlanta_(l.planta);
-      // Nomes antigos dos lados da gôndola: Ponta 2 era o lado da frente (A), Ponta 1 o de trás (B).
+      // Aceita os nomes antigos das pontas da gôndola (LADO-A, PONTA-2…).
       const id = normIdEspaco_(l.movel);
       const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
       if (!ciclo || !planta || !id) {
@@ -1433,15 +1438,16 @@ function normGiro_(v) {
 
 /**
  * Posição manual de cada pilha de etiquetas de um móvel com espaços (gôndola, mesas, totem, make),
- * somada ao ajuste do móvel inteiro. Na planilha: "LADO-A: 10, -5; MEIO-B+LADO-B: 0, 20" (a chave é
+ * somada ao ajuste do móvel inteiro. Na planilha: "PONTA-A: 10, -5; MEIO-B+PONTA-B: 0, 20" (a chave é
  * o espaço da pilha; espaços vizinhos com as mesmas etiquetas formam uma pilha só, ligados por "+").
- * Aceita também o objeto já lido ({ 'LADO-A': {x, y} }). Deslocamento zero fica de fora.
+ * Aceita também o objeto já lido ({ 'PONTA-A': {x, y} }) e os nomes antigos das pontas (LADO-A…).
+ * Deslocamento zero fica de fora.
  * @return {Object<string, {x: number, y: number}>}
  */
 function lerAjustesEspacos_(v) {
   const mapa = {};
   const por = function (chave, x, y) {
-    const k = normId_(chave).replace(/\s+/g, '');
+    const k = normEspacos_(normId_(chave).replace(/\s+/g, ''));
     x = Math.round(numero_(x, 0));
     y = Math.round(numero_(y, 0));
     if (k && (x || y)) mapa[k] = { x: x, y: y };
@@ -1465,7 +1471,7 @@ function textoAjustesEspacos_(mapa) {
 
 /**
  * Aplica ajustes de etiquetas ({ id → {x, y} }) às linhas de um móvel: "GONDOLA 1" é o ajuste do
- * móvel inteiro; "GONDOLA 1/LADO-A" (ou ".../MEIO-B+LADO-B") é o de uma pilha, por cima do do móvel.
+ * móvel inteiro; "GONDOLA 1/PONTA-A" (ou ".../MEIO-B+PONTA-B") é o de uma pilha, por cima do do móvel.
  * @param {{x: number, y: number, espacos: Object}} atual  ajuste do móvel e das pilhas (é alterado)
  * @return {boolean} se algum ajuste era deste móvel
  */
@@ -1480,7 +1486,7 @@ function aplicarAjusteEtiquetas_(movel, ajustes, atual) {
       atual.y = Math.round(Number(a.y) || 0);
       achou = true;
     } else if (k.indexOf(id + '/') === 0) {
-      const espaco = k.slice(id.length + 1).replace(/\s+/g, '');
+      const espaco = normEspacos_(k.slice(id.length + 1).replace(/\s+/g, ''));
       const x = Math.round(Number(a.x) || 0);
       const y = Math.round(Number(a.y) || 0);
       if (x || y) atual.espacos[espaco] = { x: x, y: y };
@@ -1512,9 +1518,8 @@ function normId_(v) {
 
 /**
  * ID da aba Movimentos, que pode ter um espaço depois da "/": aceita variações de digitação
- * ("Totem 1 / painel 1", "TOTEM 1/PAINEL1", "GONDOLA 1/LADO A", "MEIO_A_2") → "TOTEM 1/PAINEL-1",
- * "GONDOLA 1/LADO-A", ".../MEIO-A-2". Nomes antigos dos lados da gôndola: Ponta 2 era o lado da
- * frente (A), Ponta 1 o de trás (B).
+ * ("Totem 1 / painel 1", "TOTEM 1/PAINEL1", "GONDOLA 1/PONTA A", "MEIO_A_2") → "TOTEM 1/PAINEL-1",
+ * "GONDOLA 1/PONTA-A", ".../MEIO-A-2". Nomes antigos das pontas da gôndola (normEspacos_).
  */
 function normIdEspaco_(v) {
   const id = normId_(v);
@@ -1524,7 +1529,16 @@ function normIdEspaco_(v) {
     .replace(/[\s_.\-]+/g, '-')
     .replace(/([A-Z])(\d)/g, '$1-$2')
     .replace(/^-|-$/g, '');
-  return (id.slice(0, i).trim() + '/' + espaco).replace(/\/PONTA-2$/, '/LADO-A').replace(/\/PONTA-1$/, '/LADO-B');
+  return id.slice(0, i).trim() + '/' + normEspacos_(espaco);
+}
+
+/**
+ * Nomes antigos das pontas da gôndola, num espaço ou numa pilha ("MEIO-B+LADO-B"): Lado A / Lado B
+ * viraram Ponta A / Ponta B; antes disso, Ponta 2 era a da frente (A) e Ponta 1 a de trás (B).
+ */
+function normEspacos_(espacos) {
+  const novo = { 'LADO-A': 'PONTA-A', 'LADO-B': 'PONTA-B', 'PONTA-2': 'PONTA-A', 'PONTA-1': 'PONTA-B' };
+  return String(espacos).split('+').map(function (e) { return novo[e] || e; }).join('+');
 }
 
 let indiceMarcasCache_ = null;

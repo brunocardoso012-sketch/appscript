@@ -66,7 +66,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     lido.linhas.forEach(function (l) {
       const ciclo = texto_(l.ciclo);
       const planta = normPlanta_(l.planta);
-      // Nomes antigos dos lados da gôndola: Ponta 2 era o lado da frente (A), Ponta 1 o de trás (B).
+      // Aceita os nomes antigos das pontas da gôndola (LADO-A, PONTA-2…).
       const id = normIdEspaco_(l.movel);
       const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
       if (!ciclo || !planta || !id) {
@@ -431,15 +431,16 @@ function normGiro_(v) {
 
 /**
  * Posição manual de cada pilha de etiquetas de um móvel com espaços (gôndola, mesas, totem, make),
- * somada ao ajuste do móvel inteiro. Na planilha: "LADO-A: 10, -5; MEIO-B+LADO-B: 0, 20" (a chave é
+ * somada ao ajuste do móvel inteiro. Na planilha: "PONTA-A: 10, -5; MEIO-B+PONTA-B: 0, 20" (a chave é
  * o espaço da pilha; espaços vizinhos com as mesmas etiquetas formam uma pilha só, ligados por "+").
- * Aceita também o objeto já lido ({ 'LADO-A': {x, y} }). Deslocamento zero fica de fora.
+ * Aceita também o objeto já lido ({ 'PONTA-A': {x, y} }) e os nomes antigos das pontas (LADO-A…).
+ * Deslocamento zero fica de fora.
  * @return {Object<string, {x: number, y: number}>}
  */
 function lerAjustesEspacos_(v) {
   const mapa = {};
   const por = function (chave, x, y) {
-    const k = normId_(chave).replace(/\s+/g, '');
+    const k = normEspacos_(normId_(chave).replace(/\s+/g, ''));
     x = Math.round(numero_(x, 0));
     y = Math.round(numero_(y, 0));
     if (k && (x || y)) mapa[k] = { x: x, y: y };
@@ -463,7 +464,7 @@ function textoAjustesEspacos_(mapa) {
 
 /**
  * Aplica ajustes de etiquetas ({ id → {x, y} }) às linhas de um móvel: "GONDOLA 1" é o ajuste do
- * móvel inteiro; "GONDOLA 1/LADO-A" (ou ".../MEIO-B+LADO-B") é o de uma pilha, por cima do do móvel.
+ * móvel inteiro; "GONDOLA 1/PONTA-A" (ou ".../MEIO-B+PONTA-B") é o de uma pilha, por cima do do móvel.
  * @param {{x: number, y: number, espacos: Object}} atual  ajuste do móvel e das pilhas (é alterado)
  * @return {boolean} se algum ajuste era deste móvel
  */
@@ -478,7 +479,7 @@ function aplicarAjusteEtiquetas_(movel, ajustes, atual) {
       atual.y = Math.round(Number(a.y) || 0);
       achou = true;
     } else if (k.indexOf(id + '/') === 0) {
-      const espaco = k.slice(id.length + 1).replace(/\s+/g, '');
+      const espaco = normEspacos_(k.slice(id.length + 1).replace(/\s+/g, ''));
       const x = Math.round(Number(a.x) || 0);
       const y = Math.round(Number(a.y) || 0);
       if (x || y) atual.espacos[espaco] = { x: x, y: y };
@@ -510,9 +511,8 @@ function normId_(v) {
 
 /**
  * ID da aba Movimentos, que pode ter um espaço depois da "/": aceita variações de digitação
- * ("Totem 1 / painel 1", "TOTEM 1/PAINEL1", "GONDOLA 1/LADO A", "MEIO_A_2") → "TOTEM 1/PAINEL-1",
- * "GONDOLA 1/LADO-A", ".../MEIO-A-2". Nomes antigos dos lados da gôndola: Ponta 2 era o lado da
- * frente (A), Ponta 1 o de trás (B).
+ * ("Totem 1 / painel 1", "TOTEM 1/PAINEL1", "GONDOLA 1/PONTA A", "MEIO_A_2") → "TOTEM 1/PAINEL-1",
+ * "GONDOLA 1/PONTA-A", ".../MEIO-A-2". Nomes antigos das pontas da gôndola (normEspacos_).
  */
 function normIdEspaco_(v) {
   const id = normId_(v);
@@ -522,7 +522,16 @@ function normIdEspaco_(v) {
     .replace(/[\s_.\-]+/g, '-')
     .replace(/([A-Z])(\d)/g, '$1-$2')
     .replace(/^-|-$/g, '');
-  return (id.slice(0, i).trim() + '/' + espaco).replace(/\/PONTA-2$/, '/LADO-A').replace(/\/PONTA-1$/, '/LADO-B');
+  return id.slice(0, i).trim() + '/' + normEspacos_(espaco);
+}
+
+/**
+ * Nomes antigos das pontas da gôndola, num espaço ou numa pilha ("MEIO-B+LADO-B"): Lado A / Lado B
+ * viraram Ponta A / Ponta B; antes disso, Ponta 2 era a da frente (A) e Ponta 1 a de trás (B).
+ */
+function normEspacos_(espacos) {
+  const novo = { 'LADO-A': 'PONTA-A', 'LADO-B': 'PONTA-B', 'PONTA-2': 'PONTA-A', 'PONTA-1': 'PONTA-B' };
+  return String(espacos).split('+').map(function (e) { return novo[e] || e; }).join('+');
 }
 
 let indiceMarcasCache_ = null;

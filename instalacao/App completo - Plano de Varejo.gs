@@ -66,7 +66,7 @@ const ETIQUETAS_POR_TIPO = { VITRINE_L: 3 };
 const TIPOS_SEM_ETIQUETA = ['CAIXA'];
 
 /**
- * Quantas etiquetas a linha de um espaço mostra (GONDOLA 1/LADO-A,
+ * Quantas etiquetas a linha de um espaço mostra (GONDOLA 1/PONTA-A,
  * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
  * (painéis do totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
  * mesmas etiquetas (texto e cor) viram uma pilha só.
@@ -165,12 +165,12 @@ const SECOES_PAINEL = {
 const TIPOS_MOVEL = {
   LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
   PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados (até 4 etiquetas)',
-  GONDOLA: 'Gôndola: lado A, meio A, meio B e lado B (o A virado para quem olha; cada meio pode ser dividido em dois), 4 níveis, até 4 etiquetas por bloco',
+  GONDOLA: 'Gôndola: ponta A, meio A, meio B e ponta B (o A virado para quem olha; cada meio pode ser dividido em dois), 4 níveis, até 4 etiquetas por bloco',
   FILA: 'Móvel de fila: bloco único retangular com 3 níveis',
   GONDOLA_PAREDE: 'Móvel de parede: estante encostada na parede, com prateleiras',
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
-  MESA: 'Mesa destaque: 2 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
-  MESA_3: 'Mesa destaque 3 frentes: 3 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
+  MESA: 'Mesa destaque: 2 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias, e o verso (atrás das lâminas)',
+  MESA_3: 'Mesa destaque 3 frentes: 3 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias, e o verso (atrás das lâminas)',
   TOTEM: 'Totem: estrutura metálica com 3 painéis, cada um com cor e etiqueta próprias (Etiqueta 1–3 = painel 1, o de cima, 2 e 3)',
   PAINEL: 'Parede O.U.i: painel alto com moldura',
   EXPOSITOR_OUI: 'Totem O.U.i: expositor estreito com moldura, na altura da gôndola',
@@ -188,18 +188,19 @@ const TIPOS_CONSTRUCAO = [
 
 /**
  * Espaços (blocos) de um móvel, cada um com cor e etiqueta próprias na planilha:
- *  - gôndola: Lado A, Meio A, Meio B e Lado B (o "A" é sempre o lado virado para
+ *  - gôndola: Ponta A, Meio A, Meio B e Ponta B (o "A" é sempre o lado virado para
  *    quem olha a planta; cada meio pode ser dividido em dois);
- *  - mesa destaque: Frente 1 e 2 (3 frentes: Frente 1, 2 e 3);
+ *  - mesa destaque: Frente 1 e 2 (3 frentes: Frente 1, 2 e 3) e o Verso, atrás das lâminas
+ *    (espaço de VM: vm = true);
  *  - totem: Painel 1 a 3 (o 1 é o de cima);
  *  - móvel make: Testeira 1 a 4.
  * Na planilha, cada espaço é endereçado como "<ID do móvel>/<espaço>", ex.:
- * GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A-2, MESA DESTAQUE 1/FRENTE-2.
+ * GONDOLA 1/PONTA-A, GONDOLA 1/MEIO-A-2, MESA DESTAQUE 1/FRENTE-2, MESA DESTAQUE 1/VERSO.
  * Móvel com espaços é preenchido só espaço por espaço: a linha só com o ID do móvel
  * é ignorada (espaço sem linha fica branco).
  * (A página tem uma cópia desta regra em Render.espacos.)
  * @param {{tipo: string, dividido: string}} m  dividido = '', 'A', 'B' ou 'AB'
- * @return {Array<{id: string, nome: string}>}
+ * @return {Array<{id: string, nome: string, vm?: boolean}>}
  */
 function espacosDoMovel_(m) {
   const numerados = function (prefixo, nome, n) {
@@ -209,12 +210,13 @@ function espacosDoMovel_(m) {
   };
   if (!m) return [];
   if (m.tipo === 'MAKE') return numerados('TESTEIRA', 'Testeira', 4);
-  if (m.tipo === 'MESA') return numerados('FRENTE', 'Frente', 2);
-  if (m.tipo === 'MESA_3') return numerados('FRENTE', 'Frente', 3);
+  if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
+    return numerados('FRENTE', 'Frente', m.tipo === 'MESA' ? 2 : 3).concat([{ id: 'VERSO', nome: 'Verso', vm: true }]);
+  }
   if (m.tipo === 'TOTEM') return numerados('PAINEL', 'Painel', 3);
   if (m.tipo !== 'GONDOLA') return [];
   const div = String(m.dividido || '').toUpperCase();
-  const lista = [{ id: 'LADO-A', nome: 'Lado A' }];
+  const lista = [{ id: 'PONTA-A', nome: 'Ponta A' }];
   ['A', 'B'].forEach(function (lado) {
     if (div.indexOf(lado) >= 0) {
       lista.push({ id: 'MEIO-' + lado + '-1', nome: 'Meio ' + lado + ' (metade 1)' });
@@ -223,7 +225,7 @@ function espacosDoMovel_(m) {
       lista.push({ id: 'MEIO-' + lado, nome: 'Meio ' + lado });
     }
   });
-  lista.push({ id: 'LADO-B', nome: 'Lado B' });
+  lista.push({ id: 'PONTA-B', nome: 'Ponta B' });
   return lista;
 }
 
@@ -377,7 +379,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     lido.linhas.forEach(function (l) {
       const ciclo = texto_(l.ciclo);
       const planta = normPlanta_(l.planta);
-      // Nomes antigos dos lados da gôndola: Ponta 2 era o lado da frente (A), Ponta 1 o de trás (B).
+      // Aceita os nomes antigos das pontas da gôndola (LADO-A, PONTA-2…).
       const id = normIdEspaco_(l.movel);
       const onde = CONFIG.ABAS.MOVIMENTOS + ', linha ' + l._linha;
       if (!ciclo || !planta || !id) {
@@ -742,15 +744,16 @@ function normGiro_(v) {
 
 /**
  * Posição manual de cada pilha de etiquetas de um móvel com espaços (gôndola, mesas, totem, make),
- * somada ao ajuste do móvel inteiro. Na planilha: "LADO-A: 10, -5; MEIO-B+LADO-B: 0, 20" (a chave é
+ * somada ao ajuste do móvel inteiro. Na planilha: "PONTA-A: 10, -5; MEIO-B+PONTA-B: 0, 20" (a chave é
  * o espaço da pilha; espaços vizinhos com as mesmas etiquetas formam uma pilha só, ligados por "+").
- * Aceita também o objeto já lido ({ 'LADO-A': {x, y} }). Deslocamento zero fica de fora.
+ * Aceita também o objeto já lido ({ 'PONTA-A': {x, y} }) e os nomes antigos das pontas (LADO-A…).
+ * Deslocamento zero fica de fora.
  * @return {Object<string, {x: number, y: number}>}
  */
 function lerAjustesEspacos_(v) {
   const mapa = {};
   const por = function (chave, x, y) {
-    const k = normId_(chave).replace(/\s+/g, '');
+    const k = normEspacos_(normId_(chave).replace(/\s+/g, ''));
     x = Math.round(numero_(x, 0));
     y = Math.round(numero_(y, 0));
     if (k && (x || y)) mapa[k] = { x: x, y: y };
@@ -774,7 +777,7 @@ function textoAjustesEspacos_(mapa) {
 
 /**
  * Aplica ajustes de etiquetas ({ id → {x, y} }) às linhas de um móvel: "GONDOLA 1" é o ajuste do
- * móvel inteiro; "GONDOLA 1/LADO-A" (ou ".../MEIO-B+LADO-B") é o de uma pilha, por cima do do móvel.
+ * móvel inteiro; "GONDOLA 1/PONTA-A" (ou ".../MEIO-B+PONTA-B") é o de uma pilha, por cima do do móvel.
  * @param {{x: number, y: number, espacos: Object}} atual  ajuste do móvel e das pilhas (é alterado)
  * @return {boolean} se algum ajuste era deste móvel
  */
@@ -789,7 +792,7 @@ function aplicarAjusteEtiquetas_(movel, ajustes, atual) {
       atual.y = Math.round(Number(a.y) || 0);
       achou = true;
     } else if (k.indexOf(id + '/') === 0) {
-      const espaco = k.slice(id.length + 1).replace(/\s+/g, '');
+      const espaco = normEspacos_(k.slice(id.length + 1).replace(/\s+/g, ''));
       const x = Math.round(Number(a.x) || 0);
       const y = Math.round(Number(a.y) || 0);
       if (x || y) atual.espacos[espaco] = { x: x, y: y };
@@ -821,9 +824,8 @@ function normId_(v) {
 
 /**
  * ID da aba Movimentos, que pode ter um espaço depois da "/": aceita variações de digitação
- * ("Totem 1 / painel 1", "TOTEM 1/PAINEL1", "GONDOLA 1/LADO A", "MEIO_A_2") → "TOTEM 1/PAINEL-1",
- * "GONDOLA 1/LADO-A", ".../MEIO-A-2". Nomes antigos dos lados da gôndola: Ponta 2 era o lado da
- * frente (A), Ponta 1 o de trás (B).
+ * ("Totem 1 / painel 1", "TOTEM 1/PAINEL1", "GONDOLA 1/PONTA A", "MEIO_A_2") → "TOTEM 1/PAINEL-1",
+ * "GONDOLA 1/PONTA-A", ".../MEIO-A-2". Nomes antigos das pontas da gôndola (normEspacos_).
  */
 function normIdEspaco_(v) {
   const id = normId_(v);
@@ -833,7 +835,16 @@ function normIdEspaco_(v) {
     .replace(/[\s_.\-]+/g, '-')
     .replace(/([A-Z])(\d)/g, '$1-$2')
     .replace(/^-|-$/g, '');
-  return (id.slice(0, i).trim() + '/' + espaco).replace(/\/PONTA-2$/, '/LADO-A').replace(/\/PONTA-1$/, '/LADO-B');
+  return id.slice(0, i).trim() + '/' + normEspacos_(espaco);
+}
+
+/**
+ * Nomes antigos das pontas da gôndola, num espaço ou numa pilha ("MEIO-B+LADO-B"): Lado A / Lado B
+ * viraram Ponta A / Ponta B; antes disso, Ponta 2 era a da frente (A) e Ponta 1 a de trás (B).
+ */
+function normEspacos_(espacos) {
+  const novo = { 'LADO-A': 'PONTA-A', 'LADO-B': 'PONTA-B', 'PONTA-2': 'PONTA-A', 'PONTA-1': 'PONTA-B' };
+  return String(espacos).split('+').map(function (e) { return novo[e] || e; }).join('+');
 }
 
 let indiceMarcasCache_ = null;
@@ -1156,7 +1167,7 @@ function verificarImportacao_(valoresLayout, prep) {
  * Grava a posição manual das etiquetas (arrastadas na tela) na aba Layout.
  * @param {string} planta
  * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel (ajuste do móvel inteiro) ou
- *   ID da pilha ("GONDOLA 1/LADO-A", ajuste só daquela pilha) → deslocamento em px.
+ *   ID da pilha ("GONDOLA 1/PONTA-A", ajuste só daquela pilha) → deslocamento em px.
  */
 function salvarAjustesEtiquetas(planta, ajustes) {
   planta = normPlanta_(planta);
@@ -1605,7 +1616,7 @@ function removerAbaPadraoVazia_(ss) {
  *  slide; a pilha cresce para cima. Valem em qualquer ciclo (o slide fica com a largura salva).
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
  *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270),
- *          (ajuste das pilhas de etiquetas por espaço: { 'LADO-A': {x, y} })]
+ *          (ajuste das pilhas de etiquetas por espaço: { 'PONTA-A': {x, y} })]
  *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato; o botão "Baixar
  *  posições" (modo ajuste das etiquetas) gera os ajustes de etiqueta (índices 9, 10 e 13) e o tamanho.
  */
@@ -1623,7 +1634,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 13, '02': 12, '03': 9, '04': 11 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 13;
+const VERSAO_EXEMPLO = 14;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
@@ -1631,7 +1642,7 @@ const LAYOUT_PADRAO = {
     loja: [12, 10, 4.4, 100, 1920], // posições fixas das etiquetas (slide de 1920 px)
     moveis: [
       ['MOVEL DE PAREDE 1', 'Perf. Fem. BOT', 'GONDOLA_PAREDE', 0, 0, 3, 1.1, 3.2, 0, 910, 237, '', 0],
-      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 2.5, 2, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 707, y: 559 }, 'LADO-B': { x: 947, y: 414 }, 'MEIO-A': { x: 861, y: 530 }, 'MEIO-B': { x: 788, y: 452 } }],
+      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 2.5, 2, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 707, y: 559 }, 'PONTA-B': { x: 947, y: 414 }, 'MEIO-A': { x: 861, y: 530 }, 'MEIO-B': { x: 788, y: 452 } }],
       ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 6, 2.5, 1.02, 1.02, 1.94, 0, 1036, 573, '', 0],
       ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 6, 4.5, 1.02, 1.02, 1.94, 0, 921, 630, '', 0],
       ['MESA DESTAQUE 1', 'Mesa destaque 1', 'MESA', 8.5, 3.5, 2.6, 1.4, 2.6, 0, 0, 0, '', 0, { 'FRENTE-1': { x: 1156, y: 656 }, 'FRENTE-2': { x: 1213, y: 749 } }],
@@ -1654,8 +1665,8 @@ const LAYOUT_PADRAO = {
   '02': {
     loja: [16, 14, 4.4, 100, 2208], // posições fixas das etiquetas (slide de 2208 px)
     moveis: [
-      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3.5, 3, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 839, y: 588 }, 'LADO-B': { x: 1090, y: 441 }, 'MEIO-A': { x: 1005, y: 553 }, 'MEIO-B': { x: 910, y: 470 } }],
-      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 7, 3, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1031, y: 680 }, 'LADO-B': { x: 1267, y: 542 }, 'MEIO-A': { x: 1201, y: 648 }, 'MEIO-B': { x: 1121, y: 576 } }],
+      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3.5, 3, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 839, y: 588 }, 'PONTA-B': { x: 1090, y: 441 }, 'MEIO-A': { x: 1005, y: 553 }, 'MEIO-B': { x: 910, y: 470 } }],
+      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 7, 3, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1031, y: 680 }, 'PONTA-B': { x: 1267, y: 542 }, 'MEIO-A': { x: 1201, y: 648 }, 'MEIO-B': { x: 1121, y: 576 } }],
       ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 10, 3.5, 1.02, 1.02, 1.94, 0, 1355, 649, '', 0],
       ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 12, 3.5, 1.02, 1.02, 1.94, 0, 1472, 707, '', 0],
       ['MESA DESTAQUE 1', 'Mesa destaque 1', 'MESA', 11.5, 7.5, 2.6, 1.4, 2.6, 0, 0, 0, '', 0, { 'FRENTE-1': { x: 1149, y: 811 }, 'FRENTE-2': { x: 1255, y: 904 } }],
@@ -1689,7 +1700,7 @@ const LAYOUT_PADRAO = {
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
       ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 12.5, 2.5, 1.02, 1.02, 1.94, 0, 2092, 992, '', 0],
-      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1230, y: 721 }, 'LADO-B': { x: 1497, y: 520 }, 'MEIO-A': { x: 1455, y: 611 }, 'MEIO-B': { x: 1225, y: 561 } }],
+      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1230, y: 721 }, 'PONTA-B': { x: 1497, y: 520 }, 'MEIO-A': { x: 1455, y: 611 }, 'MEIO-B': { x: 1225, y: 561 } }],
       ['PDV MOVEL 1', 'PDV móvel 1', 'CUBO', 6.5, 12, 1.3, 1.3, 1.44, 0, 1101, 1084, '', 0],
       ['BALCAO RECEPCAO 1', 'Balcão recepção 1', 'VITRINE_L', 11.5, 12.5, 2.4, 2.4, 1.28, 0, 1166, 1371, '', 90],
       ['MOVEL DE ATENDIMENTO 3', 'Móvel de atendimento 3', 'CAIXA', 0, 13, 1.2, 1.8, 1.7],
@@ -1697,8 +1708,8 @@ const LAYOUT_PADRAO = {
       ['MOVEL DE FILA 6', 'Móvel de fila 6', 'FILA', 3.5, 13, 1.5, 0.4, 1.46, 0, 846, 974, '', 0],
       ['TOTEM OUI 1', 'Totem O.U.i 1', 'EXPOSITOR_OUI', 7, 10.4, 0.8, 0.8, 1.94, 0, 1208, 1042, '', 0],
       ['MOVEL DE PAREDE 1', 'Perf. Fem. BOT', 'GONDOLA_PAREDE', 0.5, 0, 2.5, 1.1, 3.2, 0, 1432, 353, '', 0],
-      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 6, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1364, y: 812 }, 'LADO-B': { x: 1698, y: 619 }, 'MEIO-A': { x: 1646, y: 726 }, 'MEIO-B': { x: 1424, y: 694 } }],
-      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 9, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1561, y: 925 }, 'LADO-B': { x: 1871, y: 747 }, 'MEIO-A': { x: 1798, y: 886 }, 'MEIO-B': { x: 1658, y: 794 } }],
+      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 6, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1364, y: 812 }, 'PONTA-B': { x: 1698, y: 619 }, 'MEIO-A': { x: 1646, y: 726 }, 'MEIO-B': { x: 1424, y: 694 } }],
+      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 9, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1561, y: 925 }, 'PONTA-B': { x: 1871, y: 747 }, 'MEIO-A': { x: 1798, y: 886 }, 'MEIO-B': { x: 1658, y: 794 } }],
       ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 12.5, 4.5, 1.02, 1.02, 1.94, 0, 1961, 1067, '', 0],
       ['PIRAMIDE 3', 'Pirâmide 3', 'PIRAMIDE', 12.5, 6.5, 1.02, 1.02, 1.94, 0, 1835, 1146, '', 0],
       ['MOVEL DE ATENDIMENTO 2', 'Móvel de atendimento 2', 'CAIXA', 0, 11, 1.2, 1.8, 1.7],
@@ -1726,7 +1737,7 @@ const LAYOUT_PADRAO = {
       ['EXTRA-BELEZA', 'Espaço da Beleza', 'EXTRA', 0, 0, 1, 1, 1],
       ['EXTRA-CAVALETE', 'Cavalete', 'EXTRA', 0, 0, 1, 1, 1],
       ['PIRAMIDE 1', 'Pirâmide 1', 'PIRAMIDE', 14.5, 2.5, 1.02, 1.02, 1.94, 0, 2352, 1006, '', 0],
-      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3.5, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1454, y: 695 }, 'LADO-B': { x: 1699, y: 514 }, 'MEIO-A': { x: 1585, y: 648 }, 'MEIO-B': { x: 1435, y: 552 } }],
+      ['GONDOLA 1', 'Gôndola 1', 'GONDOLA', 3.5, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1454, y: 695 }, 'PONTA-B': { x: 1699, y: 514 }, 'MEIO-A': { x: 1585, y: 648 }, 'MEIO-B': { x: 1435, y: 552 } }],
       ['PDV MOVEL 1', 'PDV móvel 1', 'CUBO', 6, 17, 1.3, 1.3, 1.44, 0, 985, 1151, '', 0],
       ['BALCAO RECEPCAO 1', 'Balcão recepção 1', 'VITRINE_L', 14.5, 17.5, 2.4, 2.4, 1.28, 0, 1222, 1566, '', 0],
       ['MOVEL DE ATENDIMENTO 3', 'Móvel de atendimento 3', 'CAIXA', 0, 17, 1.2, 1.8, 1.7],
@@ -1734,11 +1745,11 @@ const LAYOUT_PADRAO = {
       ['TOTEM OUI 1', 'Totem O.U.i 1', 'EXPOSITOR_OUI', 6.5, 16, 0.8, 0.8, 1.94, 0, 1029, 1088, '', 0],
       ['MOVEL DE PAREDE 1', 'Perf. Fem. BOT', 'GONDOLA_PAREDE', 0, -0.5, 4, 1.1, 3.2, 0, 1643, 329, '', 0],
       ['MOVEL DE PAREDE 2', 'Perf. Masc. BOT', 'GONDOLA_PAREDE', 4, -0.5, 4, 1.1, 3.2, 0, 1876, 464, '', 0],
-      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 7, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1642, y: 817 }, 'LADO-B': { x: 1914, y: 642 }, 'MEIO-A': { x: 1799, y: 791 }, 'MEIO-B': { x: 1688, y: 706 } }],
-      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 10.5, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1847, y: 927 }, 'LADO-B': { x: 2115, y: 760 }, 'MEIO-A': { x: 2042, y: 873 }, 'MEIO-B': { x: 1927, y: 796 } }],
-      ['GONDOLA 4', 'Gôndola 4', 'GONDOLA', 3.5, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1025, y: 824 }, 'LADO-B': { x: 1344, y: 694 }, 'MEIO-A': { x: 1282, y: 824 }, 'MEIO-B': { x: 1157, y: 753 } }],
-      ['GONDOLA 5', 'Gôndola 5', 'GONDOLA', 7, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1307, y: 999 }, 'MEIO-A': { x: 1484, y: 988 }, 'MEIO-B': { x: 1368, y: 911 }, 'LADO-B': { x: 1524, y: 835 } }],
-      ['GONDOLA 6', 'Gôndola 6', 'GONDOLA', 10.5, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'LADO-A': { x: 1539, y: 1114 }, 'MEIO-A': { x: 1715, y: 1089 }, 'MEIO-B': { x: 1622, y: 1001 }, 'LADO-B': { x: 1743, y: 953 } }],
+      ['GONDOLA 2', 'Gôndola 2', 'GONDOLA', 7, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1642, y: 817 }, 'PONTA-B': { x: 1914, y: 642 }, 'MEIO-A': { x: 1799, y: 791 }, 'MEIO-B': { x: 1688, y: 706 } }],
+      ['GONDOLA 3', 'Gôndola 3', 'GONDOLA', 10.5, 2.5, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1847, y: 927 }, 'PONTA-B': { x: 2115, y: 760 }, 'MEIO-A': { x: 2042, y: 873 }, 'MEIO-B': { x: 1927, y: 796 } }],
+      ['GONDOLA 4', 'Gôndola 4', 'GONDOLA', 3.5, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1025, y: 824 }, 'PONTA-B': { x: 1344, y: 694 }, 'MEIO-A': { x: 1282, y: 824 }, 'MEIO-B': { x: 1157, y: 753 } }],
+      ['GONDOLA 5', 'Gôndola 5', 'GONDOLA', 7, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1307, y: 999 }, 'MEIO-A': { x: 1484, y: 988 }, 'MEIO-B': { x: 1368, y: 911 }, 'PONTA-B': { x: 1524, y: 835 } }],
+      ['GONDOLA 6', 'Gôndola 6', 'GONDOLA', 10.5, 8, 1.6, 4, 1.94, 0, 0, 0, '', 0, { 'PONTA-A': { x: 1539, y: 1114 }, 'MEIO-A': { x: 1715, y: 1089 }, 'MEIO-B': { x: 1622, y: 1001 }, 'PONTA-B': { x: 1743, y: 953 } }],
       ['PIRAMIDE 2', 'Pirâmide 2', 'PIRAMIDE', 14.5, 4.5, 1.02, 1.02, 1.94, 0, 2229, 1079, '', 0],
       ['PIRAMIDE 3', 'Pirâmide 3', 'PIRAMIDE', 14.5, 6.5, 1.02, 1.02, 1.94, 0, 2096, 1155, '', 0],
       ['PIRAMIDE 4', 'Pirâmide 4', 'PIRAMIDE', 14.5, 8.5, 1.02, 1.02, 1.94, 0, 1981, 1231, '', 0],
@@ -1769,7 +1780,7 @@ const LAYOUT_PADRAO = {
  *  (ER P → ER M → ER G → ER GG), então cada móvel aparece só na primeira planta
  *  que o tem. Uma linha da própria planta tem prioridade; "TODAS" vale para todas.
  *  Gôndola, mesas, totem e móvel make são preenchidos espaço por espaço
- *  (GONDOLA 1/LADO-A, MESA DESTAQUE 1/FRENTE-1, TOTEM 1/PAINEL-1…), sem linha do móvel inteiro.
+ *  (GONDOLA 1/PONTA-A, MESA DESTAQUE 1/FRENTE-1, TOTEM 1/PAINEL-1…), sem linha do móvel inteiro.
  * ------------------------------------------------------------------------ */
 
 const EXEMPLO_CICLO = 'Ciclo exemplo';
@@ -1786,14 +1797,15 @@ const EXEMPLO_MOVIMENTOS = {
     'MOVEL DE PAREDE 2': ['NEUTRO', [['PERF MASC', 'BOT'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 3': ['NEUTRO', [['PERF FEM', 'EUD'], ['MULTI PROMO', 'MULTI']]],
     'MOVEL DE PAREDE 4': ['NEUTRO', [['CUIDADOS (CBEM/NSPA)', 'BOT'], ['MULTI PROMO', 'MULTI']]],
-    'GONDOLA 1/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']]],
+    'GONDOLA 1/PONTA-A': ['QDB', [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']]],
     'GONDOLA 1/MEIO-A': ['BOT', [['BOTIK', 'BOT']], 'FIXO'],
     'GONDOLA 1/MEIO-B': ['BOT', [['UOMINI HERO', 'BOT']], 'FIXO'],
-    'GONDOLA 1/LADO-B': ['BOT', [['BOTI PROMO', 'BOT']], 'FIXO'],
+    'GONDOLA 1/PONTA-B': ['BOT', [['BOTI PROMO', 'BOT']], 'FIXO'],
     'PIRAMIDE 1': ['EUD', [['MULTI PROMO', 'MULTI']]],
-    'PIRAMIDE 2': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT']]],
+    'PIRAMIDE 2': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT'], ['BOTIPROMO', 'BOT']]],
     'MESA DESTAQUE 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
     'MESA DESTAQUE 1/FRENTE-2': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
+    'MESA DESTAQUE 1/VERSO': ['BOT', [['LÇTO UOMINI', 'BOT']]],
     'PDV MOVEL 1': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
     'BALCAO RECEPCAO 1': ['BOT', [['LÇTO EGEO', 'BOT+QDB'], ['JUICY MOOD', 'QDB'], ['SIÀGE ULTIMATE', 'EUD']]],
     'MOVEL DE FILA 1': ['EUD', [['OUTLET EUD', 'EUD']]],
@@ -1807,11 +1819,11 @@ const EXEMPLO_MOVIMENTOS = {
     'MOVEL MAKE 1/TESTEIRA-4': ['EUD'],
   },
   '02': {
-    'GONDOLA 2/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 2/PONTA-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']]],
     'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']]],
     'GONDOLA 2/MEIO-B': ['EUD', [['CUIDADOS', 'EUD']]],
-    'GONDOLA 2/LADO-B': ['EUD', [['OUTLET EUD', 'EUD']]],
+    'GONDOLA 2/PONTA-B': ['EUD', [['OUTLET EUD', 'EUD']]],
     'PIRAMIDE 3': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'MOVEL DE FILA 3': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 4': ['QDB', [['LIQUIDA QDB', 'QDB']]],
@@ -1819,32 +1831,33 @@ const EXEMPLO_MOVIMENTOS = {
     'TOTEM OUI 1': ['OUI', [['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
   '03': {
-    // Lado A e meio A iguais ao lado B e ao meio B da gôndola 2 da ER M.
-    'GONDOLA 3/LADO-A': ['EUD', [['OUTLET EUD', 'EUD']]],
+    // Ponta A e meio A iguais à ponta B e ao meio B da gôndola 2 da ER M.
+    'GONDOLA 3/PONTA-A': ['EUD', [['OUTLET EUD', 'EUD']]],
     'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']]],
     'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']]],
-    'GONDOLA 3/LADO-B': ['MULTI', []],
+    'GONDOLA 3/PONTA-B': ['MULTI', []],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
     'MOVEL DE FILA 8': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-2': ['MULTI', [['VM PERMANENTE MULTI PROMO', 'MULTI']]],
     'MESA DESTAQUE 3 FRENTES 1/FRENTE-3': ['EUD', [['SIÀGE GLORIFICADO', 'EUD']]],
+    'MESA DESTAQUE 3 FRENTES 1/VERSO': ['EUD', [['SIÀGE ULTIMATE', 'EUD']]],
   },
   '04': {
     'PIRAMIDE 4': ['MULTI', [['ISCAS EXAUSTÃO', 'EUD']]],
     'PIRAMIDE 5': ['BOT', [['ISCAS EXAUSTÃO', 'BOT']]],
-    'GONDOLA 4/LADO-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']]],
+    'GONDOLA 4/PONTA-A': ['OUI', [['EXAUSTÃO OUI', 'OUI']]],
     'GONDOLA 4/MEIO-A': ['OUI', []],
     'GONDOLA 4/MEIO-B': ['OUI', []],
-    'GONDOLA 4/LADO-B': ['OUI', []],
-    'GONDOLA 5/LADO-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
+    'GONDOLA 4/PONTA-B': ['OUI', []],
+    'GONDOLA 5/PONTA-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'GONDOLA 5/MEIO-A': ['QDB'],
     'GONDOLA 5/MEIO-B': ['QDB'],
-    'GONDOLA 5/LADO-B': ['QDB'],
-    'GONDOLA 6/LADO-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']]],
+    'GONDOLA 5/PONTA-B': ['QDB'],
+    'GONDOLA 6/PONTA-A': ['EUD', [['EXAUSTÃO EUD', 'EUD']]],
     'GONDOLA 6/MEIO-A': ['EUD', []],
     'GONDOLA 6/MEIO-B': ['EUD', []],
-    'GONDOLA 6/LADO-B': ['EUD', []],
+    'GONDOLA 6/PONTA-B': ['EUD', []],
     'ILHA PREMIUM OUI 1': ['OUI', [['MON AMIE + LOÇÃO', 'OUI'], ['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
 };
@@ -1975,9 +1988,9 @@ function movimentosExemploCheio_(planta) {
     const num = Number((/(\d+)\s*$/.exec(id) || [0, 1])[1]);
     if (tipo === 'GONDOLA') {
       const div = String(m[11] || '').toUpperCase();
-      const ids = ['LADO-A'];
+      const ids = ['PONTA-A'];
       ['A', 'B'].forEach(function (l) { if (div.indexOf(l) >= 0) ids.push('MEIO-' + l + '-1', 'MEIO-' + l + '-2'); else ids.push('MEIO-' + l); });
-      ids.push('LADO-B');
+      ids.push('PONTA-B');
       ids.forEach(function (e) { saida[id + '/' + e] = linha(par(), num === 1 && /^MEIO/.test(e) ? 'FIXO' : ''); });
     } else if (tipo === 'PIRAMIDE' || tipo === 'FILA' || tipo === 'CUBO') {
       saida[id] = linha(par(), tipo === 'PIRAMIDE' && num === 1 ? 'NOVO' : '');
@@ -1989,6 +2002,7 @@ function movimentosExemploCheio_(planta) {
     } else if (tipo === 'MESA' || tipo === 'MESA_3') {
       const n = tipo === 'MESA' ? 2 : 3;
       for (let i = 0; i < n; i++) saida[id + '/FRENTE-' + (i + 1)] = linha(E.mesa[i]);
+      saida[id + '/VERSO'] = linha([E.totem[0]]);
     } else if (tipo === 'PAINEL' || tipo === 'EXPOSITOR_OUI' || tipo === 'ILHA_OUI') {
       saida[id] = ['OUI', E.oui, tipo === 'ILHA_OUI' ? 'EXPOSICAO' : ''];
     } else if (tipo === 'VITRINE_L') {
@@ -2686,6 +2700,13 @@ const PAGINA_ = [
   "  .an-cel-livre { background: repeating-linear-gradient(135deg, #f1f2f4 0 6px, #e8eaed 6px 12px); color: var(--texto-2); }",
   "",
   "  /* Barras 100% por ER */",
+  "  .an-espacos-grupo { margin: 14px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--texto-2); display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; }",
+  "  .an-espacos-cartao .an-cartao-topo + .an-espacos-grupo { margin-top: 0; }",
+  "  .an-espacos-grupo span { text-transform: none; letter-spacing: 0; font-weight: 400; }",
+  "  .an-espaco-nota { color: var(--texto-2); font-size: 11px; font-style: italic; }",
+  "  .an-secao { margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--borda-forte); }",
+  "  .an-secao h3 { margin: 0; font-size: 16px; }",
+  "  .an-secao p { margin: 4px 0 0; color: var(--texto-2); font-size: 12.5px; }",
   "  .an-espacos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px 16px; }",
   "  .an-espaco-tipo { display: flex; align-items: center; gap: 10px; min-width: 0; }",
   "  .an-espaco-tipo.fora { opacity: 0.6; }",
@@ -3563,7 +3584,7 @@ const PAGINA_ = [
   "  const ETQ = Object.assign({}, ETQ_BASE);",
   "  // Fichas da visão simplificada: uma por móvel, em colunas agrupadas por tipo de móvel.",
   "  //   xEsq: primeira coluna (logo depois do painel lateral); mini: miniatura do móvel em cada linha;",
-  "  //   legenda: nome do espaço (\"LADO A\"), entre a miniatura e as etiquetas.",
+  "  //   legenda: nome do espaço (\"PONTA A\"), entre a miniatura e as etiquetas.",
   "  const FICHA = { w: 330, xEsq: 300, margem: 12, pad: 7, cab: 22, mini: 40, miniH: 25, legenda: 52, vao: 6, simbolo: 24, entre: 5, gap: 9, raio: 9 };",
   "  // Quantas prateleiras (níveis) cada tipo de móvel tem: o desenho e o planograma da tela do móvel usam esta tabela.",
   "  const PRATELEIRAS = { GONDOLA: 4, PIRAMIDE: 4, FILA: 3, GONDOLA_PAREDE: 5, VITRINE_L: 2, ILHA_OUI: 3, MAKE: 5 };",
@@ -3886,12 +3907,14 @@ const PAGINA_ = [
   "    const numerados = (prefixo, nome, n) => Array.from({ length: n }, (_, i) => ({ id: prefixo + '-' + (i + 1), nome: nome + ' ' + (i + 1) }));",
   "    if (!m) return [];",
   "    if (m.tipo === 'MAKE') return numerados('TESTEIRA', 'Testeira', 4);",
-  "    if (m.tipo === 'MESA') return numerados('FRENTE', 'Frente', 2);",
-  "    if (m.tipo === 'MESA_3') return numerados('FRENTE', 'Frente', 3);",
+  "    // Mesas: as frentes e o verso (atrás das lâminas, espaço de VM).",
+  "    if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {",
+  "      return numerados('FRENTE', 'Frente', m.tipo === 'MESA' ? 2 : 3).concat([{ id: 'VERSO', nome: 'Verso', vm: true }]);",
+  "    }",
   "    if (m.tipo === 'TOTEM') return numerados('PAINEL', 'Painel', 3);",
   "    if (m.tipo !== 'GONDOLA') return [];",
   "    const div = String(m.dividido || '').toUpperCase();",
-  "    const lista = [{ id: 'LADO-A', nome: 'Lado A' }];",
+  "    const lista = [{ id: 'PONTA-A', nome: 'Ponta A' }];",
   "    ['A', 'B'].forEach((lado) => {",
   "      if (div.indexOf(lado) >= 0) {",
   "        lista.push({ id: 'MEIO-' + lado + '-1', nome: 'Meio ' + lado + ' (metade 1)' });",
@@ -3900,14 +3923,14 @@ const PAGINA_ = [
   "        lista.push({ id: 'MEIO-' + lado, nome: 'Meio ' + lado });",
   "      }",
   "    });",
-  "    lista.push({ id: 'LADO-B', nome: 'Lado B' });",
+  "    lista.push({ id: 'PONTA-B', nome: 'Ponta B' });",
   "    return lista;",
   "  }",
   "",
   "  /**",
-  "   * Caixa de cada espaço da gôndola: os lados (pontas) nas extremidades do lado maior",
+  "   * Caixa de cada espaço da gôndola: as pontas nas extremidades do lado maior",
   "   * e os dois meios lado a lado. \"A\" é sempre o que está virado para quem olha a planta:",
-  "   * o lado A fica na ponta mais à frente e o meio A na face mais à frente.",
+  "   * a ponta A fica na extremidade mais à frente e o meio A na face mais à frente.",
   "   */",
   "  function caixasGondola(m) {",
   "    const aoLongoDeX = m.w >= m.d;",
@@ -3915,7 +3938,7 @@ const PAGINA_ = [
   "    const C = aoLongoDeX ? m.d : m.w; // largura (de um meio ao outro)",
   "    const p = Math.min(0.6, L * 0.18); // espessura da ponta",
   "    const meio = (L - 2 * p) / 2;",
-  "    const faixa = { 'LADO-B': [0, p, 0, C], 'LADO-A': [L - p, L, 0, C] };",
+  "    const faixa = { 'PONTA-B': [0, p, 0, C], 'PONTA-A': [L - p, L, 0, C] };",
   "    ['A', 'B'].forEach((lado) => {",
   "      const v = lado === 'A' ? [C / 2, C] : [0, C / 2];",
   "      faixa['MEIO-' + lado] = [p, L - p, v[0], v[1]];",
@@ -3941,7 +3964,9 @@ const PAGINA_ = [
   "    const saida = [];",
   "    let anterior = null;",
   "    lista.forEach((it) => {",
-  "      if (it && anterior && chave(it) === chave(anterior)) {",
+  "      // O verso da mesa (VM) nunca se junta às frentes.",
+  "      const vm = (x) => !!(x.espacos && x.espacos[0] && x.espacos[0].vm);",
+  "      if (it && anterior && chave(it) === chave(anterior) && vm(it) === vm(anterior)) {",
   "        anterior.espacos = anterior.espacos.concat(it.espacos);",
   "        anterior.simbolo = anterior.simbolo || it.simbolo;",
   "        return;",
@@ -4343,12 +4368,14 @@ const PAGINA_ = [
   "    if (m.tipo === 'GONDOLA') return caixasGondola(m);",
   "    if (m.tipo === 'MAKE') return primitivas(m).map((p) => Object.assign({}, p, { espaco: p.espaco || null }));",
   "    if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {",
-  "      // Cada frente: a lâmina de vidro do fundo (alta) e o nicho com o cartaz (baixo).",
-  "      const passo = L / esp.length;",
+  "      // Cada frente: a lâmina de vidro do fundo (alta) e o nicho com o cartaz (baixo). O verso é",
+  "      // uma placa fina atrás das lâminas, na altura delas.",
+  "      const frentes = esp.filter((e) => !e.vm);",
+  "      const passo = L / frentes.length;",
   "      const g = Math.min(0.05, passo * 0.04);",
   "      const painel = Math.min(0.15, C * 0.12);",
-  "      const lista = [];",
-  "      esp.forEach((e, k) => {",
+  "      const lista = [loc(g, L - g, -painel * 0.5, 0, m.h * 0.32, m.h, esp.find((e) => e.vm))];",
+  "      frentes.forEach((e, k) => {",
   "        lista.push(loc(k * passo + g, (k + 1) * passo - g, 0, painel, 0, m.h, e));",
   "        lista.push(loc(k * passo + g, (k + 1) * passo - g, painel, C, 0, m.h * 0.47, e));",
   "      });",
@@ -4377,10 +4404,15 @@ const PAGINA_ = [
   "   * Miniatura do móvel dentro de (x, y, w, h), na mesma orientação da planta, com os espaços \"ids\"",
   "   * pintados na cor da etiqueta e o resto em cinza claro (ids = null: o móvel todo pintado).",
   "   * cores também pode ser uma função (espaço da caixa ou null) => cores, ou null para cinza.",
+  "   * O verso da mesa fica de costas na planta: com verso = true (ou só o verso em ids), a mesa",
+  "   * aparece espelhada, com o verso virado para quem olha.",
   "   */",
-  "  function desenharMiniatura(pai, m, ids, cores, x, y, w, h) {",
+  "  function desenharMiniatura(pai, m, ids, cores, x, y, w, h, verso) {",
   "    const corDe = typeof cores === 'function' ? cores : () => cores;",
-  "    const caixas = formaDoMovel(m);",
+  "    const espelhar = verso || !!(ids && ids.length && ids.every((id) => id === 'VERSO'));",
+  "    const caixas = formaDoMovel(m).map((b) => (!espelhar ? b : m.w >= m.d",
+  "      ? Object.assign({}, b, { y: 2 * m.y + m.d - b.y - b.d })",
+  "      : Object.assign({}, b, { x: 2 * m.x + m.w - b.x - b.w })));",
   "    const bruto = (px, py, pz) => [(px - py) * COS30, (px + py) * 0.5 - pz];",
   "    const xs = [];",
   "    const ys = [];",
@@ -4414,7 +4446,7 @@ const PAGINA_ = [
   "    return g;",
   "  }",
   "",
-  "  /** Nome curto do(s) espaço(s) de uma linha da ficha: \"Lado A\", \"Meio A\", \"Frentes 1–2\"… */",
+  "  /** Nome curto do(s) espaço(s) de uma linha da ficha: \"Ponta A\", \"Meio A\", \"Frentes 1–2\"… */",
   "  function nomeCurto(lista) {",
   "    const ids = lista.map((e) => e.id);",
   "    // As duas metades de um meio juntas = o meio inteiro.",
@@ -4422,8 +4454,9 @@ const PAGINA_ = [
   "      return 'Meio ' + ids[0].charAt(5);",
   "    }",
   "    const um = (id) => {",
-  "      const g = /^(LADO|MEIO)-([AB])(?:-(\\d))?$/.exec(id);",
-  "      if (g) return (g[1] === 'LADO' ? 'Lado ' : 'Meio ') + g[2] + (g[3] ? ' · ' + g[3] : '');",
+  "      const g = /^(PONTA|MEIO)-([AB])(?:-(\\d))?$/.exec(id);",
+  "      if (g) return (g[1] === 'PONTA' ? 'Ponta ' : 'Meio ') + g[2] + (g[3] ? ' · ' + g[3] : '');",
+  "      if (id === 'VERSO') return 'Verso';",
   "      const n = /^(\\w+)-(\\d+)$/.exec(id);",
   "      return n ? n[1].charAt(0) + n[1].slice(1).toLowerCase() + ' ' + n[2] : id;",
   "    };",
@@ -4639,8 +4672,8 @@ const PAGINA_ = [
   "",
   "  /* ------------------------ etiquetas na planta --------------------------- */",
   "  // Visão \"Na planta\": as etiquetas ficam junto do móvel. Nos móveis com espaços, cada pilha sai da",
-  "  // face do próprio espaço, para o lado que ela olha (lado A: além da ponta da frente; meio B: para",
-  "  // trás da gôndola; frente 2: na frente da mesa…), com o nome do espaço numa plaquinha escura e uma",
+  "  // face do próprio espaço, para o lado que ela olha (ponta A: além da ponta da frente; meio B: para",
+  "  // trás da gôndola; frente 2: na frente da mesa; verso: atrás da mesa…), com o nome do espaço numa plaquinha escura e uma",
   "  // linha-guia na cor da etiqueta até um ponto na face. Nos móveis de um espaço só, a pilha fica em",
   "  // cima do móvel (ou no lugar livre mais perto). A planta cresce (slide em 16:9) até as etiquetas",
   "  // caberem perto dos móveis sem cobrir os outros.",
@@ -4656,9 +4689,9 @@ const PAGINA_ = [
   "    Object.keys(ROTULO_BASE).forEach((c) => { ROTULO[c] = ROTULO_BASE[c] * k; });",
   "  }",
   "",
-  "  /** Direção (no piso) para onde cada espaço olha: +u/-u nas pontas, +v/-v nos meios e frentes. */",
+  "  /** Direção (no piso) para onde cada espaço olha: +u/-u nas pontas, +v/-v nos meios, frentes e verso. */",
   "  function direcaoDoEspaco(m, id) {",
-  "    const local = /^LADO-A/.test(id) ? [1, 0] : /^LADO-B/.test(id) ? [-1, 0] : /^MEIO-B/.test(id) ? [0, -1] : [0, 1];",
+  "    const local = /^PONTA-A/.test(id) ? [1, 0] : /^PONTA-B/.test(id) ? [-1, 0] : /^(MEIO-B|VERSO)/.test(id) ? [0, -1] : [0, 1];",
   "    // u = lado maior: x quando largura >= profundidade (então v = y), senão o contrário.",
   "    return m.w >= m.d ? local : [local[1], local[0]];",
   "  }",
@@ -5611,11 +5644,12 @@ const PAGINA_ = [
   "  /**",
   "   * Miniatura de um móvel num <svg> à parte (legenda do Analytics), com cada espaço na cor que",
   "   * corDoEspaco(espaco) devolver (espaco = null: estrutura, ou o móvel inteiro se ele não tem espaços).",
+  "   * verso = true: a mesa espelhada, com o verso virado para quem olha.",
   "   */",
-  "  function miniaturaEspacos(svg, m, corDoEspaco, w, h) {",
+  "  function miniaturaEspacos(svg, m, corDoEspaco, w, h, verso) {",
   "    while (svg.firstChild) svg.removeChild(svg.firstChild);",
   "    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);",
-  "    desenharMiniatura(svg, m, null, (e) => { const c = corDoEspaco(e); return c ? [c] : null; }, 1, 1, w - 2, h - 2);",
+  "    desenharMiniatura(svg, m, null, (e) => { const c = corDoEspaco(e); return c ? [c] : null; }, 1, 1, w - 2, h - 2, verso);",
   "  }",
   "",
   "  return { desenhar, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };",
@@ -5694,7 +5728,7 @@ const PAGINA_ = [
   "      ? [{ id: 'MEIO-' + l + '-1', nome: 'Meio ' + l + ' (metade 1)' }, { id: 'MEIO-' + l + '-2', nome: 'Meio ' + l + ' (metade 2)' }]",
   "      : [{ id: 'MEIO-' + l, nome: 'Meio ' + l + ' (ou metade 1, se a metade 2 for preenchida)' },",
   "        { id: 'MEIO-' + l + '-2', nome: 'Meio ' + l + ' – metade 2 (preencha só para dividir o meio em dois)' }]);",
-  "    return [{ id: 'LADO-A', nome: 'Lado A' }].concat(meio('A'), meio('B'), [{ id: 'LADO-B', nome: 'Lado B' }]);",
+  "    return [{ id: 'PONTA-A', nome: 'Ponta A' }].concat(meio('A'), meio('B'), [{ id: 'PONTA-B', nome: 'Ponta B' }]);",
   "  }",
   "",
   "  /** Coluna \"Planta\": o nome da planta (ER P…) quando houver; a importação aceita nome ou número. */",
@@ -5793,8 +5827,8 @@ const PAGINA_ = [
   "      '6. Na aba \"' + abas.PAINEIS + '\" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',",
   "      '6.0 Na aba \"' + abas.TIPOS + '\" ficam os movimentos do ciclo: uma linha por movimento (o texto da etiqueta, igual ao da aba ' + abas.MOVIMENTOS + '), com a \"Classificação\" (' + Object.keys(dados.classificacoes || {}).map((k) => dados.classificacoes[k].nome).join(', ') + ' ou outro texto) e o \"GMV esperado (R$)\". Elas aparecem no Analytics (movimentos, classificações e GMV esperado de cada ER). Maiúsculas e espaços a mais não importam.',",
   "      '6.1 Gôndola, mesas, totem e móvel make são preenchidos espaço por espaço: não há linha do móvel inteiro (se houver, ela é ignorada). Espaço sem linha fica branco.',",
-  "      '6.2 Gôndola: uma linha por espaço — GONDOLA 1/LADO-A, MEIO-A, MEIO-B e LADO-B (\"A\" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas, junto dele na planta, com o nome do espaço (LADO A, MEIO B…). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',",
-  "      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só.',",
+  "      '6.2 Gôndola: uma linha por espaço — GONDOLA 1/PONTA-A, MEIO-A, MEIO-B e PONTA-B (\"A\" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas, junto dele na planta, com o nome do espaço (PONTA A, MEIO B…). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',",
+  "      '6.3 Mesa destaque (FRENTE-1 e 2, e VERSO, atrás das lâminas), mesa 3 frentes (FRENTE-1 a 3 e VERSO), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente e o verso das mesas mostram até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só.',",
   "      '6.4 Móveis de um espaço só (pirâmide, móvel de fila, móvel de parede, PDV, O.U.i…) têm uma linha. O balcão recepção também: um espaço só, com uma cor e até 3 etiquetas.',",
   "      '7. Na coluna \"Planta\" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem (\"vale para…\" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',",
   "    ].concat(op.visualizador ? [",
@@ -7636,12 +7670,14 @@ const PAGINA_ = [
   " * ============================================================================",
   " *  Analytics.desenhar(corpo, dados, acoes) monta, no lugar da planta:",
   " *   - números principais (espaços, ocupação com movimento, movimentos, GMV esperado e concentração);",
-  " *   - a legenda do que conta como espaço (miniatura de cada tipo de móvel, com os espaços em cores);",
+  " *   - a legenda do que conta como espaço (miniatura de cada tipo de móvel, com os espaços em cores),",
+  " *     separando o espaço de exposição do espaço de VM (PDV móvel, verso da mesa, totem, balcão recepção);",
   " *   - insights rápidos, escritos a partir dos números (maior movimento, o que muda entre as ERs,",
   " *     movimentos de uma ER só, espaço sem movimento, GMV × espaço…);",
   " *   - o mapa de calor movimento × ER (quanto de cada ER vai para cada movimento);",
   " *   - as marcas e as classificações em cada ER (barras 100%);",
-  " *   - GMV esperado × espaço de cada movimento.",
+  " *   - GMV esperado × espaço de cada movimento;",
+  " *   - os espaços de VM, à parte (mapa de calor movimento × ER só com eles).",
   " *  Os dados vêm prontos da aplicação (App.dadosAnalytics); aqui só o desenho. Clicar num número",
   " *  chama acoes.verNaPlanta({ er, etiqueta | marca | classificacao }), que abre a planta já filtrada.",
   " */",
@@ -7650,8 +7686,9 @@ const PAGINA_ = [
   "  const COR_SEM_MOVIMENTO = '#E6E8EB';",
   "  const COR_ESPACO = '#8C93A3';",
   "  const COR_GMV = '#2F9E6B';",
-  "  // Escolhas da tela (valem até recarregar): medida do mapa e ordem das linhas.",
+  "  // Escolhas da tela (valem até recarregar): medida de cada mapa (exposição e VM) e ordem das linhas.",
   "  const vista = { medida: 'pct', ordem: 'total' };",
+  "  const vistaVm = { medida: 'pct', ordem: 'total' };",
   "",
   "  const fmtNum = (n) => (Math.round(n * 10) / 10).toLocaleString('pt-BR');",
   "  const fmtPct = (v, total) => (total ? Math.round((v / total) * 100) : 0) + '%';",
@@ -7712,7 +7749,7 @@ const PAGINA_ = [
   "    const ondeTop = ers.filter((e) => top.porEr[e.id]);",
   "    lista.push({",
   "      tipo: 'destaque', rotulo: 'Maior movimento',",
-  "      partes: [[top.texto], ' é o movimento com mais espaço: ' + espacos(top.total) + ' (' + fmtPct(top.total, d.total) + ' de todo o espaço)'",
+  "      partes: [[top.texto], ' é o movimento com mais espaço: ' + espacos(top.total) + ' (' + fmtPct(top.total, d.total) + ' do espaço de exposição)'",
   "        + (ers.length > 1 ? (ondeTop.length === ers.length ? ', presente em todas as ERs.' : ', em ' + ondeTop.length + ' de ' + ers.length + ' ERs.') : '.')],",
   "      acao: { er: d.erAtual, etiqueta: top.texto },",
   "    });",
@@ -7857,8 +7894,9 @@ const PAGINA_ = [
   "    const ers = d.ers.filter((e) => e.total);",
   "    const emTodas = d.movimentos.filter((m) => ers.every((e) => m.porEr[e.id])).length;",
   "    const gmv = d.movimentos.reduce((s, m) => s + (m.gmv || 0), 0);",
-  "    tile(fmtNum(d.total), d.ers.length > 1 ? 'Espaços nas ' + d.ers.length + ' ERs' : 'Espaços na ER',",
-  "      d.ers.length > 1 ? d.ers.map((e) => e.nome.replace(/^ER\\s+/i, '') + ' ' + fmtNum(e.total)).join(' · ') : null);",
+  "    const porEr = (lista) => (lista.length > 1 ? lista.map((e) => e.nome.replace(/^ER\\s+/i, '') + ' ' + fmtNum(e.total)).join(' · ') : null);",
+  "    tile(fmtNum(d.total), d.ers.length > 1 ? 'Espaços de exposição nas ' + d.ers.length + ' ERs' : 'Espaços de exposição', porEr(d.ers));",
+  "    if (d.vm && d.vm.total) tile(fmtNum(d.vm.total), 'Espaços de VM', porEr(d.vm.ers) || 'contados à parte');",
   "    tile(fmtPct(d.total - semMov, d.total), 'Com movimento', semMov ? espacos(semMov) + ' sem etiqueta' : 'Todos os espaços têm etiqueta');",
   "    tile(String(d.movimentos.length), 'Movimentos', ers.length > 1 ? emTodas + ' em todas as ERs' : null);",
   "    tile(gmv ? gmvCurto.format(gmv) : '—', 'GMV esperado', gmv && totalMov ? '≈ ' + gmvCurto.format(gmv / (d.total - semMov || 1)) + ' por espaço com movimento'",
@@ -7887,10 +7925,13 @@ const PAGINA_ = [
   "    });",
   "  }",
   "",
-  "  /** Mapa de calor: uma linha por movimento, uma coluna por ER (% do espaço de cada ER ou espaços). */",
-  "  function mapa(pai, d, acoes, redesenhar) {",
-  "    const c = cartao(pai, 'Espaço de cada movimento em cada ER',",
-  "      'Quanto mais escuro, maior a fatia da ER. Um espaço com dois movimentos conta nos dois. Clique numa célula para ver na planta.', 'an-mapa-cartao');",
+  "  /**",
+  "   * Mapa de calor: uma linha por movimento, uma coluna por ER (% do espaço de cada ER ou espaços).",
+  "   * op: { titulo, sub, classe, vista } — o mesmo mapa serve ao espaço de exposição e ao de VM.",
+  "   */",
+  "  function mapa(pai, d, acoes, redesenhar, op) {",
+  "    const vista = op.vista;",
+  "    const c = cartao(pai, op.titulo, op.sub, 'an-mapa-cartao' + (op.classe ? ' ' + op.classe : ''));",
   "    const ctrl = novo('div', 'an-controles', null, c.querySelector('.an-cartao-topo'));",
   "    const seg = novo('div', 'an-segmentado', null, ctrl);",
   "    seg.setAttribute('role', 'group');",
@@ -8090,38 +8131,69 @@ const PAGINA_ = [
   "  /** Cores dos espaços na legenda: só para separar um espaço do outro (não são marcas). */",
   "  const CORES_LEGENDA = ['#3346B8', '#2F9E6B', '#D9822B', '#8E44AD', '#C2410C', '#0E7490'];",
   "",
-  "  /** Legenda \"O que conta como espaço\": cada tipo de móvel das plantas, com os espaços dele em cores. */",
+  "  /**",
+  "   * Legenda \"O que conta como espaço\": cada tipo de móvel das plantas, com os espaços dele em cores,",
+  "   * separado em espaço de exposição, espaço de VM e fora da conta.",
+  "   */",
   "  function legendaEspacos(pai, d, acoes) {",
   "    const tipos = d.tiposDeMovel || [];",
   "    if (!tipos.length || !acoes.miniatura) return;",
   "    const c = cartao(pai, 'O que conta como espaço',",
-  "      'Cada cor na miniatura é um espaço na conta do Analytics. Os móveis em cinza ficam fora da conta.', 'an-espacos-cartao');",
-  "    const lista = novo('ul', 'an-espacos', null, c);",
-  "    tipos.forEach((t) => {",
-  "      const li = novo('li', 'an-espaco-tipo' + (t.conta ? '' : ' fora'), null, lista);",
-  "      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');",
-  "      svg.setAttribute('class', 'an-espaco-mini');",
-  "      svg.setAttribute('aria-hidden', 'true');",
-  "      li.appendChild(svg);",
-  "      const cor = (id) => CORES_LEGENDA[Math.max(0, t.espacos.findIndex((e) => e.id === id)) % CORES_LEGENDA.length];",
-  "      const inteiro = t.espacos.length === 1 && !t.espacos[0].id;",
-  "      // Espaço null: estrutura (fica cinza), ou o móvel inteiro quando ele não se divide em espaços.",
-  "      acoes.miniatura(svg, t.movel, (e) => (!t.conta ? null : e ? cor(e.id) : inteiro ? cor('') : null), 84, 56);",
-  "      const txt = novo('div', 'an-espaco-texto', null, li);",
-  "      novo('strong', null, t.nome, txt);",
-  "      novo('span', 'an-espaco-qtd', t.conta ? (t.espacos.length === 1 ? '1 espaço' : t.espacos.length + ' espaços') : 'Não conta', txt);",
-  "      if (!t.conta) return;",
-  "      const nomes = novo('span', 'an-espaco-nomes', null, txt);",
-  "      t.espacos.forEach((e) => {",
-  "        const s = novo('span', null, null, nomes);",
-  "        novo('i', null, null, s).style.background = cor(e.id);",
-  "        novo('span', null, e.nome, s);",
+  "      'Cada cor na miniatura é um espaço na conta do Analytics; as partes em cinza não contam ali.', 'an-espacos-cartao');",
+  "    [",
+  "      ['expo', 'Espaço de exposição', 'os números, insights e gráficos do Analytics'],",
+  "      ['vm', 'Espaço de VM', 'contado à parte, em \"Espaços de VM\"'],",
+  "      ['fora', 'Fora da conta', ''],",
+  "    ].forEach(([grupo, titulo, sub]) => {",
+  "      const doGrupo = tipos.filter((t) => t.grupo === grupo);",
+  "      if (!doGrupo.length) return;",
+  "      const h = novo('h4', 'an-espacos-grupo', titulo, c);",
+  "      if (sub) novo('span', null, sub, h);",
+  "      const lista = novo('ul', 'an-espacos', null, c);",
+  "      doGrupo.forEach((t) => {",
+  "        const li = novo('li', 'an-espaco-tipo' + (grupo === 'fora' ? ' fora' : ''), null, lista);",
+  "        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');",
+  "        svg.setAttribute('class', 'an-espaco-mini');",
+  "        svg.setAttribute('aria-hidden', 'true');",
+  "        li.appendChild(svg);",
+  "        const cor = (id) => {",
+  "          const k = t.espacos.findIndex((e) => e.id === id);",
+  "          return k < 0 ? null : CORES_LEGENDA[k % CORES_LEGENDA.length];",
+  "        };",
+  "        // Espaço null: estrutura (fica cinza), ou o móvel inteiro quando ele não se divide em espaços.",
+  "        acoes.miniatura(svg, t.movel, (e) => cor(e ? e.id : ''), 84, 56, t.verso);",
+  "        const txt = novo('div', 'an-espaco-texto', null, li);",
+  "        novo('strong', null, t.nome + (t.verso ? ' · verso' : ''), txt);",
+  "        novo('span', 'an-espaco-qtd', grupo === 'fora' ? 'Não conta' : espacos(t.espacos.reduce((s, e) => s + e.peso, 0)), txt);",
+  "        if (t.nota) novo('span', 'an-espaco-nota', t.nota, txt);",
+  "        if (!t.espacos.length) return;",
+  "        const nomes = novo('span', 'an-espaco-nomes', null, txt);",
+  "        t.espacos.forEach((e) => {",
+  "          const sp = novo('span', null, null, nomes);",
+  "          novo('i', null, null, sp).style.background = cor(e.id);",
+  "          novo('span', null, e.nome + (e.peso === 0.5 ? ' · ½' : ''), sp);",
+  "        });",
   "      });",
   "    });",
   "  }",
   "",
+  "  /** Seção \"Espaços de VM\": o mapa de calor só com os espaços de VM, fora da conta da exposição. */",
+  "  function secaoVm(pai, d, acoes, redesenhar) {",
+  "    if (!d.vm || !d.vm.total) return;",
+  "    const titulo = novo('div', 'an-secao', null, pai);",
+  "    novo('h3', null, 'Espaços de VM', titulo);",
+  "    novo('p', null, 'PDV móvel, verso da mesa destaque, os três painéis do totem e balcão recepção. São comunicação visual: '",
+  "      + 'não entram na conta do espaço de exposição acima.', titulo);",
+  "    mapa(pai, Object.assign({}, d, d.vm), acoes, redesenhar, {",
+  "      titulo: 'Espaço de VM de cada movimento em cada ER',",
+  "      sub: 'Quanto mais escuro, maior a fatia do espaço de VM da ER. Clique numa célula para ver na planta.',",
+  "      classe: 'an-vm-cartao',",
+  "      vista: vistaVm,",
+  "    });",
+  "  }",
+  "",
   "  /**",
-  "   * Desenha o dashboard em corpo. dados: App.dadosAnalytics; acoes: { verNaPlanta(filtro), miniatura(svg, movel, corDoEspaco, w, h) }.",
+  "   * Desenha o dashboard em corpo. dados: App.dadosAnalytics; acoes: { verNaPlanta(filtro), miniatura(svg, movel, corDoEspaco, w, h, verso) }.",
   "   */",
   "  function desenhar(corpo, d, acoes) {",
   "    const redesenhar = () => desenhar(corpo, d, acoes);",
@@ -8131,7 +8203,11 @@ const PAGINA_ = [
   "    const grade = novo('div', 'an-grade', null, corpo);",
   "    legendaEspacos(grade, d, acoes);",
   "    listaInsights(grade, d, acoes);",
-  "    mapa(grade, d, acoes, redesenhar);",
+  "    mapa(grade, d, acoes, redesenhar, {",
+  "      titulo: 'Espaço de exposição de cada movimento em cada ER',",
+  "      sub: 'Quanto mais escuro, maior a fatia da ER. Um espaço com dois movimentos conta nos dois (na pirâmide, as etiquetas dividem o espaço). Clique numa célula para ver na planta.',",
+  "      vista,",
+  "    });",
   "    const dupla = novo('div', 'an-dupla', null, grade);",
   "    const legMarcas = d.marcas.map((m) => ({ cod: m.cod, nome: m.nome, cor: m.cor, borda: m.cod === 'NEUTRO', filtravel: m.filtravel }));",
   "    barrasPorEr(dupla, 'Marcas em cada ER', 'Fatia do espaço de cada ER por marca. Combinações de marcas dividem o espaço igualmente.',",
@@ -8141,7 +8217,8 @@ const PAGINA_ = [
   "    barrasPorEr(dupla, 'Classificação em cada ER', 'Fatia do espaço de cada ER por tipo de movimento (aba \"' + d.abaTipos + '\"). Um espaço com movimentos de dois tipos se divide entre eles.',",
   "      d, 'porClasse', legClasses, (x) => (x.cod === '__LIVRE__' ? null : { classificacao: x.cod }), acoes);",
   "    gmvEspaco(grade, d, acoes);",
-  "    novo('p', 'an-nota', 'Conta em quantidade de espaços: na gôndola, cada lado e cada meio é um espaço; mesas e totem contam cada frente e painel; os demais móveis contam como um espaço. Etiquetas com o mesmo texto somam juntas. O GMV esperado é o do movimento no ciclo (aba \"' + d.abaTipos + '\"), não de uma ER só. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);",
+  "    secaoVm(grade, d, acoes, redesenhar);",
+  "    novo('p', 'an-nota', 'Conta em quantidade de espaços. Exposição: na gôndola, cada ponta e cada meio é um espaço (meio dividido: ½ espaço para cada metade); na mesa destaque, cada frente; na pirâmide, o espaço se divide entre as etiquetas (duas etiquetas: ½ para cada); os demais móveis contam como um espaço. VM, à parte: PDV móvel, verso da mesa destaque, cada painel do totem e balcão recepção. Etiquetas com o mesmo texto somam juntas. O GMV esperado é o do movimento no ciclo (aba \"' + d.abaTipos + '\"), não de uma ER só. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);",
   "    corpo.scrollTop = rolagem;",
   "  }",
   "",
@@ -9092,7 +9169,7 @@ const PAGINA_ = [
   "  function ativarArraste() {",
   "    estado.grupos.forEach((gr) => {",
   "      // Cada pilha se move sozinha: na gôndola, mesas, totem e móvel make, o ajuste é do espaço (id da",
-  "      // pilha, \"GONDOLA 1/LADO-A\"); nos móveis de um espaço só, do móvel. No toque, o arraste não rola a página.",
+  "      // pilha, \"GONDOLA 1/PONTA-A\"); nos móveis de um espaço só, do móvel. No toque, o arraste não rola a página.",
   "      gr.elemento.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });",
   "      gr.elemento.addEventListener('pointerdown', (ev) => {",
   "        ev.preventDefault();",
@@ -9239,7 +9316,7 @@ const PAGINA_ = [
   "",
   "  /**",
   "   * Ajustes de etiqueta de uma planta, já com os não salvos (estado.ajustes) quando é a planta aberta:",
-  "   * { tamanho, moveis: { ID: { x, y, espacos: { 'LADO-A': { x, y } } } } } (só os que têm ajuste).",
+  "   * { tamanho, moveis: { ID: { x, y, espacos: { 'PONTA-A': { x, y } } } } } (só os que têm ajuste).",
   "   */",
   "  function ajustesDaPlanta(p) {",
   "    const pendentes = p.id === (plantaAtual() || {}).id ? estado.ajustes : {};",
@@ -9298,14 +9375,24 @@ const PAGINA_ = [
   "  const COR_OUTRA = '#8A8A8A';",
   "  /** Móveis que ficam fora da conta do espaço: atendimento, itens fora da planta, móveis de parede e make. */",
   "  const FORA_DO_ESPACO = ['EXTRA', 'CAIXA', 'GONDOLA_PAREDE', 'MAKE'];",
+  "  /**",
+  "   * Espaços de VM (comunicação visual): não são espaço de exposição e ficam numa conta à parte. São o",
+  "   * PDV móvel, o totem (os três painéis), o balcão recepção e o verso da mesa destaque (espaço vm).",
+  "   */",
+  "  const MOVEIS_VM = ['CUBO', 'TOTEM', 'VITRINE_L'];",
+  "  /** Pirâmide: as etiquetas dividem o espaço (duas etiquetas = ½ espaço para cada). */",
+  "  const DIVIDE_ENTRE_ETIQUETAS = ['PIRAMIDE'];",
   "",
   "  /**",
   "   * Espaços de cada móvel da planta no ciclo (a conta é por quantidade de espaços, não por metros):",
-  "   *  - gôndola: cada lado e cada meio é um espaço (meio dividido = dois espaços);",
-  "   *  - mesas e totem: cada frente / painel é um espaço; demais móveis: o móvel inteiro é um espaço.",
+  "   *  - gôndola: cada ponta e cada meio é um espaço (meio dividido = ½ espaço para cada metade);",
+  "   *  - mesas: cada frente é um espaço de exposição e o verso, um espaço de VM;",
+  "   *  - totem: cada painel é um espaço de VM; PDV móvel e balcão recepção: um espaço de VM;",
+  "   *  - demais móveis: o móvel inteiro é um espaço (na pirâmide, dividido entre as etiquetas).",
   "   * Ficam de fora o móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make.",
   "   * Gôndola, mesas e totem: cada parte usa a linha do próprio espaço (sem ela, fica sem marca).",
-  "   * @return {Array<{movel, espaco, marcas: string[], etiquetas: Array<{texto, marca}>}>}",
+  "   * @return {Array<{movel, espaco, peso: number, vm: boolean, divide: boolean, marcas: string[],",
+  "   *   etiquetas: Array<{texto, marca}>}>}  peso = quanto do espaço a parte vale (1 ou ½)",
   "   */",
   "  function partesDeEspaco(planta, ciclo) {",
   "    const linha = (x) => movimentoDe(ciclo, planta.id, x);",
@@ -9319,6 +9406,9 @@ const PAGINA_ = [
   "      const marca = i && i.marca && i.marca !== 'NEUTRO' ? i.marca : '';",
   "      partes.push({",
   "        movel: m, espaco, marcas: marcasDe(marca),",
+  "        peso: espaco && /^MEIO-[AB]-\\d$/.test(espaco.id) ? 0.5 : 1,",
+  "        vm: MOVEIS_VM.indexOf(m.tipo) >= 0 || !!(espaco && espaco.vm),",
+  "        divide: DIVIDE_ENTRE_ETIQUETAS.indexOf(m.tipo) >= 0,",
   "        etiquetas: ((i && i.etiquetas) || []).map((e) => ({ texto: e.texto, marca: e.marca || marca })),",
   "      });",
   "    };",
@@ -9335,7 +9425,7 @@ const PAGINA_ = [
   "        Render.espacos(Object.assign({}, m, { dividido: div })).forEach((e) => parte(m, e, propria(e.id)));",
   "        return;",
   "      }",
-  "      const blocos = Render.espacos(m); // frentes das mesas, painéis do totem",
+  "      const blocos = Render.espacos(m); // frentes e verso das mesas, painéis do totem",
   "      if (blocos.length) {",
   "        blocos.forEach((e) => parte(m, e, propria(e.id)));",
   "        return;",
@@ -9349,32 +9439,52 @@ const PAGINA_ = [
   "  const chaveEtiqueta = Render.chaveEtiqueta;",
   "",
   "  /**",
-  "   * Totais em quantidade de espaços: por marca (combinação de marcas divide o espaço igualmente) e por",
-  "   * etiqueta (etiquetas com o mesmo texto se juntam; cada espaço conta uma vez por texto).",
+  "   * Movimentos de uma parte, cada um com quanto do espaço ele leva: o peso da parte inteiro (um espaço",
+  "   * com dois movimentos conta nos dois) ou, na pirâmide, o peso dividido entre as etiquetas.",
+  "   * @return {Array<{chave, etiquetas: Array<{texto, marca}>, valor: number}>}",
+  "   */",
+  "  function movimentosDaParte(p) {",
+  "    const lista = [];",
+  "    p.etiquetas.forEach((e) => {",
+  "      const k = chaveEtiqueta(e.texto);",
+  "      if (!k) return;",
+  "      const g = lista.find((x) => x.chave === k);",
+  "      if (g) g.etiquetas.push(e);",
+  "      else lista.push({ chave: k, etiquetas: [e] });",
+  "    });",
+  "    lista.forEach((g) => { g.valor = p.divide ? p.peso / lista.length : p.peso; });",
+  "    return lista;",
+  "  }",
+  "",
+  "  /**",
+  "   * Totais em quantidade de espaços: por marca (combinação de marcas divide o espaço igualmente), por",
+  "   * etiqueta (etiquetas com o mesmo texto se juntam) e por classificação (cada espaço conta uma vez em",
+  "   * cada classificação das etiquetas dele; na pirâmide, a parte das etiquetas daquela classificação).",
   "   */",
   "  function resumoDeEspaco(partes) {",
-  "    const r = { total: partes.length, porMarca: {}, porEtiqueta: {}, porClassificacao: {}, moveis: new Set() };",
+  "    const r = { total: 0, porMarca: {}, porEtiqueta: {}, porClassificacao: {}, moveis: new Set() };",
   "    partes.forEach((p) => {",
+  "      r.total += p.peso;",
   "      r.moveis.add(p.movel.id);",
-  "      // Cada espaço conta uma vez em cada classificação das etiquetas dele.",
-  "      const classes = p.etiquetas.filter((e) => chaveEtiqueta(e.texto)).map((e) => classificacaoDe(e.texto));",
-  "      classes.filter((c, i) => classes.indexOf(c) === i).forEach((c) => { r.porClassificacao[c] = (r.porClassificacao[c] || 0) + 1; });",
-  "      p.marcas.forEach((mc) => { r.porMarca[mc] = (r.porMarca[mc] || 0) + 1 / p.marcas.length; });",
-  "      const vistas = {};",
-  "      p.etiquetas.forEach((e) => {",
-  "        const k = chaveEtiqueta(e.texto);",
-  "        if (!k || vistas[k]) return;",
-  "        vistas[k] = true;",
-  "        const g = r.porEtiqueta[k] || (r.porEtiqueta[k] = {",
+  "      p.marcas.forEach((mc) => { r.porMarca[mc] = (r.porMarca[mc] || 0) + p.peso / p.marcas.length; });",
+  "      const movs = movimentosDaParte(p);",
+  "      const porClasse = {};",
+  "      movs.forEach((g) => {",
+  "        const c = classificacaoDe(g.etiquetas[0].texto);",
+  "        porClasse[c] = p.divide ? (porClasse[c] || 0) + g.valor : p.peso;",
+  "      });",
+  "      Object.keys(porClasse).forEach((c) => { r.porClassificacao[c] = (r.porClassificacao[c] || 0) + porClasse[c]; });",
+  "      movs.forEach((m) => {",
+  "        const e = m.etiquetas[0];",
+  "        const g = r.porEtiqueta[m.chave] || (r.porEtiqueta[m.chave] = {",
   "          texto: String(e.texto).trim(), espacos: 0, marcas: {}, tipo: tipoDe(estado.ciclo, e.texto), classificacao: classificacaoDe(e.texto),",
   "        });",
-  "        g.espacos += 1;",
-  "        const marcas = p.etiquetas.filter((x) => chaveEtiqueta(x.texto) === k)",
-  "          .map((x) => x.marca).filter(Boolean)",
+  "        g.espacos += m.valor;",
+  "        const marcas = m.etiquetas.map((x) => x.marca).filter(Boolean)",
   "          .reduce((lista, x) => lista.concat(String(x).split('+').map((c) => c.trim())), []);",
   "        const codigos = marcas.length ? marcas.map((c) => (estado.dados.marcas[c] ? c : 'OUTRA')) : ['NEUTRO'];",
   "        const unicos = codigos.filter((c, i) => codigos.indexOf(c) === i);",
-  "        unicos.forEach((c) => { g.marcas[c] = (g.marcas[c] || 0) + 1 / unicos.length; });",
+  "        unicos.forEach((c) => { g.marcas[c] = (g.marcas[c] || 0) + m.valor / unicos.length; });",
   "      });",
   "    });",
   "    return r;",
@@ -9448,67 +9558,87 @@ const PAGINA_ = [
   "  /**",
   "   * Dados do Analytics (Analytics.desenhar): o ciclo inteiro, ER por ER — espaços, marcas, classificações",
   "   * e espaços sem movimento — e cada movimento com os espaços dele em cada ER. Não usa os filtros da tela.",
+  "   * O espaço de exposição e o de VM têm contas separadas (vm: a mesma estrutura, só com os espaços de VM).",
   "   * Na classificação, cada espaço se divide entre os tipos dos movimentos dele (para as barras somarem 100%).",
   "   */",
   "  function dadosAnalytics(ciclo) {",
   "    const LIVRE = '__LIVRE__';",
-  "    const ers = estado.dados.plantas.map((p) => {",
-  "      const partes = partesDeEspaco(p, ciclo);",
-  "      const r = resumoDeEspaco(partes);",
-  "      const porClasse = {};",
-  "      let semMovimento = 0;",
-  "      partes.forEach((pt) => {",
-  "        const cs = pt.etiquetas.filter((e) => chaveEtiqueta(e.texto)).map((e) => classificacaoDe(e.texto));",
-  "        const unicas = cs.filter((c, i) => cs.indexOf(c) === i);",
-  "        if (!unicas.length) {",
-  "          semMovimento += 1;",
-  "          porClasse[LIVRE] = (porClasse[LIVRE] || 0) + 1;",
-  "          return;",
-  "        }",
-  "        unicas.forEach((c) => { porClasse[c] = (porClasse[c] || 0) + 1 / unicas.length; });",
-  "      });",
-  "      return { id: p.id, nome: p.nome, total: r.total, semMovimento, porMarca: r.porMarca, porClasse, porEtiqueta: r.porEtiqueta };",
-  "    });",
-  "    const movs = {};",
-  "    ers.forEach((e) => Object.keys(e.porEtiqueta).forEach((k) => {",
-  "      const g = e.porEtiqueta[k];",
-  "      const m = movs[k] || (movs[k] = { chave: k, texto: g.texto, total: 0, porEr: {}, marcas: {}, tipo: g.tipo, classificacao: g.classificacao });",
-  "      m.total += g.espacos;",
-  "      m.porEr[e.id] = g.espacos;",
-  "      Object.keys(g.marcas).forEach((c) => { m.marcas[c] = (m.marcas[c] || 0) + g.marcas[c]; });",
-  "    }));",
+  "    const plantas = estado.dados.plantas.map((p) => ({ planta: p, partes: partesDeEspaco(p, ciclo) }));",
   "    const ordemM = ordemDasMarcas();",
   "    const marca = (c, valor) => ({ cod: c, nome: nomeMarcaPainel(c), cor: corMarcaPainel(c), valor, filtravel: c !== 'NEUTRO' && c !== 'OUTRA' });",
-  "    const classes = ordemDasClassificacoes(ers.reduce((acc, e) => acc.concat(Object.keys(e.porClasse)), [])",
+  "    /** Contas de um grupo de espaços (exposição ou VM), ER por ER. */",
+  "    const contas = (doGrupo) => {",
+  "      const ers = plantas.map(({ planta: p, partes: todas }) => {",
+  "        const partes = todas.filter(doGrupo);",
+  "        const r = resumoDeEspaco(partes);",
+  "        const porClasse = {};",
+  "        let semMovimento = 0;",
+  "        partes.forEach((pt) => {",
+  "          const movs = movimentosDaParte(pt);",
+  "          if (!movs.length) {",
+  "            semMovimento += pt.peso;",
+  "            porClasse[LIVRE] = (porClasse[LIVRE] || 0) + pt.peso;",
+  "            return;",
+  "          }",
+  "          // Cada classificação leva a fatia dos movimentos dela (na pirâmide, pelas etiquetas).",
+  "          const soma = movs.reduce((s, g) => s + g.valor, 0);",
+  "          movs.forEach((g) => {",
+  "            const c = classificacaoDe(g.etiquetas[0].texto);",
+  "            porClasse[c] = (porClasse[c] || 0) + (pt.peso * g.valor) / soma;",
+  "          });",
+  "        });",
+  "        return { id: p.id, nome: p.nome, total: r.total, semMovimento, porMarca: r.porMarca, porClasse, porEtiqueta: r.porEtiqueta };",
+  "      });",
+  "      const movs = {};",
+  "      ers.forEach((e) => Object.keys(e.porEtiqueta).forEach((k) => {",
+  "        const g = e.porEtiqueta[k];",
+  "        const m = movs[k] || (movs[k] = { chave: k, texto: g.texto, total: 0, porEr: {}, marcas: {}, tipo: g.tipo, classificacao: g.classificacao });",
+  "        m.total += g.espacos;",
+  "        m.porEr[e.id] = g.espacos;",
+  "        Object.keys(g.marcas).forEach((c) => { m.marcas[c] = (m.marcas[c] || 0) + g.marcas[c]; });",
+  "      }));",
+  "      return {",
+  "        total: ers.reduce((s, e) => s + e.total, 0),",
+  "        ers,",
+  "        movimentos: Object.values(movs)",
+  "          .sort((a, b) => b.total - a.total || a.texto.localeCompare(b.texto, 'pt-BR'))",
+  "          .map((m) => ({",
+  "            chave: m.chave,",
+  "            texto: m.texto,",
+  "            total: m.total,",
+  "            porEr: m.porEr,",
+  "            gmv: m.tipo && typeof m.tipo.gmv === 'number' ? m.tipo.gmv : 0,",
+  "            classe: m.classificacao === SEM_CLASSIFICACAO ? null",
+  "              : { cod: m.classificacao, nome: nomeClassificacao(m.classificacao), cor: corClassificacao(m.classificacao) },",
+  "            marcas: ordemM.filter((c) => m.marcas[c]).map((c) => marca(c, m.marcas[c])),",
+  "          })),",
+  "      };",
+  "    };",
+  "    const enxuta = (e) => ({ id: e.id, nome: e.nome, total: e.total, semMovimento: e.semMovimento, porMarca: e.porMarca, porClasse: e.porClasse });",
+  "    const expo = contas((pt) => !pt.vm);",
+  "    const vm = contas((pt) => pt.vm);",
+  "    const classes = ordemDasClassificacoes(expo.ers.reduce((acc, e) => acc.concat(Object.keys(e.porClasse)), [])",
   "      .filter((c, i, l) => c !== LIVRE && l.indexOf(c) === i));",
   "    return {",
   "      ciclo,",
   "      erAtual: estado.planta,",
   "      abaTipos: estado.dados.config.abas.TIPOS,",
   "      filtroEtiqueta: chaveEtiqueta(estado.filtroEtiqueta),",
-  "      total: ers.reduce((s, e) => s + e.total, 0),",
-  "      ers: ers.map((e) => ({ id: e.id, nome: e.nome, total: e.total, semMovimento: e.semMovimento, porMarca: e.porMarca, porClasse: e.porClasse })),",
-  "      movimentos: Object.values(movs)",
-  "        .sort((a, b) => b.total - a.total || a.texto.localeCompare(b.texto, 'pt-BR'))",
-  "        .map((m) => ({",
-  "          chave: m.chave,",
-  "          texto: m.texto,",
-  "          total: m.total,",
-  "          porEr: m.porEr,",
-  "          gmv: m.tipo && typeof m.tipo.gmv === 'number' ? m.tipo.gmv : 0,",
-  "          classe: m.classificacao === SEM_CLASSIFICACAO ? null",
-  "            : { cod: m.classificacao, nome: nomeClassificacao(m.classificacao), cor: corClassificacao(m.classificacao) },",
-  "          marcas: ordemM.filter((c) => m.marcas[c]).map((c) => marca(c, m.marcas[c])),",
-  "        })),",
-  "      marcas: ordemM.filter((c) => ers.some((e) => e.porMarca[c])).map((c) => marca(c, 0)),",
+  "      total: expo.total,",
+  "      ers: expo.ers.map(enxuta),",
+  "      movimentos: expo.movimentos,",
+  "      marcas: ordemM.filter((c) => expo.ers.some((e) => e.porMarca[c])).map((c) => marca(c, 0)),",
   "      classes: classes.map((c) => ({ cod: c, nome: nomeClassificacao(c), cor: corClassificacao(c) })),",
+  "      vm: { total: vm.total, ers: vm.ers.map(enxuta), movimentos: vm.movimentos },",
   "      tiposDeMovel: tiposDeMovelNasPlantas(),",
   "    };",
   "  }",
   "",
   "  /**",
   "   * Legenda \"O que conta como espaço\": um móvel de exemplo de cada tipo que aparece nas plantas (a gôndola",
-  "   * com meio dividido entra à parte), com os espaços que ele soma; os tipos fora da conta vêm por último.",
+  "   * com meio dividido entra à parte), no grupo dele — exposição, VM ou fora da conta — com os espaços que",
+  "   * ele soma (peso ½ nas metades do meio). A mesa entra nos dois grupos: as frentes e, no VM, o verso.",
+  "   * @return {Array<{chave, movel, nome, grupo: 'expo'|'vm'|'fora', verso, nota, espacos: Array<{id, nome, peso}>}>}",
   "   */",
   "  function tiposDeMovelNasPlantas() {",
   "    const exemplos = {};",
@@ -9519,19 +9649,29 @@ const PAGINA_ = [
   "    }));",
   "    const ordem = Object.keys(estado.dados.tipos || {});",
   "    const posicao = (c) => { const i = ordem.indexOf(c.split('/')[0]); return i < 0 ? ordem.length : i; };",
-  "    return Object.keys(exemplos)",
-  "      .map((c) => {",
-  "        const m = exemplos[c];",
-  "        const conta = FORA_DO_ESPACO.indexOf(m.tipo) < 0;",
-  "        const esp = conta ? Render.espacos(m) : [];",
-  "        const descricao = String((estado.dados.tipos || {})[m.tipo] || m.tipo);",
-  "        return {",
-  "          chave: c, movel: m, conta,",
-  "          nome: descricao.split(':')[0].trim() + (c === 'GONDOLA/DIVIDIDA' ? ' (meio dividido)' : ''),",
-  "          espacos: conta ? (esp.length ? esp.map((e) => ({ id: e.id, nome: e.nome.replace(/\\s*\\(metade (\\d)\\)/, '.$1') })) : [{ id: '', nome: 'Móvel inteiro' }]) : [],",
-  "        };",
-  "      })",
-  "      .sort((a, b) => (b.conta - a.conta) || posicao(a.chave) - posicao(b.chave) || (a.chave < b.chave ? -1 : 1));",
+  "    const nomeDe = (m) => String((estado.dados.tipos || {})[m.tipo] || m.tipo).split(':')[0].trim();",
+  "    const espaco = (e) => ({ id: e.id, nome: e.nome.replace(/\\s*\\(metade (\\d)\\)/, '.$1'), peso: /^MEIO-[AB]-\\d$/.test(e.id) ? 0.5 : 1 });",
+  "    const inteiro = [{ id: '', nome: 'Móvel inteiro', peso: 1 }];",
+  "    const lista = [];",
+  "    Object.keys(exemplos).forEach((c) => {",
+  "      const m = exemplos[c];",
+  "      const item = (grupo, espacos, extra) => lista.push(Object.assign({ chave: c, movel: m, nome: nomeDe(m), grupo, espacos, verso: false, nota: '' }, extra));",
+  "      const esp = Render.espacos(m);",
+  "      if (FORA_DO_ESPACO.indexOf(m.tipo) >= 0) item('fora', []);",
+  "      else if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {",
+  "        item('expo', esp.filter((e) => !e.vm).map(espaco));",
+  "        item('vm', esp.filter((e) => e.vm).map(espaco), { verso: true });",
+  "      } else {",
+  "        const grupo = MOVEIS_VM.indexOf(m.tipo) >= 0 ? 'vm' : 'expo';",
+  "        item(grupo, esp.length ? esp.map(espaco) : inteiro, {",
+  "          nome: nomeDe(m) + (c === 'GONDOLA/DIVIDIDA' ? ' (meio dividido)' : ''),",
+  "          nota: DIVIDE_ENTRE_ETIQUETAS.indexOf(m.tipo) >= 0 ? 'Com 2 etiquetas, ½ espaço para cada' : '',",
+  "        });",
+  "      }",
+  "    });",
+  "    const grupos = ['expo', 'vm', 'fora'];",
+  "    return lista.sort((a, b) => grupos.indexOf(a.grupo) - grupos.indexOf(b.grupo)",
+  "      || posicao(a.chave) - posicao(b.chave) || (a.chave < b.chave ? -1 : 1));",
   "  }",
   "",
   "  /** Analytics: o dashboard ocupa o lugar da planta (a planta continua desenhada por baixo). */",
@@ -9795,7 +9935,8 @@ const PAGINA_ = [
   "      return { n: 3, rotulos: ['Painel 1', 'Painel 2', 'Painel 3'], colunas: [{ nome: 'Totem', peso: 1, marca: '', celulas }], testeiras: null };",
   "    }",
   "    if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {",
-  "      const colunas = Render.espacos(m).map((e) => {",
+  "      // O verso não é nicho: fica só na lista de espaços, abaixo do planograma.",
+  "      const colunas = Render.espacos(m).filter((e) => !e.vm).map((e) => {",
   "        const { p, etiquetas } = doEspaco(e);",
   "        return coluna(e.nome, 1, 1, p, etiquetas);",
   "      });",
@@ -10073,7 +10214,7 @@ const PAGINA_ = [
   "   * cores e formatos, para o Estrategia.desenhar. Não usa os filtros da tela: é o ciclo inteiro na ER.",
   "   */",
   "  function dadosEstrategia(planta, ciclo) {",
-  "    const r = resumoDeEspaco(partesDeEspaco(planta, ciclo));",
+  "    const r = resumoDeEspaco(partesDeEspaco(planta, ciclo).filter((p) => !p.vm));",
   "    const marcas = ordemDasMarcas().filter((c) => r.porMarca[c]);",
   "    const grupos = Object.values(r.porEtiqueta).sort((a, b) => b.espacos - a.espacos || a.texto.localeCompare(b.texto, 'pt-BR'));",
   "    const gmvDe = (g) => (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0);",
@@ -10101,8 +10242,9 @@ const PAGINA_ = [
   "          espacos: r.porClassificacao[c] || 0, movimentos: doTipo.length, gmv: doTipo.reduce((s, g) => s + gmvDe(g), 0),",
   "        };",
   "      }),",
-  "      nota: 'Espaços: na gôndola, cada lado e cada meio; mesas e totem, cada frente e painel; os demais móveis, um espaço. '",
-  "        + 'Móvel de atendimento, itens fora da planta, móveis de parede e móvel make não contam. GMV esperado: o do movimento no ciclo (aba Tipos de movimento).',",
+  "      nota: 'Espaços de exposição: na gôndola, cada ponta e cada meio (meio dividido: ½ para cada metade); na mesa, cada frente; '",
+  "        + 'na pirâmide, o espaço se divide entre as etiquetas; os demais móveis, um espaço. Espaços de VM (PDV móvel, verso da mesa, totem e balcão recepção), '",
+  "        + 'móvel de atendimento, itens fora da planta, móveis de parede e móvel make não contam. GMV esperado: o do movimento no ciclo (aba Tipos de movimento).',",
   "      fmt: {",
   "        espacos: qtdEspacos,",
   "        pct: porcento,",

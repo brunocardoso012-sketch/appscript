@@ -31,7 +31,7 @@ const Render = (() => {
   const ETQ = Object.assign({}, ETQ_BASE);
   // Fichas da visão simplificada: uma por móvel, em colunas agrupadas por tipo de móvel.
   //   xEsq: primeira coluna (logo depois do painel lateral); mini: miniatura do móvel em cada linha;
-  //   legenda: nome do espaço ("LADO A"), entre a miniatura e as etiquetas.
+  //   legenda: nome do espaço ("PONTA A"), entre a miniatura e as etiquetas.
   const FICHA = { w: 330, xEsq: 300, margem: 12, pad: 7, cab: 22, mini: 40, miniH: 25, legenda: 52, vao: 6, simbolo: 24, entre: 5, gap: 9, raio: 9 };
   // Quantas prateleiras (níveis) cada tipo de móvel tem: o desenho e o planograma da tela do móvel usam esta tabela.
   const PRATELEIRAS = { GONDOLA: 4, PIRAMIDE: 4, FILA: 3, GONDOLA_PAREDE: 5, VITRINE_L: 2, ILHA_OUI: 3, MAKE: 5 };
@@ -354,12 +354,14 @@ const Render = (() => {
     const numerados = (prefixo, nome, n) => Array.from({ length: n }, (_, i) => ({ id: prefixo + '-' + (i + 1), nome: nome + ' ' + (i + 1) }));
     if (!m) return [];
     if (m.tipo === 'MAKE') return numerados('TESTEIRA', 'Testeira', 4);
-    if (m.tipo === 'MESA') return numerados('FRENTE', 'Frente', 2);
-    if (m.tipo === 'MESA_3') return numerados('FRENTE', 'Frente', 3);
+    // Mesas: as frentes e o verso (atrás das lâminas, espaço de VM).
+    if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
+      return numerados('FRENTE', 'Frente', m.tipo === 'MESA' ? 2 : 3).concat([{ id: 'VERSO', nome: 'Verso', vm: true }]);
+    }
     if (m.tipo === 'TOTEM') return numerados('PAINEL', 'Painel', 3);
     if (m.tipo !== 'GONDOLA') return [];
     const div = String(m.dividido || '').toUpperCase();
-    const lista = [{ id: 'LADO-A', nome: 'Lado A' }];
+    const lista = [{ id: 'PONTA-A', nome: 'Ponta A' }];
     ['A', 'B'].forEach((lado) => {
       if (div.indexOf(lado) >= 0) {
         lista.push({ id: 'MEIO-' + lado + '-1', nome: 'Meio ' + lado + ' (metade 1)' });
@@ -368,14 +370,14 @@ const Render = (() => {
         lista.push({ id: 'MEIO-' + lado, nome: 'Meio ' + lado });
       }
     });
-    lista.push({ id: 'LADO-B', nome: 'Lado B' });
+    lista.push({ id: 'PONTA-B', nome: 'Ponta B' });
     return lista;
   }
 
   /**
-   * Caixa de cada espaço da gôndola: os lados (pontas) nas extremidades do lado maior
+   * Caixa de cada espaço da gôndola: as pontas nas extremidades do lado maior
    * e os dois meios lado a lado. "A" é sempre o que está virado para quem olha a planta:
-   * o lado A fica na ponta mais à frente e o meio A na face mais à frente.
+   * a ponta A fica na extremidade mais à frente e o meio A na face mais à frente.
    */
   function caixasGondola(m) {
     const aoLongoDeX = m.w >= m.d;
@@ -383,7 +385,7 @@ const Render = (() => {
     const C = aoLongoDeX ? m.d : m.w; // largura (de um meio ao outro)
     const p = Math.min(0.6, L * 0.18); // espessura da ponta
     const meio = (L - 2 * p) / 2;
-    const faixa = { 'LADO-B': [0, p, 0, C], 'LADO-A': [L - p, L, 0, C] };
+    const faixa = { 'PONTA-B': [0, p, 0, C], 'PONTA-A': [L - p, L, 0, C] };
     ['A', 'B'].forEach((lado) => {
       const v = lado === 'A' ? [C / 2, C] : [0, C / 2];
       faixa['MEIO-' + lado] = [p, L - p, v[0], v[1]];
@@ -409,7 +411,9 @@ const Render = (() => {
     const saida = [];
     let anterior = null;
     lista.forEach((it) => {
-      if (it && anterior && chave(it) === chave(anterior)) {
+      // O verso da mesa (VM) nunca se junta às frentes.
+      const vm = (x) => !!(x.espacos && x.espacos[0] && x.espacos[0].vm);
+      if (it && anterior && chave(it) === chave(anterior) && vm(it) === vm(anterior)) {
         anterior.espacos = anterior.espacos.concat(it.espacos);
         anterior.simbolo = anterior.simbolo || it.simbolo;
         return;
@@ -811,12 +815,14 @@ const Render = (() => {
     if (m.tipo === 'GONDOLA') return caixasGondola(m);
     if (m.tipo === 'MAKE') return primitivas(m).map((p) => Object.assign({}, p, { espaco: p.espaco || null }));
     if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
-      // Cada frente: a lâmina de vidro do fundo (alta) e o nicho com o cartaz (baixo).
-      const passo = L / esp.length;
+      // Cada frente: a lâmina de vidro do fundo (alta) e o nicho com o cartaz (baixo). O verso é
+      // uma placa fina atrás das lâminas, na altura delas.
+      const frentes = esp.filter((e) => !e.vm);
+      const passo = L / frentes.length;
       const g = Math.min(0.05, passo * 0.04);
       const painel = Math.min(0.15, C * 0.12);
-      const lista = [];
-      esp.forEach((e, k) => {
+      const lista = [loc(g, L - g, -painel * 0.5, 0, m.h * 0.32, m.h, esp.find((e) => e.vm))];
+      frentes.forEach((e, k) => {
         lista.push(loc(k * passo + g, (k + 1) * passo - g, 0, painel, 0, m.h, e));
         lista.push(loc(k * passo + g, (k + 1) * passo - g, painel, C, 0, m.h * 0.47, e));
       });
@@ -845,10 +851,15 @@ const Render = (() => {
    * Miniatura do móvel dentro de (x, y, w, h), na mesma orientação da planta, com os espaços "ids"
    * pintados na cor da etiqueta e o resto em cinza claro (ids = null: o móvel todo pintado).
    * cores também pode ser uma função (espaço da caixa ou null) => cores, ou null para cinza.
+   * O verso da mesa fica de costas na planta: com verso = true (ou só o verso em ids), a mesa
+   * aparece espelhada, com o verso virado para quem olha.
    */
-  function desenharMiniatura(pai, m, ids, cores, x, y, w, h) {
+  function desenharMiniatura(pai, m, ids, cores, x, y, w, h, verso) {
     const corDe = typeof cores === 'function' ? cores : () => cores;
-    const caixas = formaDoMovel(m);
+    const espelhar = verso || !!(ids && ids.length && ids.every((id) => id === 'VERSO'));
+    const caixas = formaDoMovel(m).map((b) => (!espelhar ? b : m.w >= m.d
+      ? Object.assign({}, b, { y: 2 * m.y + m.d - b.y - b.d })
+      : Object.assign({}, b, { x: 2 * m.x + m.w - b.x - b.w })));
     const bruto = (px, py, pz) => [(px - py) * COS30, (px + py) * 0.5 - pz];
     const xs = [];
     const ys = [];
@@ -882,7 +893,7 @@ const Render = (() => {
     return g;
   }
 
-  /** Nome curto do(s) espaço(s) de uma linha da ficha: "Lado A", "Meio A", "Frentes 1–2"… */
+  /** Nome curto do(s) espaço(s) de uma linha da ficha: "Ponta A", "Meio A", "Frentes 1–2"… */
   function nomeCurto(lista) {
     const ids = lista.map((e) => e.id);
     // As duas metades de um meio juntas = o meio inteiro.
@@ -890,8 +901,9 @@ const Render = (() => {
       return 'Meio ' + ids[0].charAt(5);
     }
     const um = (id) => {
-      const g = /^(LADO|MEIO)-([AB])(?:-(\d))?$/.exec(id);
-      if (g) return (g[1] === 'LADO' ? 'Lado ' : 'Meio ') + g[2] + (g[3] ? ' · ' + g[3] : '');
+      const g = /^(PONTA|MEIO)-([AB])(?:-(\d))?$/.exec(id);
+      if (g) return (g[1] === 'PONTA' ? 'Ponta ' : 'Meio ') + g[2] + (g[3] ? ' · ' + g[3] : '');
+      if (id === 'VERSO') return 'Verso';
       const n = /^(\w+)-(\d+)$/.exec(id);
       return n ? n[1].charAt(0) + n[1].slice(1).toLowerCase() + ' ' + n[2] : id;
     };
@@ -1107,8 +1119,8 @@ const Render = (() => {
 
   /* ------------------------ etiquetas na planta --------------------------- */
   // Visão "Na planta": as etiquetas ficam junto do móvel. Nos móveis com espaços, cada pilha sai da
-  // face do próprio espaço, para o lado que ela olha (lado A: além da ponta da frente; meio B: para
-  // trás da gôndola; frente 2: na frente da mesa…), com o nome do espaço numa plaquinha escura e uma
+  // face do próprio espaço, para o lado que ela olha (ponta A: além da ponta da frente; meio B: para
+  // trás da gôndola; frente 2: na frente da mesa; verso: atrás da mesa…), com o nome do espaço numa plaquinha escura e uma
   // linha-guia na cor da etiqueta até um ponto na face. Nos móveis de um espaço só, a pilha fica em
   // cima do móvel (ou no lugar livre mais perto). A planta cresce (slide em 16:9) até as etiquetas
   // caberem perto dos móveis sem cobrir os outros.
@@ -1124,9 +1136,9 @@ const Render = (() => {
     Object.keys(ROTULO_BASE).forEach((c) => { ROTULO[c] = ROTULO_BASE[c] * k; });
   }
 
-  /** Direção (no piso) para onde cada espaço olha: +u/-u nas pontas, +v/-v nos meios e frentes. */
+  /** Direção (no piso) para onde cada espaço olha: +u/-u nas pontas, +v/-v nos meios, frentes e verso. */
   function direcaoDoEspaco(m, id) {
-    const local = /^LADO-A/.test(id) ? [1, 0] : /^LADO-B/.test(id) ? [-1, 0] : /^MEIO-B/.test(id) ? [0, -1] : [0, 1];
+    const local = /^PONTA-A/.test(id) ? [1, 0] : /^PONTA-B/.test(id) ? [-1, 0] : /^(MEIO-B|VERSO)/.test(id) ? [0, -1] : [0, 1];
     // u = lado maior: x quando largura >= profundidade (então v = y), senão o contrário.
     return m.w >= m.d ? local : [local[1], local[0]];
   }
@@ -2079,11 +2091,12 @@ const Render = (() => {
   /**
    * Miniatura de um móvel num <svg> à parte (legenda do Analytics), com cada espaço na cor que
    * corDoEspaco(espaco) devolver (espaco = null: estrutura, ou o móvel inteiro se ele não tem espaços).
+   * verso = true: a mesa espelhada, com o verso virado para quem olha.
    */
-  function miniaturaEspacos(svg, m, corDoEspaco, w, h) {
+  function miniaturaEspacos(svg, m, corDoEspaco, w, h, verso) {
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-    desenharMiniatura(svg, m, null, (e) => { const c = corDoEspaco(e); return c ? [c] : null; }, 1, 1, w - 2, h - 2);
+    desenharMiniatura(svg, m, null, (e) => { const c = corDoEspaco(e); return c ? [c] : null; }, 1, 1, w - 2, h - 2, verso);
   }
 
   return { desenhar, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };

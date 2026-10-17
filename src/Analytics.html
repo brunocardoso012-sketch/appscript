@@ -5,12 +5,14 @@
  * ============================================================================
  *  Analytics.desenhar(corpo, dados, acoes) monta, no lugar da planta:
  *   - números principais (espaços, ocupação com movimento, movimentos, GMV esperado e concentração);
- *   - a legenda do que conta como espaço (miniatura de cada tipo de móvel, com os espaços em cores);
+ *   - a legenda do que conta como espaço (miniatura de cada tipo de móvel, com os espaços em cores),
+ *     separando o espaço de exposição do espaço de VM (PDV móvel, verso da mesa, totem, balcão recepção);
  *   - insights rápidos, escritos a partir dos números (maior movimento, o que muda entre as ERs,
  *     movimentos de uma ER só, espaço sem movimento, GMV × espaço…);
  *   - o mapa de calor movimento × ER (quanto de cada ER vai para cada movimento);
  *   - as marcas e as classificações em cada ER (barras 100%);
- *   - GMV esperado × espaço de cada movimento.
+ *   - GMV esperado × espaço de cada movimento;
+ *   - os espaços de VM, à parte (mapa de calor movimento × ER só com eles).
  *  Os dados vêm prontos da aplicação (App.dadosAnalytics); aqui só o desenho. Clicar num número
  *  chama acoes.verNaPlanta({ er, etiqueta | marca | classificacao }), que abre a planta já filtrada.
  */
@@ -19,8 +21,9 @@ const Analytics = (() => {
   const COR_SEM_MOVIMENTO = '#E6E8EB';
   const COR_ESPACO = '#8C93A3';
   const COR_GMV = '#2F9E6B';
-  // Escolhas da tela (valem até recarregar): medida do mapa e ordem das linhas.
+  // Escolhas da tela (valem até recarregar): medida de cada mapa (exposição e VM) e ordem das linhas.
   const vista = { medida: 'pct', ordem: 'total' };
+  const vistaVm = { medida: 'pct', ordem: 'total' };
 
   const fmtNum = (n) => (Math.round(n * 10) / 10).toLocaleString('pt-BR');
   const fmtPct = (v, total) => (total ? Math.round((v / total) * 100) : 0) + '%';
@@ -81,7 +84,7 @@ const Analytics = (() => {
     const ondeTop = ers.filter((e) => top.porEr[e.id]);
     lista.push({
       tipo: 'destaque', rotulo: 'Maior movimento',
-      partes: [[top.texto], ' é o movimento com mais espaço: ' + espacos(top.total) + ' (' + fmtPct(top.total, d.total) + ' de todo o espaço)'
+      partes: [[top.texto], ' é o movimento com mais espaço: ' + espacos(top.total) + ' (' + fmtPct(top.total, d.total) + ' do espaço de exposição)'
         + (ers.length > 1 ? (ondeTop.length === ers.length ? ', presente em todas as ERs.' : ', em ' + ondeTop.length + ' de ' + ers.length + ' ERs.') : '.')],
       acao: { er: d.erAtual, etiqueta: top.texto },
     });
@@ -226,8 +229,9 @@ const Analytics = (() => {
     const ers = d.ers.filter((e) => e.total);
     const emTodas = d.movimentos.filter((m) => ers.every((e) => m.porEr[e.id])).length;
     const gmv = d.movimentos.reduce((s, m) => s + (m.gmv || 0), 0);
-    tile(fmtNum(d.total), d.ers.length > 1 ? 'Espaços nas ' + d.ers.length + ' ERs' : 'Espaços na ER',
-      d.ers.length > 1 ? d.ers.map((e) => e.nome.replace(/^ER\s+/i, '') + ' ' + fmtNum(e.total)).join(' · ') : null);
+    const porEr = (lista) => (lista.length > 1 ? lista.map((e) => e.nome.replace(/^ER\s+/i, '') + ' ' + fmtNum(e.total)).join(' · ') : null);
+    tile(fmtNum(d.total), d.ers.length > 1 ? 'Espaços de exposição nas ' + d.ers.length + ' ERs' : 'Espaços de exposição', porEr(d.ers));
+    if (d.vm && d.vm.total) tile(fmtNum(d.vm.total), 'Espaços de VM', porEr(d.vm.ers) || 'contados à parte');
     tile(fmtPct(d.total - semMov, d.total), 'Com movimento', semMov ? espacos(semMov) + ' sem etiqueta' : 'Todos os espaços têm etiqueta');
     tile(String(d.movimentos.length), 'Movimentos', ers.length > 1 ? emTodas + ' em todas as ERs' : null);
     tile(gmv ? gmvCurto.format(gmv) : '—', 'GMV esperado', gmv && totalMov ? '≈ ' + gmvCurto.format(gmv / (d.total - semMov || 1)) + ' por espaço com movimento'
@@ -256,10 +260,13 @@ const Analytics = (() => {
     });
   }
 
-  /** Mapa de calor: uma linha por movimento, uma coluna por ER (% do espaço de cada ER ou espaços). */
-  function mapa(pai, d, acoes, redesenhar) {
-    const c = cartao(pai, 'Espaço de cada movimento em cada ER',
-      'Quanto mais escuro, maior a fatia da ER. Um espaço com dois movimentos conta nos dois. Clique numa célula para ver na planta.', 'an-mapa-cartao');
+  /**
+   * Mapa de calor: uma linha por movimento, uma coluna por ER (% do espaço de cada ER ou espaços).
+   * op: { titulo, sub, classe, vista } — o mesmo mapa serve ao espaço de exposição e ao de VM.
+   */
+  function mapa(pai, d, acoes, redesenhar, op) {
+    const vista = op.vista;
+    const c = cartao(pai, op.titulo, op.sub, 'an-mapa-cartao' + (op.classe ? ' ' + op.classe : ''));
     const ctrl = novo('div', 'an-controles', null, c.querySelector('.an-cartao-topo'));
     const seg = novo('div', 'an-segmentado', null, ctrl);
     seg.setAttribute('role', 'group');
@@ -459,38 +466,69 @@ const Analytics = (() => {
   /** Cores dos espaços na legenda: só para separar um espaço do outro (não são marcas). */
   const CORES_LEGENDA = ['#3346B8', '#2F9E6B', '#D9822B', '#8E44AD', '#C2410C', '#0E7490'];
 
-  /** Legenda "O que conta como espaço": cada tipo de móvel das plantas, com os espaços dele em cores. */
+  /**
+   * Legenda "O que conta como espaço": cada tipo de móvel das plantas, com os espaços dele em cores,
+   * separado em espaço de exposição, espaço de VM e fora da conta.
+   */
   function legendaEspacos(pai, d, acoes) {
     const tipos = d.tiposDeMovel || [];
     if (!tipos.length || !acoes.miniatura) return;
     const c = cartao(pai, 'O que conta como espaço',
-      'Cada cor na miniatura é um espaço na conta do Analytics. Os móveis em cinza ficam fora da conta.', 'an-espacos-cartao');
-    const lista = novo('ul', 'an-espacos', null, c);
-    tipos.forEach((t) => {
-      const li = novo('li', 'an-espaco-tipo' + (t.conta ? '' : ' fora'), null, lista);
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('class', 'an-espaco-mini');
-      svg.setAttribute('aria-hidden', 'true');
-      li.appendChild(svg);
-      const cor = (id) => CORES_LEGENDA[Math.max(0, t.espacos.findIndex((e) => e.id === id)) % CORES_LEGENDA.length];
-      const inteiro = t.espacos.length === 1 && !t.espacos[0].id;
-      // Espaço null: estrutura (fica cinza), ou o móvel inteiro quando ele não se divide em espaços.
-      acoes.miniatura(svg, t.movel, (e) => (!t.conta ? null : e ? cor(e.id) : inteiro ? cor('') : null), 84, 56);
-      const txt = novo('div', 'an-espaco-texto', null, li);
-      novo('strong', null, t.nome, txt);
-      novo('span', 'an-espaco-qtd', t.conta ? (t.espacos.length === 1 ? '1 espaço' : t.espacos.length + ' espaços') : 'Não conta', txt);
-      if (!t.conta) return;
-      const nomes = novo('span', 'an-espaco-nomes', null, txt);
-      t.espacos.forEach((e) => {
-        const s = novo('span', null, null, nomes);
-        novo('i', null, null, s).style.background = cor(e.id);
-        novo('span', null, e.nome, s);
+      'Cada cor na miniatura é um espaço na conta do Analytics; as partes em cinza não contam ali.', 'an-espacos-cartao');
+    [
+      ['expo', 'Espaço de exposição', 'os números, insights e gráficos do Analytics'],
+      ['vm', 'Espaço de VM', 'contado à parte, em "Espaços de VM"'],
+      ['fora', 'Fora da conta', ''],
+    ].forEach(([grupo, titulo, sub]) => {
+      const doGrupo = tipos.filter((t) => t.grupo === grupo);
+      if (!doGrupo.length) return;
+      const h = novo('h4', 'an-espacos-grupo', titulo, c);
+      if (sub) novo('span', null, sub, h);
+      const lista = novo('ul', 'an-espacos', null, c);
+      doGrupo.forEach((t) => {
+        const li = novo('li', 'an-espaco-tipo' + (grupo === 'fora' ? ' fora' : ''), null, lista);
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'an-espaco-mini');
+        svg.setAttribute('aria-hidden', 'true');
+        li.appendChild(svg);
+        const cor = (id) => {
+          const k = t.espacos.findIndex((e) => e.id === id);
+          return k < 0 ? null : CORES_LEGENDA[k % CORES_LEGENDA.length];
+        };
+        // Espaço null: estrutura (fica cinza), ou o móvel inteiro quando ele não se divide em espaços.
+        acoes.miniatura(svg, t.movel, (e) => cor(e ? e.id : ''), 84, 56, t.verso);
+        const txt = novo('div', 'an-espaco-texto', null, li);
+        novo('strong', null, t.nome + (t.verso ? ' · verso' : ''), txt);
+        novo('span', 'an-espaco-qtd', grupo === 'fora' ? 'Não conta' : espacos(t.espacos.reduce((s, e) => s + e.peso, 0)), txt);
+        if (t.nota) novo('span', 'an-espaco-nota', t.nota, txt);
+        if (!t.espacos.length) return;
+        const nomes = novo('span', 'an-espaco-nomes', null, txt);
+        t.espacos.forEach((e) => {
+          const sp = novo('span', null, null, nomes);
+          novo('i', null, null, sp).style.background = cor(e.id);
+          novo('span', null, e.nome + (e.peso === 0.5 ? ' · ½' : ''), sp);
+        });
       });
     });
   }
 
+  /** Seção "Espaços de VM": o mapa de calor só com os espaços de VM, fora da conta da exposição. */
+  function secaoVm(pai, d, acoes, redesenhar) {
+    if (!d.vm || !d.vm.total) return;
+    const titulo = novo('div', 'an-secao', null, pai);
+    novo('h3', null, 'Espaços de VM', titulo);
+    novo('p', null, 'PDV móvel, verso da mesa destaque, os três painéis do totem e balcão recepção. São comunicação visual: '
+      + 'não entram na conta do espaço de exposição acima.', titulo);
+    mapa(pai, Object.assign({}, d, d.vm), acoes, redesenhar, {
+      titulo: 'Espaço de VM de cada movimento em cada ER',
+      sub: 'Quanto mais escuro, maior a fatia do espaço de VM da ER. Clique numa célula para ver na planta.',
+      classe: 'an-vm-cartao',
+      vista: vistaVm,
+    });
+  }
+
   /**
-   * Desenha o dashboard em corpo. dados: App.dadosAnalytics; acoes: { verNaPlanta(filtro), miniatura(svg, movel, corDoEspaco, w, h) }.
+   * Desenha o dashboard em corpo. dados: App.dadosAnalytics; acoes: { verNaPlanta(filtro), miniatura(svg, movel, corDoEspaco, w, h, verso) }.
    */
   function desenhar(corpo, d, acoes) {
     const redesenhar = () => desenhar(corpo, d, acoes);
@@ -500,7 +538,11 @@ const Analytics = (() => {
     const grade = novo('div', 'an-grade', null, corpo);
     legendaEspacos(grade, d, acoes);
     listaInsights(grade, d, acoes);
-    mapa(grade, d, acoes, redesenhar);
+    mapa(grade, d, acoes, redesenhar, {
+      titulo: 'Espaço de exposição de cada movimento em cada ER',
+      sub: 'Quanto mais escuro, maior a fatia da ER. Um espaço com dois movimentos conta nos dois (na pirâmide, as etiquetas dividem o espaço). Clique numa célula para ver na planta.',
+      vista,
+    });
     const dupla = novo('div', 'an-dupla', null, grade);
     const legMarcas = d.marcas.map((m) => ({ cod: m.cod, nome: m.nome, cor: m.cor, borda: m.cod === 'NEUTRO', filtravel: m.filtravel }));
     barrasPorEr(dupla, 'Marcas em cada ER', 'Fatia do espaço de cada ER por marca. Combinações de marcas dividem o espaço igualmente.',
@@ -510,7 +552,8 @@ const Analytics = (() => {
     barrasPorEr(dupla, 'Classificação em cada ER', 'Fatia do espaço de cada ER por tipo de movimento (aba "' + d.abaTipos + '"). Um espaço com movimentos de dois tipos se divide entre eles.',
       d, 'porClasse', legClasses, (x) => (x.cod === '__LIVRE__' ? null : { classificacao: x.cod }), acoes);
     gmvEspaco(grade, d, acoes);
-    novo('p', 'an-nota', 'Conta em quantidade de espaços: na gôndola, cada lado e cada meio é um espaço; mesas e totem contam cada frente e painel; os demais móveis contam como um espaço. Etiquetas com o mesmo texto somam juntas. O GMV esperado é o do movimento no ciclo (aba "' + d.abaTipos + '"), não de uma ER só. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);
+    secaoVm(grade, d, acoes, redesenhar);
+    novo('p', 'an-nota', 'Conta em quantidade de espaços. Exposição: na gôndola, cada ponta e cada meio é um espaço (meio dividido: ½ espaço para cada metade); na mesa destaque, cada frente; na pirâmide, o espaço se divide entre as etiquetas (duas etiquetas: ½ para cada); os demais móveis contam como um espaço. VM, à parte: PDV móvel, verso da mesa destaque, cada painel do totem e balcão recepção. Etiquetas com o mesmo texto somam juntas. O GMV esperado é o do movimento no ciclo (aba "' + d.abaTipos + '"), não de uma ER só. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);
     corpo.scrollTop = rolagem;
   }
 

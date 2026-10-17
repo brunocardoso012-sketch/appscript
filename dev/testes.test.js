@@ -36,7 +36,7 @@ test('layout padrão + ciclo de exemplo são lidos sem avisos', () => {
   assert.deepEqual(d.ciclos, ['Ciclo exemplo', 'Ciclo exemplo cheio']);
   assert.deepEqual(d.avisos, []);
   assert.ok(d.movimentos['Ciclo exemplo'].TODAS['EXTRA-CESTINHAS']);
-  assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1/LADO-A']);
+  assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1/PONTA-A']);
 });
 
 test('avisos para marca desconhecida e móvel inexistente', () => {
@@ -99,24 +99,27 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.equal(pir.ajusteY, -12);
 
   // Cada pilha da gôndola se move sozinha (por cima do ajuste do móvel inteiro).
-  run("salvarAjustesEtiquetas('01', { 'GONDOLA 1/LADO-A': { x: 15, y: -8 }, 'gondola 1/meio-b+lado-b': { x: -20, y: 30 } })");
+  run("salvarAjustesEtiquetas('01', { 'GONDOLA 1/PONTA-A': { x: 15, y: -8 }, 'gondola 1/meio-b+ponta-b': { x: -20, y: 30 } })");
   let g1 = run('getDados()').plantas.find((p) => p.id === '01').moveis.find((m) => m.id === 'GONDOLA 1');
   assert.deepEqual([g1.ajusteX, g1.ajusteY], [0, 0], 'ajuste do móvel inteiro não muda');
   const esp = JSON.parse(JSON.stringify(g1.ajustesEspacos));
-  assert.deepEqual([esp['LADO-A'], esp['MEIO-B+LADO-B']], [{ x: 15, y: -8 }, { x: -20, y: 30 }]);
-  run("salvarAjustesEtiquetas('01', { 'GONDOLA 1': { x: 0, y: 0 }, 'GONDOLA 1/LADO-A': { x: 0, y: 0 } })"); // organizar
+  assert.deepEqual([esp['PONTA-A'], esp['MEIO-B+PONTA-B']], [{ x: 15, y: -8 }, { x: -20, y: 30 }]);
+  run("salvarAjustesEtiquetas('01', { 'GONDOLA 1': { x: 0, y: 0 }, 'GONDOLA 1/PONTA-A': { x: 0, y: 0 } })"); // organizar
   g1 = run('getDados()').plantas.find((p) => p.id === '01').moveis.find((m) => m.id === 'GONDOLA 1');
   const esp2 = JSON.parse(JSON.stringify(g1.ajustesEspacos));
-  assert.ok(!esp2['LADO-A'], 'pilha zerada volta ao automático');
-  assert.deepEqual(esp2['MEIO-B+LADO-B'], { x: -20, y: 30 });
+  assert.ok(!esp2['PONTA-A'], 'pilha zerada volta ao automático');
+  assert.deepEqual(esp2['MEIO-B+PONTA-B'], { x: -20, y: 30 });
 });
 
 test('ajuste das pilhas por espaço: texto da planilha ↔ objeto', () => {
   const { run } = carregarGas();
-  assert.deepEqual(JSON.parse(JSON.stringify(run("lerAjustesEspacos_('lado-a: 10, -5; MEIO-B + LADO-B = -3,5 ; FRENTE-1: 0, 0; lixo')"))),
-    { 'LADO-A': { x: 10, y: -5 }, 'MEIO-B+LADO-B': { x: -3, y: 5 } });
-  assert.equal(run("textoAjustesEspacos_({ 'MEIO-A': { x: 1, y: 2 }, 'LADO-A': { x: -4, y: 0 }, 'LADO-B': { x: 0, y: 0 } })"),
-    'LADO-A: -4, 0; MEIO-A: 1, 2');
+  assert.deepEqual(JSON.parse(JSON.stringify(run("lerAjustesEspacos_('ponta-a: 10, -5; MEIO-B + PONTA-B = -3,5 ; FRENTE-1: 0, 0; lixo')"))),
+    { 'PONTA-A': { x: 10, y: -5 }, 'MEIO-B+PONTA-B': { x: -3, y: 5 } });
+  assert.equal(run("textoAjustesEspacos_({ 'MEIO-A': { x: 1, y: 2 }, 'PONTA-A': { x: -4, y: 0 }, 'PONTA-B': { x: 0, y: 0 } })"),
+    'MEIO-A: 1, 2; PONTA-A: -4, 0');
+  // Nomes antigos das pontas (Lado A / Lado B) viram Ponta A / Ponta B, também dentro de uma pilha.
+  assert.deepEqual(JSON.parse(JSON.stringify(run("lerAjustesEspacos_('LADO-A: 1, 2; MEIO-B+LADO-B: 3, 4')"))),
+    { 'PONTA-A': { x: 1, y: 2 }, 'MEIO-B+PONTA-B': { x: 3, y: 4 } });
   assert.deepEqual(JSON.parse(JSON.stringify(run("lerAjustesEspacos_('')"))), {});
 });
 
@@ -163,8 +166,8 @@ test('importar aba Layout substitui só as plantas presentes e mantém números'
 
 test('gôndola: espaços, divisão dos meios e IDs de espaço na planilha', () => {
   const { run } = carregarGas();
-  assert.deepEqual(run("espacosDoMovel_({ tipo: 'GONDOLA', dividido: '' })").map((e) => e.id), ['LADO-A', 'MEIO-A', 'MEIO-B', 'LADO-B']);
-  assert.deepEqual(run("espacosDoMovel_({ tipo: 'GONDOLA', dividido: 'A' })").map((e) => e.id), ['LADO-A', 'MEIO-A-1', 'MEIO-A-2', 'MEIO-B', 'LADO-B']);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'GONDOLA', dividido: '' })").map((e) => e.id), ['PONTA-A', 'MEIO-A', 'MEIO-B', 'PONTA-B']);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'GONDOLA', dividido: 'A' })").map((e) => e.id), ['PONTA-A', 'MEIO-A-1', 'MEIO-A-2', 'MEIO-B', 'PONTA-B']);
   assert.deepEqual(run("espacosDoMovel_({ tipo: 'PIRAMIDE' })"), []);
   assert.equal(run("normDivisao_('a e b')"), 'AB');
   assert.equal(run("normDivisao_('sim')"), 'AB');
@@ -175,7 +178,7 @@ test('gôndola: espaços, divisão dos meios e IDs de espaço na planilha', () =
     ['01', 'GON-01', 'GONDOLA', 5, 5, 4, 1.6, 3, 'A'],
   ], [
     ['Ciclo', 'Planta', 'ID Móvel', 'Marca do Móvel'],
-    ['C1', '01', 'GON-01/LADO-A', 'BOT'],
+    ['C1', '01', 'GON-01/PONTA-A', 'BOT'],
     ['C1', '01', 'GON-01/MEIO-A-2', 'EUD'],
     ['C1', '01', 'GON-01/MEIO-A', 'EUD'],
   ], null)`);
@@ -206,7 +209,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
   assert.ok(!ids('02').includes('VELHO-01') && ids('02').includes('MESA DESTAQUE 1') && ids('02').includes('LOJA'), 'planta 02 com o modelo novo');
   assert.ok(ids('01').includes('MEU-01'), 'planta 01 intacta');
   const mov = r.abas.movimentos.slice(1).filter((l) => l[1] === '02');
-  assert.ok(mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'GONDOLA 2/LADO-A'), 'exemplo da planta 02 atualizado');
+  assert.ok(mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'GONDOLA 2/PONTA-A'), 'exemplo da planta 02 atualizado');
   assert.ok(!mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'VELHO-01'));
   assert.ok(mov.some((l) => l[0] === 'C9'), 'outros ciclos da planta 02 intactos');
   const de_novo = run(`atualizarModelosPlantas_({ layout: valoresLayoutPadrao_(), movimentos: [] }, versoesAtuais_())`);
@@ -269,20 +272,24 @@ test('ciclo de exemplo novo troca todas as linhas dele (e só dele)', () => {
   assert.equal(run("normId_('Móvel de  fila 3')"), 'MOVEL DE FILA 3');
 });
 
-test('blocos do balcão e das mesas; nomes antigos dos lados da gôndola', () => {
+test('blocos do balcão e das mesas; nomes antigos das pontas da gôndola', () => {
   const { run } = carregarGas();
   assert.deepEqual(run("espacosDoMovel_({ tipo: 'VITRINE_L' })"), [], 'balcão: uma cor só');
-  assert.deepEqual(run("espacosDoMovel_({ tipo: 'MESA' })").map((e) => e.id), ['FRENTE-1', 'FRENTE-2']);
-  assert.deepEqual(run("espacosDoMovel_({ tipo: 'MESA_3' })").map((e) => e.id), ['FRENTE-1', 'FRENTE-2', 'FRENTE-3']);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'MESA' })").map((e) => e.id), ['FRENTE-1', 'FRENTE-2', 'VERSO']);
+  assert.deepEqual(run("espacosDoMovel_({ tipo: 'MESA_3' })").map((e) => e.id), ['FRENTE-1', 'FRENTE-2', 'FRENTE-3', 'VERSO']);
+  assert.equal(run("espacosDoMovel_({ tipo: 'MESA' })")[2].vm, true, 'verso da mesa é espaço de VM');
   assert.deepEqual(run("espacosDoMovel_({ tipo: 'TOTEM' })").map((e) => e.id), ['PAINEL-1', 'PAINEL-2', 'PAINEL-3']);
   const d = run(`montarDados_(valoresLayoutPadrao_(), [
     ['Ciclo', 'Planta', 'ID Móvel', 'Marca do Móvel'],
     ['C1', 'ER P', 'GONDOLA 1/PONTA-2', 'QDB'],
+    ['C1', 'ER P', 'GONDOLA 1/LADO-B', 'BOT'],
     ['C1', 'ER P', 'GONDOLA 1/MEIO-B-2', 'EUD'],
     ['C1', 'ER P', 'MESA DESTAQUE 1/FRENTE-2', 'BOT'],
+    ['C1', 'ER P', 'MESA DESTAQUE 1/VERSO', 'EUD'],
   ], null)`);
   assert.deepEqual(d.avisos, []);
-  assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(), ['GONDOLA 1/LADO-A', 'GONDOLA 1/MEIO-B-2', 'MESA DESTAQUE 1/FRENTE-2']);
+  assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(),
+    ['GONDOLA 1/MEIO-B-2', 'GONDOLA 1/PONTA-A', 'GONDOLA 1/PONTA-B', 'MESA DESTAQUE 1/FRENTE-2', 'MESA DESTAQUE 1/VERSO']);
 });
 
 test('painéis do totem aceitam cor e etiqueta próprias na planilha', () => {
@@ -310,7 +317,7 @@ test('IDs de espaço aceitam variações de digitação', () => {
   ], null)`);
   assert.deepEqual(d.avisos, []);
   assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(),
-    ['GONDOLA 1/LADO-A', 'GONDOLA 1/MEIO-A-2', 'MESA DESTAQUE 1/FRENTE-2', 'TOTEM 1/PAINEL-1', 'TOTEM 1/PAINEL-2']);
+    ['GONDOLA 1/MEIO-A-2', 'GONDOLA 1/PONTA-A', 'MESA DESTAQUE 1/FRENTE-2', 'TOTEM 1/PAINEL-1', 'TOTEM 1/PAINEL-2']);
 });
 
 test('gôndola, mesas, totem e móvel make: linha do móvel inteiro é ignorada (só valem os espaços)', () => {
@@ -326,7 +333,7 @@ test('gôndola, mesas, totem e móvel make: linha do móvel inteiro é ignorada 
   ], null)`);
   assert.equal(d.avisos.length, 4);
   assert.ok(d.avisos.every((a) => /linha do móvel inteiro ignorada/.test(a)));
-  assert.match(d.avisos[0], /GONDOLA 1\/LADO-A/);
+  assert.match(d.avisos[0], /GONDOLA 1\/PONTA-A/);
   assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(), ['GONDOLA 1/MEIO-B', 'PIRAMIDE 1']);
 });
 
@@ -428,7 +435,7 @@ test('ciclo de exemplo cheio: todos os móveis com etiquetas, na quantidade de c
   const { run } = carregarGas();
   const d = run('montarDados_(valoresLayoutPadrao_(), valoresMovimentosExemplo_())');
   const qtd = { GONDOLA: 2, PIRAMIDE: 2, FILA: 2, CUBO: 2, GONDOLA_PAREDE: 3, TOTEM: 1, MESA: 2, MESA_3: 2, PAINEL: 3, EXPOSITOR_OUI: 3, ILHA_OUI: 3, VITRINE_L: 3, MAKE: 1, EXTRA: 1 };
-  const espacos = { GONDOLA: ['LADO-A', 'MEIO-A', 'MEIO-B', 'LADO-B'], TOTEM: ['PAINEL-1', 'PAINEL-2', 'PAINEL-3'], MESA: ['FRENTE-1', 'FRENTE-2'], MESA_3: ['FRENTE-1', 'FRENTE-2', 'FRENTE-3'], MAKE: ['TESTEIRA-1', 'TESTEIRA-2', 'TESTEIRA-3', 'TESTEIRA-4'] };
+  const espacos = { GONDOLA: ['PONTA-A', 'MEIO-A', 'MEIO-B', 'PONTA-B'], TOTEM: ['PAINEL-1', 'PAINEL-2', 'PAINEL-3'], MESA: ['FRENTE-1', 'FRENTE-2'], MESA_3: ['FRENTE-1', 'FRENTE-2', 'FRENTE-3'], MAKE: ['TESTEIRA-1', 'TESTEIRA-2', 'TESTEIRA-3', 'TESTEIRA-4'] };
   d.plantas.forEach((p) => {
     const movs = d.movimentos['Ciclo exemplo cheio'][p.id];
     p.moveis.forEach((m) => {
@@ -463,7 +470,7 @@ test('ER GG: posições fixas das etiquetas (largura do slide salva na linha LOJ
   const gg = d.plantas.filter((p) => p.id === '04')[0];
   assert.equal(gg.loja.slide, 3072);
   const g1 = gg.moveis.filter((m) => m.id === 'GONDOLA 1')[0];
-  assert.ok(g1.ajustesEspacos['LADO-A'].x > 0, 'pilha com posição fixa');
+  assert.ok(g1.ajustesEspacos['PONTA-A'].x > 0, 'pilha com posição fixa');
   assert.equal(run("normSlide_('abc')"), 0);
 });
 
@@ -485,5 +492,5 @@ test('ER P: posições fixas das etiquetas no layout padrão', () => {
   const { run } = carregarGas();
   const p = run('montarDados_(valoresLayoutPadrao_(), [])').plantas.filter((x) => x.id === '01')[0];
   assert.equal(p.loja.slide, 1920);
-  assert.ok(p.moveis.filter((m) => m.id === 'GONDOLA 1')[0].ajustesEspacos['LADO-A'].x > 0);
+  assert.ok(p.moveis.filter((m) => m.id === 'GONDOLA 1')[0].ajustesEspacos['PONTA-A'].x > 0);
 });

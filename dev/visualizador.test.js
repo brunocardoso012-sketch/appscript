@@ -38,7 +38,7 @@ test('visualizador lê os ciclos da planilha vinculada, com o layout do código'
   assert.deepEqual(d.ciclos, ['Ciclo exemplo', 'Ciclo exemplo cheio']);
   assert.deepEqual(d.avisos, []);
   assert.deepEqual(d.plantas.map((p) => p.nome), ['ER P', 'ER M', 'ER G', 'ER GG']);
-  assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1/LADO-A']);
+  assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1/PONTA-A']);
   assert.ok(d.paineis['Ciclo exemplo'].TODAS.some((p) => p.secao === 'CALLOUT'));
   assert.equal(d.planilhaUrl, 'https://docs.google.com/spreadsheets/d/TESTE');
 });
@@ -70,9 +70,9 @@ test('posições das etiquetas ficam nas propriedades do script, sem mexer na pl
   g = run('getDados()').plantas[0].moveis.find((m) => m.id === 'GONDOLA 1');
   assert.deepEqual([g.ajusteX, g.ajusteY], [0, 0]);
   assert.deepEqual(JSON.parse(falsos.propriedades.AJUSTES_ETIQUETAS_01), { LOJA: { escala: 100, slide: 1920 }, 'PIRAMIDE 1': { x: 5, y: 0 } });
-  run("salvarAjustesEtiquetas('01', { 'GONDOLA 1/LADO-A': { x: 7, y: 9 } })"); // uma pilha só
+  run("salvarAjustesEtiquetas('01', { 'GONDOLA 1/PONTA-A': { x: 7, y: 9 } })"); // uma pilha só
   g = run('getDados()').plantas[0].moveis.find((m) => m.id === 'GONDOLA 1');
-  assert.deepEqual(JSON.parse(JSON.stringify(g.ajustesEspacos))['LADO-A'], { x: 7, y: 9 });
+  assert.deepEqual(JSON.parse(JSON.stringify(g.ajustesEspacos))['PONTA-A'], { x: 7, y: 9 });
   assert.deepEqual([g.ajusteX, g.ajusteY], [0, 0]);
   assert.equal(JSON.stringify(falsos.planilha.getSheets().map((a) => a._aba.grade)), antes);
   run("salvarAjustesEtiquetas('01', { LOJA: { escala: 130 } })"); // tamanho das etiquetas

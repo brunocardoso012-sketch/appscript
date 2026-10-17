@@ -55,7 +55,7 @@ const ETIQUETAS_POR_TIPO = { VITRINE_L: 3 };
 const TIPOS_SEM_ETIQUETA = ['CAIXA'];
 
 /**
- * Quantas etiquetas a linha de um espaço mostra (GONDOLA 1/LADO-A,
+ * Quantas etiquetas a linha de um espaço mostra (GONDOLA 1/PONTA-A,
  * MESA DESTAQUE 1/FRENTE-2, TOTEM 1/PAINEL-3…). Tipos que não aparecem aqui
  * (painéis do totem, testeiras do móvel make) mostram só a Etiqueta 1. Blocos vizinhos com as
  * mesmas etiquetas (texto e cor) viram uma pilha só.
@@ -154,12 +154,12 @@ const SECOES_PAINEL = {
 const TIPOS_MOVEL = {
   LOJA: 'Dimensões da loja (piso + paredes). Uma linha por planta.',
   PIRAMIDE: 'Pirâmide: 4 blocos iguais empilhados (até 4 etiquetas)',
-  GONDOLA: 'Gôndola: lado A, meio A, meio B e lado B (o A virado para quem olha; cada meio pode ser dividido em dois), 4 níveis, até 4 etiquetas por bloco',
+  GONDOLA: 'Gôndola: ponta A, meio A, meio B e ponta B (o A virado para quem olha; cada meio pode ser dividido em dois), 4 níveis, até 4 etiquetas por bloco',
   FILA: 'Móvel de fila: bloco único retangular com 3 níveis',
   GONDOLA_PAREDE: 'Móvel de parede: estante encostada na parede, com prateleiras',
   CUBO: 'PDV móvel: cubo de vidro sobre rodapé',
-  MESA: 'Mesa destaque: 2 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
-  MESA_3: 'Mesa destaque 3 frentes: 3 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias',
+  MESA: 'Mesa destaque: 2 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias, e o verso (atrás das lâminas)',
+  MESA_3: 'Mesa destaque 3 frentes: 3 frentes (nicho, lâmina do fundo e cartaz), cada uma com cor e até 4 etiquetas próprias, e o verso (atrás das lâminas)',
   TOTEM: 'Totem: estrutura metálica com 3 painéis, cada um com cor e etiqueta próprias (Etiqueta 1–3 = painel 1, o de cima, 2 e 3)',
   PAINEL: 'Parede O.U.i: painel alto com moldura',
   EXPOSITOR_OUI: 'Totem O.U.i: expositor estreito com moldura, na altura da gôndola',
@@ -177,18 +177,19 @@ const TIPOS_CONSTRUCAO = [
 
 /**
  * Espaços (blocos) de um móvel, cada um com cor e etiqueta próprias na planilha:
- *  - gôndola: Lado A, Meio A, Meio B e Lado B (o "A" é sempre o lado virado para
+ *  - gôndola: Ponta A, Meio A, Meio B e Ponta B (o "A" é sempre o lado virado para
  *    quem olha a planta; cada meio pode ser dividido em dois);
- *  - mesa destaque: Frente 1 e 2 (3 frentes: Frente 1, 2 e 3);
+ *  - mesa destaque: Frente 1 e 2 (3 frentes: Frente 1, 2 e 3) e o Verso, atrás das lâminas
+ *    (espaço de VM: vm = true);
  *  - totem: Painel 1 a 3 (o 1 é o de cima);
  *  - móvel make: Testeira 1 a 4.
  * Na planilha, cada espaço é endereçado como "<ID do móvel>/<espaço>", ex.:
- * GONDOLA 1/LADO-A, GONDOLA 1/MEIO-A-2, MESA DESTAQUE 1/FRENTE-2.
+ * GONDOLA 1/PONTA-A, GONDOLA 1/MEIO-A-2, MESA DESTAQUE 1/FRENTE-2, MESA DESTAQUE 1/VERSO.
  * Móvel com espaços é preenchido só espaço por espaço: a linha só com o ID do móvel
  * é ignorada (espaço sem linha fica branco).
  * (A página tem uma cópia desta regra em Render.espacos.)
  * @param {{tipo: string, dividido: string}} m  dividido = '', 'A', 'B' ou 'AB'
- * @return {Array<{id: string, nome: string}>}
+ * @return {Array<{id: string, nome: string, vm?: boolean}>}
  */
 function espacosDoMovel_(m) {
   const numerados = function (prefixo, nome, n) {
@@ -198,12 +199,13 @@ function espacosDoMovel_(m) {
   };
   if (!m) return [];
   if (m.tipo === 'MAKE') return numerados('TESTEIRA', 'Testeira', 4);
-  if (m.tipo === 'MESA') return numerados('FRENTE', 'Frente', 2);
-  if (m.tipo === 'MESA_3') return numerados('FRENTE', 'Frente', 3);
+  if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
+    return numerados('FRENTE', 'Frente', m.tipo === 'MESA' ? 2 : 3).concat([{ id: 'VERSO', nome: 'Verso', vm: true }]);
+  }
   if (m.tipo === 'TOTEM') return numerados('PAINEL', 'Painel', 3);
   if (m.tipo !== 'GONDOLA') return [];
   const div = String(m.dividido || '').toUpperCase();
-  const lista = [{ id: 'LADO-A', nome: 'Lado A' }];
+  const lista = [{ id: 'PONTA-A', nome: 'Ponta A' }];
   ['A', 'B'].forEach(function (lado) {
     if (div.indexOf(lado) >= 0) {
       lista.push({ id: 'MEIO-' + lado + '-1', nome: 'Meio ' + lado + ' (metade 1)' });
@@ -212,7 +214,7 @@ function espacosDoMovel_(m) {
       lista.push({ id: 'MEIO-' + lado, nome: 'Meio ' + lado });
     }
   });
-  lista.push({ id: 'LADO-B', nome: 'Lado B' });
+  lista.push({ id: 'PONTA-B', nome: 'Ponta B' });
   return lista;
 }
 

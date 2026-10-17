@@ -253,7 +253,7 @@ function verificarImportacao_(valoresLayout, prep) {
  * Grava a posição manual das etiquetas (arrastadas na tela) na aba Layout.
  * @param {string} planta
  * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel (ajuste do móvel inteiro) ou
- *   ID da pilha ("GONDOLA 1/LADO-A", ajuste só daquela pilha) → deslocamento em px.
+ *   ID da pilha ("GONDOLA 1/PONTA-A", ajuste só daquela pilha) → deslocamento em px.
  */
 function salvarAjustesEtiquetas(planta, ajustes) {
   planta = normPlanta_(planta);

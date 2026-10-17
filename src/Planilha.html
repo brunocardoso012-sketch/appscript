@@ -69,7 +69,7 @@ const Planilha = (() => {
       ? [{ id: 'MEIO-' + l + '-1', nome: 'Meio ' + l + ' (metade 1)' }, { id: 'MEIO-' + l + '-2', nome: 'Meio ' + l + ' (metade 2)' }]
       : [{ id: 'MEIO-' + l, nome: 'Meio ' + l + ' (ou metade 1, se a metade 2 for preenchida)' },
         { id: 'MEIO-' + l + '-2', nome: 'Meio ' + l + ' – metade 2 (preencha só para dividir o meio em dois)' }]);
-    return [{ id: 'LADO-A', nome: 'Lado A' }].concat(meio('A'), meio('B'), [{ id: 'LADO-B', nome: 'Lado B' }]);
+    return [{ id: 'PONTA-A', nome: 'Ponta A' }].concat(meio('A'), meio('B'), [{ id: 'PONTA-B', nome: 'Ponta B' }]);
   }
 
   /** Coluna "Planta": o nome da planta (ER P…) quando houver; a importação aceita nome ou número. */
@@ -168,8 +168,8 @@ const Planilha = (() => {
       '6. Na aba "' + abas.PAINEIS + '" ficam os textos fora dos móveis: listas TV / A / C, caixas de destaque (CALLOUT, que podem apontar para um ID Móvel) e notas (NOTA).',
       '6.0 Na aba "' + abas.TIPOS + '" ficam os movimentos do ciclo: uma linha por movimento (o texto da etiqueta, igual ao da aba ' + abas.MOVIMENTOS + '), com a "Classificação" (' + Object.keys(dados.classificacoes || {}).map((k) => dados.classificacoes[k].nome).join(', ') + ' ou outro texto) e o "GMV esperado (R$)". Elas aparecem no Analytics (movimentos, classificações e GMV esperado de cada ER). Maiúsculas e espaços a mais não importam.',
       '6.1 Gôndola, mesas, totem e móvel make são preenchidos espaço por espaço: não há linha do móvel inteiro (se houver, ela é ignorada). Espaço sem linha fica branco.',
-      '6.2 Gôndola: uma linha por espaço — GONDOLA 1/LADO-A, MEIO-A, MEIO-B e LADO-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas, junto dele na planta, com o nome do espaço (LADO A, MEIO B…). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
-      '6.3 Mesa destaque (FRENTE-1 e 2), mesa 3 frentes (FRENTE-1 a 3), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente das mesas mostra até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só.',
+      '6.2 Gôndola: uma linha por espaço — GONDOLA 1/PONTA-A, MEIO-A, MEIO-B e PONTA-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas, junto dele na planta, com o nome do espaço (PONTA A, MEIO B…). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
+      '6.3 Mesa destaque (FRENTE-1 e 2, e VERSO, atrás das lâminas), mesa 3 frentes (FRENTE-1 a 3 e VERSO), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente e o verso das mesas mostram até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só.',
       '6.4 Móveis de um espaço só (pirâmide, móvel de fila, móvel de parede, PDV, O.U.i…) têm uma linha. O balcão recepção também: um espaço só, com uma cor e até 3 etiquetas.',
       '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
     ].concat(op.visualizador ? [
