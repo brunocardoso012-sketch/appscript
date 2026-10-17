@@ -338,6 +338,16 @@
   .an-cel-livre { background: repeating-linear-gradient(135deg, #f1f2f4 0 6px, #e8eaed 6px 12px); color: var(--texto-2); }
 
   /* Barras 100% por ER */
+  .an-espacos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px 16px; }
+  .an-espaco-tipo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .an-espaco-tipo.fora { opacity: 0.6; }
+  .an-espaco-mini { flex: 0 0 auto; width: 84px; height: 56px; }
+  .an-espaco-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 12px; }
+  .an-espaco-texto strong { font-size: 12.5px; }
+  .an-espaco-qtd { color: var(--texto-2); font-weight: 600; }
+  .an-espaco-nomes { display: flex; flex-wrap: wrap; gap: 2px 8px; color: var(--texto-2); font-size: 11px; }
+  .an-espaco-nomes > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .an-espaco-nomes i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
   .an-legenda { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 10px; font-size: 12px; color: var(--texto-2); }
   .an-legenda > span { display: inline-flex; align-items: center; gap: 6px; }
   .an-legenda i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }

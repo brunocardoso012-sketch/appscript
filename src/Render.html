@@ -844,8 +844,10 @@ const Render = (() => {
   /**
    * Miniatura do móvel dentro de (x, y, w, h), na mesma orientação da planta, com os espaços "ids"
    * pintados na cor da etiqueta e o resto em cinza claro (ids = null: o móvel todo pintado).
+   * cores também pode ser uma função (espaço da caixa ou null) => cores, ou null para cinza.
    */
   function desenharMiniatura(pai, m, ids, cores, x, y, w, h) {
+    const corDe = typeof cores === 'function' ? cores : () => cores;
     const caixas = formaDoMovel(m);
     const bruto = (px, py, pz) => [(px - py) * COS30, (px + py) * 0.5 - pz];
     const xs = [];
@@ -868,9 +870,10 @@ const Render = (() => {
     };
     const g = el('g', { class: 'miniatura' }, pai);
     ordenar(caixas, P).forEach((b) => {
-      const pintado = ids ? !!(b.espaco && ids.indexOf(b.espaco.id) >= 0) : true;
-      const base = pintado ? cores : ['#E4E2DF'];
-      const comum = { stroke: pintado ? misturar(cores[0], '#000000', 0.45) : '#A3A09B', 'stroke-width': 0.7, 'stroke-linejoin': 'round' };
+      const propria = (ids ? !!(b.espaco && ids.indexOf(b.espaco.id) >= 0) : true) ? corDe(b.espaco || null) : null;
+      const pintado = !!propria;
+      const base = pintado ? propria : ['#E4E2DF'];
+      const comum = { stroke: pintado ? misturar(propria[0], '#000000', 0.45) : '#A3A09B', 'stroke-width': 0.7, 'stroke-linejoin': 'round' };
       const x1 = b.x + b.w, y1 = b.y + b.d, z1 = b.z + b.h;
       poligono(g, [P(b.x, y1, b.z), P(x1, y1, b.z), P(x1, y1, z1), P(b.x, y1, z1)], Object.assign({ fill: tinta(base, 0) }, comum));
       poligono(g, [P(x1, b.y, b.z), P(x1, y1, b.z), P(x1, y1, z1), P(x1, b.y, z1)], Object.assign({ fill: tinta(base, 0.16) }, comum));
@@ -2073,6 +2076,16 @@ const Render = (() => {
     desenharMiniatura(svg, m, null, coresDe(marca, 'movel') || [COR.cinzaMovel], 1, 1, w - 2, h - 2);
   }
 
-  return { desenhar, miniatura, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
+  /**
+   * Miniatura de um móvel num <svg> à parte (legenda do Analytics), com cada espaço na cor que
+   * corDoEspaco(espaco) devolver (espaco = null: estrutura, ou o móvel inteiro se ele não tem espaços).
+   */
+  function miniaturaEspacos(svg, m, corDoEspaco, w, h) {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    desenharMiniatura(svg, m, null, (e) => { const c = corDoEspaco(e); return c ? [c] : null; }, 1, 1, w - 2, h - 2);
+  }
+
+  return { desenhar, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
 })();
 </script>

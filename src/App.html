@@ -989,7 +989,36 @@ const App = (() => {
         })),
       marcas: ordemM.filter((c) => ers.some((e) => e.porMarca[c])).map((c) => marca(c, 0)),
       classes: classes.map((c) => ({ cod: c, nome: nomeClassificacao(c), cor: corClassificacao(c) })),
+      tiposDeMovel: tiposDeMovelNasPlantas(),
     };
+  }
+
+  /**
+   * Legenda "O que conta como espaço": um móvel de exemplo de cada tipo que aparece nas plantas (a gôndola
+   * com meio dividido entra à parte), com os espaços que ele soma; os tipos fora da conta vêm por último.
+   */
+  function tiposDeMovelNasPlantas() {
+    const exemplos = {};
+    estado.dados.plantas.forEach((p) => p.moveis.forEach((m) => {
+      if (m.tipo === 'EXTRA') return;
+      const chave = m.tipo === 'GONDOLA' && String(m.dividido || '').trim() ? 'GONDOLA/DIVIDIDA' : m.tipo;
+      if (!exemplos[chave]) exemplos[chave] = m;
+    }));
+    const ordem = Object.keys(estado.dados.tipos || {});
+    const posicao = (c) => { const i = ordem.indexOf(c.split('/')[0]); return i < 0 ? ordem.length : i; };
+    return Object.keys(exemplos)
+      .map((c) => {
+        const m = exemplos[c];
+        const conta = FORA_DO_ESPACO.indexOf(m.tipo) < 0;
+        const esp = conta ? Render.espacos(m) : [];
+        const descricao = String((estado.dados.tipos || {})[m.tipo] || m.tipo);
+        return {
+          chave: c, movel: m, conta,
+          nome: descricao.split(':')[0].trim() + (c === 'GONDOLA/DIVIDIDA' ? ' (meio dividido)' : ''),
+          espacos: conta ? (esp.length ? esp.map((e) => ({ id: e.id, nome: e.nome.replace(/\s*\(metade (\d)\)/, '.$1') })) : [{ id: '', nome: 'Móvel inteiro' }]) : [],
+        };
+      })
+      .sort((a, b) => (b.conta - a.conta) || posicao(a.chave) - posicao(b.chave) || (a.chave < b.chave ? -1 : 1));
   }
 
   /** Analytics: o dashboard ocupa o lugar da planta (a planta continua desenhada por baixo). */
@@ -1011,7 +1040,7 @@ const App = (() => {
       novo('p', 'an-vazio', 'Escolha um ciclo no seletor para ver como o espaço está dividido.', corpo);
       return;
     }
-    Analytics.desenhar(corpo, dadosAnalytics(estado.ciclo), { verNaPlanta });
+    Analytics.desenhar(corpo, dadosAnalytics(estado.ciclo), { verNaPlanta, miniatura: Render.miniaturaEspacos });
   }
 
   function alternarAnalytics(aberto) {

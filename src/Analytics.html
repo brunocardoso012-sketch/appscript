@@ -5,6 +5,7 @@
  * ============================================================================
  *  Analytics.desenhar(corpo, dados, acoes) monta, no lugar da planta:
  *   - números principais (espaços, ocupação com movimento, movimentos, GMV esperado e concentração);
+ *   - a legenda do que conta como espaço (miniatura de cada tipo de móvel, com os espaços em cores);
  *   - insights rápidos, escritos a partir dos números (maior movimento, o que muda entre as ERs,
  *     movimentos de uma ER só, espaço sem movimento, GMV × espaço…);
  *   - o mapa de calor movimento × ER (quanto de cada ER vai para cada movimento);
@@ -455,8 +456,41 @@ const Analytics = (() => {
     if (comGmv.length > ordem.length) novo('p', 'an-nota', 'Mostrando os ' + ordem.length + ' movimentos com maior GMV esperado.', c);
   }
 
+  /** Cores dos espaços na legenda: só para separar um espaço do outro (não são marcas). */
+  const CORES_LEGENDA = ['#3346B8', '#2F9E6B', '#D9822B', '#8E44AD', '#C2410C', '#0E7490'];
+
+  /** Legenda "O que conta como espaço": cada tipo de móvel das plantas, com os espaços dele em cores. */
+  function legendaEspacos(pai, d, acoes) {
+    const tipos = d.tiposDeMovel || [];
+    if (!tipos.length || !acoes.miniatura) return;
+    const c = cartao(pai, 'O que conta como espaço',
+      'Cada cor na miniatura é um espaço na conta do Analytics. Os móveis em cinza ficam fora da conta.', 'an-espacos-cartao');
+    const lista = novo('ul', 'an-espacos', null, c);
+    tipos.forEach((t) => {
+      const li = novo('li', 'an-espaco-tipo' + (t.conta ? '' : ' fora'), null, lista);
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'an-espaco-mini');
+      svg.setAttribute('aria-hidden', 'true');
+      li.appendChild(svg);
+      const cor = (id) => CORES_LEGENDA[Math.max(0, t.espacos.findIndex((e) => e.id === id)) % CORES_LEGENDA.length];
+      const inteiro = t.espacos.length === 1 && !t.espacos[0].id;
+      // Espaço null: estrutura (fica cinza), ou o móvel inteiro quando ele não se divide em espaços.
+      acoes.miniatura(svg, t.movel, (e) => (!t.conta ? null : e ? cor(e.id) : inteiro ? cor('') : null), 84, 56);
+      const txt = novo('div', 'an-espaco-texto', null, li);
+      novo('strong', null, t.nome, txt);
+      novo('span', 'an-espaco-qtd', t.conta ? (t.espacos.length === 1 ? '1 espaço' : t.espacos.length + ' espaços') : 'Não conta', txt);
+      if (!t.conta) return;
+      const nomes = novo('span', 'an-espaco-nomes', null, txt);
+      t.espacos.forEach((e) => {
+        const s = novo('span', null, null, nomes);
+        novo('i', null, null, s).style.background = cor(e.id);
+        novo('span', null, e.nome, s);
+      });
+    });
+  }
+
   /**
-   * Desenha o dashboard em corpo. dados: App.dadosAnalytics; acoes: { verNaPlanta(filtro) }.
+   * Desenha o dashboard em corpo. dados: App.dadosAnalytics; acoes: { verNaPlanta(filtro), miniatura(svg, movel, corDoEspaco, w, h) }.
    */
   function desenhar(corpo, d, acoes) {
     const redesenhar = () => desenhar(corpo, d, acoes);
@@ -464,6 +498,7 @@ const Analytics = (() => {
     corpo.innerHTML = '';
     numeros(corpo, d);
     const grade = novo('div', 'an-grade', null, corpo);
+    legendaEspacos(grade, d, acoes);
     listaInsights(grade, d, acoes);
     mapa(grade, d, acoes, redesenhar);
     const dupla = novo('div', 'an-dupla', null, grade);
