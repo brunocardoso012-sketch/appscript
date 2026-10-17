@@ -6,8 +6,6 @@
  *  Analytics.desenhar(corpo, dados, acoes) monta, no lugar da planta:
  *   - um cartão por ER (fatia da rede, espaços, ocupação com movimento, movimentos, concentração, VM)
  *     e os números do ciclo (movimentos e GMV esperado);
- *   - a legenda do que conta como espaço (miniatura de cada tipo de móvel, com os espaços em cores),
- *     separando o espaço de exposição do espaço de VM (PDV móvel, verso da mesa, totem, balcão recepção);
  *   - insights rápidos, escritos a partir dos números (maior movimento, o que muda entre as ERs,
  *     movimentos de uma ER só, espaço sem movimento, GMV × espaço…);
  *   - o mapa de calor movimento × ER (quanto de cada ER vai para cada movimento);
@@ -16,6 +14,9 @@
  *   - os espaços de VM, à parte (mapa de calor movimento × ER só com eles).
  *  Cada ER é um tamanho médio da rede (com a fatia da rede que representa): nada aqui soma ERs, toda
  *  conta é feita dentro de cada ER e as ERs só são comparadas lado a lado.
+ *  Analytics.desenharInfo(corpo, dados, acoes) monta o "Sobre a análise" (botão de informação no topo):
+ *  como as contas são feitas e a legenda do que conta como espaço (miniatura de cada tipo de móvel,
+ *  com os espaços em cores), separando exposição, VM (PDV móvel, verso da mesa, totem, balcão) e fora.
  *  Os dados vêm prontos da aplicação (App.dadosAnalytics); aqui só o desenho. Clicar num número
  *  chama acoes.verNaPlanta({ er, etiqueta | marca | classificacao }), que abre a planta já filtrada.
  */
@@ -523,14 +524,12 @@ const Analytics = (() => {
    * Legenda "O que conta como espaço": cada tipo de móvel das plantas, com os espaços dele em cores,
    * separado em espaço de exposição, espaço de VM e fora da conta.
    */
-  function legendaEspacos(pai, d, acoes) {
+  function legendaEspacos(c, d, acoes) {
     const tipos = d.tiposDeMovel || [];
     if (!tipos.length || !acoes.miniatura) return;
-    const c = cartao(pai, 'O que conta como espaço',
-      'Cada cor na miniatura é um espaço na conta do Analytics; as partes em cinza não contam ali.', 'an-espacos-cartao');
     [
       ['expo', 'Espaço de exposição', 'os números, insights e gráficos do Analytics'],
-      ['vm', 'Espaço de VM', 'contado à parte, em "Espaços de VM"'],
+      ['vm', 'Espaço de VM', 'contado à parte, na seção "Espaços de VM"'],
       ['fora', 'Fora da conta', ''],
     ].forEach(([grupo, titulo, sub]) => {
       const doGrupo = tipos.filter((t) => t.grupo === grupo);
@@ -589,7 +588,6 @@ const Analytics = (() => {
     corpo.innerHTML = '';
     numeros(corpo, d);
     const grade = novo('div', 'an-grade', null, corpo);
-    legendaEspacos(grade, d, acoes);
     listaInsights(grade, d, acoes);
     mapa(grade, d, acoes, redesenhar, {
       titulo: 'Espaço de exposição de cada movimento em cada ER',
@@ -606,10 +604,30 @@ const Analytics = (() => {
       d, 'porClasse', legClasses, (x) => (x.cod === '__LIVRE__' ? null : { classificacao: x.cod }), acoes);
     gmvEspaco(grade, d, acoes, redesenhar);
     secaoVm(grade, d, acoes, redesenhar);
-    novo('p', 'an-nota', 'Conta em quantidade de espaços. Exposição: na gôndola, cada ponta e cada meio é um espaço (meio dividido: ½ espaço para cada metade); na mesa destaque, cada frente; na pirâmide, o espaço se divide entre as etiquetas (duas etiquetas: ½ para cada); os demais móveis contam como um espaço. VM, à parte: PDV móvel, verso da mesa destaque, cada painel do totem e balcão recepção. Etiquetas com o mesmo texto somam juntas. Cada ER é um tamanho médio da rede: toda conta é feita dentro de cada ER, sem somar ERs. O GMV esperado é o do movimento no ciclo (aba "' + d.abaTipos + '"), comparado com o espaço dentro de cada ER. O móvel de atendimento, os itens fora da planta, os móveis de parede e o móvel make não contam.', corpo);
     corpo.scrollTop = rolagem;
   }
 
-  return { desenhar, insights };
+  /**
+   * "Sobre a análise": como as contas são feitas e a legenda do que conta como espaço.
+   * acoes: { miniatura(svg, movel, corDoEspaco, w, h, verso) }.
+   */
+  function desenharInfo(corpo, d, acoes) {
+    corpo.innerHTML = '';
+    const regras = novo('ul', 'an-info-regras', null, corpo);
+    const regra = (partes) => frase(novo('li', null, null, regras), partes);
+    regra([['Cada ER é um tamanho médio da rede'], ' (as lojas daquele tamanho' + (d.rede && d.rede.lojas ? ', numa rede de cerca de ' + fmtNum(d.rede.lojas) + ' lojas' : '')
+      + '). Por isso as contas são feitas dentro de cada ER e as ERs são comparadas lado a lado, ', ['nunca somadas'], '.'
+      + (d.rede && d.rede.ficticia ? ' A fatia da rede de cada ER ainda é uma divisão fictícia, só de exemplo.' : '')]);
+    regra(['A conta é em ', ['quantidade de espaços'], ', não em metros. Na gôndola, cada ponta e cada meio é um espaço; meio dividido vale ½ espaço para cada metade. Na mesa destaque, cada frente é um espaço. Na pirâmide, as etiquetas dividem o espaço (duas etiquetas: ½ para cada). Os demais móveis contam como um espaço.']);
+    regra([['Espaço de VM'], ' (PDV móvel, verso da mesa destaque, cada painel do totem e balcão recepção) é comunicação visual: fica fora das contas do espaço de exposição e aparece à parte, na seção "Espaços de VM".']);
+    regra(['Um espaço com dois movimentos conta nos dois no mapa de calor e se divide entre as classificações deles nas barras. Combinações de marcas dividem o espaço igualmente. Etiquetas com o mesmo texto somam juntas.']);
+    regra(['O ', ['GMV esperado'], ' é o do movimento no ciclo (aba "' + d.abaTipos + '"), comparado com o espaço dentro de cada ER.']);
+    const leg = novo('section', 'an-info-legenda', null, corpo);
+    novo('h3', null, 'O que conta como espaço', leg);
+    novo('p', 'an-info-sub', 'Cada cor na miniatura é um espaço na conta do Analytics; as partes em cinza não contam ali.', leg);
+    legendaEspacos(leg, d, acoes);
+  }
+
+  return { desenhar, desenharInfo, insights };
 })();
 </script>

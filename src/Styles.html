@@ -247,6 +247,13 @@
   }
   .an-topo h2 { margin: 0; font-size: 18px; }
   .an-topo span { color: var(--texto-2); font-size: 13px; }
+  .an-topo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  #anInfo { display: inline-flex; align-items: center; gap: 6px; }
+  .dialogo.an-info { width: min(1000px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; }
+  .an-info-regras { margin: 0 0 18px; padding-left: 18px; font-size: 13px; line-height: 1.5; display: grid; gap: 6px; }
+  .an-info-legenda { border-top: 1px solid var(--borda); padding-top: 14px; }
+  .an-info-legenda h3 { margin: 0; font-size: 14px; }
+  .an-info-sub { margin: 2px 0 12px; color: var(--texto-2); font-size: 12px; }
   .an-corpo { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 16px clamp(16px, 2.5vw, 32px) 32px; font-size: 13px; }
   .an-vazio { color: var(--texto-2); font-style: italic; margin: 8px 0; }
   .an-nota { margin: 14px 0 0; color: var(--texto-2); font-size: 11.5px; line-height: 1.5; max-width: 980px; }
@@ -350,7 +357,6 @@
 
   /* Barras 100% por ER */
   .an-espacos-grupo { margin: 14px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--texto-2); display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; }
-  .an-espacos-cartao .an-cartao-topo + .an-espacos-grupo { margin-top: 0; }
   .an-espacos-grupo span { text-transform: none; letter-spacing: 0; font-weight: 400; }
   .an-espaco-nota { color: var(--texto-2); font-size: 11px; font-style: italic; }
   .an-secao { margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--borda-forte); }

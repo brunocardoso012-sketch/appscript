@@ -1100,6 +1100,7 @@ const App = (() => {
     document.body.classList.toggle('com-analytics', aberto);
     if ($('btnAnalytics')) $('btnAnalytics').setAttribute('aria-pressed', String(aberto));
     if (!aberto) return;
+    $('anInfo').disabled = !estado.ciclo;
     const n = estado.dados.plantas.length;
     const planta = plantaAtual();
     $('anSub').textContent = estado.ciclo
@@ -1110,7 +1111,7 @@ const App = (() => {
       novo('p', 'an-vazio', 'Escolha um ciclo no seletor para ver como o espaço está dividido.', corpo);
       return;
     }
-    Analytics.desenhar(corpo, dadosAnalytics(estado.ciclo), { verNaPlanta, miniatura: Render.miniaturaEspacos });
+    Analytics.desenhar(corpo, dadosAnalytics(estado.ciclo), { verNaPlanta });
   }
 
   function alternarAnalytics(aberto) {
@@ -1814,6 +1815,11 @@ const App = (() => {
     ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
     ao('btnAnalytics', 'click', () => estado.dados && alternarAnalytics());
     ao('anFechar', 'click', () => alternarAnalytics(false));
+    ao('anInfo', 'click', () => {
+      if (!estado.dados || !estado.ciclo) return;
+      Analytics.desenharInfo($('anInfoCorpo'), dadosAnalytics(estado.ciclo), { miniatura: Render.miniaturaEspacos });
+      $('dlgAnInfo').showModal();
+    });
     ao('btnLoja', 'click', () => {
       // Com o Analytics aberto, o botão volta para a planta com o menu da ER aberto.
       estado.painelLoja = estado.analytics ? true : !estado.painelLoja;
