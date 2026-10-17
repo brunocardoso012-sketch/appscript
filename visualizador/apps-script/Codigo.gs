@@ -242,6 +242,14 @@ const SENHAS_ACESSO = {
 const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
 
 /**
+ * Rede de lojas que as plantas representam: cada planta (ER P, M, G, GG) é a média das lojas daquele
+ * tamanho. participacao = fatia da rede (0..1) de cada planta; lojas = total de lojas da rede.
+ * O Analytics mostra isso em cada ER e nunca soma os espaços de ERs diferentes.
+ * ficticia = true: a divisão abaixo é só um exemplo (troque pelos números reais e passe para false).
+ */
+const REDE = { lojas: 1000, ficticia: true, participacao: { '01': 0.35, '02': 0.3, '03': 0.22, '04': 0.13 } };
+
+/**
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
  * "Etiqueta N" são ignoradas). Tipos que não aparecem aqui mostram até
  * CONFIG.MAX_ETIQUETAS (pirâmide: até 4, empilhadas).
@@ -1208,6 +1216,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
+      rede: REDE,
     },
   };
 }

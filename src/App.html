@@ -966,8 +966,9 @@ const App = (() => {
   /* ------------------------------ analytics ------------------------------ */
 
   /**
-   * Dados do Analytics (Analytics.desenhar): o ciclo inteiro, ER por ER — espaços, marcas, classificações
-   * e espaços sem movimento — e cada movimento com os espaços dele em cada ER. Não usa os filtros da tela.
+   * Dados do Analytics (Analytics.desenhar): o ciclo inteiro, ER por ER — espaços, marcas, classificações,
+   * espaços sem movimento e a fatia da rede que cada ER representa. Cada ER é um tamanho médio da rede:
+   * nenhuma conta soma ERs. Também cada movimento com os espaços dele em cada ER. Não usa os filtros da tela.
    * O espaço de exposição e o de VM têm contas separadas (vm: a mesma estrutura, só com os espaços de VM).
    * Na classificação, cada espaço se divide entre os tipos dos movimentos dele (para as barras somarem 100%).
    */
@@ -1002,20 +1003,22 @@ const App = (() => {
       const movs = {};
       ers.forEach((e) => Object.keys(e.porEtiqueta).forEach((k) => {
         const g = e.porEtiqueta[k];
-        const m = movs[k] || (movs[k] = { chave: k, texto: g.texto, total: 0, porEr: {}, marcas: {}, tipo: g.tipo, classificacao: g.classificacao });
-        m.total += g.espacos;
+        const m = movs[k] || (movs[k] = { chave: k, texto: g.texto, porEr: {}, marcas: {}, nErs: 0, tipo: g.tipo, classificacao: g.classificacao });
         m.porEr[e.id] = g.espacos;
-        Object.keys(g.marcas).forEach((c) => { m.marcas[c] = (m.marcas[c] || 0) + g.marcas[c]; });
+        m.nErs += 1;
+        Object.keys(g.marcas).forEach((c) => { m.marcas[c] = (m.marcas[c] || 0) + g.marcas[c] / g.espacos; });
       }));
+      Object.values(movs).forEach((m) => Object.keys(m.marcas).forEach((c) => { m.marcas[c] /= m.nErs; }));
+      // Cada ER é um tamanho médio da rede: nada soma ERs. As marcas de cada movimento são a média da
+      // divisão dele em cada ER onde aparece; a ordem é pela maior fatia que ele tem em alguma ER.
+      const fatiaMax = (m) => Math.max.apply(null, ers.map((e) => (e.total ? (m.porEr[e.id] || 0) / e.total : 0)));
       return {
-        total: ers.reduce((s, e) => s + e.total, 0),
         ers,
         movimentos: Object.values(movs)
-          .sort((a, b) => b.total - a.total || a.texto.localeCompare(b.texto, 'pt-BR'))
+          .sort((a, b) => fatiaMax(b) - fatiaMax(a) || a.texto.localeCompare(b.texto, 'pt-BR'))
           .map((m) => ({
             chave: m.chave,
             texto: m.texto,
-            total: m.total,
             porEr: m.porEr,
             gmv: m.tipo && typeof m.tipo.gmv === 'number' ? m.tipo.gmv : 0,
             classe: m.classificacao === SEM_CLASSIFICACAO ? null
@@ -1024,7 +1027,11 @@ const App = (() => {
           })),
       };
     };
-    const enxuta = (e) => ({ id: e.id, nome: e.nome, total: e.total, semMovimento: e.semMovimento, porMarca: e.porMarca, porClasse: e.porClasse });
+    const rede = estado.dados.config.rede || { participacao: {} };
+    const enxuta = (e) => ({
+      id: e.id, nome: e.nome, total: e.total, semMovimento: e.semMovimento, porMarca: e.porMarca, porClasse: e.porClasse,
+      rede: rede.participacao[e.id] || 0,
+    });
     const expo = contas((pt) => !pt.vm);
     const vm = contas((pt) => pt.vm);
     const classes = ordemDasClassificacoes(expo.ers.reduce((acc, e) => acc.concat(Object.keys(e.porClasse)), [])
@@ -1034,12 +1041,12 @@ const App = (() => {
       erAtual: estado.planta,
       abaTipos: estado.dados.config.abas.TIPOS,
       filtroEtiqueta: chaveEtiqueta(estado.filtroEtiqueta),
-      total: expo.total,
+      rede: { lojas: rede.lojas || 0, ficticia: !!rede.ficticia },
       ers: expo.ers.map(enxuta),
       movimentos: expo.movimentos,
       marcas: ordemM.filter((c) => expo.ers.some((e) => e.porMarca[c])).map((c) => marca(c, 0)),
       classes: classes.map((c) => ({ cod: c, nome: nomeClassificacao(c), cor: corClassificacao(c) })),
-      vm: { total: vm.total, ers: vm.ers.map(enxuta), movimentos: vm.movimentos },
+      vm: { ers: vm.ers.map(enxuta), movimentos: vm.movimentos },
       tiposDeMovel: tiposDeMovelNasPlantas(),
     };
   }
