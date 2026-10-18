@@ -166,7 +166,8 @@ const Validacao = (() => {
       btn.title = ativo() ? 'Validação: ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : 'Validação da estratégia (pede senha)';
     }
     const painel = $('painelValidacao');
-    const visivel = painelAberto && ativo() && !!planta;
+    // Construindo um ciclo, o painel de construção (Rascunho.html) fica no lugar deste.
+    const visivel = painelAberto && ativo() && !!planta && !(app.construindo && app.construindo());
     painel.hidden = !visivel;
     document.body.classList.toggle('com-painel-validacao', visivel);
     document.body.classList.toggle('escolhendo-movel', escolhendo && visivel);
@@ -395,6 +396,12 @@ const Validacao = (() => {
     if (salvo && salvo.senha && salvo.papel) acesso = salvo;
   }
 
-  return { iniciar, atualizar, recarregar, marcadores, aoClicarMovel, focar, montarSecaoMovel, fecharPainel, ativo, acesso: () => acesso };
+  /** Comentários abertos no ciclo da tela (para o botão "Comentários" do painel de construção). */
+  const abertosNoCiclo = () => (ativo() && app.estado.ciclo ? doCiclo().filter((c) => c.status === 'ABERTO').length : 0);
+
+  return {
+    iniciar, atualizar, recarregar, marcadores, aoClicarMovel, focar, montarSecaoMovel, abrirPainel, fecharPainel, ativo, abertosNoCiclo,
+    acesso: () => acesso,
+  };
 })();
 </script>

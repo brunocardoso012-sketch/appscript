@@ -19,6 +19,15 @@ const Rascunho = (() => {
   let lista = []; // [{ ciclo, status, nomeStatus, origem, criadoPor, criadoEm, enviadoEm, decididoPor, decididoEm }]
   let dados = null; // { movimentos, paineis, tiposMovimento } dos ciclos em construção
   let mesclados = []; // ciclos que mesclar() pôs em estado.dados (para tirar na próxima vez)
+  // Painel de construção (lateral): móvel selecionado na planta e gravação automática.
+  let selecao = ''; // ID do móvel selecionado ('' = nenhum)
+  let formChave = ''; // ciclo|ER|móvel do formulário montado (só refaz quando muda, para não perder o foco)
+  let verComentarios = false; // o construtor abriu os comentários da validação no lugar do painel
+  const pendentes = {}; // "ciclo|ER|espaço" → { ciclo, planta, chave, linha } ainda não gravados
+  let timer = null;
+  let gravando = false;
+  let gravacao = 'salvo'; // salvo | pendente | salvando | erro
+  const ESPERA_GRAVACAO = 800; // ms sem mexer antes de gravar
 
   function n(tag, classe, texto, pai) {
     const e = document.createElement(tag);
@@ -51,19 +60,110 @@ const Rascunho = (() => {
   }
   const chaveEtq = (t) => String(t || '').trim().replace(/\s+/g, ' ').toUpperCase();
 
-  /** Situação dos três passos do ciclo da tela (para a faixa). */
+  /** Situação dos três passos do ciclo da tela (para o painel e a faixa). */
   function passos() {
     const tipos = tiposDoCiclo();
     const cadastrados = {};
     tipos.forEach((t) => { cadastrados[t.chave] = true; });
     let espacos = 0;
     const fora = {};
+    const usados = {};
     Object.values(app.estado.dados.movimentos[app.estado.ciclo] || {}).forEach((pl) => Object.values(pl).forEach((i) => {
       espacos++;
-      i.etiquetas.forEach((e) => { if (!cadastrados[chaveEtq(e.texto)]) fora[chaveEtq(e.texto)] = e.texto; });
+      i.etiquetas.forEach((e) => {
+        usados[chaveEtq(e.texto)] = true;
+        if (!cadastrados[chaveEtq(e.texto)]) fora[chaveEtq(e.texto)] = e.texto;
+      });
     }));
-    const semGmv = tipos.filter((t) => typeof t.gmv !== 'number').length;
-    return { tipos: tipos.length, semGmv, espacos, fora: Object.values(fora) };
+    const semGmv = tipos.filter((t) => typeof t.gmv !== 'number');
+    return {
+      tipos: tipos.length, semGmv: semGmv.length, nomesSemGmv: semGmv.map((t) => t.texto), espacos, fora: Object.values(fora),
+      semEspaco: tipos.filter((t) => !usados[t.chave]).map((t) => t.texto),
+    };
+  }
+
+  /* --------------------- mudanças locais e gravação automática ------------------- */
+
+  /**
+   * Põe a linha de um espaço direto em estado.dados (no formato do montarDados_), para a planta e os números
+   * mudarem na hora; a gravação vai depois (agendar). Linha vazia tira o espaço desta ER.
+   */
+  function aplicarLocal(ciclo, plantaId, chave, l) {
+    const d = app.estado.dados;
+    if (!d || !d.movimentos[ciclo] && !doCiclo(ciclo)) return;
+    const mov = d.movimentos[ciclo] || (d.movimentos[ciclo] = {});
+    if (dados && dados.movimentos) dados.movimentos[ciclo] = mov; // o mesmo objeto, para o próximo mesclar
+    const er = mov[plantaId] || (mov[plantaId] = {});
+    const obs = String(l.observacao || '').trim();
+    if (!l.marca && !l.simbolo && !obs && !l.etiquetas.length) {
+      delete er[chave];
+      return;
+    }
+    er[chave] = {
+      marca: l.marca || '', simbolo: l.simbolo || '', observacao: obs,
+      etiquetas: l.etiquetas.map((e, k) => ({ texto: e.texto, marca: e.marca || '', posicao: k + 1 })),
+    };
+  }
+
+  /** Depois de receber os dados do servidor: as mudanças ainda não gravadas continuam por cima. */
+  function reaplicarPendentes() {
+    Object.values(pendentes).forEach((p) => aplicarLocal(p.ciclo, p.planta, p.chave, p.linha));
+  }
+
+  function agendar(ciclo, plantaId, chave, linha) {
+    pendentes[ciclo + '|' + plantaId + '|' + chave] = { ciclo, planta: plantaId, chave, linha };
+    gravacao = 'pendente';
+    indicador();
+    clearTimeout(timer);
+    timer = setTimeout(esvaziar, ESPERA_GRAVACAO);
+  }
+
+  /** Grava as mudanças pendentes, uma de cada vez (a mais recente de cada espaço). */
+  async function esvaziar() {
+    clearTimeout(timer);
+    timer = null;
+    if (gravando) return;
+    const k = Object.keys(pendentes)[0];
+    if (!k) {
+      if (gravacao !== 'erro') gravacao = 'salvo';
+      indicador();
+      return;
+    }
+    const p = pendentes[k];
+    delete pendentes[k];
+    gravando = true;
+    gravacao = 'salvando';
+    indicador();
+    try {
+      const r = await app.chamar('salvarRascunho', acesso(), { acao: 'salvarEspaco', ciclo: p.ciclo, planta: p.planta, movel: p.chave, linha: p.linha });
+      gravando = false;
+      if (!Object.keys(pendentes).length) gravacao = 'salvo';
+      aplicar(r);
+    } catch (e) {
+      gravando = false;
+      gravacao = 'erro';
+      app.erro(e);
+      formChave = ''; // o formulário volta ao que está no servidor
+      await recarregar();
+    }
+    if (Object.keys(pendentes).length) await esvaziar();
+    else indicador();
+  }
+
+  /** Espera gravar tudo (antes de enviar para aprovação). */
+  async function esvaziarTudo() {
+    while (Object.keys(pendentes).length || gravando) {
+      if (gravando) await new Promise((ok) => setTimeout(ok, 100));
+      else await esvaziar();
+    }
+  }
+
+  function indicador() {
+    const el = $('pcGravacao');
+    if (!el) return;
+    const textos = { salvo: 'Tudo salvo', pendente: 'Alterações a salvar…', salvando: 'Salvando…', erro: 'Erro ao salvar' };
+    el.className = 'pc-gravacao ' + gravacao;
+    el.textContent = textos[gravacao];
   }
 
   /* ----------------------------- servidor ---------------------------------- */
@@ -95,6 +195,7 @@ const Rascunho = (() => {
     const e = app.estado;
     if (!e.dados) return;
     mesclar(e.dados);
+    reaplicarPendentes();
     // O ciclo da tela era um rascunho que não existe mais (aprovado por outra pessoa, excluído…): volta à planta limpa.
     if (e.ciclo && e.dados.ciclos.indexOf(e.ciclo) < 0 && !doCiclo(e.ciclo)) e.ciclo = '';
     app.montarCiclos();
@@ -193,6 +294,9 @@ const Rascunho = (() => {
   function montarSecao(corpo) {
     if (!acesso()) return;
     const sec = n('section', 'rs-secao', null, corpo);
+    if (editavel() && verComentarios) {
+      botao('← Voltar à construção', 'primario rs-voltar', () => { verComentarios = false; app.desenhar(); }, sec);
+    }
     const topo = n('div', 'rs-secao-topo', null, sec);
     n('h3', null, 'Ciclos em construção', topo);
     if (papel() === 'CONSTRUTOR') botao('Novo ciclo', 'primario', novoCiclo, topo);
@@ -215,6 +319,8 @@ const Rascunho = (() => {
   function abrir(ciclo) {
     const e = app.estado;
     e.ciclo = ciclo;
+    verComentarios = false;
+    selecao = '';
     if (e.comparar === ciclo) e.comparar = '';
     app.montarCiclos();
     app.desenhar();
@@ -277,9 +383,11 @@ const Rascunho = (() => {
   function atualizarFaixa() {
     const faixa = $('barraRascunho');
     const r = atual();
-    faixa.hidden = !r;
-    document.body.classList.toggle('com-rascunho', !!r);
-    if (!r) return;
+    // O construtor monta pelo painel da lateral (com os passos e as ações); a faixa é para os outros casos.
+    const mostrar = !!r && !(papel() === 'CONSTRUTOR' && r.status === 'EM_CONSTRUCAO' && !verComentarios);
+    faixa.hidden = !mostrar;
+    document.body.classList.toggle('com-rascunho', mostrar);
+    if (!mostrar) return;
     const info = $('rascunhoInfo');
     info.innerHTML = '';
     n('strong', null, 'Ciclo em construção: ', info);
@@ -344,46 +452,140 @@ const Rascunho = (() => {
     });
   }
 
-  /* ------------------------- tela do móvel: edição -------------------------- */
+  /* ------------------------ painel de construção --------------------------- */
+
+  const painelVisivel = () => editavel() && !verComentarios && !!app.plantaAtual();
+  const selecionado = () => (painelVisivel() ? selecao : '');
+
+  /** Clique na planta, construindo: seleciona o móvel (ou tira a seleção, com id ''). @return {boolean} tratado */
+  function aoClicarMovel(id) {
+    if (!editavel()) return false;
+    const m = id && app.plantaAtual().moveis.find((x) => x.id === id);
+    if (m && m.tipo === 'CAIXA') return false; // o móvel de atendimento não leva cor nem etiqueta: abre a tela do móvel
+    if (id && !m) return false;
+    verComentarios = false;
+    if (selecao === id) return true;
+    selecao = id;
+    app.desenhar();
+    if (id) {
+      const f = $('pcForm');
+      if (f) f.scrollIntoView({ block: 'nearest' });
+    }
+    return true;
+  }
+
+  function enviarParaAprovacao(r) {
+    if (!window.confirm('Enviar ' + r.ciclo + ' para aprovação? Você só volta a editar se o validador devolver.')) return;
+    esvaziarTudo().then(() => salvar({ acao: 'enviar', ciclo: r.ciclo }, 'Ciclo enviado para aprovação.'));
+  }
+
+  /** Topo do painel (ciclo, ER, gravação) e, logo abaixo, os três passos e as ações. */
+  function montarTopo() {
+    const r = atual();
+    const planta = app.plantaAtual();
+    const topo = $('pcTopo');
+    topo.innerHTML = '';
+    const linha = n('div', 'pc-titulo', null, topo);
+    const t = n('div', null, null, linha);
+    n('h2', null, 'Construção · ' + r.ciclo, t);
+    n('span', null, planta.nome + ' · clique num móvel da planta para preencher', t);
+    const abertos = app.comentariosAbertos ? app.comentariosAbertos() : 0;
+    const bc = botao('Comentários' + (abertos ? ' (' + abertos + ')' : ''), 'fantasma', () => {
+      verComentarios = true;
+      if (app.abrirComentarios) app.abrirComentarios();
+      app.desenhar();
+    }, linha);
+    bc.title = 'Ver os comentários da validação (o painel de construção volta pelo botão "Voltar à construção")';
+    n('span', 'pc-gravacao', null, topo).id = 'pcGravacao';
+    indicador();
+    // Passos e ações (rolam com o painel; o topo, com a gravação, fica fixo).
+    const corpo = $('pcPassos');
+    corpo.innerHTML = '';
+    const p = passos();
+    const passo1 = p.tipos > 0 && !p.semGmv;
+    const passo2 = p.espacos > 0 && !p.fora.length;
+    const lista = n('ol', 'rs-passos pc-passos', null, corpo);
+    const item = (ok, titulo, detalhe) => {
+      const li = n('li', ok ? 'ok' : '', null, lista);
+      n('strong', null, titulo, li);
+      if (detalhe) n('span', null, ' ' + detalhe, li);
+    };
+    item(passo1, 'Tipos de movimento', p.tipos ? p.tipos + (p.tipos === 1 ? ' movimento' : ' movimentos')
+      + (p.semGmv ? ', ' + p.semGmv + ' sem GMV' : ', todos com GMV') : 'cadastre os movimentos e o GMV');
+    item(passo2, 'Móveis', p.fora.length ? p.fora.length + ' movimento(s) fora dos tipos' : p.espacos + ' linhas preenchidas');
+    item(false, 'Enviar para aprovação', '');
+    const acoes = n('div', 'pc-acoes', null, corpo);
+    botao('1. Tipos de movimento', passo1 ? '' : 'primario', editarTipos, acoes);
+    botao('Comunicações ER', '', editarPaineis, acoes);
+    botao('3. Enviar para aprovação', passo1 && passo2 ? 'primario' : '', () => enviarParaAprovacao(r), acoes);
+    botao('Excluir', 'fantasma perigo', () => {
+      if (window.confirm('Excluir o ciclo em construção ' + r.ciclo + '? Não dá para desfazer.')) {
+        salvar({ acao: 'excluir', ciclo: r.ciclo }, 'Ciclo excluído.');
+      }
+    }, acoes);
+  }
+
+  /** Formulário do móvel selecionado (refeito só quando muda o ciclo, a ER ou o móvel). */
+  function montarForm(forcar) {
+    const planta = app.plantaAtual();
+    let m = selecao && planta.moveis.find((x) => x.id === selecao);
+    if (selecao && !m) { selecao = ''; m = null; } // trocou para uma ER sem esse móvel
+    const chave = app.estado.ciclo + '|' + planta.id + '|' + selecao;
+    if (!forcar && chave === formChave) return;
+    formChave = chave;
+    const pai = $('pcForm');
+    pai.innerHTML = '';
+    if (!m) {
+      n('h3', null, 'Móvel', pai);
+      n('p', 'val-dica', 'Clique num móvel da planta para preencher os espaços dele. A planta muda na hora e tudo é salvo sozinho.', pai);
+      return;
+    }
+    const topo = n('div', 'pc-movel', null, pai);
+    const nome = n('div', null, null, topo);
+    n('h3', null, m.id, nome);
+    if (m.descricao && m.descricao !== m.id) n('span', null, m.descricao, nome);
+    botao('Ver detalhes', 'fantasma', () => app.abrirMovel(m.id), topo).title = 'Planograma e comentários deste móvel';
+    botao('✕', 'fantasma', () => aoClicarMovel(''), topo).setAttribute('aria-label', 'Tirar a seleção');
+    app.blocosDoMovel(planta, m, app.estado.ciclo).forEach((b) => blocoEspaco(pai, planta, b));
+  }
 
   /**
-   * Formulário de um espaço (ou do móvel inteiro) na tela do móvel, no lugar do bloco de leitura.
-   * @param {{titulo, chave, info, limite, propria}} o  chave: "MOVEL" ou "MOVEL/ESPACO"; info: o que vale hoje
-   *   nesta ER; propria: a ER tem linha própria (senão o valor vem de uma ER menor ou de TODAS)
+   * Um espaço (ou o móvel inteiro) no painel: cada mudança pinta a planta na hora e é gravada sozinha.
+   * @param {{titulo, chave, info, limite, propria}} b  de blocosDoMovel (App.html)
    */
-  function blocoEdicao(pai, o) {
-    const planta = app.plantaAtual();
-    const i = o.info || { marca: '', etiquetas: [], simbolo: '', observacao: '' };
-    const f = n('form', 'mv-bloco rs-espaco', null, pai);
-    f.dataset.espaco = o.chave;
-    n('h3', null, o.titulo, f);
-    if (o.info && !o.propria) {
-      n('p', 'rs-herdado', 'Vem de outra ER (cascata). Ao salvar, vira uma linha própria da ' + planta.nome + '.', f);
-    }
+  function blocoEspaco(pai, planta, b) {
+    const ciclo = app.estado.ciclo;
+    const i = b.info || { marca: '', etiquetas: [], simbolo: '', observacao: '' };
+    const f = n('div', 'rs-espaco pc-espaco', null, pai);
+    f.dataset.espaco = b.chave;
+    n('h4', null, b.titulo, f);
+    const herdado = b.info && !b.propria
+      ? n('p', 'rs-herdado', 'Vem de outra ER (cascata). Ao mudar, vira uma linha própria da ' + planta.nome + '.', f) : null;
     const linha = (rotulo) => {
-      const d = n('div', 'rs-linha', null, f);
+      const d = n('label', 'pc-linha', null, f);
       n('span', 'mv-rotulo', rotulo, d);
       return d;
     };
     const marca = selectMarca(linha('Marca'), i.marca, 'Sem marca (branco)');
-    marca.setAttribute('aria-label', 'Marca de ' + o.titulo);
+    marca.setAttribute('aria-label', 'Marca de ' + b.titulo);
     const simbolo = n('select', null, null, linha('Símbolo'));
-    simbolo.setAttribute('aria-label', 'Símbolo de ' + o.titulo);
+    simbolo.setAttribute('aria-label', 'Símbolo de ' + b.titulo);
     n('option', null, 'Nenhum', simbolo).value = '';
-    Object.keys(app.estado.dados.simbolos).forEach((s) => {
-      const d = app.estado.dados.simbolos[s];
-      n('option', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[s] || '') + (d.descricao || s), simbolo).value = s;
+    Object.keys(app.estado.dados.simbolos).forEach((x) => {
+      const d = app.estado.dados.simbolos[x];
+      n('option', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[x] || '') + (d.descricao || x), simbolo).value = x;
     });
     simbolo.value = i.simbolo || '';
     // Etiquetas: só os movimentos cadastrados nos Tipos de movimento do ciclo (passo 1).
     const tipos = tiposDoCiclo();
-    const etqs = n('div', 'rs-etiquetas', null, linha('Etiquetas'));
+    const etqs = n('div', 'rs-etiquetas pc-etiquetas', null, f);
+    n('span', 'mv-rotulo', 'Etiquetas', etqs);
     const campos = [];
     if (!tipos.length) {
       n('p', 'rs-herdado', 'Cadastre primeiro os movimentos do ciclo em Tipos de movimento (passo 1): as etiquetas são escolhidas entre eles.', etqs);
       botao('1. Tipos de movimento', 'primario', editarTipos, etqs);
     }
-    for (let k = 0; tipos.length && k < o.limite; k++) {
+    for (let k = 0; tipos.length && k < b.limite; k++) {
       const e = i.etiquetas[k] || {};
       const row = n('div', 'rs-etq', null, etqs);
       const t = n('select', null, null, row);
@@ -397,42 +599,135 @@ const Rascunho = (() => {
         t.classList.add('fora');
       }
       t.value = atualT ? atualT.texto : e.texto || '';
-      t.addEventListener('change', () => t.classList.toggle('fora', !!t.value && !tipos.some((x) => x.texto === t.value)));
-      t.setAttribute('aria-label', 'Etiqueta ' + (k + 1) + ' de ' + o.titulo);
+      t.setAttribute('aria-label', 'Etiqueta ' + (k + 1) + ' de ' + b.titulo);
       const m = selectMarca(row, e.marca, 'Cor da marca do espaço');
-      m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1));
+      m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1) + ' de ' + b.titulo);
       campos.push({ t, m });
     }
     const obs = n('textarea', null, null, linha('Observação'));
     obs.rows = 2;
     obs.value = i.observacao || '';
-    obs.setAttribute('aria-label', 'Observação de ' + o.titulo);
-    const acoes = n('div', 'val-acoes', null, f);
-    const limpar = botao('Limpar espaço', 'fantasma', null, acoes);
-    const ok = n('button', 'btn pequeno primario', 'Salvar', acoes);
-    ok.type = 'submit';
-    const enviar = async (linhaNova) => {
-      ok.disabled = true;
-      limpar.disabled = true;
-      const salvo = await salvar({ acao: 'salvarEspaco', ciclo: app.estado.ciclo, planta: planta.id, movel: o.chave, linha: linhaNova },
-        o.titulo + ' salvo na ' + planta.nome + '.');
-      ok.disabled = false;
-      limpar.disabled = false;
-      if (salvo && app.reabrirMovel) app.reabrirMovel();
-    };
-    limpar.addEventListener('click', () => enviar({ etiquetas: [] }));
-    f.addEventListener('submit', (ev) => {
-      ev.preventDefault();
-      const fora = campos.filter((c) => c.t.value && !tipos.some((x) => x.texto === c.t.value)).map((c) => c.t.value);
-      if (fora.length) {
-        app.erro(new Error('"' + fora.join('", "') + '" não está nos Tipos de movimento do ciclo. Troque a etiqueta ou cadastre o movimento no passo 1.'));
-        return;
-      }
-      enviar({
-        marca: marca.value, simbolo: simbolo.value, observacao: obs.value,
-        etiquetas: campos.map((c) => ({ texto: c.t.value, marca: c.m.value })).filter((e) => e.texto.trim()),
-      });
+    obs.setAttribute('aria-label', 'Observação de ' + b.titulo);
+    const ler = () => ({
+      marca: marca.value, simbolo: simbolo.value, observacao: obs.value,
+      etiquetas: campos.map((c) => ({ texto: c.t.value, marca: c.m.value })).filter((e) => e.texto.trim()),
     });
+    const mudou = (redesenhar) => {
+      campos.forEach((c) => c.t.classList.toggle('fora', !!c.t.value && !tipos.some((x) => x.texto === c.t.value)));
+      if (herdado) herdado.hidden = true;
+      const l = ler();
+      aplicarLocal(ciclo, planta.id, b.chave, l);
+      agendar(ciclo, planta.id, b.chave, l);
+      if (redesenhar) app.desenhar();
+      else montarStats();
+    };
+    [marca, simbolo].concat(campos.reduce((a, c) => a.concat([c.t, c.m]), [])).forEach((el) => el.addEventListener('change', () => mudou(true)));
+    obs.addEventListener('input', () => mudou(false));
+    const acoes = n('div', 'val-acoes', null, f);
+    botao('Limpar espaço', 'fantasma', () => {
+      [marca, simbolo, obs].concat(campos.reduce((a, c) => a.concat([c.t, c.m]), [])).forEach((el) => { el.value = ''; });
+      mudou(true);
+    }, acoes);
+  }
+
+  /** Barra 100% (espaço por marca / classificação), com a legenda em %. */
+  function barra100(pai, itens) {
+    const total = itens.reduce((s, x) => s + x.valor, 0);
+    if (!total) { n('p', 'mv-vazio', 'Nenhum espaço preenchido.', pai); return; }
+    const barra = n('div', 'an-barra pc-barra', null, pai);
+    const leg = n('div', 'an-legenda pc-legenda', null, pai);
+    itens.forEach((x) => {
+      const pct = Math.round((x.valor / total) * 100);
+      const seg = n('span', 'an-seg', null, barra);
+      seg.style.width = (x.valor / total) * 100 + '%';
+      seg.style.background = x.cor;
+      seg.title = x.nome + ': ' + pct + '%';
+      const l = n('span', null, null, leg);
+      n('i', null, null, l).style.background = x.cor;
+      l.appendChild(document.createTextNode(x.nome + ' ' + pct + '%'));
+    });
+  }
+
+  const pct = (v) => Math.round(v * 100) + '%';
+
+  /** Números da ER da tela, recalculados a cada mudança. */
+  function montarStats() {
+    const pai = $('pcStats');
+    if (!pai || !painelVisivel()) return;
+    const planta = app.plantaAtual();
+    const st = app.estatisticas(planta, app.estado.ciclo);
+    const p = passos();
+    pai.innerHTML = '';
+    n('h3', null, 'Números da ' + planta.nome, pai);
+
+    // Progresso e alertas.
+    const prog = n('div', 'pc-bloco', null, pai);
+    const fr = st.total ? st.preenchidos / st.total : 0;
+    const t = n('div', 'pc-prog-texto', null, prog);
+    n('strong', null, (Math.round(st.preenchidos * 10) / 10).toLocaleString('pt-BR') + ' de ' + st.total.toLocaleString('pt-BR'), t);
+    t.appendChild(document.createTextNode(' espaços de exposição preenchidos (' + pct(fr) + ')'));
+    const barra = n('div', 'pc-progresso', null, prog);
+    n('i', null, null, barra).style.width = pct(fr);
+    const alertas = n('ul', 'pc-alertas', null, prog);
+    const alerta = (classe, texto, acao, rotulo) => {
+      const li = n('li', classe, null, alertas);
+      n('span', null, texto, li);
+      if (acao) botao(rotulo, 'fantasma', acao, li);
+    };
+    if (p.fora.length) alerta('erro', p.fora.length + ' movimento(s) fora dos tipos: ' + p.fora.slice(0, 3).join(', ') + (p.fora.length > 3 ? '…' : ''), editarTipos, 'Cadastrar');
+    if (p.semGmv) alerta('aviso', p.semGmv + ' movimento(s) sem GMV: ' + p.nomesSemGmv.slice(0, 3).join(', ') + (p.semGmv > 3 ? '…' : ''), editarTipos, 'Completar');
+    if (p.semEspaco.length) alerta('info', 'Ainda sem espaço no ciclo: ' + p.semEspaco.slice(0, 4).join(', ') + (p.semEspaco.length > 4 ? '…' : ''));
+    if (!p.fora.length && !p.semGmv && !p.semEspaco.length && !st.vazios.length) alerta('ok', 'Tudo preenchido nesta ER.');
+    if (st.vazios.length) {
+      const det = n('details', 'pc-vazios', null, prog);
+      n('summary', null, 'Espaços vazios (' + st.vazios.length + ')', det);
+      const ul = n('ul', null, null, det);
+      st.vazios.forEach((v) => botao(v.nome, 'fantasma', () => aoClicarMovel(v.id), n('li', null, null, ul)));
+    }
+
+    // Espaço por marca e por classificação.
+    const b1 = n('div', 'pc-bloco', null, pai);
+    n('h4', null, 'Espaço por marca', b1);
+    barra100(b1, st.marcas);
+    const b2 = n('div', 'pc-bloco', null, pai);
+    n('h4', null, 'Espaço por classificação', b2);
+    barra100(b2, st.classes);
+
+    // GMV × espaço.
+    const b3 = n('div', 'pc-bloco', null, pai);
+    n('h4', null, 'GMV esperado × espaço', b3);
+    n('p', 'pc-sub', 'Fatia do GMV e fatia do espaço de cada movimento nesta ER. Índice acima de 1× rende mais que o espaço que ocupa.', b3);
+    if (!st.gmv.length) n('p', 'mv-vazio', 'Nenhum movimento nos espaços ainda.', b3);
+    st.gmv.forEach((g) => {
+      const l = n('div', 'pc-gmv', null, b3);
+      n('span', 'pc-gmv-nome', g.texto, l).title = g.texto;
+      const barras = n('div', 'pc-gmv-barras', null, l);
+      const trilho = (classe, v, rot) => {
+        const tr = n('div', 'pc-gmv-trilho', null, barras);
+        const i = n('i', classe, null, tr);
+        i.style.width = Math.max(1, v * 100) + '%';
+        if (classe === 'gmv') i.style.background = g.cor;
+        n('small', null, rot + ' ' + pct(v), tr);
+      };
+      trilho('esp', g.espaco, 'espaço');
+      trilho('gmv', g.gmv, g.semGmv ? 'GMV (falta)' : 'GMV');
+      const ind = n('span', 'an-indice pc-indice' + (g.semGmv ? '' : g.indice >= 1.2 ? ' alto' : g.indice <= 0.8 ? ' baixo' : ''),
+        g.semGmv ? '—' : g.indice.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '×', l);
+      ind.title = g.semGmv ? 'Sem GMV em Tipos de movimento' : g.indice >= 1.2 ? 'Rende mais que o espaço que ocupa' : g.indice <= 0.8 ? 'Rende menos que o espaço que ocupa' : 'Proporcional ao espaço';
+    });
+  }
+
+  /** Mostra / esconde o painel e atualiza o topo e os números (o formulário só quando muda o móvel). */
+  function atualizarPainel() {
+    const painel = $('painelConstrucao');
+    if (!painel) return;
+    const visivel = painelVisivel();
+    painel.hidden = !visivel;
+    document.body.classList.toggle('com-painel-construcao', visivel);
+    if (!visivel) { formChave = ''; return; }
+    montarTopo();
+    montarForm(false);
+    montarStats();
   }
 
   /* ----------------------- Comunicações ER (Painéis) ------------------------ */
@@ -569,16 +864,30 @@ const Rascunho = (() => {
 
   function iniciar(contexto) {
     app = contexto;
+    // Esc tira a seleção do móvel (fora dos diálogos e dos campos).
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Escape' || !selecao || !painelVisivel() || document.querySelector('dialog[open]')) return;
+      if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+      aoClicarMovel('');
+    });
+    // Fechar a página com alteração ainda não gravada: o navegador pergunta antes.
+    window.addEventListener('beforeunload', (ev) => {
+      if (!Object.keys(pendentes).length && !gravando) return;
+      esvaziar();
+      ev.preventDefault();
+      ev.returnValue = '';
+    });
   }
 
   /** Chamado depois de cada desenho da planta. */
   function atualizar() {
     atualizarFaixa();
+    atualizarPainel();
   }
 
   return {
-    iniciar, atualizar, recarregar, limpar, mesclar, montarSecao, blocoEdicao, editarPaineis,
-    editavel, lista: () => lista, tem: (ciclo) => !!doCiclo(ciclo),
+    iniciar, atualizar, recarregar, limpar, mesclar, montarSecao, editarPaineis, editavel, painelVisivel,
+    selecionado, aoClicarMovel, esvaziarTudo, lista: () => lista, tem: (ciclo) => !!doCiclo(ciclo),
   };
 })();
 </script>

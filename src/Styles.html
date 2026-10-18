@@ -419,7 +419,7 @@
     .analytics { position: static; flex: 1 1 auto; border-top: 0; }
     .an-corpo { overflow: visible; }
     body.com-analytics .area-planta { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
-    body.com-analytics .painel-loja, body.com-analytics .painel-validacao { display: none; }
+    body.com-analytics .painel-loja, body.com-analytics .painel-validacao, body.com-analytics .painel-construcao { display: none; }
   }
   @media (max-width: 600px) {
     .an-topo { flex-wrap: wrap; }
@@ -838,6 +838,71 @@
   [data-tema="escuro"] .rs-etq select.fora { color: #ffb38a; }
   [data-tema="escuro"] .rs-herdado { color: #f1c76b; background: #2e2512; border-color: #6b5520; }
 
+  /* Painel de construção do ciclo (lateral direita, Rascunho.html). */
+  .painel-construcao { flex: 0 0 410px; }
+  .pc-topo { flex-direction: column; align-items: stretch; gap: 8px; }
+  .pc-titulo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .pc-titulo h2 { font-size: 16px; }
+  .pc-gravacao { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--texto-2); }
+  .pc-gravacao::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #2F9E6B; }
+  .pc-gravacao.pendente::before, .pc-gravacao.salvando::before { background: #D9822B; }
+  .pc-gravacao.salvando::before { animation: pc-pulso 1s ease-in-out infinite; }
+  .pc-gravacao.erro { color: #b42318; }
+  .pc-gravacao.erro::before { background: #b42318; }
+  @keyframes pc-pulso { 50% { opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) { .pc-gravacao.salvando::before { animation: none; } }
+  .pc-passos { display: flex; flex-direction: column; gap: 3px; margin: 12px 0 10px; }
+  .pc-acoes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pc-secao { padding: 4px 0 14px; border-bottom: 1px solid var(--borda); }
+  .pc-secao:last-child { border-bottom: 0; }
+  .pc-secao h3 { margin: 14px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--texto-2); }
+  .pc-movel { display: flex; align-items: flex-start; gap: 6px; margin: 12px 0 6px; }
+  .pc-movel > div { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .pc-movel h3 { margin: 0; font-size: 15px; text-transform: none; letter-spacing: 0; color: var(--texto); }
+  .pc-movel span { font-size: 12px; color: var(--texto-2); }
+  .pc-espaco { padding: 10px 12px; margin: 0 0 8px; border: 1px solid var(--borda); border-radius: 10px; background: var(--fundo); gap: 7px; }
+  .pc-espaco h4 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  .pc-linha { display: grid; grid-template-columns: 74px minmax(0, 1fr); align-items: center; gap: 8px; }
+  .pc-linha .mv-rotulo, .pc-etiquetas .mv-rotulo { font-size: 12px; flex: none; }
+  .pc-linha select, .pc-linha textarea { min-width: 0; width: 100%; padding: 5px 7px; font-size: 13px; }
+  .pc-linha textarea { font: inherit; font-size: 13px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); resize: vertical; }
+  .pc-etiquetas { max-width: none; gap: 4px; }
+  .pc-etiquetas .rs-etq { grid-template-columns: minmax(0, 1fr) 118px; }
+  .pc-etiquetas select { padding: 5px 7px; font-size: 13px; }
+  .pc-espaco .val-acoes { margin: 0; }
+  .pc-bloco { margin: 0 0 16px; }
+  .pc-bloco h4 { margin: 0 0 6px; font-size: 13px; }
+  .pc-sub { margin: -2px 0 8px; font-size: 11.5px; color: var(--texto-2); }
+  .pc-prog-texto { font-size: 13px; margin-bottom: 6px; }
+  .pc-progresso { height: 8px; border-radius: 4px; background: var(--borda); overflow: hidden; }
+  .pc-progresso i { display: block; height: 100%; background: #2F9E6B; border-radius: 4px; transition: width .3s ease; }
+  @media (prefers-reduced-motion: reduce) { .pc-progresso i { transition: none; } }
+  .pc-alertas { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+  .pc-alertas li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 8px; border-radius: 6px; font-size: 12px; background: var(--fundo); }
+  .pc-alertas li.erro { background: #fde6d8; color: #9a3a06; }
+  .pc-alertas li.aviso { background: #fff8e6; color: #7a4b00; }
+  .pc-alertas li.ok { background: #dcf3e8; color: #1d6b47; }
+  .pc-alertas .btn { flex: 0 0 auto; }
+  .pc-vazios { margin-top: 8px; font-size: 12px; }
+  .pc-vazios summary { cursor: pointer; font-weight: 600; color: var(--texto-2); }
+  .pc-vazios ul { list-style: none; margin: 4px 0 0; padding: 0; max-height: 180px; overflow: auto; }
+  .pc-vazios .btn { width: 100%; justify-content: flex-start; font-weight: 500; white-space: normal; text-align: left; }
+  .pc-barra { height: 16px; }
+  .pc-legenda { margin: 6px 0 0; }
+  .pc-gmv { display: grid; grid-template-columns: minmax(0, 120px) minmax(0, 1fr) 40px; align-items: center; gap: 8px; padding: 4px 0; border-top: 1px solid var(--borda); }
+  .pc-gmv-nome { font: 700 11.5px var(--fonte-etq); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pc-gmv-barras { display: grid; gap: 2px; }
+  .pc-gmv-trilho { display: flex; align-items: center; gap: 5px; height: 9px; }
+  .pc-gmv-trilho i { display: block; height: 100%; border-radius: 0 3px 3px 0; min-width: 2px; max-width: 70%; }
+  .pc-gmv-trilho i.esp { background: var(--borda-forte); }
+  .pc-gmv-trilho small { font-size: 10px; color: var(--texto-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .pc-indice { font-size: 12px; }
+  .rs-voltar { width: 100%; justify-content: center; margin-bottom: 10px; }
+  [data-tema="escuro"] .pc-alertas li.erro { background: #4a2510; color: #ffb38a; }
+  [data-tema="escuro"] .pc-alertas li.aviso { background: #2e2512; color: #f1c76b; }
+  [data-tema="escuro"] .pc-alertas li.ok { background: #173a28; color: #7fd6a4; }
+  [data-tema="escuro"] .pc-gravacao.erro { color: #f97066; }
+
   /* Modo apresentação: só a planta, na tela toda. */
   body.apresentando .topo, body.apresentando .faixa, body.apresentando .barra-edicao, body.apresentando .barra-rascunho,
   body.apresentando .painel-espaco, body.apresentando .btn-png, body.apresentando .analytics { display: none !important; }
@@ -895,7 +960,8 @@
 
   /* Telas estreitas: os painéis vão para baixo da planta. */
   @media (max-width: 900px) {
-    body.com-painel-validacao .palco, body.com-painel-loja .palco { flex-direction: column; }
+    body.com-painel-validacao .palco, body.com-painel-loja .palco, body.com-painel-construcao .palco { flex-direction: column; }
+    body.com-painel-construcao .area-planta, body.com-painel-construcao #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     body.com-painel-loja .area-planta, body.com-painel-loja #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     .painel-loja { order: 2; border-right: 0; }
     body.com-painel-validacao .area-planta, body.com-painel-validacao #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }

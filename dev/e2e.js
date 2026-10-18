@@ -539,9 +539,14 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
     await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
     await p.waitForSelector('.rs-secao');
   };
-  const sair = () => p.locator('#valCorpo .val-quem button', { hasText: 'Sair' }).click();
-  const acao = (texto) => p.locator('#rascunhoAcoes button', { hasText: texto }).click();
-  const statusNaFaixa = () => p.textContent('#rascunhoInfo .rs-status');
+  // Construindo, o painel da validação fica atrás do de construção: "Comentários" mostra o painel (com o Sair).
+  const sair = async () => {
+    if (await p.isVisible('#painelConstrucao')) await p.locator('#pcTopo button', { hasText: 'Comentários' }).click();
+    await p.locator('#valCorpo .val-quem button', { hasText: 'Sair' }).click();
+  };
+  const acao = (texto) => p.locator('#rascunhoAcoes button', { hasText: texto }).click(); // faixa (validador)
+  const passo = (texto) => p.locator('#pcPassos button', { hasText: texto }).click(); // painel de construção
+  const gravado = () => p.waitForFunction(() => document.getElementById('pcGravacao').textContent === 'Tudo salvo');
 
   // Construtor: novo ciclo copiando o "Ciclo exemplo".
   await entrar('CONSTRUTOR', 'Bia');
@@ -551,15 +556,18 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await p.click('#rascunhoOk');
   await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
   assert.strictEqual(await estado(p, () => App.estado.ciclo), 'C11/2026');
-  assert.strictEqual(await statusNaFaixa(), 'Em construção');
   assert.ok(await p.locator('#selCiclo optgroup[label="Em construção"] option').count() === 1);
+  // O construtor monta pelo painel da lateral (no lugar da faixa e do painel da validação).
+  assert.ok(await p.isVisible('#painelConstrucao'));
+  assert.ok(await p.isHidden('#barraRascunho') && await p.isHidden('#painelValidacao'));
 
-  // A faixa mostra os passos: o 1 (tipos com GMV) ainda não está pronto (o servidor recusa o envio; testes.test.js).
-  assert.match(await p.textContent('.rs-passos li:first-child'), /Tipos de movimento.*sem GMV/);
-  assert.ok(!(await p.getAttribute('.rs-passos li:first-child', 'class')));
+  // O painel mostra os passos: o 1 (tipos com GMV) ainda não está pronto (o servidor recusa o envio; testes.test.js).
+  assert.match(await p.textContent('#pcPassos .rs-passos li:first-child'), /Tipos de movimento.*sem GMV/);
+  assert.ok(!(await p.getAttribute('#pcPassos .rs-passos li:first-child', 'class')));
+  assert.ok(await p.locator('#pcStats .pc-alertas li.aviso', { hasText: 'sem GMV' }).count() === 1);
 
   // Passo 1: tipos de movimento. Completa os GMVs que faltam e cadastra um movimento novo.
-  await acao('1. Tipos de movimento');
+  await passo('1. Tipos de movimento');
   await p.waitForSelector('#dlgRascunho[open] .rs-tipos');
   const faltam = p.locator('.rs-tipos input.falta');
   while (await faltam.count()) await faltam.first().fill('100 mil');
@@ -570,25 +578,48 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await p.click('#rascunhoOk');
   await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
   assert.strictEqual(await estado(p, () => App.estado.dados.tiposMovimento['C11/2026']['NOVO MOVIMENTO OUI'].gmv), 300000);
-  assert.strictEqual(await p.locator('.rs-passos li.ok').count(), 2, 'passos 1 e 2 prontos');
+  assert.strictEqual(await p.locator('#pcPassos .rs-passos li.ok').count(), 2, 'passos 1 e 2 prontos');
+  assert.ok(await p.locator('#pcStats .pc-alertas li.info', { hasText: 'NOVO MOVIMENTO OUI' }).count() === 1, 'o movimento novo ainda sem espaço');
 
-  // Passo 2: a ponta A da gôndola 1, só com movimentos dos tipos (a etiqueta é uma lista).
+  // Passo 2, na lateral: clicar na gôndola 1 seleciona (não abre a tela do móvel); a planta muda antes de gravar.
+  const espacos = () => estado(p, () => App.estado.dados.movimentos['C11/2026']);
   await p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
-  await p.waitForSelector('#dlgMovel[open] form.rs-espaco');
-  const ponta = p.locator('form.rs-espaco[data-espaco="GONDOLA 1/PONTA-A"]');
+  await p.waitForSelector('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-A"]');
+  assert.ok(await p.isHidden('#dlgMovel'));
+  assert.strictEqual(await p.locator('#slide .movel.selecionado[data-movel="GONDOLA 1"]').count() > 0, true, 'contorno no móvel selecionado');
+  const ponta = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-A"]');
   const opcoes = await ponta.locator('.rs-etq select:not(.rs-marca)').first().locator('option').allTextContents();
   assert.ok(opcoes.includes('NOVO MOVIMENTO OUI') && !opcoes.some((o) => /fora dos tipos/.test(o)));
   await ponta.locator('select.rs-marca').first().selectOption('OUI');
   await ponta.locator('select').nth(1).selectOption('FIXO');
   await ponta.locator('.rs-etq select:not(.rs-marca)').first().selectOption('NOVO MOVIMENTO OUI');
+  assert.ok(await p.locator('#slide .grupo-etiquetas', { hasText: 'NOVO MOVIMENTO OUI' }).count() > 0, 'a etiqueta aparece na planta na hora');
+  assert.notStrictEqual(await p.textContent('#pcGravacao'), 'Tudo salvo', 'ainda não gravou');
   await ponta.locator('.rs-etq select.rs-marca').first().selectOption('OUI');
-  await ponta.locator('button[type="submit"]').click();
-  await p.waitForFunction(() => ((App.estado.dados.movimentos['C11/2026']['01'] || {})['GONDOLA 1/PONTA-A'] || {}).marca === 'OUI');
-  const linha = await estado(p, () => App.estado.dados.movimentos['C11/2026']['01']['GONDOLA 1/PONTA-A']);
+  await gravado();
+  const linha = (await espacos())['01']['GONDOLA 1/PONTA-A'];
   assert.strictEqual(linha.simbolo, 'FIXO');
   assert.deepStrictEqual(linha.etiquetas[0], { texto: 'NOVO MOVIMENTO OUI', marca: 'OUI', posicao: 1 });
+  // O servidor tem a mesma linha (Atualizar recarrega tudo).
+  await p.click('#btnAtualizar');
+  await p.waitForFunction(() => ((App.estado.dados.movimentos['C11/2026'] || {})['01'] || {})['GONDOLA 1/PONTA-A']);
+  assert.deepStrictEqual((await espacos())['01']['GONDOLA 1/PONTA-A'], linha);
+  assert.ok(await p.locator('#pcStats .pc-gmv', { hasText: 'NOVO MOVIMENTO OUI' }).count() === 1, 'GMV × espaço lista o movimento');
+  assert.ok(await p.locator('#pcStats .pc-legenda', { hasText: 'O.U.i' }).count() > 0, 'a marca entra no espaço por marca');
+  // Limpar um espaço: some da planta e o espaço vazio aparece na lista; clicar nele seleciona o móvel.
+  await p.evaluate(() => document.querySelector('#slide .movel[data-movel="PIRAMIDE 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await p.waitForSelector('#pcForm .pc-espaco[data-espaco="PIRAMIDE 1"]');
+  await p.locator('#pcForm .pc-espaco button', { hasText: 'Limpar espaço' }).click();
+  await gravado();
+  assert.ok(!(await espacos())['01']['PIRAMIDE 1']);
+  await p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await p.locator('#pcStats .pc-vazios summary').click();
+  await p.locator('#pcStats .pc-vazios button', { hasText: /Pir.mide|PIRAMIDE 1/ }).first().click();
+  await p.waitForSelector('#pcForm .pc-espaco[data-espaco="PIRAMIDE 1"]');
+  // Esc tira a seleção.
+  await p.locator('#pcTopo h2').click();
   await p.keyboard.press('Escape');
-  assert.ok(await p.locator('#slide .grupo-etiquetas', { hasText: 'NOVO MOVIMENTO OUI' }).count() > 0, 'a etiqueta nova aparece na planta');
+  await p.waitForSelector('#pcForm .pc-espaco', { state: 'detached' });
 
   // Comunicações ER.
   if (!(await p.isVisible('.lj-editar'))) await p.click('#btnLoja');
@@ -599,10 +630,11 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
   assert.strictEqual(await estado(p, () => App.estado.dados.paineis['C11/2026']['01'].find((x) => x.secao === 'TV').texto), 'GRADE NOVA');
 
-  // Passo 3: enviar. A edição trava.
-  await acao('3. Enviar para aprovação');
-  await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status').textContent === 'Aguardando aprovação');
+  // Passo 3: enviar. A edição trava: o painel sai e a faixa mostra o status.
+  await passo('3. Enviar para aprovação');
+  await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status') && document.querySelector('#rascunhoInfo .rs-status').textContent === 'Aguardando aprovação');
   assert.strictEqual(await p.locator('#rascunhoAcoes button').count(), 0);
+  assert.ok(await p.isHidden('#painelConstrucao'));
 
   // Validador: devolve (vira comentário).
   await sair();
@@ -619,8 +651,8 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await sair();
   await entrar('CONSTRUTOR', 'Bia');
   await p.selectOption('#selCiclo', 'C11/2026');
-  await acao('3. Enviar para aprovação');
-  await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status').textContent === 'Aguardando aprovação');
+  await passo('3. Enviar para aprovação');
+  await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status') && document.querySelector('#rascunhoInfo .rs-status').textContent === 'Aguardando aprovação');
   await sair();
   await entrar('VALIDADOR', 'Ana');
   await p.selectOption('#selCiclo', 'C11/2026');
