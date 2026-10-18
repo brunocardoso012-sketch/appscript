@@ -267,7 +267,7 @@ const App = (() => {
       chip.title = 'Mostrar só ' + marcas[cod].nome;
       const cor = document.createElement('span');
       cor.className = 'cor';
-      cor.style.background = marcas[cod].etiqueta;
+      cor.style.background = Render.corDaTela(marcas[cod].etiqueta, 'etiqueta');
       chip.appendChild(cor);
       chip.appendChild(document.createTextNode(marcas[cod].nome));
       chip.addEventListener('click', () => {
@@ -1240,7 +1240,7 @@ const App = (() => {
       if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(p)) return p;
       const m = estado.dados.marcas[p];
       return m ? m[tipo] : null;
-    }).filter(Boolean);
+    }).filter(Boolean).map((c) => Render.corDaTela(c, tipo)); // no modo noturno, a versão escura
     if (!cores.length) return estado.dados.marcas.NEUTRO ? estado.dados.marcas.NEUTRO[tipo] : '#4A4A4A';
     return cores.length === 1 ? cores[0] : 'linear-gradient(90deg, ' + cores.join(', ') + ')';
   }
@@ -1711,6 +1711,7 @@ const App = (() => {
       return { clone, caixa };
     } finally {
       temp.remove();
+      Render.paleta(document.documentElement.dataset.tema === 'escuro'); // volta às cores da tela
     }
   }
 
@@ -1897,12 +1898,13 @@ const App = (() => {
   }
 
   // Modo noturno: o script do <head> já aplicou a escolha salva (ou a do sistema); aqui marca o botão
-  // e redesenha a planta com as cores escuras (o PNG sai sempre com as cores claras do slide).
+  // e redesenha a planta com as cores escuras e as marcas mais escuras (o PNG sai sempre com as cores do slide).
   function aplicarTema(escuro) {
     if (escuro) document.documentElement.dataset.tema = 'escuro';
     else delete document.documentElement.dataset.tema;
     $('btnTema').setAttribute('aria-pressed', String(escuro));
-    if (estado.dados) desenhar();
+    Render.paleta(escuro);
+    if (estado.dados) { montarLegenda(); desenhar(); }
   }
   aplicarTema(document.documentElement.dataset.tema === 'escuro');
   // Visão das etiquetas: lembra a última escolha (na planta, por padrão).

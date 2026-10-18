@@ -431,10 +431,14 @@ test('modo noturno: liga pelo menu, lembra ao recarregar e desliga', async (t) =
   const fundoPlanta = () => p.evaluate(() => document.querySelector('#slide > rect').getAttribute('fill'));
   await escolherCiclo(p, 'Ciclo exemplo');
   const plantaClara = await fundoPlanta();
+  // Cor da primeira etiqueta da planta: no modo noturno, a versão mais escura da cor da marca.
+  const corEtiqueta = () => p.evaluate(() => document.querySelector('#slide .etq').getAttribute('fill'));
+  const etiquetaClara = await corEtiqueta();
   await menuConfig(p, 'btnTema');
   assert.strictEqual(await tema(), 'escuro');
   assert.notStrictEqual(await fundo(), claro);
   assert.notStrictEqual(await fundoPlanta(), plantaClara);
+  assert.notStrictEqual(await corEtiqueta(), etiquetaClara);
   assert.strictEqual(await p.getAttribute('#btnTema', 'aria-pressed'), 'true');
   // O PNG do slide sai com as cores claras de sempre, mesmo no modo noturno.
   await p.click('#btnPng');
@@ -459,10 +463,13 @@ test('modo noturno: liga pelo menu, lembra ao recarregar e desliga', async (t) =
   assert.strictEqual(await tema(), 'escuro');
   assert.strictEqual(await p.getAttribute('#btnTema', 'aria-pressed'), 'true');
   assert.notStrictEqual(await fundoPlanta(), plantaClara);
+  await escolherCiclo(p, 'Ciclo exemplo'); // depois de recarregar, a planta abre limpa
+  assert.notStrictEqual(await corEtiqueta(), etiquetaClara);
   await menuConfig(p, 'btnTema');
   assert.strictEqual(await tema(), 'claro');
   assert.strictEqual(await fundo(), claro);
   assert.strictEqual(await fundoPlanta(), plantaClara);
+  assert.strictEqual(await corEtiqueta(), etiquetaClara);
 });
 
 test('tela de celular: abre e troca de ciclo sem erro', async (t) => {

@@ -227,6 +227,22 @@ const Render = (() => {
     return misturar(cor, paraHex([cinza, cinza, cinza]), 0.3);
   }
 
+  // Modo noturno: as cores das marcas ficam mais escuras (etiquetas um pouco; móveis mais, para não
+  // brilharem sobre o piso escuro). Só na tela: o PNG sai com as cores originais.
+  let escuro = false;
+  const ESCURECER = { etiqueta: 0.28, movel: 0.4 };
+
+  /** Cor da marca como aparece na tela (no modo noturno, a versão mais escura dela). */
+  function corDaTela(cor, tipo) {
+    return escuro ? misturar(cor, '#000000', ESCURECER[tipo] || 0) : cor;
+  }
+
+  /** Troca a paleta (clara ou do modo noturno) dos próximos desenhos. */
+  function paleta(noturno) {
+    escuro = !!noturno;
+    Object.assign(COR, escuro ? COR_ESCURO : COR_CLARO);
+  }
+
   /**
    * "BOT+QDB" → ['#..', '#..'] ; tipo = 'movel' (cores foscas) | 'etiqueta' (cores da marca).
    * filtrar: com uma marca no filtro, as outras viram cinza (cinzaMovel / cinzaEtiqueta).
@@ -238,7 +254,7 @@ const Render = (() => {
       const cor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(p) ? p : marcas[p] ? marcas[p][tipo] : null;
       if (!cor) return null;
       if (filtrar && filtroMarca && p !== filtroMarca) return cinza;
-      return tipo === 'movel' ? fosco(cor) : cor;
+      return corDaTela(tipo === 'movel' ? fosco(cor) : cor, tipo);
     }).filter(Boolean);
     if (!cores.length) return null;
     // Combinação toda em cinza vira uma cor só (sem degradê cinza-cinza).
@@ -1870,7 +1886,7 @@ const Render = (() => {
    */
   function desenhar(svg, ctx) {
     marcas = ctx.dados.marcas;
-    Object.assign(COR, ctx.escuro ? COR_ESCURO : COR_CLARO);
+    paleta(ctx.escuro);
     filtroMarca = ctx.filtro || '';
     comPaineis = ctx.paineis !== false;
     gradientes = {};
@@ -2172,6 +2188,6 @@ const Render = (() => {
     desenharMiniatura(svg, m, null, (e) => { const c = corDoEspaco(e); return c ? [c] : null; }, 1, 1, w - 2, h - 2, verso);
   }
 
-  return { desenhar, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
+  return { desenhar, paleta, corDaTela, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
 })();
 </script>

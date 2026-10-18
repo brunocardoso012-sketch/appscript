@@ -1368,6 +1368,22 @@ const Render = (() => {
     return misturar(cor, paraHex([cinza, cinza, cinza]), 0.3);
   }
 
+  // Modo noturno: as cores das marcas ficam mais escuras (etiquetas um pouco; móveis mais, para não
+  // brilharem sobre o piso escuro). Só na tela: o PNG sai com as cores originais.
+  let escuro = false;
+  const ESCURECER = { etiqueta: 0.28, movel: 0.4 };
+
+  /** Cor da marca como aparece na tela (no modo noturno, a versão mais escura dela). */
+  function corDaTela(cor, tipo) {
+    return escuro ? misturar(cor, '#000000', ESCURECER[tipo] || 0) : cor;
+  }
+
+  /** Troca a paleta (clara ou do modo noturno) dos próximos desenhos. */
+  function paleta(noturno) {
+    escuro = !!noturno;
+    Object.assign(COR, escuro ? COR_ESCURO : COR_CLARO);
+  }
+
   /**
    * "BOT+QDB" → ['#..', '#..'] ; tipo = 'movel' (cores foscas) | 'etiqueta' (cores da marca).
    * filtrar: com uma marca no filtro, as outras viram cinza (cinzaMovel / cinzaEtiqueta).
@@ -1379,7 +1395,7 @@ const Render = (() => {
       const cor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(p) ? p : marcas[p] ? marcas[p][tipo] : null;
       if (!cor) return null;
       if (filtrar && filtroMarca && p !== filtroMarca) return cinza;
-      return tipo === 'movel' ? fosco(cor) : cor;
+      return corDaTela(tipo === 'movel' ? fosco(cor) : cor, tipo);
     }).filter(Boolean);
     if (!cores.length) return null;
     // Combinação toda em cinza vira uma cor só (sem degradê cinza-cinza).
@@ -3011,7 +3027,7 @@ const Render = (() => {
    */
   function desenhar(svg, ctx) {
     marcas = ctx.dados.marcas;
-    Object.assign(COR, ctx.escuro ? COR_ESCURO : COR_CLARO);
+    paleta(ctx.escuro);
     filtroMarca = ctx.filtro || '';
     comPaineis = ctx.paineis !== false;
     gradientes = {};
@@ -3313,7 +3329,7 @@ const Render = (() => {
     desenharMiniatura(svg, m, null, (e) => { const c = corDoEspaco(e); return c ? [c] : null; }, 1, 1, w - 2, h - 2, verso);
   }
 
-  return { desenhar, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
+  return { desenhar, paleta, corDaTela, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
 })();
 </script>
 
@@ -5278,7 +5294,7 @@ const App = (() => {
       chip.title = 'Mostrar só ' + marcas[cod].nome;
       const cor = document.createElement('span');
       cor.className = 'cor';
-      cor.style.background = marcas[cod].etiqueta;
+      cor.style.background = Render.corDaTela(marcas[cod].etiqueta, 'etiqueta');
       chip.appendChild(cor);
       chip.appendChild(document.createTextNode(marcas[cod].nome));
       chip.addEventListener('click', () => {
@@ -6251,7 +6267,7 @@ const App = (() => {
       if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(p)) return p;
       const m = estado.dados.marcas[p];
       return m ? m[tipo] : null;
-    }).filter(Boolean);
+    }).filter(Boolean).map((c) => Render.corDaTela(c, tipo)); // no modo noturno, a versão escura
     if (!cores.length) return estado.dados.marcas.NEUTRO ? estado.dados.marcas.NEUTRO[tipo] : '#4A4A4A';
     return cores.length === 1 ? cores[0] : 'linear-gradient(90deg, ' + cores.join(', ') + ')';
   }
@@ -6722,6 +6738,7 @@ const App = (() => {
       return { clone, caixa };
     } finally {
       temp.remove();
+      Render.paleta(document.documentElement.dataset.tema === 'escuro'); // volta às cores da tela
     }
   }
 
@@ -6908,12 +6925,13 @@ const App = (() => {
   }
 
   // Modo noturno: o script do <head> já aplicou a escolha salva (ou a do sistema); aqui marca o botão
-  // e redesenha a planta com as cores escuras (o PNG sai sempre com as cores claras do slide).
+  // e redesenha a planta com as cores escuras e as marcas mais escuras (o PNG sai sempre com as cores do slide).
   function aplicarTema(escuro) {
     if (escuro) document.documentElement.dataset.tema = 'escuro';
     else delete document.documentElement.dataset.tema;
     $('btnTema').setAttribute('aria-pressed', String(escuro));
-    if (estado.dados) desenhar();
+    Render.paleta(escuro);
+    if (estado.dados) { montarLegenda(); desenhar(); }
   }
   aplicarTema(document.documentElement.dataset.tema === 'escuro');
   // Visão das etiquetas: lembra a última escolha (na planta, por padrão).
