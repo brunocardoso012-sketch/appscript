@@ -167,7 +167,7 @@
 
   /* Menu de configurações (ícone de engrenagem): validação e ajuste das etiquetas. */
   .menu-config { position: relative; }
-  .menu-config:has(.menu-item[aria-pressed="true"]) #btnConfig { color: var(--texto); background: var(--destaque); }
+  .menu-config:has(.menu-item[aria-pressed="true"]:not(#btnTema)) #btnConfig { color: var(--texto); background: var(--destaque); }
   .menu-lista {
     position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 210px;
     display: flex; flex-direction: column; padding: 6px; gap: 2px;
@@ -808,4 +808,71 @@
   .tut-boas-vindas .tut-rodape { justify-content: flex-end; }
   .tut-dica { margin: 12px 0 0 !important; font-size: 12px; }
   @media (prefers-reduced-motion: reduce) { .tut-foco { transition: none; } }
+
+  /* ---------- modo noturno (menu de configurações) ---------- */
+  /* Só a interface escurece: a planta, a miniatura do móvel e o planograma mantêm as cores do slide. */
+  :root[data-tema="escuro"] {
+    color-scheme: dark;
+    --fundo: #111316;
+    --superficie: #1b1e22;
+    --borda: #2e3238;
+    --borda-forte: #444a52;
+    --texto: #e8eaed;
+    --texto-2: #a3a9b2;
+    --primario: #e8eaed;
+    --primario-texto: #16181b;
+    --destaque: #3a3216;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .35);
+  }
+  [data-tema="escuro"] .abas { background: #25292e; }
+  [data-tema="escuro"] .btn:hover,
+  [data-tema="escuro"] .btn.fantasma:hover,
+  [data-tema="escuro"] .menu-item:not(:disabled):hover,
+  [data-tema="escuro"] .menu-item:focus-visible { background: #2a2e34; }
+  [data-tema="escuro"] .btn.primario:hover { background: #cfd3d8; }
+  [data-tema="escuro"] .btn[aria-pressed="true"],
+  [data-tema="escuro"] .barra-edicao { border-color: #8a7322; }
+  [data-tema="escuro"] .menu-item[aria-pressed="true"] { background: var(--destaque); }
+  [data-tema="escuro"] .menu-lista { box-shadow: 0 10px 28px rgba(0, 0, 0, .5); }
+  [data-tema="escuro"] .avisos,
+  [data-tema="escuro"] .lista-avisos { color: #f1c76b; }
+  [data-tema="escuro"] .avisos { background: #2e2512; border-color: #6b5520; }
+  [data-tema="escuro"] .aviso-local,
+  [data-tema="escuro"] .cns-salvos { background: #1e2440; border-color: #3a4580; }
+  [data-tema="escuro"] .acoes-paineis { background: #1e2440; border-color: #313b6e; }
+  [data-tema="escuro"] .btn.painel-botao { color: #b9c4f5; }
+  [data-tema="escuro"] .btn.painel-botao:hover { background: #2a3260; }
+  [data-tema="escuro"] .btn.painel-botao[aria-pressed="true"] { background: #4a5fd6; border-color: #4a5fd6; color: #fff; }
+  [data-tema="escuro"] kbd { background: #25292e; }
+  [data-tema="escuro"] .dialogo,
+  [data-tema="escuro"] .dialogo input[type="password"],
+  [data-tema="escuro"] .acesso-campo input { background: var(--superficie); }
+  [data-tema="escuro"] .dialogo::backdrop { background: rgba(0, 0, 0, .6); }
+  [data-tema="escuro"] .acesso-erro,
+  [data-tema="escuro"] .btn.perigo { color: #f97066; }
+  [data-tema="escuro"] .carregando { background: rgba(17, 19, 22, .72); }
+  [data-tema="escuro"] .spinner { border-color: #3a3f46; border-top-color: var(--texto); }
+  [data-tema="escuro"] .toast { background: #2a2e34; color: var(--texto); border: 1px solid var(--borda-forte); }
+  [data-tema="escuro"] .toast.erro { background: #b42318; color: #fff; border-color: #b42318; }
+  [data-tema="escuro"] .cns-flutuante { border: 1px solid var(--borda-forte); }
+  [data-tema="escuro"] .cns-paleta button { background: #22262b; }
+  [data-tema="escuro"] .cns-paleta button:hover { background: #2a2e34; }
+  [data-tema="escuro"] #cnsStatus { color: #4ade80; }
+  [data-tema="escuro"] #cnsStatus.sujo { color: #fbbf24; }
+  /* Validação */
+  [data-tema="escuro"] .val-movel { background: #2a2e34; }
+  [data-tema="escuro"] .val-avatar,
+  [data-tema="escuro"] .val-status.aberto { background: #4a2510; color: #ffb38a !important; }
+  [data-tema="escuro"] .val-status.resolvido { background: #173a28; color: #7fd6a4; }
+  [data-tema="escuro"] .btn.ativo { background: #3a2112; color: #ffb38a; }
+  /* Analytics */
+  [data-tema="escuro"] .an-insight { background: #20242a; }
+  [data-tema="escuro"] .an-tag-destaque { background: #2a3260; color: #c5cef8; }
+  [data-tema="escuro"] .an-tag-oportunidade { background: #173a28; color: #7fd6a4; }
+  [data-tema="escuro"] .an-tag-atencao { background: #43290f; color: #f5b77a; }
+  [data-tema="escuro"] .an-mapa tbody td.atual > * { outline-color: #8fa0f0; }
+  [data-tema="escuro"] .an-mapa tbody tr.ativo th { box-shadow: inset 3px 0 0 #8fa0f0; }
+  [data-tema="escuro"] .an-cel-livre { background: repeating-linear-gradient(135deg, #23272c 0 6px, #1c1f23 6px 12px); }
+  [data-tema="escuro"] .an-indice.alto { color: #6fcf9a; }
+  [data-tema="escuro"] .an-indice.baixo { color: #f0a868; }
 </style>

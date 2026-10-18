@@ -1848,6 +1848,11 @@ const App = (() => {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && !menuCfg.hidden) { abrirMenuCfg(false); $('btnConfig').focus(); }
     });
+    ao('btnTema', 'click', () => {
+      const escuro = document.documentElement.dataset.tema !== 'escuro';
+      memoria.gravar('tema', escuro ? 'escuro' : 'claro');
+      aplicarTema(escuro);
+    });
     ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
     // O menu fecha no clique; o tour começa depois, para não destacar o menu ainda aberto.
     ao('btnTutorial', 'click', () => estado.dados && setTimeout(() => Tutorial.iniciar(), 0));
@@ -1890,6 +1895,14 @@ const App = (() => {
     });
   }
 
+  // Modo noturno: o script do <head> já aplicou a escolha salva (ou a do sistema); aqui só marca o botão.
+  // A planta (o slide) continua com as cores de sempre, para ficar igual ao PNG.
+  function aplicarTema(escuro) {
+    if (escuro) document.documentElement.dataset.tema = 'escuro';
+    else delete document.documentElement.dataset.tema;
+    $('btnTema').setAttribute('aria-pressed', String(escuro));
+  }
+  aplicarTema(document.documentElement.dataset.tema === 'escuro');
   // Visão das etiquetas: lembra a última escolha (na planta, por padrão).
   if (memoria.ler('visao') === 'simplificada') estado.visao = 'simplificada';
   marcarVisao();

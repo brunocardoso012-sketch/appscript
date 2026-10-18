@@ -421,6 +421,25 @@ test('tutorial: boas-vindas na primeira visita e o tour inteiro', async (t) => {
   await p.waitForSelector('.tut-balao', { state: 'detached' });
 });
 
+test('modo noturno: liga pelo menu, lembra ao recarregar e desliga', async (t) => {
+  const p = await abrir(t);
+  const tema = () => p.evaluate(() => document.documentElement.dataset.tema || 'claro');
+  const fundo = () => p.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  assert.strictEqual(await tema(), 'claro');
+  const claro = await fundo();
+  await menuConfig(p, 'btnTema');
+  assert.strictEqual(await tema(), 'escuro');
+  assert.notStrictEqual(await fundo(), claro);
+  assert.strictEqual(await p.getAttribute('#btnTema', 'aria-pressed'), 'true');
+  await p.reload();
+  await p.waitForFunction(() => App.estado.dados);
+  assert.strictEqual(await tema(), 'escuro');
+  assert.strictEqual(await p.getAttribute('#btnTema', 'aria-pressed'), 'true');
+  await menuConfig(p, 'btnTema');
+  assert.strictEqual(await tema(), 'claro');
+  assert.strictEqual(await fundo(), claro);
+});
+
 test('tela de celular: abre e troca de ciclo sem erro', async (t) => {
   const p = await abrir(t, { largura: 390, altura: 844 });
   await escolherCiclo(p, 'Ciclo exemplo cheio');
