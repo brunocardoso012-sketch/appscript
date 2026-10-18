@@ -554,14 +554,34 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.strictEqual(await statusNaFaixa(), 'Em construção');
   assert.ok(await p.locator('#selCiclo optgroup[label="Em construção"] option').count() === 1);
 
-  // Editar a ponta A da gôndola 1 na tela do móvel.
+  // A faixa mostra os passos: o 1 (tipos com GMV) ainda não está pronto (o servidor recusa o envio; testes.test.js).
+  assert.match(await p.textContent('.rs-passos li:first-child'), /Tipos de movimento.*sem GMV/);
+  assert.ok(!(await p.getAttribute('.rs-passos li:first-child', 'class')));
+
+  // Passo 1: tipos de movimento. Completa os GMVs que faltam e cadastra um movimento novo.
+  await acao('1. Tipos de movimento');
+  await p.waitForSelector('#dlgRascunho[open] .rs-tipos');
+  const faltam = p.locator('.rs-tipos input.falta');
+  while (await faltam.count()) await faltam.first().fill('100 mil');
+  await p.locator('#rascunhoCorpo button', { hasText: '+ Adicionar movimento' }).click();
+  await p.fill('input[aria-label="Nome do movimento novo"]', 'NOVO MOVIMENTO OUI');
+  await p.locator('.rs-tipos select').last().selectOption('LANCAMENTO');
+  await p.locator('.rs-tipos input[inputmode="decimal"]').last().fill('300 mil');
+  await p.click('#rascunhoOk');
+  await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
+  assert.strictEqual(await estado(p, () => App.estado.dados.tiposMovimento['C11/2026']['NOVO MOVIMENTO OUI'].gmv), 300000);
+  assert.strictEqual(await p.locator('.rs-passos li.ok').count(), 2, 'passos 1 e 2 prontos');
+
+  // Passo 2: a ponta A da gôndola 1, só com movimentos dos tipos (a etiqueta é uma lista).
   await p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
   await p.waitForSelector('#dlgMovel[open] form.rs-espaco');
   const ponta = p.locator('form.rs-espaco[data-espaco="GONDOLA 1/PONTA-A"]');
+  const opcoes = await ponta.locator('.rs-etq select:not(.rs-marca)').first().locator('option').allTextContents();
+  assert.ok(opcoes.includes('NOVO MOVIMENTO OUI') && !opcoes.some((o) => /fora dos tipos/.test(o)));
   await ponta.locator('select.rs-marca').first().selectOption('OUI');
   await ponta.locator('select').nth(1).selectOption('FIXO');
-  await ponta.locator('.rs-etq input').first().fill('NOVO MOVIMENTO OUI');
-  await ponta.locator('.rs-etq select').first().selectOption('OUI');
+  await ponta.locator('.rs-etq select:not(.rs-marca)').first().selectOption('NOVO MOVIMENTO OUI');
+  await ponta.locator('.rs-etq select.rs-marca').first().selectOption('OUI');
   await ponta.locator('button[type="submit"]').click();
   await p.waitForFunction(() => ((App.estado.dados.movimentos['C11/2026']['01'] || {})['GONDOLA 1/PONTA-A'] || {}).marca === 'OUI');
   const linha = await estado(p, () => App.estado.dados.movimentos['C11/2026']['01']['GONDOLA 1/PONTA-A']);
@@ -570,7 +590,7 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await p.keyboard.press('Escape');
   assert.ok(await p.locator('#slide .grupo-etiquetas', { hasText: 'NOVO MOVIMENTO OUI' }).count() > 0, 'a etiqueta nova aparece na planta');
 
-  // Comunicações ER e Tipos de movimento.
+  // Comunicações ER.
   if (!(await p.isVisible('.lj-editar'))) await p.click('#btnLoja');
   await p.click('.lj-editar');
   await p.waitForSelector('#dlgRascunho[open] .rs-painel');
@@ -578,18 +598,9 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await p.click('#rascunhoOk');
   await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
   assert.strictEqual(await estado(p, () => App.estado.dados.paineis['C11/2026']['01'].find((x) => x.secao === 'TV').texto), 'GRADE NOVA');
-  await acao('Tipos de movimento');
-  await p.waitForSelector('#dlgRascunho[open] .rs-tipos');
-  const novo = p.locator('.rs-tipos-nome', { hasText: 'NOVO MOVIMENTO OUI' });
-  assert.strictEqual(await novo.count(), 1, 'a etiqueta nova está nos tipos');
-  await p.locator('select[aria-label="Classificação de NOVO MOVIMENTO OUI"]').selectOption('LANCAMENTO');
-  await p.fill('input[aria-label="GMV esperado de NOVO MOVIMENTO OUI"]', '300 mil');
-  await p.click('#rascunhoOk');
-  await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
-  assert.strictEqual(await estado(p, () => App.estado.dados.tiposMovimento['C11/2026']['NOVO MOVIMENTO OUI'].gmv), 300000);
 
-  // Enviar: a edição trava.
-  await acao('Enviar para aprovação');
+  // Passo 3: enviar. A edição trava.
+  await acao('3. Enviar para aprovação');
   await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status').textContent === 'Aguardando aprovação');
   assert.strictEqual(await p.locator('#rascunhoAcoes button').count(), 0);
 
@@ -608,7 +619,7 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await sair();
   await entrar('CONSTRUTOR', 'Bia');
   await p.selectOption('#selCiclo', 'C11/2026');
-  await acao('Enviar para aprovação');
+  await acao('3. Enviar para aprovação');
   await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status').textContent === 'Aguardando aprovação');
   await sair();
   await entrar('VALIDADOR', 'Ana');
@@ -620,6 +631,22 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.ok((await p.locator('#selCiclo option').allTextContents()).includes('C11/2026'), 'publicado, aparece sem login');
   await escolherCiclo(p, 'C11/2026');
   assert.ok(await p.locator('#slide .grupo-etiquetas', { hasText: 'NOVO MOVIMENTO OUI' }).count() > 0);
+
+  // Novo ciclo só com os movimentos fixos do anterior.
+  await entrar('CONSTRUTOR', 'Bia');
+  await p.locator('.rs-secao button', { hasText: 'Novo ciclo' }).click();
+  await p.fill('#rascunhoCorpo input', 'C12/2026');
+  await p.selectOption('#rascunhoCorpo select', 'C11/2026');
+  await p.check('input[name="rsCopiar"][value="fixos"]');
+  await p.click('#rascunhoOk');
+  await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
+  const fixos = await estado(p, () => {
+    const linhas = (c) => Object.values(App.estado.dados.movimentos[c]).flatMap((pl) => Object.values(pl));
+    return { c11: linhas('C11/2026').filter((i) => i.simbolo === 'FIXO').length, c12: linhas('C12/2026'), tipos: Object.keys(App.estado.dados.tiposMovimento['C12/2026']) };
+  });
+  assert.strictEqual(fixos.c12.length, fixos.c11);
+  assert.ok(fixos.c12.every((i) => i.simbolo === 'FIXO'));
+  assert.ok(fixos.tipos.includes('NOVO MOVIMENTO OUI'), 'os tipos dos movimentos fixos vêm junto');
 });
 
 test('modo noturno: liga pelo menu, lembra ao recarregar e desliga', async (t) => {

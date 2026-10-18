@@ -1600,7 +1600,6 @@ const App = (() => {
       if (plano) blocoPlanograma(corpo, plano);
       // Ciclo em construção, com o construtor: cada espaço vira um formulário (salva na ER da tela).
       const editar = Rascunho.editavel() && m.tipo !== 'CAIXA'; // o móvel de atendimento não leva cor nem etiqueta
-      if (editar) Rascunho.montarSugestoes();
       const daEr = (estado.dados.movimentos[ciclo] || {})[planta.id] || {};
       // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.
       if (!Render.espacos(mov).length) {

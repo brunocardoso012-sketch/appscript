@@ -2110,13 +2110,52 @@ function linhaDeEspaco_(ciclo, planta, movel, l) {
   return o.marca || o.simbolo || o.observacao || etiquetas.length ? o : null;
 }
 
+/** Textos das etiquetas de uma linha da aba Movimentos (objeto). */
+function etiquetasDaLinha_(o) {
+  const lista = [];
+  for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) if (texto_(o['etiqueta' + i])) lista.push(texto_(o['etiqueta' + i]));
+  return lista;
+}
+
 /**
- * Aplica uma ação aos rascunhos e devolve as abas novas (sem gravar nada).
- *  - criar:          { acao, ciclo, origem? }        construtor; origem = ciclo (publicado ou em construção) a copiar;
- *  - salvarEspaco:   { acao, ciclo, planta, movel, linha }  construtor; linha vazia apaga a linha do espaço nessa ER;
+ * Linhas novas da aba Tipos para as etiquetas usadas em `movimentos` que ainda não estão em `tipos`
+ * (só o movimento, sem classificação nem GMV): todo movimento dos móveis fica cadastrado nos tipos.
+ */
+function tiposQueFaltam_(ciclo, movimentos, tipos) {
+  const tem = {};
+  tipos.forEach(function (t) { tem[chaveEtiqueta_(t.etiqueta)] = true; });
+  const novos = [];
+  movimentos.forEach(function (o) {
+    etiquetasDaLinha_(o).forEach(function (e) {
+      const k = chaveEtiqueta_(e);
+      if (tem[k]) return;
+      tem[k] = true;
+      novos.push({ ciclo: ciclo, etiqueta: e, classificacao: '', gmv: '', observacao: '' });
+    });
+  });
+  return novos;
+}
+
+/** Lista curta para mensagens: "A", "B" e "C" (e mais N). */
+function listaCurta_(itens) {
+  const q = itens.slice(0, 5).map(function (x) { return '"' + x + '"'; });
+  return q.join(', ') + (itens.length > 5 ? ' e mais ' + (itens.length - 5) : '');
+}
+
+/**
+ * Aplica uma ação aos rascunhos e devolve as abas novas (sem gravar nada). O ciclo é montado em
+ * três passos: (1) os Tipos de movimento, com o GMV de cada um; (2) os móveis, só com os movimentos
+ * cadastrados nos tipos; (3) o envio para aprovação, que confere os dois.
+ *  - criar:          { acao, ciclo, origem?, copiar? }  construtor; origem = ciclo (publicado ou em construção) a copiar;
+ *                    copiar = 'tudo' (padrão: movimentos, comunicações e tipos) ou 'fixos' (só as linhas com 🔒 e os
+ *                    tipos desses movimentos);
+ *  - salvarTipos:    { acao, ciclo, linhas: [{etiqueta, classificacao, gmv, observacao}] }  construtor: os movimentos
+ *                    que o ciclo pode usar (substitui a lista toda);
+ *  - salvarEspaco:   { acao, ciclo, planta, movel, linha }  construtor; só com movimentos dos tipos; linha vazia apaga
+ *                    a linha do espaço nessa ER;
  *  - salvarPaineis:  { acao, ciclo, planta, linhas: [{secao, texto, marca, movel}] }  construtor;
- *  - salvarTipos:    { acao, ciclo, linhas: [{etiqueta, classificacao, gmv, observacao}] }  construtor;
- *  - enviar:         { acao, ciclo }                  construtor: trava a edição até o validador decidir;
+ *  - enviar:         { acao, ciclo }                  construtor: confere os tipos (todos com GMV) e os móveis (só
+ *                    movimentos dos tipos) e trava a edição até o validador decidir;
  *  - excluir:        { acao, ciclo }                  construtor (antes da aprovação);
  *  - devolver:       { acao, ciclo, planta, motivo }   validador: volta para construção, com um comentário;
  *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas.
@@ -2164,17 +2203,33 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigir('CONSTRUTOR', 'cria ciclos');
     if (atual || ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '". Escolha outro nome.');
     const origem = texto_(p.origem);
+    const soFixos = p.copiar === 'fixos';
     if (origem) {
       // Copia do ciclo de origem: os rascunhos dele, se estiver em construção; senão as abas publicadas.
       const emConstrucao = rascunhos.some(function (r) { return texto_(r.ciclo) === origem && texto_(r.status) !== 'APROVADO'; });
-      [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
-        const daOrigem = objs(emConstrucao ? x[1] : x[0]).filter(function (o) { return texto_(o.ciclo) === origem; });
-        if (!daOrigem.length && x[0] === 'movimentos') throw new Error('O ciclo "' + origem + '" não foi encontrado.');
-        trocar(x[1], objs(x[1]).concat(daOrigem.map(function (o) { return Object.assign({}, o, { ciclo: ciclo }); })));
-      });
+      const daOrigem = function (publicada, rascunho) {
+        return objs(emConstrucao ? rascunho : publicada).filter(function (o) { return texto_(o.ciclo) === origem; })
+          .map(function (o) { return Object.assign({}, o, { ciclo: ciclo }); });
+      };
+      let movimentos = daOrigem('movimentos', 'rMovimentos');
+      if (!movimentos.length) throw new Error('O ciclo "' + origem + '" não foi encontrado.');
+      let tipos = daOrigem('tipos', 'rTipos');
+      if (soFixos) {
+        // Só os espaços fixos (🔒), com os tipos dos movimentos deles; as comunicações ficam em branco.
+        movimentos = movimentos.filter(function (o) { return normSimbolo_(o.simbolo) === 'FIXO'; });
+        if (!movimentos.length) throw new Error('O ciclo "' + origem + '" não tem espaços fixos (🔒).');
+        const usados = {};
+        movimentos.forEach(function (o) { etiquetasDaLinha_(o).forEach(function (e) { usados[chaveEtiqueta_(e)] = true; }); });
+        tipos = tipos.filter(function (t) { return usados[chaveEtiqueta_(t.etiqueta)]; });
+      } else {
+        trocar('rPaineis', objs('rPaineis').concat(daOrigem('paineis', 'rPaineis')));
+      }
+      trocar('rMovimentos', objs('rMovimentos').concat(movimentos));
+      trocar('rTipos', objs('rTipos').concat(tipos, tiposQueFaltam_(ciclo, movimentos, tipos)));
     }
     trocar('rascunhos', rascunhos.filter(function (r) { return !doCiclo(r); }).concat([{
-      ciclo: ciclo, status: 'EM_CONSTRUCAO', origem: origem, criadoPor: quem.autor, criadoEm: quando,
+      ciclo: ciclo, status: 'EM_CONSTRUCAO', origem: origem ? origem + (soFixos ? ' (só os fixos)' : '') : '',
+      criadoPor: quem.autor, criadoEm: quando,
     }]));
     return { abas: novas, gravar: gravar };
   }
@@ -2187,6 +2242,13 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     if (!planta || !movel) throw new Error('Escolha a ER e o espaço.');
     const mesmo = function (o) { return doCiclo(o) && normPlanta_(o.planta) === planta && normIdEspaco_(o.movel) === movel; };
     const linha = linhaDeEspaco_(ciclo, planta, movel, p.linha);
+    // Só movimentos cadastrados nos Tipos de movimento do ciclo.
+    const tipos = {};
+    objs('rTipos').filter(doCiclo).forEach(function (t) { tipos[chaveEtiqueta_(t.etiqueta)] = true; });
+    const fora = linha ? etiquetasDaLinha_(linha).filter(function (e) { return !tipos[chaveEtiqueta_(e)]; }) : [];
+    if (fora.length) {
+      throw new Error('Movimento fora dos Tipos de movimento do ciclo: ' + listaCurta_(fora) + '. Cadastre primeiro em Tipos de movimento (com o GMV).');
+    }
     trocar('rMovimentos', objs('rMovimentos').filter(function (o) { return !mesmo(o); }).concat(linha ? [linha] : []));
     return { abas: novas, gravar: gravar };
   }
@@ -2216,8 +2278,8 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
       if (!etiqueta || vistos[k]) return null;
       vistos[k] = true;
       const gmv = numeroGmv_(l.gmv);
-      const o = { ciclo: ciclo, etiqueta: etiqueta, classificacao: normClassificacao_(l.classificacao), gmv: gmv === null ? '' : gmv, observacao: texto_(l.observacao).slice(0, 2000) };
-      return o.classificacao || o.gmv !== '' || o.observacao ? o : null;
+      // Cada linha é um movimento que o ciclo pode usar, mesmo antes de ter classificação ou GMV.
+      return { ciclo: ciclo, etiqueta: etiqueta, classificacao: normClassificacao_(l.classificacao), gmv: gmv === null ? '' : gmv, observacao: texto_(l.observacao).slice(0, 2000) };
     }).filter(Boolean);
     trocar('rTipos', semCiclo('rTipos').concat(linhas));
     return { abas: novas, gravar: gravar };
@@ -2226,7 +2288,18 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
   if (p.acao === 'enviar') {
     exigir('CONSTRUTOR', 'envia o ciclo para aprovação');
     exigirRascunho('EM_CONSTRUCAO');
-    if (!objs('rMovimentos').some(doCiclo)) throw new Error('O ciclo está vazio: preencha pelo menos um espaço antes de enviar.');
+    const tipos = objs('rTipos').filter(doCiclo);
+    if (!tipos.length) throw new Error('Passo 1: cadastre os Tipos de movimento do ciclo (com o GMV) antes de enviar.');
+    const semGmv = tipos.filter(function (t) { return typeof t.gmv === 'number' ? !isFinite(t.gmv) : numeroGmv_(t.gmv) === null; });
+    if (semGmv.length) {
+      throw new Error('Passo 1: falta o GMV esperado de ' + listaCurta_(semGmv.map(function (t) { return texto_(t.etiqueta); })) + ' em Tipos de movimento.');
+    }
+    const movimentos = objs('rMovimentos').filter(doCiclo);
+    if (!movimentos.length) throw new Error('Passo 2: o ciclo está vazio. Preencha pelo menos um espaço antes de enviar.');
+    const fora = tiposQueFaltam_(ciclo, movimentos, tipos).map(function (t) { return t.etiqueta; });
+    if (fora.length) {
+      throw new Error('Passo 2: há espaços com movimentos fora dos Tipos de movimento: ' + listaCurta_(fora) + '. Cadastre-os nos tipos ou troque nos espaços.');
+    }
     comStatus('ENVIADO', { enviadoEm: quando });
     return { abas: novas, gravar: gravar };
   }
@@ -2257,8 +2330,11 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigir('VALIDADOR', 'aprova o ciclo');
     exigirRascunho('ENVIADO');
     if (ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '" publicado. Peça para o construtor renomear (criar outro copiando este).');
+    // Tipos cadastrados que nenhum espaço usou não vão para a planilha (dariam aviso de "não aparece em nenhuma etiqueta").
+    const usados = {};
+    objs('rMovimentos').filter(doCiclo).forEach(function (o) { etiquetasDaLinha_(o).forEach(function (e) { usados[chaveEtiqueta_(e)] = true; }); });
     [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
-      const linhas = objs(x[1]).filter(doCiclo);
+      const linhas = objs(x[1]).filter(doCiclo).filter(function (o) { return x[0] !== 'tipos' || usados[chaveEtiqueta_(o.etiqueta)]; });
       if (linhas.length) {
         novas[x[0]] = mesclarLinhas_(abas[x[0]] && abas[x[0]].length ? abas[x[0]] : [], linhas, defs[x[0]].colunas);
         gravar.push(x[0]);

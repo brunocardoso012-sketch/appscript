@@ -2120,13 +2120,52 @@ function linhaDeEspaco_(ciclo, planta, movel, l) {
   return o.marca || o.simbolo || o.observacao || etiquetas.length ? o : null;
 }
 
+/** Textos das etiquetas de uma linha da aba Movimentos (objeto). */
+function etiquetasDaLinha_(o) {
+  const lista = [];
+  for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) if (texto_(o['etiqueta' + i])) lista.push(texto_(o['etiqueta' + i]));
+  return lista;
+}
+
 /**
- * Aplica uma ação aos rascunhos e devolve as abas novas (sem gravar nada).
- *  - criar:          { acao, ciclo, origem? }        construtor; origem = ciclo (publicado ou em construção) a copiar;
- *  - salvarEspaco:   { acao, ciclo, planta, movel, linha }  construtor; linha vazia apaga a linha do espaço nessa ER;
+ * Linhas novas da aba Tipos para as etiquetas usadas em `movimentos` que ainda não estão em `tipos`
+ * (só o movimento, sem classificação nem GMV): todo movimento dos móveis fica cadastrado nos tipos.
+ */
+function tiposQueFaltam_(ciclo, movimentos, tipos) {
+  const tem = {};
+  tipos.forEach(function (t) { tem[chaveEtiqueta_(t.etiqueta)] = true; });
+  const novos = [];
+  movimentos.forEach(function (o) {
+    etiquetasDaLinha_(o).forEach(function (e) {
+      const k = chaveEtiqueta_(e);
+      if (tem[k]) return;
+      tem[k] = true;
+      novos.push({ ciclo: ciclo, etiqueta: e, classificacao: '', gmv: '', observacao: '' });
+    });
+  });
+  return novos;
+}
+
+/** Lista curta para mensagens: "A", "B" e "C" (e mais N). */
+function listaCurta_(itens) {
+  const q = itens.slice(0, 5).map(function (x) { return '"' + x + '"'; });
+  return q.join(', ') + (itens.length > 5 ? ' e mais ' + (itens.length - 5) : '');
+}
+
+/**
+ * Aplica uma ação aos rascunhos e devolve as abas novas (sem gravar nada). O ciclo é montado em
+ * três passos: (1) os Tipos de movimento, com o GMV de cada um; (2) os móveis, só com os movimentos
+ * cadastrados nos tipos; (3) o envio para aprovação, que confere os dois.
+ *  - criar:          { acao, ciclo, origem?, copiar? }  construtor; origem = ciclo (publicado ou em construção) a copiar;
+ *                    copiar = 'tudo' (padrão: movimentos, comunicações e tipos) ou 'fixos' (só as linhas com 🔒 e os
+ *                    tipos desses movimentos);
+ *  - salvarTipos:    { acao, ciclo, linhas: [{etiqueta, classificacao, gmv, observacao}] }  construtor: os movimentos
+ *                    que o ciclo pode usar (substitui a lista toda);
+ *  - salvarEspaco:   { acao, ciclo, planta, movel, linha }  construtor; só com movimentos dos tipos; linha vazia apaga
+ *                    a linha do espaço nessa ER;
  *  - salvarPaineis:  { acao, ciclo, planta, linhas: [{secao, texto, marca, movel}] }  construtor;
- *  - salvarTipos:    { acao, ciclo, linhas: [{etiqueta, classificacao, gmv, observacao}] }  construtor;
- *  - enviar:         { acao, ciclo }                  construtor: trava a edição até o validador decidir;
+ *  - enviar:         { acao, ciclo }                  construtor: confere os tipos (todos com GMV) e os móveis (só
+ *                    movimentos dos tipos) e trava a edição até o validador decidir;
  *  - excluir:        { acao, ciclo }                  construtor (antes da aprovação);
  *  - devolver:       { acao, ciclo, planta, motivo }   validador: volta para construção, com um comentário;
  *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas.
@@ -2174,17 +2213,33 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigir('CONSTRUTOR', 'cria ciclos');
     if (atual || ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '". Escolha outro nome.');
     const origem = texto_(p.origem);
+    const soFixos = p.copiar === 'fixos';
     if (origem) {
       // Copia do ciclo de origem: os rascunhos dele, se estiver em construção; senão as abas publicadas.
       const emConstrucao = rascunhos.some(function (r) { return texto_(r.ciclo) === origem && texto_(r.status) !== 'APROVADO'; });
-      [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
-        const daOrigem = objs(emConstrucao ? x[1] : x[0]).filter(function (o) { return texto_(o.ciclo) === origem; });
-        if (!daOrigem.length && x[0] === 'movimentos') throw new Error('O ciclo "' + origem + '" não foi encontrado.');
-        trocar(x[1], objs(x[1]).concat(daOrigem.map(function (o) { return Object.assign({}, o, { ciclo: ciclo }); })));
-      });
+      const daOrigem = function (publicada, rascunho) {
+        return objs(emConstrucao ? rascunho : publicada).filter(function (o) { return texto_(o.ciclo) === origem; })
+          .map(function (o) { return Object.assign({}, o, { ciclo: ciclo }); });
+      };
+      let movimentos = daOrigem('movimentos', 'rMovimentos');
+      if (!movimentos.length) throw new Error('O ciclo "' + origem + '" não foi encontrado.');
+      let tipos = daOrigem('tipos', 'rTipos');
+      if (soFixos) {
+        // Só os espaços fixos (🔒), com os tipos dos movimentos deles; as comunicações ficam em branco.
+        movimentos = movimentos.filter(function (o) { return normSimbolo_(o.simbolo) === 'FIXO'; });
+        if (!movimentos.length) throw new Error('O ciclo "' + origem + '" não tem espaços fixos (🔒).');
+        const usados = {};
+        movimentos.forEach(function (o) { etiquetasDaLinha_(o).forEach(function (e) { usados[chaveEtiqueta_(e)] = true; }); });
+        tipos = tipos.filter(function (t) { return usados[chaveEtiqueta_(t.etiqueta)]; });
+      } else {
+        trocar('rPaineis', objs('rPaineis').concat(daOrigem('paineis', 'rPaineis')));
+      }
+      trocar('rMovimentos', objs('rMovimentos').concat(movimentos));
+      trocar('rTipos', objs('rTipos').concat(tipos, tiposQueFaltam_(ciclo, movimentos, tipos)));
     }
     trocar('rascunhos', rascunhos.filter(function (r) { return !doCiclo(r); }).concat([{
-      ciclo: ciclo, status: 'EM_CONSTRUCAO', origem: origem, criadoPor: quem.autor, criadoEm: quando,
+      ciclo: ciclo, status: 'EM_CONSTRUCAO', origem: origem ? origem + (soFixos ? ' (só os fixos)' : '') : '',
+      criadoPor: quem.autor, criadoEm: quando,
     }]));
     return { abas: novas, gravar: gravar };
   }
@@ -2197,6 +2252,13 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     if (!planta || !movel) throw new Error('Escolha a ER e o espaço.');
     const mesmo = function (o) { return doCiclo(o) && normPlanta_(o.planta) === planta && normIdEspaco_(o.movel) === movel; };
     const linha = linhaDeEspaco_(ciclo, planta, movel, p.linha);
+    // Só movimentos cadastrados nos Tipos de movimento do ciclo.
+    const tipos = {};
+    objs('rTipos').filter(doCiclo).forEach(function (t) { tipos[chaveEtiqueta_(t.etiqueta)] = true; });
+    const fora = linha ? etiquetasDaLinha_(linha).filter(function (e) { return !tipos[chaveEtiqueta_(e)]; }) : [];
+    if (fora.length) {
+      throw new Error('Movimento fora dos Tipos de movimento do ciclo: ' + listaCurta_(fora) + '. Cadastre primeiro em Tipos de movimento (com o GMV).');
+    }
     trocar('rMovimentos', objs('rMovimentos').filter(function (o) { return !mesmo(o); }).concat(linha ? [linha] : []));
     return { abas: novas, gravar: gravar };
   }
@@ -2226,8 +2288,8 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
       if (!etiqueta || vistos[k]) return null;
       vistos[k] = true;
       const gmv = numeroGmv_(l.gmv);
-      const o = { ciclo: ciclo, etiqueta: etiqueta, classificacao: normClassificacao_(l.classificacao), gmv: gmv === null ? '' : gmv, observacao: texto_(l.observacao).slice(0, 2000) };
-      return o.classificacao || o.gmv !== '' || o.observacao ? o : null;
+      // Cada linha é um movimento que o ciclo pode usar, mesmo antes de ter classificação ou GMV.
+      return { ciclo: ciclo, etiqueta: etiqueta, classificacao: normClassificacao_(l.classificacao), gmv: gmv === null ? '' : gmv, observacao: texto_(l.observacao).slice(0, 2000) };
     }).filter(Boolean);
     trocar('rTipos', semCiclo('rTipos').concat(linhas));
     return { abas: novas, gravar: gravar };
@@ -2236,7 +2298,18 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
   if (p.acao === 'enviar') {
     exigir('CONSTRUTOR', 'envia o ciclo para aprovação');
     exigirRascunho('EM_CONSTRUCAO');
-    if (!objs('rMovimentos').some(doCiclo)) throw new Error('O ciclo está vazio: preencha pelo menos um espaço antes de enviar.');
+    const tipos = objs('rTipos').filter(doCiclo);
+    if (!tipos.length) throw new Error('Passo 1: cadastre os Tipos de movimento do ciclo (com o GMV) antes de enviar.');
+    const semGmv = tipos.filter(function (t) { return typeof t.gmv === 'number' ? !isFinite(t.gmv) : numeroGmv_(t.gmv) === null; });
+    if (semGmv.length) {
+      throw new Error('Passo 1: falta o GMV esperado de ' + listaCurta_(semGmv.map(function (t) { return texto_(t.etiqueta); })) + ' em Tipos de movimento.');
+    }
+    const movimentos = objs('rMovimentos').filter(doCiclo);
+    if (!movimentos.length) throw new Error('Passo 2: o ciclo está vazio. Preencha pelo menos um espaço antes de enviar.');
+    const fora = tiposQueFaltam_(ciclo, movimentos, tipos).map(function (t) { return t.etiqueta; });
+    if (fora.length) {
+      throw new Error('Passo 2: há espaços com movimentos fora dos Tipos de movimento: ' + listaCurta_(fora) + '. Cadastre-os nos tipos ou troque nos espaços.');
+    }
     comStatus('ENVIADO', { enviadoEm: quando });
     return { abas: novas, gravar: gravar };
   }
@@ -2267,8 +2340,11 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigir('VALIDADOR', 'aprova o ciclo');
     exigirRascunho('ENVIADO');
     if (ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '" publicado. Peça para o construtor renomear (criar outro copiando este).');
+    // Tipos cadastrados que nenhum espaço usou não vão para a planilha (dariam aviso de "não aparece em nenhuma etiqueta").
+    const usados = {};
+    objs('rMovimentos').filter(doCiclo).forEach(function (o) { etiquetasDaLinha_(o).forEach(function (e) { usados[chaveEtiqueta_(e)] = true; }); });
     [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
-      const linhas = objs(x[1]).filter(doCiclo);
+      const linhas = objs(x[1]).filter(doCiclo).filter(function (o) { return x[0] !== 'tipos' || usados[chaveEtiqueta_(o.etiqueta)]; });
       if (linhas.length) {
         novas[x[0]] = mesclarLinhas_(abas[x[0]] && abas[x[0]].length ? abas[x[0]] : [], linhas, defs[x[0]].colunas);
         gravar.push(x[0]);
@@ -3147,19 +3223,33 @@ const PAGINA_ = [
   "  .rs-painel-linha:has(.rs-alvo) { grid-template-columns: minmax(0, 1fr) 150px 170px auto; }",
   "  .rs-painel-linha select { min-width: 0; width: 100%; }",
   "  .rs-add { margin-top: 6px; }",
-  "  .rs-tipos { display: grid; grid-template-columns: minmax(140px, 1.3fr) minmax(130px, 1fr) 120px minmax(120px, 1fr); gap: 6px 8px; align-items: center; }",
+  "  .rs-tipos { display: grid; grid-template-columns: minmax(140px, 1.3fr) minmax(130px, 1fr) 120px minmax(120px, 1fr) auto; gap: 6px 8px; align-items: center; }",
+  "  .rs-tipos input.falta { border-color: #E8590C; box-shadow: inset 0 0 0 1px #E8590C; }",
+  "  .rs-etq select.fora { border-color: #E8590C; box-shadow: inset 0 0 0 1px #E8590C; color: #9a3a06; }",
+  "  .rs-copiar { margin: 4px 0 0; }",
+  "  .rs-copiar:disabled { opacity: .5; }",
+  "  /* Os três passos do ciclo em construção, na faixa acima da planta. */",
+  "  .rs-passos { display: inline-flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 0 10px; padding: 0; list-style: none; counter-reset: passo; vertical-align: middle; }",
+  "  .rs-passos li { counter-increment: passo; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }",
+  "  .rs-passos li::before {",
+  "    content: counter(passo); display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;",
+  "    font-size: 11px; font-weight: 700; background: var(--borda-forte); color: var(--superficie);",
+  "  }",
+  "  .rs-passos li.ok::before { content: '✓'; background: #2F9E6B; color: #fff; }",
+  "  .rs-passos li span { color: var(--texto-2); }",
   "  .rs-tipos-cab { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); }",
   "  .rs-tipos-nome { font-family: var(--fonte-etq); font-size: 13px; overflow-wrap: anywhere; }",
   "  .rs-tipos select, .rs-tipos input { min-width: 0; width: 100%; padding: 5px 7px; font-size: 13px; }",
   "  @media (max-width: 640px) {",
   "    .rs-linha { flex-direction: column; gap: 4px; }",
   "    .rs-etq, .rs-painel-linha, .rs-painel-linha:has(.rs-alvo) { grid-template-columns: minmax(0, 1fr); }",
-  "    .rs-tipos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }",
+  "    .rs-tipos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }",
   "    .rs-tipos-cab { display: none; }",
   "  }",
   "  [data-tema=\"escuro\"] .barra-rascunho { background: #1e2440; border-color: #3a4580; }",
   "  [data-tema=\"escuro\"] .rs-status.em_construcao { background: #4a2510; color: #ffb38a; }",
   "  [data-tema=\"escuro\"] .rs-status.enviado { background: #2a3260; color: #c5cef8; }",
+  "  [data-tema=\"escuro\"] .rs-etq select.fora { color: #ffb38a; }",
   "  [data-tema=\"escuro\"] .rs-herdado { color: #f1c76b; background: #2e2512; border-color: #6b5520; }",
   "",
   "  /* Modo apresentação: só a planta, na tela toda. */",
@@ -3620,7 +3710,6 @@ const PAGINA_ = [
   "        </div>",
   "      </form>",
   "    </dialog>",
-  "    <datalist id=\"listaEtiquetas\"></datalist>",
   "",
   "    <div class=\"apres-rotulo\" id=\"apresRotulo\" aria-live=\"polite\" hidden></div>",
   "",
@@ -6286,8 +6375,10 @@ const PAGINA_ = [
   " *  CICLOS EM CONSTRUÇÃO (página)",
   " * ============================================================================",
   " *  Para quem entrou na validação. O construtor da estratégia cria um ciclo novo",
-  " *  (em branco ou copiando outro), preenche os espaços na tela do móvel, as",
-  " *  Comunicações ER e os Tipos de movimento, e envia para aprovação. O validador",
+  " *  (em branco, copiando outro ou só os espaços fixos de outro) e monta em três",
+  " *  passos: (1) os Tipos de movimento, com o GMV; (2) os móveis, na tela do móvel,",
+  " *  só com os movimentos cadastrados nos tipos (e as Comunicações ER); (3) o envio",
+  " *  para aprovação. O validador",
   " *  aprova (o ciclo entra nas abas da planilha, junto com os demais) ou devolve",
   " *  com um comentário. Os ciclos em construção aparecem no seletor de ciclos",
   " *  (\"Em construção\") e na planta como um ciclo qualquer. As regras ficam no",
@@ -6322,6 +6413,29 @@ const PAGINA_ = [
   "  const atual = () => (app && app.estado.ciclo ? doCiclo(app.estado.ciclo) : null);",
   "  /** O construtor pode editar o ciclo da tela (em construção, ainda não enviado). */",
   "  const editavel = () => papel() === 'CONSTRUTOR' && !!atual() && atual().status === 'EM_CONSTRUCAO';",
+  "",
+  "  /** Tipos de movimento do ciclo da tela: [{ chave, texto, classificacao, gmv, observacao }], em ordem alfabética. */",
+  "  function tiposDoCiclo() {",
+  "    const t = (app.estado.dados.tiposMovimento || {})[app.estado.ciclo] || {};",
+  "    return Object.keys(t).map((k) => Object.assign({ chave: k }, t[k], { texto: t[k].texto || k }))",
+  "      .sort((a, b) => a.texto.localeCompare(b.texto, 'pt-BR'));",
+  "  }",
+  "  const chaveEtq = (t) => String(t || '').trim().replace(/\\s+/g, ' ').toUpperCase();",
+  "",
+  "  /** Situação dos três passos do ciclo da tela (para a faixa). */",
+  "  function passos() {",
+  "    const tipos = tiposDoCiclo();",
+  "    const cadastrados = {};",
+  "    tipos.forEach((t) => { cadastrados[t.chave] = true; });",
+  "    let espacos = 0;",
+  "    const fora = {};",
+  "    Object.values(app.estado.dados.movimentos[app.estado.ciclo] || {}).forEach((pl) => Object.values(pl).forEach((i) => {",
+  "      espacos++;",
+  "      i.etiquetas.forEach((e) => { if (!cadastrados[chaveEtq(e.texto)]) fora[chaveEtq(e.texto)] = e.texto; });",
+  "    }));",
+  "    const semGmv = tipos.filter((t) => typeof t.gmv !== 'number').length;",
+  "    return { tipos: tipos.length, semGmv, espacos, fora: Object.values(fora) };",
+  "  }",
   "",
   "  /* ----------------------------- servidor ---------------------------------- */",
   "",
@@ -6481,6 +6595,7 @@ const PAGINA_ = [
   "    const e = app.estado;",
   "    let nome;",
   "    let origem;",
+  "    let copiar;",
   "    dialogo('Novo ciclo', 'O ciclo fica em construção (só quem entrou na validação vê) até o validador aprovar.', 'Criar', (corpo) => {",
   "      const l1 = n('label', 'acesso-campo', 'Nome do ciclo', corpo);",
   "      nome = n('input', null, null, l1);",
@@ -6495,14 +6610,31 @@ const PAGINA_ = [
   "      lista.forEach((r) => { n('option', null, 'Cópia de ' + r.ciclo + ' (em construção)', origem).value = r.ciclo; });",
   "      // O mais comum: ajustar o ciclo anterior (o da tela ou o último da planilha).",
   "      origem.value = e.ciclo || e.dados.ciclos[e.dados.ciclos.length - 1] || '';",
+  "      copiar = n('fieldset', 'campo bloco rs-copiar', null, corpo);",
+  "      n('legend', null, 'O que copiar', copiar);",
+  "      [['tudo', 'Tudo', 'os espaços, as Comunicações ER e os Tipos de movimento'],",
+  "        ['fixos', 'Só os movimentos fixos (🔒)', 'os espaços com cadeado e os tipos desses movimentos; o resto começa vazio']].forEach(([v, rot, sub], k) => {",
+  "        const l = n('label', 'opcao', null, copiar);",
+  "        const r = n('input', null, null, l);",
+  "        r.type = 'radio';",
+  "        r.name = 'rsCopiar';",
+  "        r.value = v;",
+  "        r.checked = !k;",
+  "        const t = n('span', null, rot + ' ', l);",
+  "        n('small', null, '— ' + sub, t);",
+  "      });",
+  "      const marcar = () => { copiar.disabled = !origem.value; };",
+  "      origem.addEventListener('change', marcar);",
+  "      marcar();",
   "    }, async () => {",
   "      const ciclo = nome.value.trim();",
   "      if (!ciclo) return 'Informe o nome do ciclo.';",
   "      try {",
-  "        const r = await app.chamar('salvarRascunho', acesso(), { acao: 'criar', ciclo, origem: origem.value });",
+  "        const modo = (copiar.querySelector('input:checked') || {}).value || 'tudo';",
+  "        const r = await app.chamar('salvarRascunho', acesso(), { acao: 'criar', ciclo, origem: origem.value, copiar: modo });",
   "        aplicar(r);",
   "        abrir(ciclo);",
-  "        app.toast('Ciclo ' + ciclo + ' criado. Clique num móvel para preencher os espaços.');",
+  "        app.toast('Ciclo ' + ciclo + ' criado. Passo 1: confira os Tipos de movimento e o GMV de cada um.');",
   "        return '';",
   "      } catch (err) {",
   "        return (err && err.message) || String(err);",
@@ -6524,20 +6656,36 @@ const PAGINA_ = [
   "    n('strong', null, 'Ciclo em construção: ', info);",
   "    info.appendChild(document.createTextNode(r.ciclo + ' · '));",
   "    n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, info);",
+  "    const construindo = papel() === 'CONSTRUTOR' && r.status === 'EM_CONSTRUCAO';",
   "    const dica = r.status === 'ENVIADO'",
   "      ? (papel() === 'VALIDADOR' ? ' Confira as ERs e aprove ou devolva.' : ' Aguardando o validador.')",
-  "      : (papel() === 'CONSTRUTOR' ? ' Clique num móvel para editar os espaços desta ER.' : ' O construtor ainda está montando.');",
+  "      : (construindo ? '' : ' O construtor ainda está montando.');",
   "    info.appendChild(document.createTextNode(dica));",
   "    const acoes = $('rascunhoAcoes');",
   "    acoes.innerHTML = '';",
-  "    if (papel() === 'CONSTRUTOR' && r.status === 'EM_CONSTRUCAO') {",
-  "      botao('Tipos de movimento', '', editarTipos, acoes);",
+  "    if (construindo) {",
+  "      // Os três passos: tipos (com GMV) → móveis (só com movimentos dos tipos) → enviar.",
+  "      const p = passos();",
+  "      const passo1 = p.tipos > 0 && !p.semGmv;",
+  "      const passo2 = p.espacos > 0 && !p.fora.length;",
+  "      const lista = n('ol', 'rs-passos', null, info);",
+  "      const item = (ok, titulo, detalhe) => {",
+  "        const li = n('li', ok ? 'ok' : '', null, lista);",
+  "        n('strong', null, titulo, li);",
+  "        if (detalhe) n('span', null, ' ' + detalhe, li);",
+  "      };",
+  "      item(passo1, 'Tipos de movimento', p.tipos ? p.tipos + (p.tipos === 1 ? ' movimento' : ' movimentos')",
+  "        + (p.semGmv ? ', ' + p.semGmv + ' sem GMV' : ', todos com GMV') : 'cadastre os movimentos e o GMV');",
+  "      item(passo2, 'Móveis', p.fora.length ? p.fora.length + ' movimento(s) fora dos tipos'",
+  "        : p.espacos ? p.espacos + ' linhas · clique num móvel para editar' : 'clique num móvel para preencher');",
+  "      item(false, 'Enviar para aprovação', '');",
+  "      botao('1. Tipos de movimento', passo1 ? '' : 'primario', editarTipos, acoes);",
   "      botao('Excluir', 'perigo', () => {",
   "        if (window.confirm('Excluir o ciclo em construção ' + r.ciclo + '? Não dá para desfazer.')) {",
   "          salvar({ acao: 'excluir', ciclo: r.ciclo }, 'Ciclo excluído.');",
   "        }",
   "      }, acoes);",
-  "      botao('Enviar para aprovação', 'primario', () => {",
+  "      botao('3. Enviar para aprovação', passo1 && passo2 ? 'primario' : '', () => {",
   "        if (window.confirm('Enviar ' + r.ciclo + ' para aprovação? Você só volta a editar se o validador devolver.')) {",
   "          salvar({ acao: 'enviar', ciclo: r.ciclo }, 'Ciclo enviado para aprovação.');",
   "        }",
@@ -6569,21 +6717,6 @@ const PAGINA_ = [
   "",
   "  /* ------------------------- tela do móvel: edição -------------------------- */",
   "",
-  "  /** Textos de etiqueta já usados (todos os ciclos), para sugerir ao digitar. */",
-  "  function montarSugestoes() {",
-  "    const vistos = {};",
-  "    const dl = $('listaEtiquetas');",
-  "    dl.innerHTML = '';",
-  "    Object.values(app.estado.dados.movimentos).forEach((c) => Object.values(c).forEach((p) => Object.values(p).forEach((i) => {",
-  "      i.etiquetas.forEach((e) => {",
-  "        const k = e.texto.toUpperCase();",
-  "        if (vistos[k] || Object.keys(vistos).length > 800) return;",
-  "        vistos[k] = true;",
-  "        n('option', null, null, dl).value = e.texto;",
-  "      });",
-  "    })));",
-  "  }",
-  "",
   "  /**",
   "   * Formulário de um espaço (ou do móvel inteiro) na tela do móvel, no lugar do bloco de leitura.",
   "   * @param {{titulo, chave, info, limite, propria}} o  chave: \"MOVEL\" ou \"MOVEL/ESPACO\"; info: o que vale hoje",
@@ -6613,17 +6746,29 @@ const PAGINA_ = [
   "      n('option', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[s] || '') + (d.descricao || s), simbolo).value = s;",
   "    });",
   "    simbolo.value = i.simbolo || '';",
+  "    // Etiquetas: só os movimentos cadastrados nos Tipos de movimento do ciclo (passo 1).",
+  "    const tipos = tiposDoCiclo();",
   "    const etqs = n('div', 'rs-etiquetas', null, linha('Etiquetas'));",
   "    const campos = [];",
-  "    for (let k = 0; k < o.limite; k++) {",
+  "    if (!tipos.length) {",
+  "      n('p', 'rs-herdado', 'Cadastre primeiro os movimentos do ciclo em Tipos de movimento (passo 1): as etiquetas são escolhidas entre eles.', etqs);",
+  "      botao('1. Tipos de movimento', 'primario', editarTipos, etqs);",
+  "    }",
+  "    for (let k = 0; tipos.length && k < o.limite; k++) {",
   "      const e = i.etiquetas[k] || {};",
   "      const row = n('div', 'rs-etq', null, etqs);",
-  "      const t = n('input', null, null, row);",
-  "      t.type = 'text';",
-  "      t.maxLength = 200;",
-  "      t.value = e.texto || '';",
-  "      t.placeholder = 'Etiqueta ' + (k + 1);",
-  "      t.setAttribute('list', 'listaEtiquetas');",
+  "      const t = n('select', null, null, row);",
+  "      n('option', null, '— sem etiqueta —', t).value = '';",
+  "      tipos.forEach((x) => { n('option', null, x.texto + (typeof x.gmv === 'number' ? '' : ' (sem GMV)'), t).value = x.texto; });",
+  "      const atualT = e.texto ? tipos.find((x) => x.chave === chaveEtq(e.texto)) : null;",
+  "      if (e.texto && !atualT) {",
+  "        // Veio de uma cópia ou o tipo saiu da lista: aparece marcado, para trocar ou cadastrar nos tipos.",
+  "        const op = n('option', null, e.texto + ' — fora dos tipos de movimento', t);",
+  "        op.value = e.texto;",
+  "        t.classList.add('fora');",
+  "      }",
+  "      t.value = atualT ? atualT.texto : e.texto || '';",
+  "      t.addEventListener('change', () => t.classList.toggle('fora', !!t.value && !tipos.some((x) => x.texto === t.value)));",
   "      t.setAttribute('aria-label', 'Etiqueta ' + (k + 1) + ' de ' + o.titulo);",
   "      const m = selectMarca(row, e.marca, 'Cor da marca do espaço');",
   "      m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1));",
@@ -6649,6 +6794,11 @@ const PAGINA_ = [
   "    limpar.addEventListener('click', () => enviar({ etiquetas: [] }));",
   "    f.addEventListener('submit', (ev) => {",
   "      ev.preventDefault();",
+  "      const fora = campos.filter((c) => c.t.value && !tipos.some((x) => x.texto === c.t.value)).map((c) => c.t.value);",
+  "      if (fora.length) {",
+  "        app.erro(new Error('\"' + fora.join('\", \"') + '\" não está nos Tipos de movimento do ciclo. Troque a etiqueta ou cadastre o movimento no passo 1.'));",
+  "        return;",
+  "      }",
   "      enviar({",
   "        marca: marca.value, simbolo: simbolo.value, observacao: obs.value,",
   "        etiquetas: campos.map((c) => ({ texto: c.t.value, marca: c.m.value })).filter((e) => e.texto.trim()),",
@@ -6711,54 +6861,79 @@ const PAGINA_ = [
   "",
   "  /* -------------------------- Tipos de movimento ---------------------------- */",
   "",
-  "  /** Classificação e GMV esperado de cada etiqueta usada no ciclo (todas as ERs). */",
+  "  /**",
+  "   * Passo 1: os movimentos que o ciclo pode usar, com classificação, GMV esperado e observação. Os",
+  "   * espaços só recebem etiquetas desta lista. Movimentos usados nos espaços que não estão na lista",
+  "   * aparecem marcados, para cadastrar.",
+  "   */",
   "  function editarTipos() {",
   "    const e = app.estado;",
   "    const ciclo = e.ciclo;",
-  "    const tipos = (e.dados.tiposMovimento || {})[ciclo] || {};",
-  "    const textos = {};",
-  "    Object.values(e.dados.movimentos[ciclo] || {}).forEach((p) => Object.values(p).forEach((i) => i.etiquetas.forEach((x) => {",
-  "      textos[x.texto.trim().replace(/\\s+/g, ' ').toUpperCase()] = textos[x.texto.trim().replace(/\\s+/g, ' ').toUpperCase()] || x.texto;",
-  "    })));",
-  "    Object.keys(tipos).forEach((k) => { textos[k] = textos[k] || tipos[k].texto || k; });",
-  "    const chaves = Object.keys(textos).sort((a, b) => a.localeCompare(b, 'pt-BR'));",
+  "    const lista = tiposDoCiclo();",
+  "    const p = passos();",
   "    const linhas = [];",
-  "    dialogo('Tipos de movimento · ' + ciclo, 'Classificação e GMV esperado de cada movimento (usados no Analytics).', 'Salvar', (corpo) => {",
-  "      if (!chaves.length) {",
-  "        n('p', 'mv-vazio', 'Nenhuma etiqueta no ciclo ainda: preencha os espaços primeiro.', corpo);",
-  "        return;",
+  "    let tabela;",
+  "    const novaLinha = (t, fixo) => {",
+  "      const nome = n(fixo ? 'strong' : 'input', 'rs-tipos-nome', fixo ? t.texto : null, tabela);",
+  "      if (!fixo) {",
+  "        nome.type = 'text';",
+  "        nome.maxLength = 200;",
+  "        nome.placeholder = 'Nome do movimento (como na etiqueta)';",
+  "        nome.value = (t && t.texto) || '';",
+  "        nome.setAttribute('aria-label', 'Nome do movimento novo');",
   "      }",
-  "      const tabela = n('div', 'rs-tipos', null, corpo);",
-  "      ['Movimento', 'Classificação', 'GMV esperado (R$)', 'Observação'].forEach((t) => n('span', 'rs-tipos-cab', t, tabela));",
-  "      chaves.forEach((k) => {",
-  "        const t = tipos[k] || {};",
-  "        n('strong', 'rs-tipos-nome', textos[k], tabela);",
-  "        const cl = n('select', null, null, tabela);",
-  "        cl.setAttribute('aria-label', 'Classificação de ' + textos[k]);",
-  "        n('option', null, '—', cl).value = '';",
-  "        Object.keys(e.dados.classificacoes).forEach((c) => { n('option', null, e.dados.classificacoes[c].nome, cl).value = c; });",
-  "        if (t.classificacao && !e.dados.classificacoes[t.classificacao]) n('option', null, t.classificacao, cl).value = t.classificacao;",
-  "        cl.value = t.classificacao || '';",
-  "        const gmv = n('input', null, null, tabela);",
-  "        gmv.type = 'text';",
-  "        gmv.inputMode = 'decimal';",
-  "        gmv.placeholder = 'Ex.: 1,5 mi';",
-  "        gmv.value = typeof t.gmv === 'number' ? String(t.gmv).replace('.', ',') : '';",
-  "        gmv.setAttribute('aria-label', 'GMV esperado de ' + textos[k]);",
-  "        const obs = n('input', null, null, tabela);",
-  "        obs.type = 'text';",
-  "        obs.value = t.observacao || '';",
-  "        obs.setAttribute('aria-label', 'Observação de ' + textos[k]);",
-  "        linhas.push({ etiqueta: textos[k], cl, gmv, obs });",
+  "      const rotulo = () => (fixo ? t.texto : nome.value || 'movimento novo');",
+  "      const cl = n('select', null, null, tabela);",
+  "      cl.setAttribute('aria-label', 'Classificação de ' + rotulo());",
+  "      n('option', null, '—', cl).value = '';",
+  "      Object.keys(e.dados.classificacoes).forEach((c) => { n('option', null, e.dados.classificacoes[c].nome, cl).value = c; });",
+  "      if (t && t.classificacao && !e.dados.classificacoes[t.classificacao]) n('option', null, t.classificacao, cl).value = t.classificacao;",
+  "      cl.value = (t && t.classificacao) || '';",
+  "      const gmv = n('input', null, null, tabela);",
+  "      gmv.type = 'text';",
+  "      gmv.inputMode = 'decimal';",
+  "      gmv.placeholder = 'Ex.: 1,5 mi';",
+  "      gmv.value = t && typeof t.gmv === 'number' ? String(t.gmv).replace('.', ',') : '';",
+  "      gmv.setAttribute('aria-label', 'GMV esperado de ' + rotulo());",
+  "      const marcarGmv = () => gmv.classList.toggle('falta', !gmv.value.trim());",
+  "      gmv.addEventListener('input', marcarGmv);",
+  "      marcarGmv();",
+  "      const obs = n('input', null, null, tabela);",
+  "      obs.type = 'text';",
+  "      obs.value = (t && t.observacao) || '';",
+  "      obs.setAttribute('aria-label', 'Observação de ' + rotulo());",
+  "      const linha = { nome, fixo, texto: fixo ? t.texto : null, cl, gmv, obs, elementos: [nome, cl, gmv, obs] };",
+  "      const x = botao('×', 'fantasma', () => {",
+  "        linha.elementos.concat([x]).forEach((el) => el.remove());",
+  "        linhas.splice(linhas.indexOf(linha), 1);",
+  "      }, tabela);",
+  "      x.setAttribute('aria-label', 'Tirar ' + rotulo() + ' dos tipos');",
+  "      linhas.push(linha);",
+  "      return linha;",
+  "    };",
+  "    dialogo('Passo 1 · Tipos de movimento · ' + ciclo,",
+  "      'Cadastre os movimentos do ciclo, com a classificação e o GMV esperado. Nos móveis, as etiquetas são escolhidas só entre estes movimentos. O GMV é obrigatório para enviar.',",
+  "      'Salvar', (corpo) => {",
+  "        tabela = n('div', 'rs-tipos', null, corpo);",
+  "        ['Movimento', 'Classificação', 'GMV esperado (R$)', 'Observação', ''].forEach((t) => n('span', 'rs-tipos-cab', t, tabela));",
+  "        lista.forEach((t) => novaLinha(t, true));",
+  "        // Movimentos usados nos espaços que não estão nos tipos (ex.: tirados da lista): já entram para cadastrar.",
+  "        p.fora.forEach((texto) => novaLinha({ texto }, true));",
+  "        botao('+ Adicionar movimento', 'fantasma rs-add', () => novaLinha(null, false).nome.focus(), corpo);",
+  "        if (!lista.length && !p.fora.length) novaLinha(null, false);",
+  "      }, async () => {",
+  "        const vistos = {};",
+  "        const enviar = [];",
+  "        for (const l of linhas) {",
+  "          const texto = l.fixo ? l.texto : l.nome.value.trim();",
+  "          if (!texto) continue;",
+  "          if (vistos[chaveEtq(texto)]) return 'O movimento \"' + texto + '\" aparece duas vezes.';",
+  "          vistos[chaveEtq(texto)] = true;",
+  "          enviar.push({ etiqueta: texto, classificacao: l.cl.value, gmv: l.gmv.value, observacao: l.obs.value });",
+  "        }",
+  "        const ok = await salvar({ acao: 'salvarTipos', ciclo, linhas: enviar }, 'Tipos de movimento salvos.');",
+  "        return ok ? '' : 'Não foi possível salvar.';",
   "      });",
-  "    }, async () => {",
-  "      if (!linhas.length) return '';",
-  "      const ok = await salvar({",
-  "        acao: 'salvarTipos', ciclo,",
-  "        linhas: linhas.map((l) => ({ etiqueta: l.etiqueta, classificacao: l.cl.value, gmv: l.gmv.value, observacao: l.obs.value })),",
-  "      }, 'Tipos de movimento salvos.');",
-  "      return ok ? '' : 'Não foi possível salvar.';",
-  "    });",
   "  }",
   "",
   "  /* -------------------------------- início --------------------------------- */",
@@ -6773,7 +6948,7 @@ const PAGINA_ = [
   "  }",
   "",
   "  return {",
-  "    iniciar, atualizar, recarregar, limpar, mesclar, montarSecao, blocoEdicao, montarSugestoes, editarPaineis,",
+  "    iniciar, atualizar, recarregar, limpar, mesclar, montarSecao, blocoEdicao, editarPaineis,",
   "    editavel, lista: () => lista, tem: (ciclo) => !!doCiclo(ciclo),",
   "  };",
   "})();",
@@ -9677,7 +9852,6 @@ const PAGINA_ = [
   "      if (plano) blocoPlanograma(corpo, plano);",
   "      // Ciclo em construção, com o construtor: cada espaço vira um formulário (salva na ER da tela).",
   "      const editar = Rascunho.editavel() && m.tipo !== 'CAIXA'; // o móvel de atendimento não leva cor nem etiqueta",
-  "      if (editar) Rascunho.montarSugestoes();",
   "      const daEr = (estado.dados.movimentos[ciclo] || {})[planta.id] || {};",
   "      // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.",
   "      if (!Render.espacos(mov).length) {",

@@ -391,7 +391,17 @@ test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   assert.deepEqual(r.movimentos.C11, exemplo.movimentos['Ciclo exemplo']);
   assert.deepEqual(r.paineis.C11, exemplo.paineis['Ciclo exemplo']);
   assert.ok(!run('getDados()').ciclos.includes('C11'), 'rascunho não aparece para quem não entrou');
+  // Todo movimento dos espaços fica cadastrado nos tipos (os que o ciclo de origem não tinha, sem GMV).
+  const usadas = (movs) => new Set(Object.values(movs).flatMap((pl) => Object.values(pl).flatMap((i) => i.etiquetas.map((e) => e.texto.toUpperCase()))));
+  const tiposC11 = Object.keys(r.tiposMovimento.C11);
+  assert.ok([...usadas(r.movimentos.C11)].every((k) => tiposC11.includes(k)));
+  const semGmv = tiposC11.filter((k) => r.tiposMovimento.C11[k].gmv === null);
+  assert.ok(semGmv.length > 0, 'o exemplo tem etiquetas sem tipo');
+  assert.throws(() => salvar(C, { acao: 'enviar', ciclo: 'C11' }), /Passo 1: falta o GMV/);
 
+  // Espaços só com movimentos dos tipos.
+  assert.throws(() => salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: '01', movel: 'PIRAMIDE 1', linha: { etiquetas: [{ texto: 'INVENTADO' }] } }),
+    /fora dos Tipos de movimento do ciclo: "INVENTADO"/);
   // Um espaço da ER M: vira linha própria dessa ER; linha vazia apaga.
   r = salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: 'ER M', movel: 'gondola 1/ponta a', linha: {
     marca: 'BOT', simbolo: 'FIXO', etiquetas: [{ texto: 'BOTIPROMO', marca: 'BOT' }, { texto: 'LÇTO EGEO' }, { texto: ' ' }],
@@ -403,17 +413,28 @@ test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   r = salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: '02', movel: 'GONDOLA 1/PONTA-A', linha: { etiquetas: [] } });
   assert.ok(!(r.movimentos.C11['02'] || {})['GONDOLA 1/PONTA-A']);
 
-  // Comunicações ER da ER P e tipos de movimento: substituem as do ciclo.
+  // Comunicações ER da ER P: substituem as do ciclo.
   r = salvar(C, { acao: 'salvarPaineis', ciclo: 'C11', planta: 'ER P', linhas: [
     { secao: 'TV', texto: 'GRADE NOVA', marca: 'MULTI' }, { secao: 'C', texto: '' }, { secao: 'x', texto: 'sem seção' },
   ] });
   assert.deepEqual(r.paineis.C11['01'], [{ secao: 'TV', texto: 'GRADE NOVA', marca: 'MULTI', movel: '' }]);
+
+  // Tipos: a lista toda é substituída; movimento sem GMV também fica (é o cadastro do que o ciclo pode usar).
+  const comGmv = (lista) => lista.map((k) => ({ etiqueta: r.tiposMovimento.C11[k] ? r.tiposMovimento.C11[k].texto : k, gmv: '100 mil' }));
+  const todos = tiposC11.filter((k) => k !== 'BOTIPROMO');
   r = salvar(C, { acao: 'salvarTipos', ciclo: 'C11', linhas: [
-    { etiqueta: 'BOTIPROMO', classificacao: 'promo', gmv: '1,5 mi' }, { etiqueta: 'botipromo', classificacao: 'Lançamento' }, { etiqueta: 'VAZIO' },
-  ] });
-  assert.deepEqual(Object.keys(r.tiposMovimento.C11), ['BOTIPROMO']);
+    { etiqueta: 'BOTIPROMO', classificacao: 'promo', gmv: '1,5 mi' }, { etiqueta: 'botipromo', classificacao: 'Lançamento' }, { etiqueta: 'NÃO USADO' },
+  ].concat(comGmv(todos)) });
   assert.equal(r.tiposMovimento.C11.BOTIPROMO.classificacao, 'PROMOCAO');
   assert.equal(r.tiposMovimento.C11.BOTIPROMO.gmv, 1500000);
+  assert.equal(r.tiposMovimento.C11['NÃO USADO'].gmv, null);
+  assert.throws(() => salvar(C, { acao: 'enviar', ciclo: 'C11' }), /falta o GMV esperado de "NÃO USADO"/);
+  // Tirar dos tipos um movimento que os espaços usam: o envio aponta.
+  r = salvar(C, { acao: 'salvarTipos', ciclo: 'C11', linhas: [{ etiqueta: 'BOTIPROMO', classificacao: 'promo', gmv: '1,5 mi' }, { etiqueta: 'NÃO USADO', gmv: 5 }]
+    .concat(comGmv(todos.filter((k) => k !== 'LÇTO EGEO'))) });
+  assert.throws(() => salvar(C, { acao: 'enviar', ciclo: 'C11' }), /Passo 2: há espaços com movimentos fora dos Tipos de movimento: "LÇTO EGEO"/);
+  r = salvar(C, { acao: 'salvarTipos', ciclo: 'C11', linhas: [{ etiqueta: 'BOTIPROMO', classificacao: 'promo', gmv: '1,5 mi' }, { etiqueta: 'NÃO USADO', gmv: 5 }]
+    .concat(comGmv(todos)) });
 
   // Enviar trava a edição; o construtor não aprova; devolver vira comentário e destrava.
   assert.throws(() => salvar(V, { acao: 'enviar', ciclo: 'C11' }), /Só o construtor/);
@@ -428,7 +449,7 @@ test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   assert.deepEqual(coment.map((c) => [c.ciclo, c.planta, c.texto]), [['C11', '03', 'Devolvido para ajustes: Faltou a pirâmide']]);
   assert.throws(() => salvar(V, { acao: 'aprovar', ciclo: 'C11' }), /não está aguardando/);
 
-  // Aprovar: as linhas vão para as abas publicadas e saem das de rascunho.
+  // Aprovar: as linhas vão para as abas publicadas e saem das de rascunho (os tipos que nenhum espaço usa ficam de fora).
   salvar(C, { acao: 'enviar', ciclo: 'C11' });
   r = salvar(V, { acao: 'aprovar', ciclo: 'C11' });
   assert.deepEqual(r.rascunhos, []);
@@ -437,6 +458,8 @@ test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   assert.ok(d.ciclos.includes('C11') && d.ciclos.includes('Ciclo exemplo'));
   assert.deepEqual(d.paineis.C11['01'], [{ secao: 'TV', texto: 'GRADE NOVA', marca: 'MULTI', movel: '' }]);
   assert.equal(d.tiposMovimento.C11.BOTIPROMO.gmv, 1500000);
+  assert.ok(!d.tiposMovimento.C11['NÃO USADO']);
+  assert.ok(!d.avisos.some((a) => /C11/.test(a)), 'sem avisos do ciclo novo: ' + d.avisos.filter((a) => /C11/.test(a)).join(' | '));
   assert.deepEqual(d.tiposMovimento['Ciclo exemplo'], exemplo.tiposMovimento['Ciclo exemplo'], 'os tipos dos outros ciclos ficam como estavam');
   assert.deepEqual(d.paineis['Ciclo exemplo'], exemplo.paineis['Ciclo exemplo']);
   assert.equal(Object.values(d.movimentos.C11).reduce((s, p) => s + Object.keys(p).length, 0), nLinhasExemplo);
@@ -444,12 +467,26 @@ test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   assert.equal(run(`lerAba_(planilha_(), '${'Rascunhos'}', true)`)[1][1], 'APROVADO', 'histórico na aba Rascunhos');
   assert.throws(() => salvar(C, { acao: 'criar', ciclo: 'C11' }), /Já existe/);
 
-  // Em branco; excluir.
+  // Em branco: precisa dos tipos antes de enviar; excluir.
   r = salvar(C, { acao: 'criar', ciclo: 'C12' });
   assert.deepEqual([r.rascunhos.length, r.movimentos.C12], [1, undefined]);
-  assert.throws(() => salvar(C, { acao: 'enviar', ciclo: 'C12' }), /vazio/);
+  assert.throws(() => salvar(C, { acao: 'enviar', ciclo: 'C12' }), /Passo 1: cadastre os Tipos/);
+  r = salvar(C, { acao: 'salvarTipos', ciclo: 'C12', linhas: [{ etiqueta: 'X', gmv: 1 }] });
+  assert.throws(() => salvar(C, { acao: 'enviar', ciclo: 'C12' }), /Passo 2: o ciclo está vazio/);
   r = salvar(C, { acao: 'excluir', ciclo: 'C12' });
   assert.deepEqual(r.rascunhos, []);
+
+  // Só os movimentos fixos do ciclo anterior: as linhas com 🔒 e os tipos delas; sem as comunicações.
+  const fixos = Object.values(exemplo.movimentos['Ciclo exemplo']).flatMap((pl) => Object.values(pl)).filter((i) => i.simbolo === 'FIXO');
+  assert.ok(fixos.length > 0);
+  r = salvar(C, { acao: 'criar', ciclo: 'C13', origem: 'Ciclo exemplo', copiar: 'fixos' });
+  assert.equal(r.rascunhos[0].origem, 'Ciclo exemplo (só os fixos)');
+  const linhasC13 = Object.values(r.movimentos.C13).flatMap((pl) => Object.values(pl));
+  assert.equal(linhasC13.length, fixos.length);
+  assert.ok(linhasC13.every((i) => i.simbolo === 'FIXO'));
+  assert.deepEqual(r.paineis.C13 || {}, {});
+  assert.deepEqual(new Set(Object.keys(r.tiposMovimento.C13)), usadas(r.movimentos.C13));
+  assert.throws(() => salvar(C, { acao: 'criar', ciclo: 'C14', origem: 'C12', copiar: 'fixos' }), /não foi encontrado/);
 });
 
 test('tipos de movimento: classificação e GMV esperado por etiqueta do ciclo', () => {

@@ -55,12 +55,16 @@ O item **Validação** do menu de configurações (engrenagem) abre um painel de
 
 Com o login da validação, o painel tem a seção **Ciclos em construção**. Um ciclo novo é montado direto no app e só entra na planilha, junto com os outros, depois que o validador aprova. Vale no app completo, no visualizador e na versão web.
 
-- **Novo ciclo** (construtor): dê o nome e escolha *Começar de*: em branco ou cópia de um ciclo (publicado ou em construção). A cópia traz os movimentos, as Comunicações ER e os Tipos de movimento do ciclo de origem.
+- **Novo ciclo** (construtor): dê o nome e escolha *Começar de*: em branco ou cópia de um ciclo (publicado ou em construção). Na cópia, escolha *O que copiar*: **Tudo** (os espaços, as Comunicações ER e os Tipos de movimento) ou **Só os movimentos fixos (🔒)** (só os espaços com cadeado e os tipos desses movimentos; o resto começa vazio).
+- **Três passos**, mostrados na faixa acima da planta (com ✓ quando prontos):
+  1. **Tipos de movimento:** cadastre os movimentos do ciclo, com a classificação e o **GMV esperado**. Na cópia, os movimentos que já estão nos espaços entram sozinhos (os que não tinham tipo no ciclo de origem vêm sem GMV, para completar).
+  2. **Móveis:** preencha os espaços. As etiquetas são escolhidas **só entre os movimentos cadastrados no passo 1** (o servidor confere). Uma etiqueta copiada que saiu dos tipos aparece marcada como *fora dos tipos de movimento*, para trocar ou cadastrar.
+  3. **Enviar para aprovação:** só vai com todos os tipos com GMV, pelo menos um espaço preenchido e todos os espaços usando movimentos cadastrados; senão, a mensagem diz o que falta.
+- Na aprovação, os tipos cadastrados que nenhum espaço usou ficam fora da planilha.
 - **Seletor de ciclo:** para quem entrou, os ciclos em construção aparecem no grupo *Em construção*. Eles funcionam como um ciclo qualquer: planta, visão simplificada, Analytics, comparação, busca, PNG e comentários. Quem não entrou na validação não vê.
 - **Faixa do ciclo:** acima da planta, mostra o status (*Em construção* ou *Aguardando aprovação*) e as ações de cada papel.
-- **Editar os espaços** (construtor, em construção): clique num móvel. Na tela do móvel, cada espaço (ou o móvel inteiro) vira um formulário: marca, símbolo (🔒, Ⓔ, NEW), etiquetas (com sugestões das já usadas e a marca de cada uma) e observação. *Salvar* grava a linha **da ER da tela**; se o valor vinha de uma ER menor (cascata), a tela avisa que ele vira uma linha própria desta ER. *Limpar espaço* apaga a linha.
+- **Editar os espaços** (construtor, em construção): clique num móvel. Na tela do móvel, cada espaço (ou o móvel inteiro) vira um formulário: marca, símbolo (🔒, Ⓔ, NEW), etiquetas (escolhidas entre os Tipos de movimento do ciclo, com a marca de cada uma) e observação. *Salvar* grava a linha **da ER da tela**; se o valor vinha de uma ER menor (cascata), a tela avisa que ele vira uma linha própria desta ER. *Limpar espaço* apaga a linha.
 - **Comunicações ER** (construtor): *Editar comunicações desta ER*, no menu da esquerda: TV e rádio, (A), (C), destaques (com o móvel a que apontam) e notas.
-- **Tipos de movimento** (construtor): botão na faixa: classificação, GMV esperado e observação de cada etiqueta do ciclo, em todas as ERs.
 - **Enviar para aprovação** (construtor): a edição fica travada. **Excluir** apaga o ciclo em construção.
 - **Devolver** (validador): o ciclo volta para construção, com um comentário *Devolvido para ajustes: …* na ER da tela.
 - **Aprovar e publicar** (validador): as linhas vão para as abas *Movimentos*, *Painéis* e *Tipos de movimento* e o ciclo aparece para todos.
