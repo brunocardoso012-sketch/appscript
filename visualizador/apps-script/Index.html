@@ -1117,7 +1117,12 @@
     <dialog id="dlgPng" class="dialogo">
       <form method="dialog">
         <h2>Baixar PNG</h2>
-        <p class="sub">Imagem em alta resolução da planta selecionada.</p>
+        <p class="sub">Imagem em alta resolução da planta selecionada ou um PowerPoint com todas as ERs.</p>
+        <fieldset class="campo bloco">
+          <legend>ERs</legend>
+          <label class="opcao"><input type="radio" name="pngErs" value="esta" checked> <span>Só <b id="pngEsta">esta ER</b> <small>— um PNG</small></span></label>
+          <label class="opcao"><input type="radio" name="pngErs" value="todas"> <span>Todas as ERs <small id="pngTodas">— um slide por ER, em PowerPoint</small></span></label>
+        </fieldset>
         <fieldset class="campo bloco">
           <legend>Conteúdo</legend>
           <label class="opcao"><input type="radio" name="pngConteudo" value="planta" checked> <span>Planta <small>— a loja com as etiquetas junto de cada espaço</small></span></label>
@@ -1132,7 +1137,7 @@
         <p class="sub" id="pngFiltroTexto" hidden></p>
         <div class="rodape-dialogo">
           <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
-          <button class="btn primario" value="baixar" type="submit">Baixar PNG</button>
+          <button class="btn primario" id="pngBaixar" value="baixar" type="submit">Baixar PNG</button>
         </div>
       </form>
     </dialog>
@@ -5503,9 +5508,10 @@ const App = (() => {
   /* ------------------------------- desenho -------------------------------- */
 
   /** Contexto do desenho da tela (também usado para gerar o PNG só da planta). */
-  function contextoDesenho() {
-    const construcao = Editor.contexto();
-    const planta = construcao ? construcao.planta : plantaAtual();
+  /** Contexto do Render para a planta da tela (ou para `outra`, fora da construção: exportar todas as ERs). */
+  function contextoDesenho(outra) {
+    const construcao = outra ? null : Editor.contexto();
+    const planta = outra || (construcao ? construcao.planta : plantaAtual());
     if (!planta) return null;
     const semConteudo = !!construcao && !construcao.mostrarCiclo;
     return {
@@ -5516,7 +5522,7 @@ const App = (() => {
       filtroEtiqueta: construcao ? '' : etiquetasDoFiltro(),
       destaqueEspacos: !construcao && estado.ciclo && estado.comparar
         ? mudancasEntre(planta, estado.ciclo, estado.comparar).map((x) => x.chave) : null,
-      ajustes: estado.ajustes,
+      ajustes: outra && outra.id !== estado.planta ? {} : estado.ajustes, // ajustes não salvos: só os da planta da tela
       escalaEtiquetas: construcao ? 1 : tamanhoEtiquetas() / 100,
       edicao: estado.edicao,
       visao: construcao ? 'planta' : estado.visao, // a construção é sempre sobre a planta
@@ -6826,6 +6832,8 @@ const App = (() => {
     if (!atual || atual.disabled || atual.value !== 'estrategia') {
       dlg.querySelector('input[name="pngConteudo"][value="' + (estado.visao === 'simplificada' ? 'simplificada' : 'planta') + '"]').checked = true;
     }
+    $('pngEsta').textContent = plantaAtual().nome;
+    $('pngTodas').textContent = '— um slide por ER (' + estado.dados.plantas.map((p) => p.nome).join(', ') + '), em PowerPoint';
     atualizarDialogoPng();
     const marca = estado.filtro && estado.dados.marcas[estado.filtro];
     $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.'
@@ -6844,6 +6852,11 @@ const App = (() => {
   function atualizarDialogoPng() {
     const dlg = $('dlgPng');
     const conteudo = dlg.querySelector('input[name="pngConteudo"]:checked').value;
+    // Todas as ERs: um PowerPoint com o slide completo de cada ER (o formato fica fixo).
+    const todas = dlg.querySelector('input[name="pngErs"]:checked').value === 'todas';
+    dlg.querySelectorAll('input[name="pngFormato"]').forEach((r) => { r.disabled = todas; });
+    if (todas) dlg.querySelector('input[name="pngFormato"][value="slide"]').checked = true;
+    $('pngBaixar').textContent = todas ? 'Baixar .pptx' : 'Baixar PNG';
     const estrategia = conteudo === 'estrategia';
     $('pngFormatoPng').textContent = estrategia ? '— só os gráficos, recortados e com fundo transparente'
       : '— só o conteúdo, recortado e com fundo transparente';
@@ -6904,7 +6917,8 @@ const App = (() => {
    * ficam no menu da esquerda. "planta": só a loja, os móveis e as etiquetas, sem fundo e recortada no
    * conteúdo. Os dois com as mesmas cores da tela (inclusive o filtro de marca) e na visão da tela.
    */
-  function svgParaPng(modo, conteudo) {
+  function svgParaPng(modo, conteudo, planta) {
+    planta = planta || plantaAtual();
     const ns = 'http://www.w3.org/2000/svg';
     const temp = document.createElementNS(ns, 'svg');
     // Fora da tela, mas renderizado (getBBox não funciona com display: none).
@@ -6913,8 +6927,8 @@ const App = (() => {
     try {
       const soPlanta = modo === 'planta';
       const r = conteudo === 'estrategia'
-        ? { tela: Estrategia.desenhar(temp, dadosEstrategia(plantaAtual(), estado.ciclo), { recorte: soPlanta }) }
-        : Render.desenhar(temp, Object.assign(contextoDesenho(), {
+        ? { tela: Estrategia.desenhar(temp, dadosEstrategia(planta, estado.ciclo), { recorte: soPlanta }) }
+        : Render.desenhar(temp, Object.assign(contextoDesenho(planta), {
           somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null, escuro: false,
           visao: conteudo === 'simplificada' ? 'simplificada' : 'planta',
         }));
@@ -6975,46 +6989,120 @@ const App = (() => {
     return fonteEmbutida;
   }
 
+  /** Desenha e rasteriza um PNG (Blob): "slide" sempre com 3840 px de largura (16:9); "planta" em 2×. */
+  async function gerarPng(modo, conteudo, planta) {
+    const { clone, caixa } = svgParaPng(modo, conteudo, planta);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', caixa.w);
+    clone.setAttribute('height', caixa.h);
+    clone.querySelectorAll('title').forEach((t) => t.remove());
+    const css = await cssFonteEmbutida();
+    if (css) {
+      const estilo = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      estilo.textContent = css;
+      clone.insertBefore(estilo, clone.firstChild);
+    }
+    const xml = new XMLSerializer().serializeToString(clone);
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+    await img.decode();
+    // Slide completo: sempre 3840 px de largura (16:9), mesmo quando o slide cresceu para caber as fichas.
+    const escala = modo === 'planta' ? 2 : 3840 / caixa.w;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(caixa.w * escala);
+    canvas.height = Math.round(caixa.h * escala);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(escala, escala);
+    ctx.drawImage(img, 0, 0, caixa.w, caixa.h);
+    return new Promise((ok) => canvas.toBlob(ok, 'image/png'));
+  }
+
+  /** Nome de arquivo sem os caracteres que o Windows não aceita. */
+  const nomeDeArquivo = (partes, ext) => partes.filter(Boolean).join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + ext;
+
   async function baixarPng() {
     const dlg = $('dlgPng');
     if (dlg.returnValue !== 'baixar') return;
     const planta = plantaAtual();
     if (!planta) return;
     const conteudo = dlg.querySelector('input[name="pngConteudo"]:checked').value;
+    if (dlg.querySelector('input[name="pngErs"]:checked').value === 'todas') {
+      baixarPptx(conteudo);
+      return;
+    }
     // "png": só o conteúdo, recortado e sem fundo; "slide": o slide 16:9 completo.
     const modo = dlg.querySelector('input[name="pngFormato"]:checked').value === 'png' ? 'planta' : 'slide';
     carregando(true, 'Gerando imagem…');
     try {
-      const { clone, caixa } = svgParaPng(modo, conteudo);
-      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-      clone.setAttribute('width', caixa.w);
-      clone.setAttribute('height', caixa.h);
-      clone.querySelectorAll('title').forEach((t) => t.remove());
-      const css = await cssFonteEmbutida();
-      if (css) {
-        const estilo = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-        estilo.textContent = css;
-        clone.insertBefore(estilo, clone.firstChild);
-      }
-      const xml = new XMLSerializer().serializeToString(clone);
-      const img = new Image();
-      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
-      await img.decode();
-      // Slide completo: sempre 3840 px de largura (16:9), mesmo quando o slide cresceu para caber as fichas.
-      const escala = modo === 'planta' ? 2 : 3840 / caixa.w;
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(caixa.w * escala);
-      canvas.height = Math.round(caixa.h * escala);
-      const ctx = canvas.getContext('2d');
-      ctx.scale(escala, escala);
-      ctx.drawImage(img, 0, 0, caixa.w, caixa.h);
-      const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/png'));
+      const blob = await gerarPng(modo, conteudo, planta);
       const marca = estado.filtro && estado.dados.marcas[estado.filtro];
       const estrategia = conteudo === 'estrategia';
-      const partes = [planta.nome, estado.ciclo, estrategia ? 'estrategia' : conteudo === 'simplificada' ? 'visao simplificada' : 'planta',
-        modo === 'slide' ? 'slide' : '', !estrategia && marca ? marca.nome : ''].filter(Boolean);
-      const nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, '-') + '.png';
-      baixarArquivo(blob, nome);
+      baixarArquivo(blob, nomeDeArquivo([planta.nome, estado.ciclo, estrategia ? 'estrategia' : conteudo === 'simplificada' ? 'visao simplificada' : 'planta',
+        modo === 'slide' ? 'slide' : '', !estrategia && marca ? marca.nome : ''], '.png'));
+    } catch (e) {
+      erro(e);
+    } finally {
+      carregando(false);
+    }
+  }
+
+  /* --------------------- todas as ERs num PowerPoint ---------------------- */
+
+  // PptxGenJS (carregada sob demanda, como o ExcelJS da planilha base): monta o .pptx no navegador.
+  const PPTXGENJS = {
+    src: 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js',
+    integrity: 'sha384-Cck14aA9cifjYolcnjebXRfWGkz5ltHMBiG4px/j8GS+xQcb7OhNQWZYyWjQ+UwQ',
+  };
+  let promessaPptx = null;
+
+  function carregarPptxGenJS() {
+    if (window.PptxGenJS) return Promise.resolve(window.PptxGenJS);
+    if (!promessaPptx) {
+      promessaPptx = new Promise((ok, falha) => {
+        const s = document.createElement('script');
+        s.src = PPTXGENJS.src;
+        s.integrity = PPTXGENJS.integrity;
+        s.crossOrigin = 'anonymous';
+        s.referrerPolicy = 'no-referrer';
+        s.onload = () => ok(window.PptxGenJS);
+        s.onerror = () => {
+          promessaPptx = null;
+          falha(new Error('Não foi possível carregar a biblioteca do PowerPoint (PptxGenJS). Verifique a conexão.'));
+        };
+        document.head.appendChild(s);
+      });
+    }
+    return promessaPptx;
+  }
+
+  const blobParaDataUrl = (blob) => new Promise((ok, falha) => {
+    const r = new FileReader();
+    r.onload = () => ok(r.result);
+    r.onerror = falha;
+    r.readAsDataURL(blob);
+  });
+
+  /** Um slide 16:9 por ER (ER P → ER GG), com o slide completo de cada uma, como no PNG "Slide completo". */
+  async function baixarPptx(conteudo) {
+    carregando(true, 'Gerando o PowerPoint…');
+    try {
+      const PptxGenJS = await carregarPptxGenJS();
+      const pptx = new PptxGenJS();
+      pptx.layout = 'LAYOUT_WIDE'; // 13,33 × 7,5 pol (16:9)
+      pptx.title = ['Plano de Varejo', estado.ciclo].filter(Boolean).join(' · ');
+      for (const planta of estado.dados.plantas) {
+        carregando(true, 'Gerando o PowerPoint… ' + planta.nome);
+        const png = await gerarPng('slide', conteudo, planta);
+        const slide = pptx.addSlide();
+        slide.background = { color: 'FFFFFF' };
+        slide.addImage({ data: await blobParaDataUrl(png), x: 0, y: 0, w: 13.333, h: 7.5 });
+        slide.addNotes([planta.nome, estado.ciclo].filter(Boolean).join(' · '));
+      }
+      const blob = await pptx.write({ outputType: 'blob' });
+      const marca = estado.filtro && estado.dados.marcas[estado.filtro];
+      const estrategia = conteudo === 'estrategia';
+      baixarArquivo(blob, nomeDeArquivo([estado.ciclo || 'sem ciclo', 'todas as ERs',
+        estrategia ? 'estrategia' : conteudo === 'simplificada' ? 'visao simplificada' : 'planta', !estrategia && marca ? marca.nome : ''], '.pptx'));
     } catch (e) {
       erro(e);
     } finally {

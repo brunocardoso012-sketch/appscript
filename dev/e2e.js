@@ -263,6 +263,23 @@ test('Baixar PNG: cada conteúdo em cada formato', async (t) => {
   }
 });
 
+test('todas as ERs num PowerPoint: um slide por ER', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo');
+  const nPlantas = await estado(p, () => App.estado.dados.plantas.length);
+  await p.click('#btnPng');
+  await p.waitForSelector('#dlgPng[open]');
+  await p.check('#dlgPng input[name="pngErs"][value="todas"]');
+  assert.ok(await p.isDisabled('#dlgPng input[name="pngFormato"][value="png"]'), 'o formato fica fixo no slide');
+  assert.strictEqual((await p.textContent('#pngBaixar')).trim(), 'Baixar .pptx');
+  const d = await baixar(p, () => p.click('#dlgPng button[value="baixar"]'));
+  assert.match(d.nome, /todas as ERs.*\.pptx$/);
+  assert.strictEqual(d.bytes.slice(0, 2).toString(), 'PK', 'não é um .pptx (zip)');
+  const nomes = d.bytes.toString('latin1');
+  for (let i = 1; i <= nPlantas; i++) assert.ok(nomes.includes('ppt/slides/slide' + i + '.xml'), 'falta o slide ' + i);
+  assert.ok(!nomes.includes('ppt/slides/slide' + (nPlantas + 1) + '.xml'), 'slide a mais');
+});
+
 test('planilha base: baixar e importar de volta como ciclo novo', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo');
