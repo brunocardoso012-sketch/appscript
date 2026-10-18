@@ -434,6 +434,9 @@ test('modo noturno: liga pelo menu, lembra ao recarregar e desliga', async (t) =
   // Cor da primeira etiqueta da planta: no modo noturno, a versão mais escura da cor da marca.
   const corEtiqueta = () => p.evaluate(() => document.querySelector('#slide .etq').getAttribute('fill'));
   const etiquetaClara = await corEtiqueta();
+  // Espaços fixos (cadeado): móveis e etiquetas com a hachura.
+  assert.ok(await p.locator('#slide .camada-planta .hachura').count() > 0, 'móvel fixo sem hachura');
+  assert.ok(await p.locator('#slide .camada-etiquetas .hachura').count() > 0, 'etiqueta fixa sem hachura');
   await menuConfig(p, 'btnTema');
   assert.strictEqual(await tema(), 'escuro');
   assert.notStrictEqual(await fundo(), claro);

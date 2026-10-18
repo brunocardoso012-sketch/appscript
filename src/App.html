@@ -1435,8 +1435,8 @@ const App = (() => {
     Render.desenhar(alvo, Object.assign(contextoDesenho(), {
       filtro: '', somentePlanta: true, edicao: false, selecionado: '', grade: false, referencia: null, ajustes: {},
     }));
-    // Os degradês têm ids (grad0, grad1…) que se repetem no slide principal: renomeia os deste desenho.
-    alvo.querySelectorAll('linearGradient').forEach((g) => {
+    // Os degradês e as hachuras têm ids (grad0, hach0…) que se repetem no slide principal: renomeia os deste desenho.
+    alvo.querySelectorAll('linearGradient, pattern').forEach((g) => {
       const antigo = g.id;
       g.id = 'mv-' + antigo;
       alvo.querySelectorAll('[fill="url(#' + antigo + ')"]').forEach((n) => n.setAttribute('fill', 'url(#mv-' + antigo + ')'));
