@@ -421,6 +421,29 @@ test('tutorial: boas-vindas na primeira visita e o tour inteiro', async (t) => {
   await p.waitForSelector('.tut-balao', { state: 'detached' });
 });
 
+test('comparar ciclos: só o que mudou fica colorido, com a lista no painel', async (t) => {
+  const p = await abrir(t);
+  assert.ok(await p.isHidden('#campoComparar'), 'sem ciclo, não há comparação');
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  const cinzas = () => p.locator('#slide .movel polygon[fill="#D2D2D2"]').count();
+  assert.strictEqual(await cinzas(), 0);
+  await p.selectOption('#selComparar', 'Ciclo exemplo');
+  assert.ok(await p.isVisible('#painelLoja'), 'o painel abre com a lista');
+  const mudancas = await p.locator('.lj-mudanca').count();
+  assert.ok(mudancas > 0, 'nenhuma mudança listada');
+  assert.ok(await cinzas() > 0, 'nada ficou em cinza');
+  // Clicar numa mudança abre o móvel.
+  await p.locator('.lj-mudanca').first().click();
+  await p.waitForSelector('#dlgMovel[open]');
+  await p.keyboard.press('Escape');
+  // O mesmo ciclo some da lista; voltar a "Não comparar" deixa tudo colorido.
+  const opcoes = await p.locator('#selComparar option').allTextContents();
+  assert.ok(opcoes.indexOf('Ciclo exemplo cheio') < 0);
+  await p.selectOption('#selComparar', '');
+  assert.strictEqual(await p.locator('.lj-mudanca').count(), 0);
+  assert.strictEqual(await cinzas(), 0);
+});
+
 test('modo noturno: liga pelo menu, lembra ao recarregar e desliga', async (t) => {
   const p = await abrir(t);
   const tema = () => p.evaluate(() => document.documentElement.dataset.tema || 'claro');

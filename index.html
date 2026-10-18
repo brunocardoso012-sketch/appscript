@@ -782,6 +782,28 @@
   .lj-extra:first-of-type { border-top: 0; padding-top: 0; }
   .lj-extra-nome { font-size: 12px; font-style: italic; color: var(--texto-2); }
 
+  /* Comparação de ciclos: o que mudou na ER (no topo do menu da esquerda). */
+  body.comparando #selComparar { border-color: #E8590C; box-shadow: inset 0 0 0 1px #E8590C; }
+  .lj-mud-resumo { margin: 0 0 8px; font-size: 12px; color: var(--texto-2); }
+  .lj-mudanca {
+    display: grid; gap: 5px; width: 100%; padding: 8px 10px; margin: 0 0 6px; text-align: left;
+    border: 1px solid var(--borda); border-radius: 8px; background: var(--superficie); color: var(--texto); font: inherit; cursor: pointer;
+  }
+  .lj-mudanca:hover { border-color: var(--borda-forte); }
+  .lj-mud-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
+  .lj-mud-tipo { flex: 0 0 auto; padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+  .lj-mud-tipo.nova { background: #dcf3e8; color: #1d6b47; }
+  .lj-mud-tipo.removida { background: #fde6d8; color: #9a3a06; }
+  .lj-mud-tipo.mudou { background: #e0e7ff; color: #27367a; }
+  .lj-mud-linha { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: start; gap: 6px; }
+  .lj-mud-linha.antes { opacity: .6; }
+  .lj-mud-linha > .lj-chips, .lj-mud-linha > .mv-vazio, .lj-mud-linha > .lj-mud-fixo { grid-column: 2; }
+  .lj-mud-rot { grid-row: 1 / span 3; font-size: 11px; font-weight: 600; color: var(--texto-2); padding-top: 4px; }
+  .lj-mud-fixo { font-size: 11px; color: var(--texto-2); }
+  .lj-mudanca .mv-vazio { font-size: 12px; margin: 3px 0 0; }
+  .lj-mudanca .lj-chips { gap: 3px; }
+  .lj-mudanca .lj-chip { padding: 3px 8px; font-size: 10.5px; }
+
   /* Telas estreitas: os painéis vão para baixo da planta. */
   @media (max-width: 900px) {
     body.com-painel-validacao .palco, body.com-painel-loja .palco { flex-direction: column; }
@@ -890,6 +912,9 @@
   [data-tema="escuro"] .an-mapa tbody td.atual > * { outline-color: #8fa0f0; }
   [data-tema="escuro"] .an-mapa tbody tr.ativo th { box-shadow: inset 3px 0 0 #8fa0f0; }
   [data-tema="escuro"] .an-cel-livre { background: repeating-linear-gradient(135deg, #23272c 0 6px, #1c1f23 6px 12px); }
+  [data-tema="escuro"] .lj-mud-tipo.nova { background: #173a28; color: #7fd6a4; }
+  [data-tema="escuro"] .lj-mud-tipo.removida { background: #4a2510; color: #ffb38a; }
+  [data-tema="escuro"] .lj-mud-tipo.mudou { background: #2a3260; color: #c5cef8; }
   [data-tema="escuro"] .an-indice.alto { color: #6fcf9a; }
   [data-tema="escuro"] .an-indice.baixo { color: #f0a868; }
 </style>
@@ -3450,6 +3475,10 @@ function executarComentario_(ss, acesso, pedido) {
           <span>Ciclo</span>
           <select id="selCiclo" aria-label="Ciclo"></select>
         </label>
+        <label class="campo" id="campoComparar" hidden title="Só os espaços que mudaram em relação ao outro ciclo ficam coloridos">
+          <span>Comparar com</span>
+          <select id="selComparar" aria-label="Comparar com o ciclo"></select>
+        </label>
         <div class="abas" id="abasPlanta" role="tablist" aria-label="Plantas"></div>
         <div class="abas" id="abasVisao" role="tablist" aria-label="Como mostrar as etiquetas">
           <button class="aba" type="button" role="tab" data-visao="planta" aria-selected="true" title="Etiquetas junto de cada espaço do móvel, na planta">Na planta</button>
@@ -5764,6 +5793,7 @@ const Render = (() => {
    * @param {{dados, planta, ciclo, filtro, filtroEtiqueta, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx
    *   escalaEtiquetas: tamanho das etiquetas na visão na planta (1 = padrão).
    *   filtroEtiqueta: texto de uma etiqueta (ou lista de textos); só os espaços com ela ficam coloridos e com etiqueta.
+   *   destaqueEspacos: chaves ("MOVEL" ou "MOVEL/ESPACO") dos espaços que ficam coloridos (comparação de ciclos).
    *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).
    *   paineis: false = sem o painel lateral, notas, legenda e itens extras (na tela eles ficam no menu
    *   da esquerda) e a planta na largura toda; true (padrão) = slide completo, como no PNG.
@@ -5824,10 +5854,15 @@ const Render = (() => {
       const iguais = i.etiquetas.filter((e) => filtroEtq.indexOf(chaveEtiqueta(e.texto)) >= 0);
       return iguais.length ? Object.assign({}, i, { etiquetas: iguais }) : { marca: '', etiquetas: [], simbolo: '', apagado: true };
     };
+    // Comparação de ciclos: só os espaços que mudaram (chaves "MOVEL" ou "MOVEL/ESPACO") ficam
+    // coloridos; os outros com movimento ficam em cinza e sem etiquetas, como no filtro por etiqueta.
+    const destaque = ctx.destaqueEspacos ? new Set(ctx.destaqueEspacos) : null;
+    const visivel = (k, i) => (destaque && i && !destaque.has(k)
+      ? { marca: '', etiquetas: [], simbolo: '', apagado: true } : soEtiqueta(i));
     const infoVis = {};
     const infoEspacoVis = {};
-    Object.keys(info).forEach((k) => { infoVis[k] = soEtiqueta(info[k]); });
-    Object.keys(infoEspaco).forEach((k) => { infoEspacoVis[k] = soEtiqueta(infoEspaco[k]); });
+    Object.keys(info).forEach((k) => { infoVis[k] = visivel(k, info[k]); });
+    Object.keys(infoEspaco).forEach((k) => { infoEspacoVis[k] = visivel(k, infoEspaco[k]); });
     const infoVisDe = (b) => (b.espaco ? infoEspacoVis[b.movel.id + '/' + b.espaco.id] : infoVis[b.movel.id]);
 
     // Caixas de destaque: não vão mais na planta nem nas fichas (ficam em "Comunicações ER" e, no PNG do
@@ -9101,6 +9136,7 @@ const App = (() => {
     filtro: '',
     filtroEtiqueta: '', // etiqueta escolhida em "Por movimentos" (só os espaços com ela ficam coloridos)
     filtroClassificacao: '', // classificação escolhida em "Por classificação" (lançamento, promoção…)
+    comparar: '', // ciclo com que o atual é comparado (só os espaços que mudaram ficam coloridos)
     edicao: false,
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}; LOJA → {escala} (tamanho, em %)
     grupos: [],
@@ -9323,6 +9359,19 @@ const App = (() => {
     sel.disabled = false;
     sel.appendChild(new Option('Sem ciclo (planta limpa)', '', false, !estado.ciclo));
     estado.dados.ciclos.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.ciclo)));
+    montarComparar();
+  }
+
+  /** "Comparar com": os outros ciclos (só aparece com um ciclo escolhido e mais de um ciclo na planilha). */
+  function montarComparar() {
+    const sel = $('selComparar');
+    if (estado.comparar === estado.ciclo || estado.dados.ciclos.indexOf(estado.comparar) < 0) estado.comparar = '';
+    const outros = estado.dados.ciclos.filter((c) => c !== estado.ciclo);
+    $('campoComparar').hidden = !estado.ciclo || !outros.length;
+    sel.textContent = '';
+    sel.appendChild(new Option('Não comparar', '', false, !estado.comparar));
+    outros.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.comparar)));
+    document.body.classList.toggle('comparando', !!(estado.ciclo && estado.comparar));
   }
 
   function montarAbas() {
@@ -9452,6 +9501,8 @@ const App = (() => {
       ciclo: estado.ciclo,
       filtro: estado.filtro,
       filtroEtiqueta: construcao ? '' : etiquetasDoFiltro(),
+      destaqueEspacos: !construcao && estado.ciclo && estado.comparar
+        ? mudancasEntre(planta, estado.ciclo, estado.comparar).map((x) => x.chave) : null,
       ajustes: estado.ajustes,
       escalaEtiquetas: construcao ? 1 : tamanhoEtiquetas() / 100,
       edicao: estado.edicao,
@@ -9894,9 +9945,39 @@ const App = (() => {
    * @return {Array<{movel, espaco, peso: number, vm: boolean, divide: boolean, marcas: string[],
    *   etiquetas: Array<{texto, marca}>}>}  peso = quanto do espaço a parte vale (1 ou ½)
    */
+  const linhaValida = (i) => !!(i && (i.marca || i.etiquetas.length || i.simbolo));
+
+  /** Linha do ciclo de um espaço (a metade sem linha própria usa a do meio) ou, sem espaço, do móvel inteiro. */
+  function linhaDoEspaco(ciclo, plantaId, m, espacoId) {
+    const linha = (x) => movimentoDe(ciclo, plantaId, x);
+    if (!espacoId) return linha(m.id);
+    const meio = /^MEIO-[AB]-\d$/.test(espacoId) ? m.id + '/' + espacoId.slice(0, 6) : null;
+    const achada = [m.id + '/' + espacoId, meio].filter(Boolean).find((x) => linhaValida(linha(x)));
+    return achada ? linha(achada) : null;
+  }
+
+  /**
+   * Espaços da planta no ciclo, como a planta os desenha: cada espaço dos móveis com espaços (gôndola —
+   * com o meio dividido quando o ciclo tem linha para a metade —, mesas, totem, móvel make) ou o móvel inteiro.
+   * @return {Array<{movel, espaco, chave}>} chave: "MOVEL" ou "MOVEL/ESPACO"
+   */
+  function espacosDaPlanta(planta, ciclo) {
+    const valida = (x) => linhaValida(movimentoDe(ciclo, planta.id, x));
+    const lista = [];
+    planta.moveis.forEach((m) => {
+      let esp = Render.espacos(m); // frentes e verso das mesas, painéis do totem
+      if (m.tipo === 'GONDOLA') {
+        const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
+          || valida(m.id + '/MEIO-' + l + '-2') || valida(m.id + '/MEIO-' + l + '-1')).join('');
+        esp = Render.espacos(Object.assign({}, m, { dividido: div }));
+      }
+      if (esp.length) esp.forEach((e) => lista.push({ movel: m, espaco: e, chave: m.id + '/' + e.id }));
+      else lista.push({ movel: m, espaco: null, chave: m.id });
+    });
+    return lista;
+  }
+
   function partesDeEspaco(planta, ciclo) {
-    const linha = (x) => movimentoDe(ciclo, planta.id, x);
-    const valida = (i) => !!(i && (i.marca || i.etiquetas.length || i.simbolo));
     const marcasDe = (valor) => {
       if (!valor || valor === 'NEUTRO') return ['NEUTRO'];
       return String(valor).split('+').map((p) => p.trim()).map((p) => (estado.dados.marcas[p] ? p : 'OUTRA'));
@@ -9912,27 +9993,30 @@ const App = (() => {
         etiquetas: ((i && i.etiquetas) || []).map((e) => ({ texto: e.texto, marca: e.marca || marca })),
       });
     };
-    planta.moveis.forEach((m) => {
-      if (FORA_DO_ESPACO.indexOf(m.tipo) >= 0) return;
-      const propria = (id) => {
-        const meio = /^MEIO-[AB]-\d$/.test(id) ? m.id + '/' + id.slice(0, 6) : null;
-        const achada = [m.id + '/' + id, meio].filter(Boolean).find((x) => valida(linha(x)));
-        return achada ? linha(achada) : null;
-      };
-      if (m.tipo === 'GONDOLA') {
-        const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
-          || valida(linha(m.id + '/MEIO-' + l + '-2')) || valida(linha(m.id + '/MEIO-' + l + '-1'))).join('');
-        Render.espacos(Object.assign({}, m, { dividido: div })).forEach((e) => parte(m, e, propria(e.id)));
-        return;
-      }
-      const blocos = Render.espacos(m); // frentes e verso das mesas, painéis do totem
-      if (blocos.length) {
-        blocos.forEach((e) => parte(m, e, propria(e.id)));
-        return;
-      }
-      parte(m, null, linha(m.id));
+    espacosDaPlanta(planta, ciclo).forEach((x) => {
+      if (FORA_DO_ESPACO.indexOf(x.movel.tipo) >= 0) return;
+      parte(x.movel, x.espaco, linhaDoEspaco(ciclo, planta.id, x.movel, x.espaco && x.espaco.id));
     });
     return partes;
+  }
+
+  /**
+   * Comparação de ciclos: os espaços da planta (como o ciclo atual os desenha) cuja linha mudou de um
+   * ciclo para o outro — marca, símbolo ou etiquetas (texto e marca de cada uma).
+   * @return {Array<{movel, espaco, chave, tipo: 'nova'|'removida'|'mudou', antes, depois}>}
+   */
+  function mudancasEntre(planta, ciclo, outro) {
+    const assinatura = (i) => (linhaValida(i)
+      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => chaveEtiqueta(e.texto) + '|' + (e.marca || ''))]) : '');
+    return espacosDaPlanta(planta, ciclo).map((x) => {
+      const id = x.espaco && x.espaco.id;
+      const depois = linhaDoEspaco(ciclo, planta.id, x.movel, id);
+      const antes = linhaDoEspaco(outro, planta.id, x.movel, id);
+      const a = assinatura(antes);
+      const d = assinatura(depois);
+      if (a === d) return null;
+      return Object.assign({}, x, { antes: a ? antes : null, depois: d ? depois : null, tipo: !a ? 'nova' : !d ? 'removida' : 'mudou' });
+    }).filter(Boolean);
   }
 
   /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços. */
@@ -10269,6 +10353,7 @@ const App = (() => {
       if (titulo) novo('span', null, titulo, h);
       return { sec, h };
     };
+    if (estado.comparar) secaoMudancas(secao('Mudou desde ' + estado.comparar).sec, planta);
     if (pain.TV.length) {
       const s = secao('TV e rádio');
       s.h.insertAdjacentHTML('afterbegin', ICONES_LOJA.TV + ICONES_LOJA.RADIO);
@@ -10311,6 +10396,40 @@ const App = (() => {
         else chipsLoja(bloco, etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || (info.marca !== 'NEUTRO' ? info.marca : '') })));
       });
     }
+  }
+
+  /** Lista do que mudou na ER desde o ciclo comparado: antes e agora de cada espaço (clique abre o móvel). */
+  function secaoMudancas(sec, planta) {
+    const lista = mudancasEntre(planta, estado.ciclo, estado.comparar);
+    if (!lista.length) {
+      novo('p', 'mv-vazio', 'Nada mudou nesta ER.', sec);
+      return;
+    }
+    novo('p', 'lj-mud-resumo', lista.length + (lista.length === 1 ? ' espaço mudou' : ' espaços mudaram')
+      + ' (os outros ficam em cinza na planta).', sec);
+    const chips = (pai, i) => {
+      if (!i) { novo('span', 'mv-vazio', 'sem movimento', pai); return; }
+      const marca = i.marca && i.marca !== 'NEUTRO' ? i.marca : '';
+      const itens = i.etiquetas.length ? i.etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || marca }))
+        : [{ texto: marca ? nomeDaMarca(marca) : 'sem etiqueta', marca }];
+      chipsLoja(pai, itens);
+      if (i.simbolo === 'FIXO') novo('span', 'lj-mud-fixo', '🔒 fixo', pai);
+    };
+    lista.forEach((x) => {
+      const bloco = novo('button', 'lj-mudanca', null, sec);
+      bloco.type = 'button';
+      bloco.dataset.movel = x.movel.id;
+      bloco.addEventListener('click', () => abrirMovel(x.movel.id));
+      const topo = novo('div', 'lj-mud-topo', null, bloco);
+      novo('strong', null, (x.movel.descricao || x.movel.id) + (x.espaco ? ' · ' + x.espaco.nome : ''), topo);
+      novo('span', 'lj-mud-tipo ' + x.tipo, x.tipo === 'nova' ? 'novo' : x.tipo === 'removida' ? 'saiu' : 'mudou', topo);
+      const antes = novo('div', 'lj-mud-linha antes', null, bloco);
+      novo('span', 'lj-mud-rot', 'Antes', antes);
+      chips(antes, x.antes);
+      const agora = novo('div', 'lj-mud-linha', null, bloco);
+      novo('span', 'lj-mud-rot', 'Agora', agora);
+      chips(agora, x.depois);
+    });
   }
 
   /* ------------------------- estratégia do móvel -------------------------- */
@@ -10699,7 +10818,11 @@ const App = (() => {
     $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.'
       : estado.filtroEtiqueta ? 'Só os espaços com a etiqueta ' + estado.filtroEtiqueta + ' ficam coloridos, como na tela.'
         : estado.filtroClassificacao ? 'Só os espaços com movimentos de ' + nomeClassificacao(estado.filtroClassificacao) + ' ficam coloridos, como na tela.' : '';
-    $('pngFiltroTexto').hidden = !marca && !estado.filtroEtiqueta && !estado.filtroClassificacao;
+    if (estado.ciclo && estado.comparar) {
+      $('pngFiltroTexto').textContent = ($('pngFiltroTexto').textContent + ' Comparando com ' + estado.comparar
+        + ': só os espaços que mudaram ficam coloridos, como na tela.').trim();
+    }
+    $('pngFiltroTexto').hidden = !$('pngFiltroTexto').textContent;
     dlg.returnValue = '';
     dlg.showModal();
   }
@@ -10894,6 +11017,14 @@ const App = (() => {
     const ao = (id, evento, fn) => { if ($(id)) $(id).addEventListener(evento, fn); };
     ao('selCiclo', 'change', (e) => {
       estado.ciclo = e.target.value;
+      montarComparar();
+      desenhar();
+    });
+    ao('selComparar', 'change', (e) => {
+      estado.comparar = e.target.value;
+      // Ao ligar a comparação, abre o menu da esquerda com a lista do que mudou.
+      if (estado.comparar && !estado.painelLoja) estado.painelLoja = true;
+      montarComparar();
       desenhar();
     });
     ao('btnModelo', 'click', () => estado.dados && abrirDialogoModelo());
