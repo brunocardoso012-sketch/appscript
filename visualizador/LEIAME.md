@@ -1,6 +1,6 @@
 # Plano de Varejo · Visualizador (Apps Script)
 
-Versão **só de visualização** do app: mostra as plantas de cada ciclo a partir de **uma única planilha** no Google Sheets. A estratégia é montada direto na planilha; o app só lê (a única coisa que ele grava são os comentários da validação, na aba **Comentários**).
+Versão **só de visualização** do app: mostra as plantas de cada ciclo a partir de **uma única planilha** no Google Sheets. A estratégia é montada direto na planilha ou, com o login da validação, no próprio app (ciclos em construção). O app grava os comentários da validação (aba **Comentários**) e os ciclos em construção (abas **Rascunhos**, **Rascunho Movimentos**, **Rascunho Painéis** e **Rascunho Tipos**); quando o validador aprova um ciclo, ele entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*.
 
 Comparado ao app completo, esta versão **não tem** *Construir loja*, *Baixar planilha base* nem *Importar planilha*. Ficam: seletor de ciclo, abas das plantas (setas ← →), as visões *Na planta* e *Visão simplificada*, *Comunicações ER* (menu da esquerda), *Analytics*, *Validação*, filtro por marca, zoom, *Baixar PNG*, *Ajustar etiquetas*, *Atualizar* e *Abrir planilha*.
 

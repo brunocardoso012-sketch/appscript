@@ -369,6 +369,89 @@ test('validação: senha por papel, quem pode o quê e aba Comentários', () => 
   assert.equal(run("lerComentariosDaPlanilha_(planilha_())").length, 1, 'resposta sai junto');
 });
 
+test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const salvar = (quem, pedido) => run(`salvarRascunho(${quem}, ${JSON.stringify(pedido)})`);
+  const exemplo = run('getDados()');
+  const nLinhasExemplo = Object.values(exemplo.movimentos['Ciclo exemplo']).reduce((s, p) => s + Object.keys(p).length, 0);
+
+  assert.deepEqual(run(`getRascunhos(${V})`).rascunhos, []);
+  assert.throws(() => run("getRascunhos({ papel: 'VALIDADOR', senha: 'x', nome: 'Ana' })"), /Senha incorreta/);
+  assert.throws(() => salvar(V, { acao: 'criar', ciclo: 'C11' }), /Só o construtor/);
+  assert.throws(() => salvar(C, { acao: 'criar', ciclo: 'Ciclo exemplo' }), /Já existe/);
+  assert.throws(() => salvar(C, { acao: 'criar', ciclo: 'C11', origem: 'Não existe' }), /não foi encontrado/);
+
+  // Copiando um ciclo publicado: as mesmas linhas, com o nome novo (a cascata entre as ERs continua igual).
+  let r = salvar(C, { acao: 'criar', ciclo: 'C11', origem: 'Ciclo exemplo' });
+  assert.deepEqual(r.rascunhos.map((x) => [x.ciclo, x.status, x.origem, x.criadoPor]), [['C11', 'EM_CONSTRUCAO', 'Ciclo exemplo', 'Bia']]);
+  assert.deepEqual(r.movimentos.C11, exemplo.movimentos['Ciclo exemplo']);
+  assert.deepEqual(r.paineis.C11, exemplo.paineis['Ciclo exemplo']);
+  assert.ok(!run('getDados()').ciclos.includes('C11'), 'rascunho não aparece para quem não entrou');
+
+  // Um espaço da ER M: vira linha própria dessa ER; linha vazia apaga.
+  r = salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: 'ER M', movel: 'gondola 1/ponta a', linha: {
+    marca: 'BOT', simbolo: 'FIXO', etiquetas: [{ texto: 'BOTIPROMO', marca: 'BOT' }, { texto: 'LÇTO EGEO' }, { texto: ' ' }],
+  } });
+  assert.deepEqual(r.movimentos.C11['02']['GONDOLA 1/PONTA-A'], {
+    marca: 'BOT', simbolo: 'FIXO', observacao: '',
+    etiquetas: [{ texto: 'BOTIPROMO', marca: 'BOT', posicao: 1 }, { texto: 'LÇTO EGEO', marca: '', posicao: 2 }],
+  });
+  r = salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: '02', movel: 'GONDOLA 1/PONTA-A', linha: { etiquetas: [] } });
+  assert.ok(!(r.movimentos.C11['02'] || {})['GONDOLA 1/PONTA-A']);
+
+  // Comunicações ER da ER P e tipos de movimento: substituem as do ciclo.
+  r = salvar(C, { acao: 'salvarPaineis', ciclo: 'C11', planta: 'ER P', linhas: [
+    { secao: 'TV', texto: 'GRADE NOVA', marca: 'MULTI' }, { secao: 'C', texto: '' }, { secao: 'x', texto: 'sem seção' },
+  ] });
+  assert.deepEqual(r.paineis.C11['01'], [{ secao: 'TV', texto: 'GRADE NOVA', marca: 'MULTI', movel: '' }]);
+  r = salvar(C, { acao: 'salvarTipos', ciclo: 'C11', linhas: [
+    { etiqueta: 'BOTIPROMO', classificacao: 'promo', gmv: '1,5 mi' }, { etiqueta: 'botipromo', classificacao: 'Lançamento' }, { etiqueta: 'VAZIO' },
+  ] });
+  assert.deepEqual(Object.keys(r.tiposMovimento.C11), ['BOTIPROMO']);
+  assert.equal(r.tiposMovimento.C11.BOTIPROMO.classificacao, 'PROMOCAO');
+  assert.equal(r.tiposMovimento.C11.BOTIPROMO.gmv, 1500000);
+
+  // Enviar trava a edição; o construtor não aprova; devolver vira comentário e destrava.
+  assert.throws(() => salvar(V, { acao: 'enviar', ciclo: 'C11' }), /Só o construtor/);
+  r = salvar(C, { acao: 'enviar', ciclo: 'C11' });
+  assert.equal(r.rascunhos[0].status, 'ENVIADO');
+  assert.throws(() => salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: '01', movel: 'PIRAMIDE 1', linha: { marca: 'BOT' } }), /foi enviado/);
+  assert.throws(() => salvar(C, { acao: 'aprovar', ciclo: 'C11' }), /Só o validador/);
+  assert.throws(() => salvar(V, { acao: 'devolver', ciclo: 'C11', motivo: ' ' }), /Escreva/);
+  r = salvar(V, { acao: 'devolver', ciclo: 'C11', planta: 'ER G', motivo: 'Faltou a pirâmide' });
+  assert.equal(r.rascunhos[0].status, 'EM_CONSTRUCAO');
+  const coment = run(`getComentarios(${V})`);
+  assert.deepEqual(coment.map((c) => [c.ciclo, c.planta, c.texto]), [['C11', '03', 'Devolvido para ajustes: Faltou a pirâmide']]);
+  assert.throws(() => salvar(V, { acao: 'aprovar', ciclo: 'C11' }), /não está aguardando/);
+
+  // Aprovar: as linhas vão para as abas publicadas e saem das de rascunho.
+  salvar(C, { acao: 'enviar', ciclo: 'C11' });
+  r = salvar(V, { acao: 'aprovar', ciclo: 'C11' });
+  assert.deepEqual(r.rascunhos, []);
+  assert.ok(!r.movimentos.C11);
+  const d = run('getDados()');
+  assert.ok(d.ciclos.includes('C11') && d.ciclos.includes('Ciclo exemplo'));
+  assert.deepEqual(d.paineis.C11['01'], [{ secao: 'TV', texto: 'GRADE NOVA', marca: 'MULTI', movel: '' }]);
+  assert.equal(d.tiposMovimento.C11.BOTIPROMO.gmv, 1500000);
+  assert.deepEqual(d.tiposMovimento['Ciclo exemplo'], exemplo.tiposMovimento['Ciclo exemplo'], 'os tipos dos outros ciclos ficam como estavam');
+  assert.deepEqual(d.paineis['Ciclo exemplo'], exemplo.paineis['Ciclo exemplo']);
+  assert.equal(Object.values(d.movimentos.C11).reduce((s, p) => s + Object.keys(p).length, 0), nLinhasExemplo);
+  assert.deepEqual(d.movimentos['Ciclo exemplo'], exemplo.movimentos['Ciclo exemplo'], 'os outros ciclos ficam como estavam');
+  assert.equal(run(`lerAba_(planilha_(), '${'Rascunhos'}', true)`)[1][1], 'APROVADO', 'histórico na aba Rascunhos');
+  assert.throws(() => salvar(C, { acao: 'criar', ciclo: 'C11' }), /Já existe/);
+
+  // Em branco; excluir.
+  r = salvar(C, { acao: 'criar', ciclo: 'C12' });
+  assert.deepEqual([r.rascunhos.length, r.movimentos.C12], [1, undefined]);
+  assert.throws(() => salvar(C, { acao: 'enviar', ciclo: 'C12' }), /vazio/);
+  r = salvar(C, { acao: 'excluir', ciclo: 'C12' });
+  assert.deepEqual(r.rascunhos, []);
+});
+
 test('tipos de movimento: classificação e GMV esperado por etiqueta do ciclo', () => {
   const { run } = carregarGas();
   assert.equal(run("numeroGmv_('R$ 1.500.000,00')"), 1500000);

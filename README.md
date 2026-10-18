@@ -50,6 +50,21 @@ O item **Validação** do menu de configurações (engrenagem) abre um painel de
 - **Validador:** comenta a planta em geral ou um móvel. O móvel pode ser escolhido na lista, com *Escolher na planta* (e depois um clique no móvel) ou direto na tela do móvel. O validador também pode reabrir e excluir comentários.
 - **Construtor da estratégia:** vê os comentários, responde e usa *Marcar como resolvido*.
 - **Onde aparecem:** no painel (filtros *Abertos*, *Resolvidos* e *Todos*, da planta e do ciclo escolhidos, com atalhos para as outras plantas que têm comentários abertos); como um balão laranja com o número de comentários abertos no canto do móvel (clique para ver os comentários); e na seção *Comentários da validação* da tela do móvel. O número no botão é o total de comentários abertos no ciclo. O balão não sai no PNG.
+
+### Montar um ciclo novo na planta (e aprovar)
+
+Com o login da validação, o painel tem a seção **Ciclos em construção**. Um ciclo novo é montado direto no app e só entra na planilha, junto com os outros, depois que o validador aprova. Vale no app completo, no visualizador e na versão web.
+
+- **Novo ciclo** (construtor): dê o nome e escolha *Começar de*: em branco ou cópia de um ciclo (publicado ou em construção). A cópia traz os movimentos, as Comunicações ER e os Tipos de movimento do ciclo de origem.
+- **Seletor de ciclo:** para quem entrou, os ciclos em construção aparecem no grupo *Em construção*. Eles funcionam como um ciclo qualquer: planta, visão simplificada, Analytics, comparação, busca, PNG e comentários. Quem não entrou na validação não vê.
+- **Faixa do ciclo:** acima da planta, mostra o status (*Em construção* ou *Aguardando aprovação*) e as ações de cada papel.
+- **Editar os espaços** (construtor, em construção): clique num móvel. Na tela do móvel, cada espaço (ou o móvel inteiro) vira um formulário: marca, símbolo (🔒, Ⓔ, NEW), etiquetas (com sugestões das já usadas e a marca de cada uma) e observação. *Salvar* grava a linha **da ER da tela**; se o valor vinha de uma ER menor (cascata), a tela avisa que ele vira uma linha própria desta ER. *Limpar espaço* apaga a linha.
+- **Comunicações ER** (construtor): *Editar comunicações desta ER*, no menu da esquerda: TV e rádio, (A), (C), destaques (com o móvel a que apontam) e notas.
+- **Tipos de movimento** (construtor): botão na faixa: classificação, GMV esperado e observação de cada etiqueta do ciclo, em todas as ERs.
+- **Enviar para aprovação** (construtor): a edição fica travada. **Excluir** apaga o ciclo em construção.
+- **Devolver** (validador): o ciclo volta para construção, com um comentário *Devolvido para ajustes: …* na ER da tela.
+- **Aprovar e publicar** (validador): as linhas vão para as abas *Movimentos*, *Painéis* e *Tipos de movimento* e o ciclo aparece para todos.
+- **Na planilha:** enquanto não é aprovado, o ciclo fica nas abas *Rascunho Movimentos*, *Rascunho Painéis* e *Rascunho Tipos* (mesmas colunas das abas publicadas, com a mesma cascata entre as ERs), e o status na aba *Rascunhos*, que guarda também o histórico dos aprovados. As abas são criadas na primeira gravação. As regras ficam em [`src/Rascunhos.gs`](src/Rascunhos.gs) e são conferidas no servidor a cada gravação.
 - **Onde ficam:** na aba **Comentários** da planilha, criada no primeiro comentário, com uma linha por mensagem: as respostas apontam para o comentário na coluna *Responde a*. Na versão web, ficam no navegador.
 
 ## Construir loja (editor do layout)
@@ -152,12 +167,14 @@ Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`
    | Script | `Dados` | [`src/Dados.gs`](src/Dados.gs) |
    | Script | `Layouts` | [`src/Layouts.gs`](src/Layouts.gs) |
    | Script | `Validacao` | [`src/Validacao.gs`](src/Validacao.gs) |
+   | Script | `Rascunhos` | [`src/Rascunhos.gs`](src/Rascunhos.gs) |
    | HTML | `Index` | [`src/Index.html`](src/Index.html) |
    | HTML | `Styles` | [`src/Styles.html`](src/Styles.html) |
    | HTML | `Render` | [`src/Render.html`](src/Render.html) |
    | HTML | `Planilha` | [`src/Planilha.html`](src/Planilha.html) |
    | HTML | `Construtor` | [`src/Construtor.html`](src/Construtor.html) |
    | HTML | `Validacao` | [`src/Validacao.html`](src/Validacao.html) |
+   | HTML | `Rascunho` | [`src/Rascunho.html`](src/Rascunho.html) |
    | HTML | `Estrategia` | [`src/Estrategia.html`](src/Estrategia.html) |
    | HTML | `Tutorial` | [`src/Tutorial.html`](src/Tutorial.html) |
    | HTML | `Analytics` | [`src/Analytics.html`](src/Analytics.html) |
@@ -295,6 +312,7 @@ src/
   Code.gs           doGet, menu, getDados, importarPlanilha, salvarLayout, salvarAjustesEtiquetas…
   Layouts.gs        layout padrão das 4 plantas + ciclo de exemplo
   Validacao.gs      validação da estratégia: senhas, aba Comentários e quem pode o quê
+  Rascunhos.gs      ciclos em construção: criar, editar, enviar, devolver e aprovar (abas Rascunho…)
   Index.html        página (inclui os arquivos abaixo)
   Styles.html       estilos
   Render.html       desenho isométrico em SVG (slide 1920×1080)
@@ -304,13 +322,14 @@ src/
   Planilha.html     gerar/ler .xlsx no navegador (ExcelJS via cdnjs, com SRI)
   Construtor.html   modo "Construir loja" (editor visual do layout)
   Validacao.html    painel de validação (acesso, comentários, marcadores na planta)
+  Rascunho.html     ciclos em construção: novo ciclo, edição dos espaços, Comunicações ER, Tipos, aprovação
   App.html          estado da tela, botões e chamadas ao servidor
 index.html          versão web gerada (netli.fyi / Netlify)
 netlify.toml        publicação estática a partir da raiz
 web/
   backend-local.js  troca o google.script.run por localStorage (versão web)
 visualizador/
-  fonte/Visualizador.gs   backend da versão só de visualização (lê a planilha; só grava na aba Comentários)
+  fonte/Visualizador.gs   backend da versão só de visualização (lê a planilha; grava os comentários e os ciclos em construção)
   apps-script/            projeto gerado para o Apps Script (Codigo.gs, Index.html, manifesto)
   Planilha base - Visualizador.xlsx
 dev/

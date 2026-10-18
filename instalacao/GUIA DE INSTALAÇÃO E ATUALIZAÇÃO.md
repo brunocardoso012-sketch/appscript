@@ -26,6 +26,7 @@ Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (pas
 - **Ajustar etiquetas:** cada pilha de etiquetas se move sozinha, e dá para mudar o tamanho das etiquetas.
 - **Baixar PNG:** escolha o conteúdo (planta, visão simplificada ou **estratégia**, que é o espaço da ER em gráficos) e o formato (PNG recortado ou slide completo).
 - **Tutorial guiado:** quem abre o app pela primeira vez recebe um convite para um tour de cerca de 2 minutos.
+- **Montar um ciclo novo no app:** com o login da validação, o construtor da estratégia cria um ciclo (em branco ou copiando outro) e preenche os espaços, as Comunicações ER e os Tipos de movimento direto na planta. O validador aprova (o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*) ou devolve com um comentário. Enquanto não é aprovado, o ciclo fica em quatro abas novas, criadas sozinhas na primeira vez: *Rascunhos*, *Rascunho Movimentos*, *Rascunho Painéis* e *Rascunho Tipos*. Não apague essas abas nem mexa nelas à mão.
 
 ---
 
@@ -52,7 +53,7 @@ Se algo der errado, a cópia tem tudo como estava antes.
 
 ## Parte A · Atualizar o **visualizador**
 
-O visualizador **só lê** a planilha. A única coisa que ele grava são os comentários da validação, na aba *Comentários*. Ao atualizar, nada da planilha muda, e as posições das etiquetas que você já salvou também ficam.
+O visualizador lê a planilha e grava só os comentários da validação (aba *Comentários*) e os ciclos montados no app (abas *Rascunho…*; quando o validador aprova, o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*). Ao atualizar, nada da planilha muda, e as posições das etiquetas que você já salvou também ficam.
 
 ### A1. Guarde o link da planilha, se ele estiver no código
 
@@ -207,6 +208,7 @@ Abra o link do app e confira:
 - [ ] O **Analytics** mostra os números, os insights, o mapa movimento × ER e as marcas e classificações em cada ER. A classificação e o GMV só aparecem para os movimentos que estão na aba *Tipos de movimento*.
 - [ ] **Baixar PNG** (canto de baixo da planta) baixa a planta, a visão simplificada e a estratégia.
 - [ ] As posições de etiquetas que você já tinha salvado continuam no lugar.
+- [ ] Entre na *Validação* como construtor: o painel mostra **Ciclos em construção** com o botão *Novo ciclo*. Se quiser testar, crie um ciclo de teste, mude um espaço e depois clique em *Excluir* na faixa do ciclo.
 
 Se tudo estiver certo, avise os usuários: o link é o mesmo.
 

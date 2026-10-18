@@ -85,6 +85,7 @@ const Validacao = (() => {
       painelAberto = true;
       if (app.fecharAnalytics) app.fecharAnalytics(); // o Analytics cobre a planta e os painéis
       await recarregar();
+      if (app.aoEntrar) app.aoEntrar();
     } catch (e) {
       $('acessoErro').textContent = (e && e.message) || String(e);
       $('acessoErro').hidden = false;
@@ -101,6 +102,7 @@ const Validacao = (() => {
     sessao.gravar(null);
     painelAberto = false;
     app.desenhar();
+    if (app.aoSair) app.aoSair();
   }
 
   /* ----------------------------- servidor ---------------------------------- */
@@ -184,6 +186,9 @@ const Validacao = (() => {
     n('strong', null, acesso.nome, t);
     n('span', null, acesso.nomePapel, t);
     botao('Sair', 'fantasma', sair, quem);
+
+    // Ciclos em construção (Rascunho.html): novo ciclo, status e aprovação.
+    if (app.montarRascunhos) app.montarRascunhos(corpo);
 
     if (!e.ciclo) {
       n('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver e fazer comentários da estratégia.', corpo);
@@ -390,6 +395,6 @@ const Validacao = (() => {
     if (salvo && salvo.senha && salvo.papel) acesso = salvo;
   }
 
-  return { iniciar, atualizar, recarregar, marcadores, aoClicarMovel, focar, montarSecaoMovel, fecharPainel, ativo };
+  return { iniciar, atualizar, recarregar, marcadores, aoClicarMovel, focar, montarSecaoMovel, fecharPainel, ativo, acesso: () => acesso };
 })();
 </script>

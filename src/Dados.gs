@@ -599,3 +599,75 @@ function normSecao_(v) {
   }
   return '';
 }
+
+/* ======================= junção de linhas das abas ======================== */
+
+/**
+ * Junta linhas existentes de uma aba com linhas importadas: remove as antigas
+ * cujo (Ciclo, Planta) aparece na importação e acrescenta as novas (no Layout,
+ * que não tem Ciclo, a chave é só a Planta). chaveDe(objeto) troca a chave (opcional).
+ * Fica aqui (e não no Code.gs) porque o visualizador e os rascunhos também usam.
+ * @return {Array<Array<string>>} matriz completa (com cabeçalho) para gravar.
+ */
+function mesclarLinhas_(existentes, novos, colunas, chaveDe) {
+  const cab = existentes.length ? existentes[0].map(texto_) : colunas.map(function (c) { return c.titulo; });
+  while (cab.length && !cab[cab.length - 1]) cab.pop();
+  const cabChaves = cab.map(chave_);
+  const idx = {};
+  colunas.forEach(function (c) {
+    let i = acharColuna_(cabChaves, c);
+    if (i < 0) {
+      cab.push(c.titulo);
+      cabChaves.push(chave_(c.titulo));
+      i = cab.length - 1;
+    }
+    idx[c.chave] = i;
+  });
+  const largura = cab.length;
+  // Chave das linhas substituídas: (Ciclo, Planta), ou a de chaveDe(objeto) — ex.: (Ciclo, Planta, ID Móvel).
+  const chave = chaveDe || function (o) { return texto_(o.ciclo) + '||' + normPlanta_(o.planta); };
+  const substituir = {};
+  novos.forEach(function (o) { substituir[chave(o)] = true; });
+
+  // Colunas numéricas (ex.: coordenadas do Layout) mantêm números; o resto vira texto.
+  const ehTexto = {};
+  colunas.forEach(function (c) { if (c.texto || /^(marca|simbolo|secao|tipo|descricao)/.test(c.chave)) ehTexto[idx[c.chave]] = true; });
+  const valorCelula = function (v, i) {
+    return typeof v === 'number' && !ehTexto[i] ? v : texto_(v);
+  };
+  const linhaTexto = function (row) {
+    const out = [];
+    for (let i = 0; i < largura; i++) out.push(valorCelula(row[i], i));
+    return out;
+  };
+  const mantidas = existentes.slice(1).filter(function (row) {
+    if (row.every(function (v) { return texto_(v) === ''; })) return false;
+    const o = {};
+    colunas.forEach(function (c) { o[c.chave] = row[idx[c.chave]]; });
+    return !substituir[chave(o)];
+  }).map(linhaTexto);
+
+  const adicionadas = novos.map(function (o) {
+    const row = [];
+    for (let i = 0; i < largura; i++) row.push('');
+    colunas.forEach(function (c) {
+      let v = valorCelula(o[c.chave], idx[c.chave]);
+      if (c.chave === 'planta') v = normPlanta_(v);
+      if (c.chave === 'movel') v = normId_(v);
+      row[idx[c.chave]] = v;
+    });
+    return row;
+  });
+  return [cab].concat(mantidas, adicionadas);
+}
+
+/** Garante matriz de valores simples (string/number/boolean) vinda do navegador. */
+function sanitizarMatriz_(valores) {
+  return valores.map(function (row) {
+    return (Array.isArray(row) ? row : []).map(function (v) {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'number' || typeof v === 'boolean') return v;
+      return String(v).slice(0, 2000);
+    });
+  });
+}

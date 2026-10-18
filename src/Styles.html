@@ -772,8 +772,60 @@
   .lj-extra:first-of-type { border-top: 0; padding-top: 0; }
   .lj-extra-nome { font-size: 12px; font-style: italic; color: var(--texto-2); }
 
+  /* Ciclos em construção (Rascunho.html). */
+  .barra-rascunho { background: #eef2ff; border-color: #c7d2fe; }
+  .rs-status { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .rs-status.em_construcao { background: #fde6d8; color: #9a3a06; }
+  .rs-status.enviado { background: #e0e7ff; color: #27367a; }
+  .rs-secao { margin: 14px 0 6px; padding: 10px 12px; border: 1px solid var(--borda); border-radius: 10px; background: var(--fundo); }
+  .rs-secao-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .rs-secao h3 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--texto-2); }
+  .rs-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--borda); }
+  .rs-item.atual .rs-item-txt strong { text-decoration: underline; text-underline-offset: 3px; }
+  .rs-item-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .rs-item-txt strong { font-size: 13px; }
+  .rs-item-txt span { font-size: 11.5px; color: var(--texto-2); }
+  .lj-editar { margin: 12px 0 0; }
+  /* Formulário de um espaço na tela do móvel. */
+  .rs-espaco { display: grid; gap: 10px; }
+  .rs-espaco h3 { margin-bottom: 2px; }
+  .rs-herdado { margin: 0; font-size: 13px; color: #7a4b00; background: #fff8e6; border: 1px solid #f1d58a; border-radius: var(--raio); padding: 4px 10px; }
+  .rs-linha { display: flex; gap: 16px; align-items: flex-start; }
+  .rs-linha > select, .rs-linha > textarea { min-width: 0; flex: 0 1 360px; }
+  .rs-linha > textarea { font: inherit; padding: 7px 10px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); resize: vertical; }
+  .rs-etiquetas { display: grid; gap: 6px; flex: 1 1 auto; max-width: 620px; }
+  .rs-etq { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 6px; }
+  .rs-etq input, .rs-etq select { min-width: 0; width: 100%; }
+  .rs-espaco .val-acoes { justify-content: flex-start; }
+  /* Diálogo (novo ciclo, Comunicações ER, Tipos de movimento, devolver). */
+  .dialogo.rascunho { width: min(780px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; background: var(--superficie); }
+  .dialogo.rascunho .acesso-campo select { width: 100%; }
+  .dialogo.rascunho textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 7px 9px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); resize: vertical; }
+  .rs-painel { margin: 0 0 12px; padding: 8px 12px 10px; border: 1px solid var(--borda); border-radius: 10px; }
+  .rs-painel legend { padding: 0 4px; font-weight: 700; font-size: 13px; }
+  .rs-painel .val-dica { margin: 0 0 6px; }
+  .rs-painel-linhas { display: grid; gap: 6px; }
+  .rs-painel-linha { display: grid; grid-template-columns: minmax(0, 1fr) 150px auto; gap: 6px; align-items: start; }
+  .rs-painel-linha:has(.rs-alvo) { grid-template-columns: minmax(0, 1fr) 150px 170px auto; }
+  .rs-painel-linha select { min-width: 0; width: 100%; }
+  .rs-add { margin-top: 6px; }
+  .rs-tipos { display: grid; grid-template-columns: minmax(140px, 1.3fr) minmax(130px, 1fr) 120px minmax(120px, 1fr); gap: 6px 8px; align-items: center; }
+  .rs-tipos-cab { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); }
+  .rs-tipos-nome { font-family: var(--fonte-etq); font-size: 13px; overflow-wrap: anywhere; }
+  .rs-tipos select, .rs-tipos input { min-width: 0; width: 100%; padding: 5px 7px; font-size: 13px; }
+  @media (max-width: 640px) {
+    .rs-linha { flex-direction: column; gap: 4px; }
+    .rs-etq, .rs-painel-linha, .rs-painel-linha:has(.rs-alvo) { grid-template-columns: minmax(0, 1fr); }
+    .rs-tipos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .rs-tipos-cab { display: none; }
+  }
+  [data-tema="escuro"] .barra-rascunho { background: #1e2440; border-color: #3a4580; }
+  [data-tema="escuro"] .rs-status.em_construcao { background: #4a2510; color: #ffb38a; }
+  [data-tema="escuro"] .rs-status.enviado { background: #2a3260; color: #c5cef8; }
+  [data-tema="escuro"] .rs-herdado { color: #f1c76b; background: #2e2512; border-color: #6b5520; }
+
   /* Modo apresentação: só a planta, na tela toda. */
-  body.apresentando .topo, body.apresentando .faixa, body.apresentando .barra-edicao,
+  body.apresentando .topo, body.apresentando .faixa, body.apresentando .barra-edicao, body.apresentando .barra-rascunho,
   body.apresentando .painel-espaco, body.apresentando .btn-png, body.apresentando .analytics { display: none !important; }
   body.apresentando .palco { padding: 0; }
   body.apresentando #slide { min-height: 0; }

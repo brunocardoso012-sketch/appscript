@@ -3,7 +3,8 @@
  *  PLANO DE VAREJO · VISUALIZADOR — versão só de visualização (Apps Script)
  * ============================================================================
  *  Mostra as plantas de cada ciclo a partir de UMA planilha (abas "Movimentos",
- *  "Painéis" e, opcional, "Tipos de movimento"). A estratégia é montada direto na planilha; o app só lê.
+ *  "Painéis" e, opcional, "Tipos de movimento"). A estratégia é montada direto na planilha ou, com o
+ *  login da validação, no próprio app (ciclos em construção, que entram nas abas quando aprovados).
  *  Não tem o modo "Construir loja" nem "Baixar / Importar planilha": o layout
  *  das lojas fica no código (seção LAYOUT PADRÃO, mais abaixo).
  *
@@ -149,6 +150,38 @@ function salvarComentario(acesso, pedido) {
   return executarComentario_(planilhaVisualizador_(), acesso, pedido);
 }
 
+/* ======================= CICLOS EM CONSTRUÇÃO ============================ */
+/* O construtor monta o ciclo no app; na aprovação, ele vai para as abas       */
+/* Movimentos, Painéis e Tipos de movimento (as únicas gravações nelas).       */
+
+/** Leitura e gravação das abas para executarRascunho_ (Rascunhos.gs). */
+function ioRascunhos_(ss) {
+  return {
+    ler: function (nome) { return lerAbaTexto_(ss, nome); },
+    gravar: function (nome, colunas, matriz) { gravarAbaTexto_(ss, nome, matriz); },
+    layout: function () { return valoresLayoutPadrao_(); },
+    travar: function (fn) {
+      const trava = LockService.getScriptLock();
+      trava.waitLock(30000);
+      try {
+        return fn();
+      } finally {
+        trava.releaseLock();
+      }
+    },
+  };
+}
+
+/** Ciclos em construção (com os dados deles), para quem entrou na validação. */
+function getRascunhos(acesso) {
+  return executarRascunho_(ioRascunhos_(planilhaVisualizador_()), acesso, null);
+}
+
+/** Cria, edita, envia, devolve, aprova ou exclui um ciclo em construção (veja aplicarAcaoRascunho_). */
+function salvarRascunho(acesso, pedido) {
+  return executarRascunho_(ioRascunhos_(planilhaVisualizador_()), acesso, pedido);
+}
+
 /* ================================ I/O ===================================== */
 
 /** Planilha dos ciclos: a de VISUALIZADOR.PLANILHA (link ou ID), a propriedade SPREADSHEET_ID ou a vinculada. */
@@ -168,6 +201,31 @@ function planilhaVisualizador_() {
   if (ativa) return ativa;
   throw new Error('Nenhuma planilha conectada. Abra o Apps Script pela planilha (Extensões > Apps Script) ' +
     'ou cole o link dela em VISUALIZADOR.PLANILHA, no início do arquivo Codigo.gs.');
+}
+
+/**
+ * Grava a matriz inteira numa aba (cria se não existir), tudo como texto simples, com o cabeçalho
+ * em negrito e congelado. Usada pelos ciclos em construção e, na aprovação, pelas abas publicadas.
+ */
+function gravarAbaTexto_(ss, nome, valores) {
+  let sh = ss.getSheetByName(nome);
+  if (!sh) {
+    sh = ss.insertSheet(nome);
+    sh.setFrozenRows(1);
+  }
+  const largura = valores[0].length;
+  const linhas = valores.map(function (row) {
+    const r = row.slice(0, largura);
+    while (r.length < largura) r.push('');
+    return r;
+  });
+  sh.clearContents();
+  if (sh.getMaxColumns() < largura) sh.insertColumnsAfter(sh.getMaxColumns(), largura - sh.getMaxColumns());
+  if (sh.getMaxRows() < linhas.length) sh.insertRowsAfter(sh.getMaxRows(), linhas.length - sh.getMaxRows());
+  const faixa = sh.getRange(1, 1, linhas.length, largura);
+  faixa.setNumberFormat('@');
+  faixa.setValues(linhas);
+  sh.getRange(1, 1, 1, largura).setFontWeight('bold');
 }
 
 /** Aba inteira com os valores exibidos (evita que "10/2026" vire data ou "01" vire 1). Null se não existe. */

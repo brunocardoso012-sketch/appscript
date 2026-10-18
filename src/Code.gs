@@ -121,6 +121,31 @@ function salvarComentario(acesso, pedido) {
   return executarComentario_(planilha_(), acesso, pedido);
 }
 
+/* ======================= CICLOS EM CONSTRUÇÃO ============================ */
+
+/** Leitura e gravação das abas para executarRascunho_ (Rascunhos.gs). */
+function ioRascunhos_(ss) {
+  // As abas publicadas são lidas com os valores reais (como na importação), para a aprovação regravá-las
+  // sem transformar números (ex.: o GMV dos outros ciclos) em texto; as dos rascunhos, como texto.
+  const publicadas = [CONFIG.ABAS.MOVIMENTOS, CONFIG.ABAS.PAINEIS, CONFIG.ABAS.TIPOS];
+  return {
+    ler: function (nome) { return lerAba_(ss, nome, publicadas.indexOf(nome) < 0); },
+    gravar: function (nome, colunas, matriz) { escreverAba_(ss, nome, colunas, matriz); },
+    layout: function () { return lerAba_(ss, CONFIG.ABAS.LAYOUT, false); },
+    travar: comTrava_,
+  };
+}
+
+/** Ciclos em construção (com os dados deles), para quem entrou na validação. */
+function getRascunhos(acesso) {
+  return executarRascunho_(ioRascunhos_(planilha_()), acesso, null);
+}
+
+/** Cria, edita, envia, devolve, aprova ou exclui um ciclo em construção (veja aplicarAcaoRascunho_). */
+function salvarRascunho(acesso, pedido) {
+  return executarRascunho_(ioRascunhos_(planilha_()), acesso, pedido);
+}
+
 /**
  * Cria as abas que faltam (com layout padrão e um ciclo de exemplo).
  * Nunca sobrescreve abas que já têm dados.
@@ -444,72 +469,6 @@ function objetosLayoutDaPlanta_(planta, layout) {
     });
   });
   return linhas;
-}
-
-/**
- * Junta linhas existentes de uma aba com linhas importadas: remove as antigas
- * cujo (Ciclo, Planta) aparece na importação e acrescenta as novas (no Layout,
- * que não tem Ciclo, a chave é só a Planta).
- * @return {Array<Array<string>>} matriz completa (com cabeçalho) para gravar.
- */
-function mesclarLinhas_(existentes, novos, colunas) {
-  const cab = existentes.length ? existentes[0].map(texto_) : colunas.map(function (c) { return c.titulo; });
-  while (cab.length && !cab[cab.length - 1]) cab.pop();
-  const cabChaves = cab.map(chave_);
-  const idx = {};
-  colunas.forEach(function (c) {
-    let i = acharColuna_(cabChaves, c);
-    if (i < 0) {
-      cab.push(c.titulo);
-      cabChaves.push(chave_(c.titulo));
-      i = cab.length - 1;
-    }
-    idx[c.chave] = i;
-  });
-  const largura = cab.length;
-  const par = function (ciclo, planta) { return texto_(ciclo) + '||' + normPlanta_(planta); };
-  const substituir = {};
-  novos.forEach(function (o) { substituir[par(o.ciclo, o.planta)] = true; });
-
-  // Colunas numéricas (ex.: coordenadas do Layout) mantêm números; o resto vira texto.
-  const ehTexto = {};
-  colunas.forEach(function (c) { if (c.texto || /^(marca|simbolo|secao|tipo|descricao)/.test(c.chave)) ehTexto[idx[c.chave]] = true; });
-  const valorCelula = function (v, i) {
-    return typeof v === 'number' && !ehTexto[i] ? v : texto_(v);
-  };
-  const linhaTexto = function (row) {
-    const out = [];
-    for (let i = 0; i < largura; i++) out.push(valorCelula(row[i], i));
-    return out;
-  };
-  const mantidas = existentes.slice(1).filter(function (row) {
-    if (row.every(function (v) { return texto_(v) === ''; })) return false;
-    return !substituir[par(row[idx.ciclo], row[idx.planta])];
-  }).map(linhaTexto);
-
-  const adicionadas = novos.map(function (o) {
-    const row = [];
-    for (let i = 0; i < largura; i++) row.push('');
-    colunas.forEach(function (c) {
-      let v = valorCelula(o[c.chave], idx[c.chave]);
-      if (c.chave === 'planta') v = normPlanta_(v);
-      if (c.chave === 'movel') v = normId_(v);
-      row[idx[c.chave]] = v;
-    });
-    return row;
-  });
-  return [cab].concat(mantidas, adicionadas);
-}
-
-/** Garante matriz de valores simples (string/number/boolean) vinda do navegador. */
-function sanitizarMatriz_(valores) {
-  return valores.map(function (row) {
-    return (Array.isArray(row) ? row : []).map(function (v) {
-      if (v === null || v === undefined) return '';
-      if (typeof v === 'number' || typeof v === 'boolean') return v;
-      return String(v).slice(0, 2000);
-    });
-  });
 }
 
 /* ================================ I/O ===================================== */

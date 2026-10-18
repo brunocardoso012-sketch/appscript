@@ -116,6 +116,22 @@ test('visualizador: comentários da validação ficam na aba Comentários da pla
   assert.equal(run(`getComentarios(${V})`)[0].texto, 'Rever a ER M');
 });
 
+test('visualizador: ciclo montado no app entra nas abas da planilha quando aprovado', () => {
+  const { run } = carregarVisualizador();
+  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  run(`salvarRascunho(${C}, { acao: 'criar', ciclo: 'C20' })`);
+  run(`salvarRascunho(${C}, { acao: 'salvarEspaco', ciclo: 'C20', planta: 'ER P', movel: 'PIRAMIDE 1', linha: { marca: 'EUD', etiquetas: [{ texto: 'OUTLET' }] } })`);
+  assert.ok(!run('getDados()').ciclos.includes('C20'), 'em construção não aparece para todos');
+  run(`salvarRascunho(${C}, { acao: 'enviar', ciclo: 'C20' })`);
+  const r = run(`salvarRascunho(${V}, { acao: 'aprovar', ciclo: 'C20' })`);
+  assert.deepEqual(r.rascunhos, []);
+  const d = run('getDados()');
+  assert.deepEqual(d.ciclos, ['Ciclo exemplo', 'Ciclo exemplo cheio', 'C20']);
+  assert.deepEqual(d.movimentos.C20['01']['PIRAMIDE 1'].etiquetas.map((e) => e.texto), ['OUTLET']);
+  assert.deepEqual(d.avisos, []);
+});
+
 test('arquivo único para o Apps Script: atualizado, serve a página embutida e lê a planilha', () => {
   const fs = require('fs');
   const unico = fs.readFileSync(ARQUIVO_UNICO, 'utf8');

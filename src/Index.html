@@ -159,6 +159,12 @@
       </span>
     </div>
 
+    <!-- Ciclo em construção (Rascunho.html): status e o que cada papel pode fazer com ele. -->
+    <div class="barra-edicao barra-rascunho" id="barraRascunho" hidden>
+      <span id="rascunhoInfo"></span>
+      <span class="grupo-botoes" id="rascunhoAcoes"></span>
+    </div>
+
     <main class="palco" id="palco">
       <aside class="painel-espaco painel-loja" id="painelLoja" hidden aria-label="Comunicações ER">
         <header class="esp-topo">
@@ -444,7 +450,7 @@
     <dialog id="dlgAcesso" class="dialogo">
       <form id="formAcesso">
         <h2>Validação da estratégia</h2>
-        <p class="sub">O validador comenta a estratégia do ciclo; o construtor da estratégia vê os comentários, responde e marca como resolvido.</p>
+        <p class="sub">O validador comenta a estratégia do ciclo e aprova os ciclos novos; o construtor da estratégia monta os ciclos novos na planta, vê os comentários, responde e marca como resolvido.</p>
         <fieldset class="acesso-papeis">
           <legend>Entrar como</legend>
           <label class="opcao"><input type="radio" name="papel" value="VALIDADOR" checked> Validador</label>
@@ -460,6 +466,21 @@
       </form>
     </dialog>
 
+    <!-- Ciclo em construção: diálogos de novo ciclo, Comunicações ER, Tipos de movimento e devolução (Rascunho.html). -->
+    <dialog id="dlgRascunho" class="dialogo rascunho" aria-labelledby="rascunhoTitulo">
+      <form id="formRascunho" method="dialog">
+        <h2 id="rascunhoTitulo"></h2>
+        <p class="sub" id="rascunhoSub"></p>
+        <div id="rascunhoCorpo"></div>
+        <p class="acesso-erro" id="rascunhoErro" role="alert" hidden></p>
+        <div class="rodape-dialogo">
+          <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
+          <button class="btn primario" id="rascunhoOk" value="ok" type="submit">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+    <datalist id="listaEtiquetas"></datalist>
+
     <div class="apres-rotulo" id="apresRotulo" aria-live="polite" hidden></div>
 
     <div class="carregando" id="carregando" hidden>
@@ -474,6 +495,7 @@
     <?!= include('Construtor'); ?>
     <!-- /so-app-completo -->
     <?!= include('Validacao'); ?>
+    <?!= include('Rascunho'); ?>
     <?!= include('Estrategia'); ?>
     <?!= include('Analytics'); ?>
     <?!= include('Tutorial'); ?>

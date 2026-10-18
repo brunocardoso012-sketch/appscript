@@ -25,6 +25,11 @@ const CONFIG = {
     TIPOS: 'Tipos de movimento',
     LAYOUT: 'Layout',
     COMENTARIOS: 'Comentários',
+    // Ciclos em construção (Rascunhos.gs): o status de cada um e as linhas, no formato das abas publicadas.
+    RASCUNHOS: 'Rascunhos',
+    R_MOVIMENTOS: 'Rascunho Movimentos',
+    R_PAINEIS: 'Rascunho Painéis',
+    R_TIPOS: 'Rascunho Tipos',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -921,6 +926,78 @@ function normSecao_(v) {
   return '';
 }
 
+/* ======================= junção de linhas das abas ======================== */
+
+/**
+ * Junta linhas existentes de uma aba com linhas importadas: remove as antigas
+ * cujo (Ciclo, Planta) aparece na importação e acrescenta as novas (no Layout,
+ * que não tem Ciclo, a chave é só a Planta). chaveDe(objeto) troca a chave (opcional).
+ * Fica aqui (e não no Code.gs) porque o visualizador e os rascunhos também usam.
+ * @return {Array<Array<string>>} matriz completa (com cabeçalho) para gravar.
+ */
+function mesclarLinhas_(existentes, novos, colunas, chaveDe) {
+  const cab = existentes.length ? existentes[0].map(texto_) : colunas.map(function (c) { return c.titulo; });
+  while (cab.length && !cab[cab.length - 1]) cab.pop();
+  const cabChaves = cab.map(chave_);
+  const idx = {};
+  colunas.forEach(function (c) {
+    let i = acharColuna_(cabChaves, c);
+    if (i < 0) {
+      cab.push(c.titulo);
+      cabChaves.push(chave_(c.titulo));
+      i = cab.length - 1;
+    }
+    idx[c.chave] = i;
+  });
+  const largura = cab.length;
+  // Chave das linhas substituídas: (Ciclo, Planta), ou a de chaveDe(objeto) — ex.: (Ciclo, Planta, ID Móvel).
+  const chave = chaveDe || function (o) { return texto_(o.ciclo) + '||' + normPlanta_(o.planta); };
+  const substituir = {};
+  novos.forEach(function (o) { substituir[chave(o)] = true; });
+
+  // Colunas numéricas (ex.: coordenadas do Layout) mantêm números; o resto vira texto.
+  const ehTexto = {};
+  colunas.forEach(function (c) { if (c.texto || /^(marca|simbolo|secao|tipo|descricao)/.test(c.chave)) ehTexto[idx[c.chave]] = true; });
+  const valorCelula = function (v, i) {
+    return typeof v === 'number' && !ehTexto[i] ? v : texto_(v);
+  };
+  const linhaTexto = function (row) {
+    const out = [];
+    for (let i = 0; i < largura; i++) out.push(valorCelula(row[i], i));
+    return out;
+  };
+  const mantidas = existentes.slice(1).filter(function (row) {
+    if (row.every(function (v) { return texto_(v) === ''; })) return false;
+    const o = {};
+    colunas.forEach(function (c) { o[c.chave] = row[idx[c.chave]]; });
+    return !substituir[chave(o)];
+  }).map(linhaTexto);
+
+  const adicionadas = novos.map(function (o) {
+    const row = [];
+    for (let i = 0; i < largura; i++) row.push('');
+    colunas.forEach(function (c) {
+      let v = valorCelula(o[c.chave], idx[c.chave]);
+      if (c.chave === 'planta') v = normPlanta_(v);
+      if (c.chave === 'movel') v = normId_(v);
+      row[idx[c.chave]] = v;
+    });
+    return row;
+  });
+  return [cab].concat(mantidas, adicionadas);
+}
+
+/** Garante matriz de valores simples (string/number/boolean) vinda do navegador. */
+function sanitizarMatriz_(valores) {
+  return valores.map(function (row) {
+    return (Array.isArray(row) ? row : []).map(function (v) {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'number' || typeof v === 'boolean') return v;
+      return String(v).slice(0, 2000);
+    });
+  });
+}
+
 /* ===== src/Code.gs ===== */
 /**
  * ============================================================================
@@ -1042,6 +1119,31 @@ function getComentarios(acesso) {
  */
 function salvarComentario(acesso, pedido) {
   return executarComentario_(planilha_(), acesso, pedido);
+}
+
+/* ======================= CICLOS EM CONSTRUÇÃO ============================ */
+
+/** Leitura e gravação das abas para executarRascunho_ (Rascunhos.gs). */
+function ioRascunhos_(ss) {
+  // As abas publicadas são lidas com os valores reais (como na importação), para a aprovação regravá-las
+  // sem transformar números (ex.: o GMV dos outros ciclos) em texto; as dos rascunhos, como texto.
+  const publicadas = [CONFIG.ABAS.MOVIMENTOS, CONFIG.ABAS.PAINEIS, CONFIG.ABAS.TIPOS];
+  return {
+    ler: function (nome) { return lerAba_(ss, nome, publicadas.indexOf(nome) < 0); },
+    gravar: function (nome, colunas, matriz) { escreverAba_(ss, nome, colunas, matriz); },
+    layout: function () { return lerAba_(ss, CONFIG.ABAS.LAYOUT, false); },
+    travar: comTrava_,
+  };
+}
+
+/** Ciclos em construção (com os dados deles), para quem entrou na validação. */
+function getRascunhos(acesso) {
+  return executarRascunho_(ioRascunhos_(planilha_()), acesso, null);
+}
+
+/** Cria, edita, envia, devolve, aprova ou exclui um ciclo em construção (veja aplicarAcaoRascunho_). */
+function salvarRascunho(acesso, pedido) {
+  return executarRascunho_(ioRascunhos_(planilha_()), acesso, pedido);
 }
 
 /**
@@ -1367,72 +1469,6 @@ function objetosLayoutDaPlanta_(planta, layout) {
     });
   });
   return linhas;
-}
-
-/**
- * Junta linhas existentes de uma aba com linhas importadas: remove as antigas
- * cujo (Ciclo, Planta) aparece na importação e acrescenta as novas (no Layout,
- * que não tem Ciclo, a chave é só a Planta).
- * @return {Array<Array<string>>} matriz completa (com cabeçalho) para gravar.
- */
-function mesclarLinhas_(existentes, novos, colunas) {
-  const cab = existentes.length ? existentes[0].map(texto_) : colunas.map(function (c) { return c.titulo; });
-  while (cab.length && !cab[cab.length - 1]) cab.pop();
-  const cabChaves = cab.map(chave_);
-  const idx = {};
-  colunas.forEach(function (c) {
-    let i = acharColuna_(cabChaves, c);
-    if (i < 0) {
-      cab.push(c.titulo);
-      cabChaves.push(chave_(c.titulo));
-      i = cab.length - 1;
-    }
-    idx[c.chave] = i;
-  });
-  const largura = cab.length;
-  const par = function (ciclo, planta) { return texto_(ciclo) + '||' + normPlanta_(planta); };
-  const substituir = {};
-  novos.forEach(function (o) { substituir[par(o.ciclo, o.planta)] = true; });
-
-  // Colunas numéricas (ex.: coordenadas do Layout) mantêm números; o resto vira texto.
-  const ehTexto = {};
-  colunas.forEach(function (c) { if (c.texto || /^(marca|simbolo|secao|tipo|descricao)/.test(c.chave)) ehTexto[idx[c.chave]] = true; });
-  const valorCelula = function (v, i) {
-    return typeof v === 'number' && !ehTexto[i] ? v : texto_(v);
-  };
-  const linhaTexto = function (row) {
-    const out = [];
-    for (let i = 0; i < largura; i++) out.push(valorCelula(row[i], i));
-    return out;
-  };
-  const mantidas = existentes.slice(1).filter(function (row) {
-    if (row.every(function (v) { return texto_(v) === ''; })) return false;
-    return !substituir[par(row[idx.ciclo], row[idx.planta])];
-  }).map(linhaTexto);
-
-  const adicionadas = novos.map(function (o) {
-    const row = [];
-    for (let i = 0; i < largura; i++) row.push('');
-    colunas.forEach(function (c) {
-      let v = valorCelula(o[c.chave], idx[c.chave]);
-      if (c.chave === 'planta') v = normPlanta_(v);
-      if (c.chave === 'movel') v = normId_(v);
-      row[idx[c.chave]] = v;
-    });
-    return row;
-  });
-  return [cab].concat(mantidas, adicionadas);
-}
-
-/** Garante matriz de valores simples (string/number/boolean) vinda do navegador. */
-function sanitizarMatriz_(valores) {
-  return valores.map(function (row) {
-    return (Array.isArray(row) ? row : []).map(function (v) {
-      if (v === null || v === undefined) return '';
-      if (typeof v === 'number' || typeof v === 'boolean') return v;
-      return String(v).slice(0, 2000);
-    });
-  });
 }
 
 /* ================================ I/O ===================================== */
@@ -2366,6 +2402,314 @@ function executarComentario_(ss, acesso, pedido) {
   }
 }
 
+/* ===== src/Rascunhos.gs ===== */
+/**
+ * ============================================================================
+ *  CICLOS EM CONSTRUÇÃO (rascunhos montados na planta e aprovados pelo validador)
+ * ============================================================================
+ *  O construtor da estratégia cria um ciclo novo (em branco ou copiando outro),
+ *  preenche os espaços, as Comunicações ER e os Tipos de movimento direto no app
+ *  e envia para aprovação. O validador aprova (o ciclo passa para as abas
+ *  Movimentos, Painéis e Tipos de movimento, junto com os demais) ou devolve
+ *  (com um comentário na aba Comentários).
+ *
+ *  Enquanto não é aprovado, o ciclo fica nas abas "Rascunho Movimentos",
+ *  "Rascunho Painéis" e "Rascunho Tipos", com as mesmas colunas das abas
+ *  publicadas (as mesmas regras de cascata entre as ERs), e o status na aba
+ *  "Rascunhos". Este arquivo só tem regras sobre matrizes: quem lê e grava as
+ *  abas é o Code.gs, o Visualizador.gs e, na versão web, o web/backend-local.js
+ *  (executarRascunho_, com o leitor / gravador de cada um).
+ */
+
+const STATUS_RASCUNHO = {
+  EM_CONSTRUCAO: { nome: 'Em construção' },
+  ENVIADO: { nome: 'Aguardando aprovação' },
+  APROVADO: { nome: 'Aprovado' },
+};
+
+/** Colunas da aba Rascunhos (uma linha por ciclo em construção; a dos aprovados fica como histórico). */
+function colunasRascunhos_() {
+  return [
+    { titulo: 'Ciclo', chave: 'ciclo', obrigatoria: true, texto: true },
+    { titulo: 'Status', chave: 'status', texto: true },
+    { titulo: 'Copiado de', chave: 'origem', texto: true },
+    { titulo: 'Criado por', chave: 'criadoPor', texto: true },
+    { titulo: 'Criado em', chave: 'criadoEm', texto: true },
+    { titulo: 'Enviado em', chave: 'enviadoEm', texto: true },
+    { titulo: 'Decidido por', chave: 'decididoPor', texto: true },
+    { titulo: 'Decidido em', chave: 'decididoEm', texto: true },
+  ];
+}
+
+/**
+ * As abas que os rascunhos usam: nome na planilha, colunas e o campo em "abas" (executarRascunho_).
+ * As três publicadas só são gravadas na aprovação.
+ */
+function abasRascunho_() {
+  return [
+    { campo: 'rascunhos', aba: CONFIG.ABAS.RASCUNHOS, colunas: colunasRascunhos_() },
+    { campo: 'rMovimentos', aba: CONFIG.ABAS.R_MOVIMENTOS, colunas: colunasMovimentos_() },
+    { campo: 'rPaineis', aba: CONFIG.ABAS.R_PAINEIS, colunas: colunasPaineis_() },
+    { campo: 'rTipos', aba: CONFIG.ABAS.R_TIPOS, colunas: colunasTipos_() },
+    { campo: 'movimentos', aba: CONFIG.ABAS.MOVIMENTOS, colunas: colunasMovimentos_(), publicada: true },
+    { campo: 'paineis', aba: CONFIG.ABAS.PAINEIS, colunas: colunasPaineis_(), publicada: true },
+    { campo: 'tipos', aba: CONFIG.ABAS.TIPOS, colunas: colunasTipos_(), publicada: true },
+    { campo: 'comentarios', aba: CONFIG.ABAS.COMENTARIOS, colunas: colunasComentarios_() },
+  ];
+}
+
+/** Matriz (com o cabeçalho das colunas) a partir de objetos {chave: valor}. */
+function matrizDeObjetos_(objetos, colunas) {
+  return [colunas.map(function (c) { return c.titulo; })].concat(objetos.map(function (o) {
+    return colunas.map(function (c) {
+      const v = o[c.chave];
+      return v === null || v === undefined ? '' : typeof v === 'number' ? v : texto_(v);
+    });
+  }));
+}
+
+/** Objetos {chave: valor} das linhas de uma matriz (sem as linhas vazias). */
+function objetosDaMatriz_(matriz, colunas) {
+  return objetosDeValores_(matriz, colunas).linhas.filter(function (o) {
+    return colunas.some(function (c) { return texto_(o[c.chave]) !== ''; });
+  });
+}
+
+/** Ciclos que já têm linhas nas abas publicadas. */
+function ciclosPublicados_(abas) {
+  const ciclos = {};
+  [['movimentos', colunasMovimentos_()], ['paineis', colunasPaineis_()], ['tipos', colunasTipos_()]].forEach(function (x) {
+    objetosDaMatriz_(abas[x[0]], x[1]).forEach(function (o) { if (texto_(o.ciclo)) ciclos[texto_(o.ciclo)] = true; });
+  });
+  return ciclos;
+}
+
+/**
+ * Linha da aba Movimentos de um espaço, a partir do que a página manda.
+ * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca}>}} l
+ * @return {Object|null} null quando o espaço fica vazio (a linha sai)
+ */
+function linhaDeEspaco_(ciclo, planta, movel, l) {
+  const x = l || {};
+  const o = {
+    ciclo: ciclo, planta: planta, movel: movel,
+    marca: normMarca_(x.marca), simbolo: normSimbolo_(x.simbolo), observacao: texto_(x.observacao).slice(0, 2000),
+  };
+  const etiquetas = (Array.isArray(x.etiquetas) ? x.etiquetas : [])
+    .filter(function (e) { return e && texto_(e.texto); })
+    .slice(0, CONFIG.MAX_ETIQUETAS);
+  for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
+    const e = etiquetas[i - 1];
+    o['etiqueta' + i] = e ? texto_(e.texto).slice(0, 200) : '';
+    o['marcaEtiqueta' + i] = e ? normMarca_(e.marca) : '';
+  }
+  return o.marca || o.simbolo || o.observacao || etiquetas.length ? o : null;
+}
+
+/**
+ * Aplica uma ação aos rascunhos e devolve as abas novas (sem gravar nada).
+ *  - criar:          { acao, ciclo, origem? }        construtor; origem = ciclo (publicado ou em construção) a copiar;
+ *  - salvarEspaco:   { acao, ciclo, planta, movel, linha }  construtor; linha vazia apaga a linha do espaço nessa ER;
+ *  - salvarPaineis:  { acao, ciclo, planta, linhas: [{secao, texto, marca, movel}] }  construtor;
+ *  - salvarTipos:    { acao, ciclo, linhas: [{etiqueta, classificacao, gmv, observacao}] }  construtor;
+ *  - enviar:         { acao, ciclo }                  construtor: trava a edição até o validador decidir;
+ *  - excluir:        { acao, ciclo }                  construtor (antes da aprovação);
+ *  - devolver:       { acao, ciclo, planta, motivo }   validador: volta para construção, com um comentário;
+ *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas.
+ * @param {Object} abas  matrizes (com cabeçalho) de cada campo de abasRascunho_()
+ * @param {{papel, autor}} quem  resultado de conferirAcesso_
+ * @return {{abas: Object, gravar: string[]}} gravar: campos das abas que mudaram
+ */
+function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
+  const p = pedido || {};
+  const quando = formatarDataComentario_(agora || new Date());
+  const defs = {};
+  abasRascunho_().forEach(function (d) { defs[d.campo] = d; });
+  const objs = function (campo) { return objetosDaMatriz_(abas[campo], defs[campo].colunas); };
+  const novas = Object.assign({}, abas);
+  const gravar = [];
+  const trocar = function (campo, lista) {
+    novas[campo] = matrizDeObjetos_(lista, defs[campo].colunas);
+    if (gravar.indexOf(campo) < 0) gravar.push(campo);
+  };
+  const exigir = function (papel, oQue) {
+    if (quem.papel !== papel) throw new Error('Só o ' + PAPEIS_ACESSO[papel].toLowerCase() + ' ' + oQue + '.');
+  };
+
+  const ciclo = texto_(p.ciclo).slice(0, 60);
+  if (!ciclo) throw new Error('Informe o nome do ciclo.');
+  const rascunhos = objs('rascunhos');
+  const doCiclo = function (o) { return texto_(o.ciclo) === ciclo; };
+  const atual = rascunhos.filter(function (r) { return doCiclo(r) && texto_(r.status) !== 'APROVADO'; })[0];
+  const comStatus = function (status, extra) {
+    trocar('rascunhos', rascunhos.map(function (r) {
+      return r === atual ? Object.assign({}, r, { status: status }, extra || {}) : r;
+    }));
+  };
+  const exigirRascunho = function (status) {
+    if (!atual) throw new Error('O ciclo "' + ciclo + '" não está em construção (pode ter sido aprovado ou excluído). Clique em Atualizar.');
+    if (status && texto_(atual.status) !== status) {
+      throw new Error(status === 'EM_CONSTRUCAO'
+        ? 'O ciclo "' + ciclo + '" foi enviado para aprovação: só volta a ser editado se o validador devolver.'
+        : 'O ciclo "' + ciclo + '" não está aguardando aprovação.');
+    }
+  };
+  const semCiclo = function (campo) { return objs(campo).filter(function (o) { return !doCiclo(o); }); };
+
+  if (p.acao === 'criar') {
+    exigir('CONSTRUTOR', 'cria ciclos');
+    if (atual || ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '". Escolha outro nome.');
+    const origem = texto_(p.origem);
+    if (origem) {
+      // Copia do ciclo de origem: os rascunhos dele, se estiver em construção; senão as abas publicadas.
+      const emConstrucao = rascunhos.some(function (r) { return texto_(r.ciclo) === origem && texto_(r.status) !== 'APROVADO'; });
+      [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
+        const daOrigem = objs(emConstrucao ? x[1] : x[0]).filter(function (o) { return texto_(o.ciclo) === origem; });
+        if (!daOrigem.length && x[0] === 'movimentos') throw new Error('O ciclo "' + origem + '" não foi encontrado.');
+        trocar(x[1], objs(x[1]).concat(daOrigem.map(function (o) { return Object.assign({}, o, { ciclo: ciclo }); })));
+      });
+    }
+    trocar('rascunhos', rascunhos.filter(function (r) { return !doCiclo(r); }).concat([{
+      ciclo: ciclo, status: 'EM_CONSTRUCAO', origem: origem, criadoPor: quem.autor, criadoEm: quando,
+    }]));
+    return { abas: novas, gravar: gravar };
+  }
+
+  if (p.acao === 'salvarEspaco') {
+    exigir('CONSTRUTOR', 'edita o ciclo');
+    exigirRascunho('EM_CONSTRUCAO');
+    const planta = normPlanta_(p.planta);
+    const movel = normIdEspaco_(p.movel);
+    if (!planta || !movel) throw new Error('Escolha a ER e o espaço.');
+    const mesmo = function (o) { return doCiclo(o) && normPlanta_(o.planta) === planta && normIdEspaco_(o.movel) === movel; };
+    const linha = linhaDeEspaco_(ciclo, planta, movel, p.linha);
+    trocar('rMovimentos', objs('rMovimentos').filter(function (o) { return !mesmo(o); }).concat(linha ? [linha] : []));
+    return { abas: novas, gravar: gravar };
+  }
+
+  if (p.acao === 'salvarPaineis') {
+    exigir('CONSTRUTOR', 'edita o ciclo');
+    exigirRascunho('EM_CONSTRUCAO');
+    const planta = normPlanta_(p.planta);
+    if (!planta) throw new Error('Escolha a ER.');
+    const linhas = (Array.isArray(p.linhas) ? p.linhas : []).map(function (l) {
+      const secao = normSecao_(l && l.secao);
+      const t = texto_(l && l.texto).slice(0, 2000);
+      if (!secao || !t) return null;
+      return { ciclo: ciclo, planta: planta, secao: secao, texto: t, marca: normMarca_(l.marca), movel: l.movel ? normId_(l.movel) : '' };
+    }).filter(Boolean);
+    trocar('rPaineis', objs('rPaineis').filter(function (o) { return !(doCiclo(o) && normPlanta_(o.planta) === planta); }).concat(linhas));
+    return { abas: novas, gravar: gravar };
+  }
+
+  if (p.acao === 'salvarTipos') {
+    exigir('CONSTRUTOR', 'edita o ciclo');
+    exigirRascunho('EM_CONSTRUCAO');
+    const vistos = {};
+    const linhas = (Array.isArray(p.linhas) ? p.linhas : []).map(function (l) {
+      const etiqueta = texto_(l && l.etiqueta).slice(0, 200);
+      const k = chaveEtiqueta_(etiqueta);
+      if (!etiqueta || vistos[k]) return null;
+      vistos[k] = true;
+      const gmv = numeroGmv_(l.gmv);
+      const o = { ciclo: ciclo, etiqueta: etiqueta, classificacao: normClassificacao_(l.classificacao), gmv: gmv === null ? '' : gmv, observacao: texto_(l.observacao).slice(0, 2000) };
+      return o.classificacao || o.gmv !== '' || o.observacao ? o : null;
+    }).filter(Boolean);
+    trocar('rTipos', semCiclo('rTipos').concat(linhas));
+    return { abas: novas, gravar: gravar };
+  }
+
+  if (p.acao === 'enviar') {
+    exigir('CONSTRUTOR', 'envia o ciclo para aprovação');
+    exigirRascunho('EM_CONSTRUCAO');
+    if (!objs('rMovimentos').some(doCiclo)) throw new Error('O ciclo está vazio: preencha pelo menos um espaço antes de enviar.');
+    comStatus('ENVIADO', { enviadoEm: quando });
+    return { abas: novas, gravar: gravar };
+  }
+
+  if (p.acao === 'excluir') {
+    exigir('CONSTRUTOR', 'exclui um ciclo em construção');
+    exigirRascunho();
+    ['rMovimentos', 'rPaineis', 'rTipos'].forEach(function (c) { trocar(c, semCiclo(c)); });
+    trocar('rascunhos', rascunhos.filter(function (r) { return r !== atual; }));
+    return { abas: novas, gravar: gravar };
+  }
+
+  if (p.acao === 'devolver') {
+    exigir('VALIDADOR', 'devolve o ciclo');
+    exigirRascunho('ENVIADO');
+    const motivo = texto_(p.motivo);
+    if (!motivo) throw new Error('Escreva o que precisa mudar.');
+    const c = aplicarAcaoComentario_(abas.comentarios, quem, {
+      acao: 'novo', ciclo: ciclo, planta: p.planta || Object.keys(NOMES_PLANTAS)[0], texto: 'Devolvido para ajustes: ' + motivo,
+    }, agora);
+    novas.comentarios = c.valores;
+    gravar.push('comentarios');
+    comStatus('EM_CONSTRUCAO', { decididoPor: quem.autor, decididoEm: quando });
+    return { abas: novas, gravar: gravar };
+  }
+
+  if (p.acao === 'aprovar') {
+    exigir('VALIDADOR', 'aprova o ciclo');
+    exigirRascunho('ENVIADO');
+    if (ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '" publicado. Peça para o construtor renomear (criar outro copiando este).');
+    [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
+      const linhas = objs(x[1]).filter(doCiclo);
+      if (linhas.length) {
+        novas[x[0]] = mesclarLinhas_(abas[x[0]] && abas[x[0]].length ? abas[x[0]] : [], linhas, defs[x[0]].colunas);
+        gravar.push(x[0]);
+      }
+      trocar(x[1], semCiclo(x[1]));
+    });
+    comStatus('APROVADO', { decididoPor: quem.autor, decididoEm: quando });
+    return { abas: novas, gravar: gravar };
+  }
+
+  throw new Error('Ação inválida.');
+}
+
+/**
+ * O que a página recebe: os ciclos em construção (status, quem criou…) e os dados deles já montados
+ * (movimentos, paineis e tiposMovimento, como os do getDados), para entrarem no seletor de ciclos.
+ */
+function dadosDosRascunhos_(valoresLayout, abas) {
+  const lista = objetosDaMatriz_(abas.rascunhos, colunasRascunhos_())
+    .filter(function (r) { return texto_(r.ciclo) && texto_(r.status) !== 'APROVADO'; })
+    .map(function (r) {
+      const status = STATUS_RASCUNHO[texto_(r.status)] ? texto_(r.status) : 'EM_CONSTRUCAO';
+      return {
+        ciclo: texto_(r.ciclo), status: status, nomeStatus: STATUS_RASCUNHO[status].nome, origem: texto_(r.origem),
+        criadoPor: texto_(r.criadoPor), criadoEm: texto_(r.criadoEm), enviadoEm: texto_(r.enviadoEm),
+        decididoPor: texto_(r.decididoPor), decididoEm: texto_(r.decididoEm),
+      };
+    });
+  const d = montarDados_(valoresLayout, abas.rMovimentos, abas.rPaineis, abas.rTipos);
+  return { rascunhos: lista, movimentos: d.movimentos, paineis: d.paineis, tiposMovimento: d.tiposMovimento };
+}
+
+/**
+ * Executa um pedido da página: confere o acesso, lê as abas, aplica a ação (se houver) e grava as que
+ * mudaram. io = { ler(nomeDaAba) → matriz ou null, gravar(nomeDaAba, colunas, matriz), layout() → matriz,
+ * travar(fn) }. Sem pedido (ou acao "listar"), só lê.
+ */
+function executarRascunho_(io, acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  return io.travar(function () {
+    const abas = {};
+    abasRascunho_().forEach(function (d) {
+      const m = io.ler(d.aba);
+      abas[d.campo] = m && m.length ? m : [d.colunas.map(function (c) { return c.titulo; })];
+    });
+    let atuais = abas;
+    if (pedido && pedido.acao && pedido.acao !== 'listar') {
+      const r = aplicarAcaoRascunho_(abas, quem, pedido);
+      abasRascunho_().forEach(function (d) { if (r.gravar.indexOf(d.campo) >= 0) io.gravar(d.aba, d.colunas, r.abas[d.campo]); });
+      atuais = r.abas;
+    }
+    return dadosDosRascunhos_(io.layout(), atuais);
+  });
+}
+
 /* ===== Página do app (gerada a partir de src/Index.html e dos HTML incluídos nela) ===== */
 const PAGINA_ = [
   "<!DOCTYPE html>",
@@ -3153,8 +3497,60 @@ const PAGINA_ = [
   "  .lj-extra:first-of-type { border-top: 0; padding-top: 0; }",
   "  .lj-extra-nome { font-size: 12px; font-style: italic; color: var(--texto-2); }",
   "",
+  "  /* Ciclos em construção (Rascunho.html). */",
+  "  .barra-rascunho { background: #eef2ff; border-color: #c7d2fe; }",
+  "  .rs-status { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }",
+  "  .rs-status.em_construcao { background: #fde6d8; color: #9a3a06; }",
+  "  .rs-status.enviado { background: #e0e7ff; color: #27367a; }",
+  "  .rs-secao { margin: 14px 0 6px; padding: 10px 12px; border: 1px solid var(--borda); border-radius: 10px; background: var(--fundo); }",
+  "  .rs-secao-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }",
+  "  .rs-secao h3 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--texto-2); }",
+  "  .rs-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--borda); }",
+  "  .rs-item.atual .rs-item-txt strong { text-decoration: underline; text-underline-offset: 3px; }",
+  "  .rs-item-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }",
+  "  .rs-item-txt strong { font-size: 13px; }",
+  "  .rs-item-txt span { font-size: 11.5px; color: var(--texto-2); }",
+  "  .lj-editar { margin: 12px 0 0; }",
+  "  /* Formulário de um espaço na tela do móvel. */",
+  "  .rs-espaco { display: grid; gap: 10px; }",
+  "  .rs-espaco h3 { margin-bottom: 2px; }",
+  "  .rs-herdado { margin: 0; font-size: 13px; color: #7a4b00; background: #fff8e6; border: 1px solid #f1d58a; border-radius: var(--raio); padding: 4px 10px; }",
+  "  .rs-linha { display: flex; gap: 16px; align-items: flex-start; }",
+  "  .rs-linha > select, .rs-linha > textarea { min-width: 0; flex: 0 1 360px; }",
+  "  .rs-linha > textarea { font: inherit; padding: 7px 10px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); resize: vertical; }",
+  "  .rs-etiquetas { display: grid; gap: 6px; flex: 1 1 auto; max-width: 620px; }",
+  "  .rs-etq { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 6px; }",
+  "  .rs-etq input, .rs-etq select { min-width: 0; width: 100%; }",
+  "  .rs-espaco .val-acoes { justify-content: flex-start; }",
+  "  /* Diálogo (novo ciclo, Comunicações ER, Tipos de movimento, devolver). */",
+  "  .dialogo.rascunho { width: min(780px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; background: var(--superficie); }",
+  "  .dialogo.rascunho .acesso-campo select { width: 100%; }",
+  "  .dialogo.rascunho textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 7px 9px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); resize: vertical; }",
+  "  .rs-painel { margin: 0 0 12px; padding: 8px 12px 10px; border: 1px solid var(--borda); border-radius: 10px; }",
+  "  .rs-painel legend { padding: 0 4px; font-weight: 700; font-size: 13px; }",
+  "  .rs-painel .val-dica { margin: 0 0 6px; }",
+  "  .rs-painel-linhas { display: grid; gap: 6px; }",
+  "  .rs-painel-linha { display: grid; grid-template-columns: minmax(0, 1fr) 150px auto; gap: 6px; align-items: start; }",
+  "  .rs-painel-linha:has(.rs-alvo) { grid-template-columns: minmax(0, 1fr) 150px 170px auto; }",
+  "  .rs-painel-linha select { min-width: 0; width: 100%; }",
+  "  .rs-add { margin-top: 6px; }",
+  "  .rs-tipos { display: grid; grid-template-columns: minmax(140px, 1.3fr) minmax(130px, 1fr) 120px minmax(120px, 1fr); gap: 6px 8px; align-items: center; }",
+  "  .rs-tipos-cab { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); }",
+  "  .rs-tipos-nome { font-family: var(--fonte-etq); font-size: 13px; overflow-wrap: anywhere; }",
+  "  .rs-tipos select, .rs-tipos input { min-width: 0; width: 100%; padding: 5px 7px; font-size: 13px; }",
+  "  @media (max-width: 640px) {",
+  "    .rs-linha { flex-direction: column; gap: 4px; }",
+  "    .rs-etq, .rs-painel-linha, .rs-painel-linha:has(.rs-alvo) { grid-template-columns: minmax(0, 1fr); }",
+  "    .rs-tipos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }",
+  "    .rs-tipos-cab { display: none; }",
+  "  }",
+  "  [data-tema=\"escuro\"] .barra-rascunho { background: #1e2440; border-color: #3a4580; }",
+  "  [data-tema=\"escuro\"] .rs-status.em_construcao { background: #4a2510; color: #ffb38a; }",
+  "  [data-tema=\"escuro\"] .rs-status.enviado { background: #2a3260; color: #c5cef8; }",
+  "  [data-tema=\"escuro\"] .rs-herdado { color: #f1c76b; background: #2e2512; border-color: #6b5520; }",
+  "",
   "  /* Modo apresentação: só a planta, na tela toda. */",
-  "  body.apresentando .topo, body.apresentando .faixa, body.apresentando .barra-edicao,",
+  "  body.apresentando .topo, body.apresentando .faixa, body.apresentando .barra-edicao, body.apresentando .barra-rascunho,",
   "  body.apresentando .painel-espaco, body.apresentando .btn-png, body.apresentando .analytics { display: none !important; }",
   "  body.apresentando .palco { padding: 0; }",
   "  body.apresentando #slide { min-height: 0; }",
@@ -3472,6 +3868,12 @@ const PAGINA_ = [
   "      </span>",
   "    </div>",
   "",
+  "    <!-- Ciclo em construção (Rascunho.html): status e o que cada papel pode fazer com ele. -->",
+  "    <div class=\"barra-edicao barra-rascunho\" id=\"barraRascunho\" hidden>",
+  "      <span id=\"rascunhoInfo\"></span>",
+  "      <span class=\"grupo-botoes\" id=\"rascunhoAcoes\"></span>",
+  "    </div>",
+  "",
   "    <main class=\"palco\" id=\"palco\">",
   "      <aside class=\"painel-espaco painel-loja\" id=\"painelLoja\" hidden aria-label=\"Comunicações ER\">",
   "        <header class=\"esp-topo\">",
@@ -3757,7 +4159,7 @@ const PAGINA_ = [
   "    <dialog id=\"dlgAcesso\" class=\"dialogo\">",
   "      <form id=\"formAcesso\">",
   "        <h2>Validação da estratégia</h2>",
-  "        <p class=\"sub\">O validador comenta a estratégia do ciclo; o construtor da estratégia vê os comentários, responde e marca como resolvido.</p>",
+  "        <p class=\"sub\">O validador comenta a estratégia do ciclo e aprova os ciclos novos; o construtor da estratégia monta os ciclos novos na planta, vê os comentários, responde e marca como resolvido.</p>",
   "        <fieldset class=\"acesso-papeis\">",
   "          <legend>Entrar como</legend>",
   "          <label class=\"opcao\"><input type=\"radio\" name=\"papel\" value=\"VALIDADOR\" checked> Validador</label>",
@@ -3772,6 +4174,21 @@ const PAGINA_ = [
   "        </div>",
   "      </form>",
   "    </dialog>",
+  "",
+  "    <!-- Ciclo em construção: diálogos de novo ciclo, Comunicações ER, Tipos de movimento e devolução (Rascunho.html). -->",
+  "    <dialog id=\"dlgRascunho\" class=\"dialogo rascunho\" aria-labelledby=\"rascunhoTitulo\">",
+  "      <form id=\"formRascunho\" method=\"dialog\">",
+  "        <h2 id=\"rascunhoTitulo\"></h2>",
+  "        <p class=\"sub\" id=\"rascunhoSub\"></p>",
+  "        <div id=\"rascunhoCorpo\"></div>",
+  "        <p class=\"acesso-erro\" id=\"rascunhoErro\" role=\"alert\" hidden></p>",
+  "        <div class=\"rodape-dialogo\">",
+  "          <button class=\"btn\" value=\"cancelar\" type=\"submit\" formnovalidate>Cancelar</button>",
+  "          <button class=\"btn primario\" id=\"rascunhoOk\" value=\"ok\" type=\"submit\">Salvar</button>",
+  "        </div>",
+  "      </form>",
+  "    </dialog>",
+  "    <datalist id=\"listaEtiquetas\"></datalist>",
   "",
   "    <div class=\"apres-rotulo\" id=\"apresRotulo\" aria-live=\"polite\" hidden></div>",
   "",
@@ -7428,6 +7845,7 @@ const PAGINA_ = [
   "      painelAberto = true;",
   "      if (app.fecharAnalytics) app.fecharAnalytics(); // o Analytics cobre a planta e os painéis",
   "      await recarregar();",
+  "      if (app.aoEntrar) app.aoEntrar();",
   "    } catch (e) {",
   "      $('acessoErro').textContent = (e && e.message) || String(e);",
   "      $('acessoErro').hidden = false;",
@@ -7444,6 +7862,7 @@ const PAGINA_ = [
   "    sessao.gravar(null);",
   "    painelAberto = false;",
   "    app.desenhar();",
+  "    if (app.aoSair) app.aoSair();",
   "  }",
   "",
   "  /* ----------------------------- servidor ---------------------------------- */",
@@ -7527,6 +7946,9 @@ const PAGINA_ = [
   "    n('strong', null, acesso.nome, t);",
   "    n('span', null, acesso.nomePapel, t);",
   "    botao('Sair', 'fantasma', sair, quem);",
+  "",
+  "    // Ciclos em construção (Rascunho.html): novo ciclo, status e aprovação.",
+  "    if (app.montarRascunhos) app.montarRascunhos(corpo);",
   "",
   "    if (!e.ciclo) {",
   "      n('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver e fazer comentários da estratégia.', corpo);",
@@ -7733,7 +8155,506 @@ const PAGINA_ = [
   "    if (salvo && salvo.senha && salvo.papel) acesso = salvo;",
   "  }",
   "",
-  "  return { iniciar, atualizar, recarregar, marcadores, aoClicarMovel, focar, montarSecaoMovel, fecharPainel, ativo };",
+  "  return { iniciar, atualizar, recarregar, marcadores, aoClicarMovel, focar, montarSecaoMovel, fecharPainel, ativo, acesso: () => acesso };",
+  "})();",
+  "</script>",
+  "",
+  "    <script>",
+  "/**",
+  " * ============================================================================",
+  " *  CICLOS EM CONSTRUÇÃO (página)",
+  " * ============================================================================",
+  " *  Para quem entrou na validação. O construtor da estratégia cria um ciclo novo",
+  " *  (em branco ou copiando outro), preenche os espaços na tela do móvel, as",
+  " *  Comunicações ER e os Tipos de movimento, e envia para aprovação. O validador",
+  " *  aprova (o ciclo entra nas abas da planilha, junto com os demais) ou devolve",
+  " *  com um comentário. Os ciclos em construção aparecem no seletor de ciclos",
+  " *  (\"Em construção\") e na planta como um ciclo qualquer. As regras ficam no",
+  " *  servidor (Rascunhos.gs).",
+  " */",
+  "const Rascunho = (() => {",
+  "  const $ = (id) => document.getElementById(id);",
+  "  let app = null; // { estado, chamar, toast, erro, desenhar, plantaAtual, acesso, montarCiclos, carregar, abrirMovel, movimentoDe, paineisDe, corDaMarca, nomeDaMarca }",
+  "  let lista = []; // [{ ciclo, status, nomeStatus, origem, criadoPor, criadoEm, enviadoEm, decididoPor, decididoEm }]",
+  "  let dados = null; // { movimentos, paineis, tiposMovimento } dos ciclos em construção",
+  "  let mesclados = []; // ciclos que mesclar() pôs em estado.dados (para tirar na próxima vez)",
+  "",
+  "  function n(tag, classe, texto, pai) {",
+  "    const e = document.createElement(tag);",
+  "    if (classe) e.className = classe;",
+  "    if (texto !== undefined && texto !== null) e.textContent = texto;",
+  "    if (pai) pai.appendChild(e);",
+  "    return e;",
+  "  }",
+  "",
+  "  function botao(texto, classe, fn, pai) {",
+  "    const b = n('button', 'btn pequeno ' + (classe || ''), texto, pai);",
+  "    b.type = 'button';",
+  "    b.addEventListener('click', fn);",
+  "    return b;",
+  "  }",
+  "",
+  "  const acesso = () => (app && app.acesso()) || null;",
+  "  const papel = () => (acesso() || {}).papel || '';",
+  "  const doCiclo = (ciclo) => lista.find((r) => r.ciclo === ciclo) || null;",
+  "  /** O ciclo da tela, se for um ciclo em construção. */",
+  "  const atual = () => (app && app.estado.ciclo ? doCiclo(app.estado.ciclo) : null);",
+  "  /** O construtor pode editar o ciclo da tela (em construção, ainda não enviado). */",
+  "  const editavel = () => papel() === 'CONSTRUTOR' && !!atual() && atual().status === 'EM_CONSTRUCAO';",
+  "",
+  "  /* ----------------------------- servidor ---------------------------------- */",
+  "",
+  "  /** Põe os ciclos em construção em estado.dados (movimentos, painéis, tipos), tirando os da vez anterior. */",
+  "  function mesclar(d) {",
+  "    if (!d) return;",
+  "    mesclados.forEach((c) => {",
+  "      if (d.ciclos.indexOf(c) >= 0) return; // acabou de ser aprovado: agora os dados são os publicados",
+  "      delete d.movimentos[c];",
+  "      delete d.paineis[c];",
+  "      if (d.tiposMovimento) delete d.tiposMovimento[c];",
+  "    });",
+  "    mesclados = [];",
+  "    if (!dados || !acesso()) return;",
+  "    lista.forEach((r) => {",
+  "      if (d.ciclos.indexOf(r.ciclo) >= 0) return; // nome já publicado (não deveria acontecer)",
+  "      d.movimentos[r.ciclo] = dados.movimentos[r.ciclo] || {};",
+  "      d.paineis[r.ciclo] = dados.paineis[r.ciclo] || {};",
+  "      d.tiposMovimento = d.tiposMovimento || {};",
+  "      d.tiposMovimento[r.ciclo] = (dados.tiposMovimento || {})[r.ciclo] || {};",
+  "      mesclados.push(r.ciclo);",
+  "    });",
+  "  }",
+  "",
+  "  function aplicar(r) {",
+  "    lista = (r && r.rascunhos) || [];",
+  "    dados = r || null;",
+  "    const e = app.estado;",
+  "    if (!e.dados) return;",
+  "    mesclar(e.dados);",
+  "    // O ciclo da tela era um rascunho que não existe mais (aprovado por outra pessoa, excluído…): volta à planta limpa.",
+  "    if (e.ciclo && e.dados.ciclos.indexOf(e.ciclo) < 0 && !doCiclo(e.ciclo)) e.ciclo = '';",
+  "    app.montarCiclos();",
+  "    app.desenhar();",
+  "  }",
+  "",
+  "  async function recarregar() {",
+  "    if (!acesso() || !app.estado.dados) { limpar(); return; }",
+  "    try {",
+  "      aplicar(await app.chamar('getRascunhos', acesso()));",
+  "    } catch (e) {",
+  "      app.erro(e);",
+  "    }",
+  "  }",
+  "",
+  "  function limpar() {",
+  "    lista = [];",
+  "    dados = null;",
+  "    if (!app || !app.estado.dados) return;",
+  "    mesclar(app.estado.dados);",
+  "    if (app.estado.ciclo && app.estado.dados.ciclos.indexOf(app.estado.ciclo) < 0) app.estado.ciclo = '';",
+  "    app.montarCiclos();",
+  "    app.desenhar();",
+  "  }",
+  "",
+  "  /** Grava um pedido; com \"aprovar\", recarrega os ciclos publicados (o novo passa a estar lá). */",
+  "  async function salvar(pedido, mensagem) {",
+  "    try {",
+  "      const r = await app.chamar('salvarRascunho', acesso(), pedido);",
+  "      if (pedido.acao === 'aprovar') {",
+  "        dados = r;",
+  "        lista = r.rascunhos || [];",
+  "        await app.carregar({ ciclo: pedido.ciclo });",
+  "      } else {",
+  "        aplicar(r);",
+  "      }",
+  "      if (mensagem) app.toast(mensagem);",
+  "      return true;",
+  "    } catch (e) {",
+  "      app.erro(e);",
+  "      return false;",
+  "    }",
+  "  }",
+  "",
+  "  /* ---------------------- diálogo genérico (dlgRascunho) -------------------- */",
+  "",
+  "  /**",
+  "   * Abre o diálogo com um título e um corpo montado por `montar(corpo)`. Ao confirmar, chama",
+  "   * `confirmar()`: se ela devolver uma mensagem de erro (texto), mostra e mantém o diálogo aberto.",
+  "   */",
+  "  function dialogo(titulo, sub, botaoOk, montar, confirmar) {",
+  "    const dlg = $('dlgRascunho');",
+  "    $('rascunhoTitulo').textContent = titulo;",
+  "    $('rascunhoSub').textContent = sub || '';",
+  "    $('rascunhoSub').hidden = !sub;",
+  "    $('rascunhoOk').textContent = botaoOk;",
+  "    $('rascunhoErro').hidden = true;",
+  "    const corpo = $('rascunhoCorpo');",
+  "    corpo.innerHTML = '';",
+  "    montar(corpo);",
+  "    dlg.onsubmit = async (ev) => {",
+  "      if (ev.submitter && ev.submitter.value === 'cancelar') return;",
+  "      ev.preventDefault();",
+  "      $('rascunhoOk').disabled = true;",
+  "      try {",
+  "        const falha = await confirmar();",
+  "        if (falha) {",
+  "          $('rascunhoErro').textContent = falha;",
+  "          $('rascunhoErro').hidden = false;",
+  "          return;",
+  "        }",
+  "        dlg.close();",
+  "      } finally {",
+  "        $('rascunhoOk').disabled = false;",
+  "      }",
+  "    };",
+  "    dlg.showModal();",
+  "    const primeiro = corpo.querySelector('input:not([type=\"hidden\"]), select, textarea');",
+  "    if (primeiro) primeiro.focus();",
+  "  }",
+  "",
+  "  /** Select de marca: sem marca + as marcas do app (e o valor atual, se for uma combinação ou cor). */",
+  "  function selectMarca(pai, valor, rotuloVazio) {",
+  "    const sel = n('select', 'rs-marca', null, pai);",
+  "    n('option', null, rotuloVazio || 'Sem marca', sel).value = '';",
+  "    const marcas = app.estado.dados.marcas;",
+  "    Object.keys(marcas).filter((c) => c !== 'NEUTRO').forEach((c) => { n('option', null, marcas[c].nome, sel).value = c; });",
+  "    if (valor && valor !== 'NEUTRO' && !marcas[valor]) n('option', null, app.nomeDaMarca(valor), sel).value = valor;",
+  "    sel.value = valor && valor !== 'NEUTRO' ? valor : '';",
+  "    return sel;",
+  "  }",
+  "",
+  "  /* ------------------------ painel da validação ----------------------------- */",
+  "",
+  "  /** Seção \"Ciclos em construção\" no painel da validação. */",
+  "  function montarSecao(corpo) {",
+  "    if (!acesso()) return;",
+  "    const sec = n('section', 'rs-secao', null, corpo);",
+  "    const topo = n('div', 'rs-secao-topo', null, sec);",
+  "    n('h3', null, 'Ciclos em construção', topo);",
+  "    if (papel() === 'CONSTRUTOR') botao('Novo ciclo', 'primario', novoCiclo, topo);",
+  "    if (!lista.length) {",
+  "      n('p', 'val-dica', papel() === 'CONSTRUTOR'",
+  "        ? 'Monte um ciclo novo direto na planta: ele só entra na planilha, junto com os outros, depois que o validador aprovar.'",
+  "        : 'Nenhum ciclo novo aguardando aprovação.', sec);",
+  "      return;",
+  "    }",
+  "    lista.forEach((r) => {",
+  "      const item = n('div', 'rs-item' + (r.ciclo === app.estado.ciclo ? ' atual' : ''), null, sec);",
+  "      const txt = n('div', 'rs-item-txt', null, item);",
+  "      n('strong', null, r.ciclo, txt);",
+  "      n('span', null, 'por ' + r.criadoPor + (r.origem ? ' · cópia de ' + r.origem : ''), txt);",
+  "      n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, item);",
+  "      if (r.ciclo !== app.estado.ciclo) botao('Abrir', '', () => abrir(r.ciclo), item);",
+  "    });",
+  "  }",
+  "",
+  "  function abrir(ciclo) {",
+  "    const e = app.estado;",
+  "    e.ciclo = ciclo;",
+  "    if (e.comparar === ciclo) e.comparar = '';",
+  "    app.montarCiclos();",
+  "    app.desenhar();",
+  "  }",
+  "",
+  "  function novoCiclo() {",
+  "    const e = app.estado;",
+  "    let nome;",
+  "    let origem;",
+  "    dialogo('Novo ciclo', 'O ciclo fica em construção (só quem entrou na validação vê) até o validador aprovar.', 'Criar', (corpo) => {",
+  "      const l1 = n('label', 'acesso-campo', 'Nome do ciclo', corpo);",
+  "      nome = n('input', null, null, l1);",
+  "      nome.type = 'text';",
+  "      nome.maxLength = 60;",
+  "      nome.required = true;",
+  "      nome.placeholder = 'Ex.: C11/2026';",
+  "      const l2 = n('label', 'acesso-campo', 'Começar de', corpo);",
+  "      origem = n('select', null, null, l2);",
+  "      n('option', null, 'Em branco (planta vazia)', origem).value = '';",
+  "      e.dados.ciclos.forEach((c) => { n('option', null, 'Cópia de ' + c, origem).value = c; });",
+  "      lista.forEach((r) => { n('option', null, 'Cópia de ' + r.ciclo + ' (em construção)', origem).value = r.ciclo; });",
+  "      // O mais comum: ajustar o ciclo anterior (o da tela ou o último da planilha).",
+  "      origem.value = e.ciclo || e.dados.ciclos[e.dados.ciclos.length - 1] || '';",
+  "    }, async () => {",
+  "      const ciclo = nome.value.trim();",
+  "      if (!ciclo) return 'Informe o nome do ciclo.';",
+  "      try {",
+  "        const r = await app.chamar('salvarRascunho', acesso(), { acao: 'criar', ciclo, origem: origem.value });",
+  "        aplicar(r);",
+  "        abrir(ciclo);",
+  "        app.toast('Ciclo ' + ciclo + ' criado. Clique num móvel para preencher os espaços.');",
+  "        return '';",
+  "      } catch (err) {",
+  "        return (err && err.message) || String(err);",
+  "      }",
+  "    });",
+  "  }",
+  "",
+  "  /* --------------------------- faixa do rascunho ---------------------------- */",
+  "",
+  "  /** Faixa acima da planta com o status do ciclo em construção e as ações de cada papel. */",
+  "  function atualizarFaixa() {",
+  "    const faixa = $('barraRascunho');",
+  "    const r = atual();",
+  "    faixa.hidden = !r;",
+  "    document.body.classList.toggle('com-rascunho', !!r);",
+  "    if (!r) return;",
+  "    const info = $('rascunhoInfo');",
+  "    info.innerHTML = '';",
+  "    n('strong', null, 'Ciclo em construção: ', info);",
+  "    info.appendChild(document.createTextNode(r.ciclo + ' · '));",
+  "    n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, info);",
+  "    const dica = r.status === 'ENVIADO'",
+  "      ? (papel() === 'VALIDADOR' ? ' Confira as ERs e aprove ou devolva.' : ' Aguardando o validador.')",
+  "      : (papel() === 'CONSTRUTOR' ? ' Clique num móvel para editar os espaços desta ER.' : ' O construtor ainda está montando.');",
+  "    info.appendChild(document.createTextNode(dica));",
+  "    const acoes = $('rascunhoAcoes');",
+  "    acoes.innerHTML = '';",
+  "    if (papel() === 'CONSTRUTOR' && r.status === 'EM_CONSTRUCAO') {",
+  "      botao('Tipos de movimento', '', editarTipos, acoes);",
+  "      botao('Excluir', 'perigo', () => {",
+  "        if (window.confirm('Excluir o ciclo em construção ' + r.ciclo + '? Não dá para desfazer.')) {",
+  "          salvar({ acao: 'excluir', ciclo: r.ciclo }, 'Ciclo excluído.');",
+  "        }",
+  "      }, acoes);",
+  "      botao('Enviar para aprovação', 'primario', () => {",
+  "        if (window.confirm('Enviar ' + r.ciclo + ' para aprovação? Você só volta a editar se o validador devolver.')) {",
+  "          salvar({ acao: 'enviar', ciclo: r.ciclo }, 'Ciclo enviado para aprovação.');",
+  "        }",
+  "      }, acoes);",
+  "    } else if (papel() === 'VALIDADOR' && r.status === 'ENVIADO') {",
+  "      botao('Devolver', '', () => devolver(r), acoes);",
+  "      botao('Aprovar e publicar', 'primario', () => {",
+  "        if (window.confirm('Aprovar ' + r.ciclo + '? Ele entra na planilha, junto com os outros ciclos, e fica visível para todos.')) {",
+  "          salvar({ acao: 'aprovar', ciclo: r.ciclo }, 'Ciclo ' + r.ciclo + ' aprovado e publicado.');",
+  "        }",
+  "      }, acoes);",
+  "    }",
+  "  }",
+  "",
+  "  function devolver(r) {",
+  "    let motivo;",
+  "    dialogo('Devolver ' + r.ciclo, 'O ciclo volta para o construtor, com um comentário na ' + app.plantaAtual().nome + '.', 'Devolver', (corpo) => {",
+  "      const l = n('label', 'acesso-campo', 'O que precisa mudar', corpo);",
+  "      motivo = n('textarea', null, null, l);",
+  "      motivo.rows = 4;",
+  "      motivo.required = true;",
+  "    }, async () => {",
+  "      if (!motivo.value.trim()) return 'Escreva o que precisa mudar.';",
+  "      const ok = await salvar({ acao: 'devolver', ciclo: r.ciclo, planta: app.plantaAtual().id, motivo: motivo.value }, 'Ciclo devolvido ao construtor.');",
+  "      if (ok && app.recarregarComentarios) app.recarregarComentarios();",
+  "      return ok ? '' : 'Não foi possível devolver.';",
+  "    });",
+  "  }",
+  "",
+  "  /* ------------------------- tela do móvel: edição -------------------------- */",
+  "",
+  "  /** Textos de etiqueta já usados (todos os ciclos), para sugerir ao digitar. */",
+  "  function montarSugestoes() {",
+  "    const vistos = {};",
+  "    const dl = $('listaEtiquetas');",
+  "    dl.innerHTML = '';",
+  "    Object.values(app.estado.dados.movimentos).forEach((c) => Object.values(c).forEach((p) => Object.values(p).forEach((i) => {",
+  "      i.etiquetas.forEach((e) => {",
+  "        const k = e.texto.toUpperCase();",
+  "        if (vistos[k] || Object.keys(vistos).length > 800) return;",
+  "        vistos[k] = true;",
+  "        n('option', null, null, dl).value = e.texto;",
+  "      });",
+  "    })));",
+  "  }",
+  "",
+  "  /**",
+  "   * Formulário de um espaço (ou do móvel inteiro) na tela do móvel, no lugar do bloco de leitura.",
+  "   * @param {{titulo, chave, info, limite, propria}} o  chave: \"MOVEL\" ou \"MOVEL/ESPACO\"; info: o que vale hoje",
+  "   *   nesta ER; propria: a ER tem linha própria (senão o valor vem de uma ER menor ou de TODAS)",
+  "   */",
+  "  function blocoEdicao(pai, o) {",
+  "    const planta = app.plantaAtual();",
+  "    const i = o.info || { marca: '', etiquetas: [], simbolo: '', observacao: '' };",
+  "    const f = n('form', 'mv-bloco rs-espaco', null, pai);",
+  "    f.dataset.espaco = o.chave;",
+  "    n('h3', null, o.titulo, f);",
+  "    if (o.info && !o.propria) {",
+  "      n('p', 'rs-herdado', 'Vem de outra ER (cascata). Ao salvar, vira uma linha própria da ' + planta.nome + '.', f);",
+  "    }",
+  "    const linha = (rotulo) => {",
+  "      const d = n('div', 'rs-linha', null, f);",
+  "      n('span', 'mv-rotulo', rotulo, d);",
+  "      return d;",
+  "    };",
+  "    const marca = selectMarca(linha('Marca'), i.marca, 'Sem marca (branco)');",
+  "    marca.setAttribute('aria-label', 'Marca de ' + o.titulo);",
+  "    const simbolo = n('select', null, null, linha('Símbolo'));",
+  "    simbolo.setAttribute('aria-label', 'Símbolo de ' + o.titulo);",
+  "    n('option', null, 'Nenhum', simbolo).value = '';",
+  "    Object.keys(app.estado.dados.simbolos).forEach((s) => {",
+  "      const d = app.estado.dados.simbolos[s];",
+  "      n('option', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[s] || '') + (d.descricao || s), simbolo).value = s;",
+  "    });",
+  "    simbolo.value = i.simbolo || '';",
+  "    const etqs = n('div', 'rs-etiquetas', null, linha('Etiquetas'));",
+  "    const campos = [];",
+  "    for (let k = 0; k < o.limite; k++) {",
+  "      const e = i.etiquetas[k] || {};",
+  "      const row = n('div', 'rs-etq', null, etqs);",
+  "      const t = n('input', null, null, row);",
+  "      t.type = 'text';",
+  "      t.maxLength = 200;",
+  "      t.value = e.texto || '';",
+  "      t.placeholder = 'Etiqueta ' + (k + 1);",
+  "      t.setAttribute('list', 'listaEtiquetas');",
+  "      t.setAttribute('aria-label', 'Etiqueta ' + (k + 1) + ' de ' + o.titulo);",
+  "      const m = selectMarca(row, e.marca, 'Cor da marca do espaço');",
+  "      m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1));",
+  "      campos.push({ t, m });",
+  "    }",
+  "    const obs = n('textarea', null, null, linha('Observação'));",
+  "    obs.rows = 2;",
+  "    obs.value = i.observacao || '';",
+  "    obs.setAttribute('aria-label', 'Observação de ' + o.titulo);",
+  "    const acoes = n('div', 'val-acoes', null, f);",
+  "    const limpar = botao('Limpar espaço', 'fantasma', null, acoes);",
+  "    const ok = n('button', 'btn pequeno primario', 'Salvar', acoes);",
+  "    ok.type = 'submit';",
+  "    const enviar = async (linhaNova) => {",
+  "      ok.disabled = true;",
+  "      limpar.disabled = true;",
+  "      const salvo = await salvar({ acao: 'salvarEspaco', ciclo: app.estado.ciclo, planta: planta.id, movel: o.chave, linha: linhaNova },",
+  "        o.titulo + ' salvo na ' + planta.nome + '.');",
+  "      ok.disabled = false;",
+  "      limpar.disabled = false;",
+  "      if (salvo && app.reabrirMovel) app.reabrirMovel();",
+  "    };",
+  "    limpar.addEventListener('click', () => enviar({ etiquetas: [] }));",
+  "    f.addEventListener('submit', (ev) => {",
+  "      ev.preventDefault();",
+  "      enviar({",
+  "        marca: marca.value, simbolo: simbolo.value, observacao: obs.value,",
+  "        etiquetas: campos.map((c) => ({ texto: c.t.value, marca: c.m.value })).filter((e) => e.texto.trim()),",
+  "      });",
+  "    });",
+  "  }",
+  "",
+  "  /* ----------------------- Comunicações ER (Painéis) ------------------------ */",
+  "",
+  "  /** Edita os textos de Comunicações ER da ER da tela (todas as seções; viram linhas próprias desta ER). */",
+  "  function editarPaineis() {",
+  "    const planta = app.plantaAtual();",
+  "    const ciclo = app.estado.ciclo;",
+  "    const secoes = app.estado.dados.secoes;",
+  "    const atuais = app.paineisDe(ciclo, planta.id);",
+  "    const grupos = {};",
+  "    dialogo('Comunicações ER · ' + planta.nome, 'TV e rádio, (A), (C), destaques e notas desta ER no ciclo ' + ciclo + '.', 'Salvar', (corpo) => {",
+  "      Object.keys(secoes).forEach((s) => {",
+  "        const sec = n('fieldset', 'rs-painel', null, corpo);",
+  "        n('legend', null, { TV: 'TV e rádio', A: '(A)', C: '(C)', CALLOUT: 'Destaques', NOTA: 'Notas' }[s] || s, sec);",
+  "        n('p', 'val-dica', secoes[s].descricao, sec);",
+  "        const box = n('div', 'rs-painel-linhas', null, sec);",
+  "        grupos[s] = box;",
+  "        const novaLinha = (p) => {",
+  "          const row = n('div', 'rs-painel-linha', null, box);",
+  "          const t = n('textarea', null, null, row);",
+  "          t.rows = 1;",
+  "          t.value = (p && p.texto) || '';",
+  "          t.placeholder = 'Texto';",
+  "          t.setAttribute('aria-label', 'Texto (' + s + ')');",
+  "          const m = selectMarca(row, p && p.marca);",
+  "          m.setAttribute('aria-label', 'Marca (' + s + ')');",
+  "          if (s === 'CALLOUT') {",
+  "            const alvo = n('select', 'rs-alvo', null, row);",
+  "            alvo.setAttribute('aria-label', 'Aponta para o móvel');",
+  "            n('option', null, 'Geral (sem móvel)', alvo).value = '';",
+  "            planta.moveis.filter((x) => x.tipo !== 'CAIXA').slice()",
+  "              .sort((a, b) => a.id.localeCompare(b.id, 'pt-BR', { numeric: true }))",
+  "              .forEach((x) => { n('option', null, x.descricao && x.descricao !== x.id ? x.id + ' · ' + x.descricao : x.id, alvo).value = x.id; });",
+  "            alvo.value = (p && p.movel) || '';",
+  "          }",
+  "          const x = botao('×', 'fantasma', () => row.remove(), row);",
+  "          x.setAttribute('aria-label', 'Remover');",
+  "        };",
+  "        (atuais[s] || []).forEach(novaLinha);",
+  "        botao('+ Adicionar', 'fantasma rs-add', () => { novaLinha(null); box.lastChild.querySelector('textarea').focus(); }, sec);",
+  "      });",
+  "    }, async () => {",
+  "      const linhas = [];",
+  "      Object.keys(grupos).forEach((s) => grupos[s].querySelectorAll('.rs-painel-linha').forEach((row) => {",
+  "        const texto = row.querySelector('textarea').value.trim();",
+  "        if (!texto) return;",
+  "        const alvo = row.querySelector('.rs-alvo');",
+  "        linhas.push({ secao: s, texto, marca: row.querySelector('.rs-marca').value, movel: alvo ? alvo.value : '' });",
+  "      }));",
+  "      const ok = await salvar({ acao: 'salvarPaineis', ciclo, planta: planta.id, linhas }, 'Comunicações da ' + planta.nome + ' salvas.');",
+  "      return ok ? '' : 'Não foi possível salvar.';",
+  "    });",
+  "  }",
+  "",
+  "  /* -------------------------- Tipos de movimento ---------------------------- */",
+  "",
+  "  /** Classificação e GMV esperado de cada etiqueta usada no ciclo (todas as ERs). */",
+  "  function editarTipos() {",
+  "    const e = app.estado;",
+  "    const ciclo = e.ciclo;",
+  "    const tipos = (e.dados.tiposMovimento || {})[ciclo] || {};",
+  "    const textos = {};",
+  "    Object.values(e.dados.movimentos[ciclo] || {}).forEach((p) => Object.values(p).forEach((i) => i.etiquetas.forEach((x) => {",
+  "      textos[x.texto.trim().replace(/\\s+/g, ' ').toUpperCase()] = textos[x.texto.trim().replace(/\\s+/g, ' ').toUpperCase()] || x.texto;",
+  "    })));",
+  "    Object.keys(tipos).forEach((k) => { textos[k] = textos[k] || tipos[k].texto || k; });",
+  "    const chaves = Object.keys(textos).sort((a, b) => a.localeCompare(b, 'pt-BR'));",
+  "    const linhas = [];",
+  "    dialogo('Tipos de movimento · ' + ciclo, 'Classificação e GMV esperado de cada movimento (usados no Analytics).', 'Salvar', (corpo) => {",
+  "      if (!chaves.length) {",
+  "        n('p', 'mv-vazio', 'Nenhuma etiqueta no ciclo ainda: preencha os espaços primeiro.', corpo);",
+  "        return;",
+  "      }",
+  "      const tabela = n('div', 'rs-tipos', null, corpo);",
+  "      ['Movimento', 'Classificação', 'GMV esperado (R$)', 'Observação'].forEach((t) => n('span', 'rs-tipos-cab', t, tabela));",
+  "      chaves.forEach((k) => {",
+  "        const t = tipos[k] || {};",
+  "        n('strong', 'rs-tipos-nome', textos[k], tabela);",
+  "        const cl = n('select', null, null, tabela);",
+  "        cl.setAttribute('aria-label', 'Classificação de ' + textos[k]);",
+  "        n('option', null, '—', cl).value = '';",
+  "        Object.keys(e.dados.classificacoes).forEach((c) => { n('option', null, e.dados.classificacoes[c].nome, cl).value = c; });",
+  "        if (t.classificacao && !e.dados.classificacoes[t.classificacao]) n('option', null, t.classificacao, cl).value = t.classificacao;",
+  "        cl.value = t.classificacao || '';",
+  "        const gmv = n('input', null, null, tabela);",
+  "        gmv.type = 'text';",
+  "        gmv.inputMode = 'decimal';",
+  "        gmv.placeholder = 'Ex.: 1,5 mi';",
+  "        gmv.value = typeof t.gmv === 'number' ? String(t.gmv).replace('.', ',') : '';",
+  "        gmv.setAttribute('aria-label', 'GMV esperado de ' + textos[k]);",
+  "        const obs = n('input', null, null, tabela);",
+  "        obs.type = 'text';",
+  "        obs.value = t.observacao || '';",
+  "        obs.setAttribute('aria-label', 'Observação de ' + textos[k]);",
+  "        linhas.push({ etiqueta: textos[k], cl, gmv, obs });",
+  "      });",
+  "    }, async () => {",
+  "      if (!linhas.length) return '';",
+  "      const ok = await salvar({",
+  "        acao: 'salvarTipos', ciclo,",
+  "        linhas: linhas.map((l) => ({ etiqueta: l.etiqueta, classificacao: l.cl.value, gmv: l.gmv.value, observacao: l.obs.value })),",
+  "      }, 'Tipos de movimento salvos.');",
+  "      return ok ? '' : 'Não foi possível salvar.';",
+  "    });",
+  "  }",
+  "",
+  "  /* -------------------------------- início --------------------------------- */",
+  "",
+  "  function iniciar(contexto) {",
+  "    app = contexto;",
+  "  }",
+  "",
+  "  /** Chamado depois de cada desenho da planta. */",
+  "  function atualizar() {",
+  "    atualizarFaixa();",
+  "  }",
+  "",
+  "  return {",
+  "    iniciar, atualizar, recarregar, limpar, mesclar, montarSecao, blocoEdicao, montarSugestoes, editarPaineis,",
+  "    editavel, lista: () => lista, tem: (ciclo) => !!doCiclo(ciclo),",
+  "  };",
   "})();",
   "</script>",
   "",
@@ -9206,6 +10127,7 @@ const PAGINA_ = [
   "      }",
   "      aplicarDados(dados, preferencias || {});",
   "      Validacao.recarregar();",
+  "      Rascunho.recarregar(); // ciclos em construção (só para quem entrou na validação)",
   "    } catch (e) {",
   "      erro(e);",
   "    } finally {",
@@ -9215,12 +10137,13 @@ const PAGINA_ = [
   "",
   "  function aplicarDados(dados, pref) {",
   "    estado.dados = dados;",
+  "    Rascunho.mesclar(dados); // os ciclos em construção já carregados continuam no seletor",
   "    $('telaConfig').hidden = true;",
   "    svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden",
   "",
   "    // O app abre sem ciclo (planta limpa, sem cores nem etiquetas) até o usuário escolher um.",
   "    const cicloPref = 'ciclo' in pref ? pref.ciclo : estado.ciclo;",
-  "    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 ? cicloPref : '';",
+  "    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 || Rascunho.tem(cicloPref) ? cicloPref : '';",
   "    const plantaPref = pref.planta || estado.planta || memoria.ler('planta');",
   "    // A planta pode vir pelo ID ou pelo nome (\"ER M\", do link).",
   "    const achada = dados.plantas.find((p) => p.id === plantaPref) || dados.plantas.find((p) => p.nome === plantaPref);",
@@ -9276,14 +10199,26 @@ const PAGINA_ = [
   "    sel.disabled = false;",
   "    sel.appendChild(new Option('Sem ciclo (planta limpa)', '', false, !estado.ciclo));",
   "    estado.dados.ciclos.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.ciclo)));",
+  "    // Ciclos em construção (Rascunho.html): só para quem entrou na validação.",
+  "    const rascunhos = Rascunho.lista();",
+  "    if (rascunhos.length) {",
+  "      const grupo = document.createElement('optgroup');",
+  "      grupo.label = 'Em construção';",
+  "      rascunhos.forEach((r) => grupo.appendChild(new Option(r.ciclo + ' · ' + r.nomeStatus.toLowerCase(), r.ciclo, false, r.ciclo === estado.ciclo)));",
+  "      sel.appendChild(grupo);",
+  "    }",
+  "    sel.value = estado.ciclo;",
   "    montarComparar();",
   "  }",
+  "",
+  "  /** Ciclos publicados e, para quem entrou na validação, os em construção. */",
+  "  const todosOsCiclos = () => estado.dados.ciclos.concat(Rascunho.lista().map((r) => r.ciclo).filter((c) => estado.dados.ciclos.indexOf(c) < 0));",
   "",
   "  /** \"Comparar com\": os outros ciclos (só aparece com um ciclo escolhido e mais de um ciclo na planilha). */",
   "  function montarComparar() {",
   "    const sel = $('selComparar');",
-  "    if (estado.comparar === estado.ciclo || estado.dados.ciclos.indexOf(estado.comparar) < 0) estado.comparar = '';",
-  "    const outros = estado.dados.ciclos.filter((c) => c !== estado.ciclo);",
+  "    if (estado.comparar === estado.ciclo || todosOsCiclos().indexOf(estado.comparar) < 0) estado.comparar = '';",
+  "    const outros = todosOsCiclos().filter((c) => c !== estado.ciclo);",
   "    $('campoComparar').hidden = !estado.ciclo || !outros.length;",
   "    sel.textContent = '';",
   "    sel.appendChild(new Option('Não comparar', '', false, !estado.comparar));",
@@ -9459,6 +10394,7 @@ const PAGINA_ = [
   "    atualizarAnalytics();",
   "    atualizarPainelLoja();",
   "    Validacao.atualizar();",
+  "    Rascunho.atualizar();",
   "    gravarLink();",
   "  }",
   "",
@@ -10266,6 +11202,11 @@ const PAGINA_ = [
   "      novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver as comunicações da ER.', corpo);",
   "      return;",
   "    }",
+  "    if (Rascunho.editavel()) {",
+  "      const b = novo('button', 'btn pequeno lj-editar', 'Editar comunicações desta ER', corpo);",
+  "      b.type = 'button';",
+  "      b.addEventListener('click', () => Rascunho.editarPaineis());",
+  "    }",
   "    const pain = paineisDe(estado.ciclo, planta.id);",
   "    const secao = (titulo) => {",
   "      const sec = novo('section', 'lj-secao', null, corpo);",
@@ -10580,7 +11521,9 @@ const PAGINA_ = [
   "  }",
   "",
   "  /** Clique no móvel: abre a tela com a estratégia do ciclo para ele (a linha do móvel ou a de cada espaço). */",
+  "  let movelAberto = '';",
   "  function abrirMovel(id) {",
+  "    movelAberto = id;",
   "    const planta = plantaAtual();",
   "    const m = planta && planta.moveis.find((x) => x.id === id);",
   "    if (!m) return;",
@@ -10611,23 +11554,41 @@ const PAGINA_ = [
   "      }",
   "      const plano = planogramaDe(m, mov, linha, temLinha);",
   "      if (plano) blocoPlanograma(corpo, plano);",
+  "      // Ciclo em construção, com o construtor: cada espaço vira um formulário (salva na ER da tela).",
+  "      const editar = Rascunho.editavel() && m.tipo !== 'CAIXA'; // o móvel de atendimento não leva cor nem etiqueta",
+  "      if (editar) Rascunho.montarSugestoes();",
+  "      const daEr = (estado.dados.movimentos[ciclo] || {})[planta.id] || {};",
   "      // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.",
   "      if (!Render.espacos(mov).length) {",
-  "        blocoEstrategia(corpo, 'Móvel', linha(m.id), {",
-  "          vazio: 'Sem linha neste ciclo: o móvel fica branco (neutro).',",
-  "          limite: (config.etiquetasPorTipo || {})[m.tipo],",
-  "        });",
+  "        if (editar) {",
+  "          Rascunho.blocoEdicao(corpo, {",
+  "            titulo: 'Móvel', chave: m.id, info: linha(m.id), propria: !!daEr[m.id],",
+  "            limite: (config.etiquetasPorTipo || {})[m.tipo] || config.maxEtiquetas || 4,",
+  "          });",
+  "        } else {",
+  "          blocoEstrategia(corpo, 'Móvel', linha(m.id), {",
+  "            vazio: 'Sem linha neste ciclo: o móvel fica branco (neutro).',",
+  "            limite: (config.etiquetasPorTipo || {})[m.tipo],",
+  "          });",
+  "        }",
   "      }",
   "      Render.espacos(mov).forEach((e) => {",
   "        const meio = /^MEIO-[AB]-\\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;",
   "        const propria = [m.id + '/' + e.id, meio].filter(Boolean).find(temLinha);",
+  "        if (editar) {",
+  "          Rascunho.blocoEdicao(corpo, {",
+  "            titulo: e.nome, chave: m.id + '/' + e.id, info: propria ? linha(propria) : null, propria: !!(propria && daEr[propria]),",
+  "            limite: (config.etiquetasPorBloco || {})[m.tipo] || 1,",
+  "          });",
+  "          return;",
+  "        }",
   "        blocoEstrategia(corpo, e.nome, propria ? linha(propria) : null, {",
   "          vazio: 'Sem linha neste ciclo: o espaço fica branco (neutro).',",
   "          limite: (config.etiquetasPorBloco || {})[m.tipo] || 1,",
   "        });",
   "      });",
   "    }",
-  "    dlg.showModal();",
+  "    if (!dlg.open) dlg.showModal(); // aberta de novo depois de salvar um espaço: só atualiza",
   "    // O desenho precisa da tela visível para medir o móvel (getBBox).",
   "    const desenho = $('mvDesenho');",
   "    try {",
@@ -11382,6 +12343,15 @@ const PAGINA_ = [
   "    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta,",
   "    abrirMovel: (id) => abrirMovel(id),",
   "    fecharAnalytics: () => alternarAnalytics(false),",
+  "    montarRascunhos: (corpo) => Rascunho.montarSecao(corpo),",
+  "    aoEntrar: () => Rascunho.recarregar(),",
+  "    aoSair: () => Rascunho.limpar(),",
+  "  });",
+  "  Rascunho.iniciar({",
+  "    estado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,",
+  "    acesso: () => Validacao.acesso(),",
+  "    recarregarComentarios: () => Validacao.recarregar(),",
+  "    reabrirMovel: () => { if ($('dlgMovel').open && movelAberto) abrirMovel(movelAberto); },",
   "  });",
   "  // Na primeira visita, depois de carregar, oferece o tutorial guiado.",
   "  // O link (#ciclo=…&er=…) escolhe ciclo, ER, visão e filtros; sem link, abre como sempre.",

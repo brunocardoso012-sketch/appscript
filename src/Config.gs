@@ -14,6 +14,11 @@ const CONFIG = {
     TIPOS: 'Tipos de movimento',
     LAYOUT: 'Layout',
     COMENTARIOS: 'Comentários',
+    // Ciclos em construção (Rascunhos.gs): o status de cada um e as linhas, no formato das abas publicadas.
+    RASCUNHOS: 'Rascunhos',
+    R_MOVIMENTOS: 'Rascunho Movimentos',
+    R_PAINEIS: 'Rascunho Painéis',
+    R_TIPOS: 'Rascunho Tipos',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,

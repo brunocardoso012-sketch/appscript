@@ -527,6 +527,101 @@ test('modo apresentação: F mostra só a planta; setas trocam a ER; F sai', asy
   assert.ok(await p.evaluate(() => document.body.classList.contains('apresentando')));
 });
 
+test('ciclo em construção: o construtor monta na planta, o validador devolve e aprova', async (t) => {
+  const p = await abrir(t);
+  const entrar = async (papel, nome) => {
+    await menuConfig(p, 'btnValidacao');
+    await p.waitForSelector('#dlgAcesso[open]');
+    await p.check('#dlgAcesso input[name="papel"][value="' + papel + '"]');
+    await p.fill('#acessoNome', nome);
+    await p.fill('#acessoSenha', '1234');
+    await p.click('#acessoEntrar');
+    await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
+    await p.waitForSelector('.rs-secao');
+  };
+  const sair = () => p.locator('#valCorpo .val-quem button', { hasText: 'Sair' }).click();
+  const acao = (texto) => p.locator('#rascunhoAcoes button', { hasText: texto }).click();
+  const statusNaFaixa = () => p.textContent('#rascunhoInfo .rs-status');
+
+  // Construtor: novo ciclo copiando o "Ciclo exemplo".
+  await entrar('CONSTRUTOR', 'Bia');
+  await p.locator('.rs-secao button', { hasText: 'Novo ciclo' }).click();
+  await p.fill('#rascunhoCorpo input', 'C11/2026');
+  await p.selectOption('#rascunhoCorpo select', 'Ciclo exemplo');
+  await p.click('#rascunhoOk');
+  await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), 'C11/2026');
+  assert.strictEqual(await statusNaFaixa(), 'Em construção');
+  assert.ok(await p.locator('#selCiclo optgroup[label="Em construção"] option').count() === 1);
+
+  // Editar a ponta A da gôndola 1 na tela do móvel.
+  await p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await p.waitForSelector('#dlgMovel[open] form.rs-espaco');
+  const ponta = p.locator('form.rs-espaco[data-espaco="GONDOLA 1/PONTA-A"]');
+  await ponta.locator('select.rs-marca').first().selectOption('OUI');
+  await ponta.locator('select').nth(1).selectOption('FIXO');
+  await ponta.locator('.rs-etq input').first().fill('NOVO MOVIMENTO OUI');
+  await ponta.locator('.rs-etq select').first().selectOption('OUI');
+  await ponta.locator('button[type="submit"]').click();
+  await p.waitForFunction(() => ((App.estado.dados.movimentos['C11/2026']['01'] || {})['GONDOLA 1/PONTA-A'] || {}).marca === 'OUI');
+  const linha = await estado(p, () => App.estado.dados.movimentos['C11/2026']['01']['GONDOLA 1/PONTA-A']);
+  assert.strictEqual(linha.simbolo, 'FIXO');
+  assert.deepStrictEqual(linha.etiquetas[0], { texto: 'NOVO MOVIMENTO OUI', marca: 'OUI', posicao: 1 });
+  await p.keyboard.press('Escape');
+  assert.ok(await p.locator('#slide .grupo-etiquetas', { hasText: 'NOVO MOVIMENTO OUI' }).count() > 0, 'a etiqueta nova aparece na planta');
+
+  // Comunicações ER e Tipos de movimento.
+  if (!(await p.isVisible('.lj-editar'))) await p.click('#btnLoja');
+  await p.click('.lj-editar');
+  await p.waitForSelector('#dlgRascunho[open] .rs-painel');
+  await p.locator('.rs-painel').first().locator('textarea').first().fill('GRADE NOVA');
+  await p.click('#rascunhoOk');
+  await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
+  assert.strictEqual(await estado(p, () => App.estado.dados.paineis['C11/2026']['01'].find((x) => x.secao === 'TV').texto), 'GRADE NOVA');
+  await acao('Tipos de movimento');
+  await p.waitForSelector('#dlgRascunho[open] .rs-tipos');
+  const novo = p.locator('.rs-tipos-nome', { hasText: 'NOVO MOVIMENTO OUI' });
+  assert.strictEqual(await novo.count(), 1, 'a etiqueta nova está nos tipos');
+  await p.locator('select[aria-label="Classificação de NOVO MOVIMENTO OUI"]').selectOption('LANCAMENTO');
+  await p.fill('input[aria-label="GMV esperado de NOVO MOVIMENTO OUI"]', '300 mil');
+  await p.click('#rascunhoOk');
+  await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
+  assert.strictEqual(await estado(p, () => App.estado.dados.tiposMovimento['C11/2026']['NOVO MOVIMENTO OUI'].gmv), 300000);
+
+  // Enviar: a edição trava.
+  await acao('Enviar para aprovação');
+  await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status').textContent === 'Aguardando aprovação');
+  assert.strictEqual(await p.locator('#rascunhoAcoes button').count(), 0);
+
+  // Validador: devolve (vira comentário).
+  await sair();
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), '', 'sem login, o rascunho some');
+  await entrar('VALIDADOR', 'Ana');
+  await p.selectOption('#selCiclo', 'C11/2026');
+  await acao('Devolver');
+  await p.fill('#rascunhoCorpo textarea', 'Faltou o totem');
+  await p.click('#rascunhoOk');
+  await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status').textContent === 'Em construção');
+  await p.waitForSelector('.val-cartao', { hasText: 'Devolvido para ajustes: Faltou o totem' });
+
+  // Construtor reenvia; validador aprova: o ciclo entra na planilha e aparece para todos.
+  await sair();
+  await entrar('CONSTRUTOR', 'Bia');
+  await p.selectOption('#selCiclo', 'C11/2026');
+  await acao('Enviar para aprovação');
+  await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status').textContent === 'Aguardando aprovação');
+  await sair();
+  await entrar('VALIDADOR', 'Ana');
+  await p.selectOption('#selCiclo', 'C11/2026');
+  await acao('Aprovar e publicar');
+  await p.waitForFunction(() => App.estado.dados.ciclos.includes('C11/2026'));
+  assert.ok(await p.isHidden('#barraRascunho'));
+  await sair();
+  assert.ok((await p.locator('#selCiclo option').allTextContents()).includes('C11/2026'), 'publicado, aparece sem login');
+  await escolherCiclo(p, 'C11/2026');
+  assert.ok(await p.locator('#slide .grupo-etiquetas', { hasText: 'NOVO MOVIMENTO OUI' }).count() > 0);
+});
+
 test('modo noturno: liga pelo menu, lembra ao recarregar e desliga', async (t) => {
   const p = await abrir(t);
   const tema = () => p.evaluate(() => document.documentElement.dataset.tema || 'claro');

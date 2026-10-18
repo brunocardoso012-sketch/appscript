@@ -43,6 +43,26 @@
     }
   }
 
+  /** Leitura e gravação das "abas" para executarRascunho_ (Rascunhos.gs): as publicadas e as dos rascunhos. */
+  function ioRascunhos() {
+    const campo = {};
+    campo[CONFIG.ABAS.MOVIMENTOS] = 'movimentos';
+    campo[CONFIG.ABAS.PAINEIS] = 'paineis';
+    campo[CONFIG.ABAS.TIPOS] = 'tipos';
+    campo[CONFIG.ABAS.COMENTARIOS] = 'comentarios';
+    const chave = (nome) => campo[nome] || 'aba:' + nome;
+    const abas = ler();
+    return {
+      ler: (nome) => abas[chave(nome)] || null,
+      gravar: (nome, colunas, matriz) => {
+        abas[chave(nome)] = matriz;
+        gravar(abas);
+      },
+      layout: () => abas.layout,
+      travar: (fn) => fn(),
+    };
+  }
+
   const api = {
     getDados() {
       const abas = ler();
@@ -98,6 +118,14 @@
       abas.comentarios = r.valores;
       gravar(abas);
       return comentariosDeValores_(r.valores);
+    },
+
+    getRascunhos(acesso) {
+      return executarRascunho_(ioRascunhos(), acesso, null);
+    },
+
+    salvarRascunho(acesso, pedido) {
+      return executarRascunho_(ioRascunhos(), acesso, pedido);
     },
 
     salvarAjustesEtiquetas(planta, ajustes) {
