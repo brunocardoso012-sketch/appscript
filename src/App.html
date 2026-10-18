@@ -1885,6 +1885,140 @@ const App = (() => {
     }
   }
 
+  /* -------------------------------- busca --------------------------------- */
+
+  /** Texto para comparar na busca: sem acentos, maiúsculas nem espaços repetidos. */
+  const paraBusca = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+  /**
+   * O que dá para achar: as etiquetas do ciclo (com as ERs onde aparecem), as marcas e os móveis de
+   * cada planta. Sem ciclo, só os móveis.
+   */
+  function indiceDeBusca() {
+    const itens = [];
+    if (estado.ciclo) {
+      const etiquetas = {};
+      estado.dados.plantas.forEach((pl) => espacosDaPlanta(pl, estado.ciclo).forEach((x) => {
+        const i = linhaDoEspaco(estado.ciclo, pl.id, x.movel, x.espaco && x.espaco.id);
+        ((i && i.etiquetas) || []).forEach((e) => {
+          const k = chaveEtiqueta(e.texto);
+          const it = etiquetas[k] || (etiquetas[k] = {
+            tipo: 'etiqueta', texto: e.texto, marca: e.marca || (i.marca !== 'NEUTRO' ? i.marca : ''), ers: [], espacos: 0,
+          });
+          if (it.ers.indexOf(pl.id) < 0) it.ers.push(pl.id);
+          it.espacos++;
+        });
+      }));
+      Object.values(etiquetas).forEach((it) => {
+        const nomes = estado.dados.plantas.filter((pl) => it.ers.indexOf(pl.id) >= 0).map((pl) => pl.nome);
+        itens.push(Object.assign(it, { sub: 'Etiqueta · ' + nomes.join(', ') }));
+      });
+      Object.keys(estado.dados.marcas).filter((c) => c !== 'NEUTRO').forEach((c) => {
+        itens.push({ tipo: 'marca', texto: estado.dados.marcas[c].nome, marca: c, sub: 'Marca · ' + c });
+      });
+    }
+    estado.dados.plantas.forEach((pl) => pl.moveis.forEach((m) => {
+      const nome = m.descricao || m.id;
+      itens.push({ tipo: 'movel', texto: nome, sub: 'Móvel · ' + (nome !== m.id ? m.id + ' · ' : '') + pl.nome, id: m.id, er: pl.id, extra: m.id });
+    }));
+    itens.forEach((it) => { it.chave = paraBusca(it.texto + ' ' + (it.extra || '') + ' ' + (it.tipo === 'marca' ? it.marca : '')); });
+    return itens;
+  }
+
+  const busca = { itens: [], achados: [], atual: 0 };
+
+  function abrirBusca() {
+    if (!estado.dados || document.querySelector('dialog[open]')) return;
+    busca.itens = indiceDeBusca();
+    $('buscaTexto').value = '';
+    filtrarBusca();
+    $('dlgBusca').showModal();
+    $('buscaTexto').focus();
+  }
+
+  /** Todas as palavras precisam aparecer; o que começa com o texto vem antes, depois etiquetas, marcas e móveis. */
+  function filtrarBusca() {
+    const q = paraBusca($('buscaTexto').value);
+    const palavras = q ? q.split(' ') : [];
+    const ordemTipo = { etiqueta: 0, marca: 1, movel: 2 };
+    busca.achados = !palavras.length ? [] : busca.itens
+      .filter((it) => palavras.every((w) => it.chave.indexOf(w) >= 0))
+      .sort((a, b) => (b.chave.indexOf(q) === 0) - (a.chave.indexOf(q) === 0)
+        || ordemTipo[a.tipo] - ordemTipo[b.tipo]
+        || (b.er === estado.planta) - (a.er === estado.planta) // móveis da ER atual primeiro
+        || a.texto.localeCompare(b.texto, 'pt-BR'))
+      .slice(0, 40);
+    busca.atual = 0;
+    const lista = $('buscaLista');
+    lista.textContent = '';
+    if (palavras.length && !busca.achados.length) novo('li', 'busca-vazio', 'Nada encontrado' + (estado.ciclo ? '.' : ' (escolha um ciclo para buscar etiquetas).'), lista);
+    busca.achados.forEach((it, k) => {
+      const li = novo('li', 'busca-item', null, lista);
+      li.id = 'busca-' + k;
+      li.setAttribute('role', 'option');
+      const cor = novo('i', 'busca-cor ' + it.tipo, null, li);
+      if (it.tipo !== 'movel' && it.marca) cor.style.background = corDaMarca(it.marca, 'etiqueta');
+      const txt = novo('span', 'busca-txt', null, li);
+      novo('strong', null, it.texto, txt);
+      novo('small', null, it.sub, txt);
+      li.addEventListener('mousemove', () => marcarBusca(k));
+      li.addEventListener('click', () => irPara(it));
+    });
+    marcarBusca(0);
+  }
+
+  function marcarBusca(k) {
+    busca.atual = Math.max(0, Math.min(k, busca.achados.length - 1));
+    document.querySelectorAll('#buscaLista .busca-item').forEach((li, i) => li.setAttribute('aria-selected', String(i === busca.atual)));
+    const li = $('busca-' + busca.atual);
+    $('buscaTexto').setAttribute('aria-activedescendant', li ? li.id : '');
+    if (li) li.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** Etiqueta e marca: mostram na planta só onde aparecem (na ER atual, se aparecem nela); móvel: abre o móvel. */
+  function irPara(it) {
+    $('dlgBusca').close();
+    if (it.tipo === 'movel') {
+      if (it.er !== estado.planta) trocarPlanta(it.er);
+      if (estado.planta === it.er) {
+        if (estado.analytics) alternarAnalytics(false);
+        abrirMovel(it.id);
+      }
+      return;
+    }
+    if (it.tipo === 'etiqueta') {
+      verNaPlanta({ etiqueta: it.texto, er: it.ers.indexOf(estado.planta) >= 0 ? estado.planta : it.ers[0] });
+    } else {
+      verNaPlanta({ marca: it.marca });
+    }
+  }
+
+  function ligarBusca() {
+    const entrada = $('buscaTexto');
+    entrada.addEventListener('input', filtrarBusca);
+    entrada.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        marcarBusca(busca.atual + (e.key === 'ArrowDown' ? 1 : -1));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (busca.achados[busca.atual]) irPara(busca.achados[busca.atual]);
+      }
+    });
+    // Clique fora da caixa (no fundo do diálogo) fecha.
+    $('dlgBusca').addEventListener('click', (e) => { if (e.target === $('dlgBusca')) $('dlgBusca').close(); });
+    $('btnBusca').addEventListener('click', abrirBusca);
+    // Ctrl/⌘+K de qualquer lugar; "/" fora dos campos de texto.
+    document.addEventListener('keydown', (e) => {
+      const emCampo = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
+      if (((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') || (e.key === '/' && !emCampo && !e.ctrlKey && !e.metaKey)) {
+        if (Editor.ativo() && e.key === '/') return;
+        e.preventDefault();
+        abrirBusca();
+      }
+    });
+  }
+
   /* -------------------------------- início -------------------------------- */
 
   function ligarEventos() {
@@ -2011,6 +2145,7 @@ const App = (() => {
   const prefLoja = memoria.ler('painelLoja');
   estado.painelLoja = prefLoja ? prefLoja === '1' : window.innerWidth >= 1200;
   ligarEventos();
+  ligarBusca();
   ligarZoom();
   ligarDestaque();
   // A fonte das etiquetas (Nunito) pode chegar depois do primeiro desenho: quando ela carregar, redesenha,

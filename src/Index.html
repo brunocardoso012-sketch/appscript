@@ -84,6 +84,9 @@
           Abrir planilha
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
         </a>
+        <button id="btnBusca" class="btn fantasma icone" type="button" aria-label="Buscar" title="Buscar etiqueta, móvel ou marca (Ctrl+K)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+        </button>
         <!-- Configurações: só o ícone; abre o menu com a validação, o ajuste das etiquetas e o modo noturno. -->
         <div class="menu-config" id="menuConfig">
           <button id="btnConfig" class="btn fantasma icone" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menuConfigLista" aria-label="Configurações" title="Configurações">
@@ -403,6 +406,17 @@
       </form>
     </dialog>
     <!-- /so-app-completo -->
+
+    <dialog id="dlgBusca" class="dialogo busca" aria-label="Buscar">
+      <div class="busca-campo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+        <input type="text" id="buscaTexto" placeholder="Etiqueta, móvel ou marca…" autocomplete="off" spellcheck="false"
+          role="combobox" aria-expanded="true" aria-controls="buscaLista" aria-autocomplete="list">
+        <kbd>Esc</kbd>
+      </div>
+      <ul id="buscaLista" class="busca-lista" role="listbox" aria-label="Resultados"></ul>
+      <p class="busca-dica">↑ ↓ para escolher · Enter para ir · <kbd>Ctrl</kbd>+<kbd>K</kbd> abre de qualquer lugar</p>
+    </dialog>
 
     <dialog id="dlgAnInfo" class="dialogo an-info" aria-labelledby="anInfoTitulo">
       <form method="dialog">

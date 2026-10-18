@@ -444,6 +444,36 @@ test('comparar ciclos: só o que mudou fica colorido, com a lista no painel', as
   assert.strictEqual(await cinzas(), 0);
 });
 
+test('busca (Ctrl+K): etiqueta, marca e móvel', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  // Etiqueta (sem acento acha com acento): mostra na planta só onde ela aparece.
+  await p.keyboard.press('Control+k');
+  await p.waitForSelector('#dlgBusca[open]');
+  await p.fill('#buscaTexto', 'lcto egeo');
+  await p.waitForSelector('.busca-item');
+  await p.keyboard.press('Enter');
+  await p.waitForSelector('#dlgBusca', { state: 'hidden' });
+  assert.strictEqual(await estado(p, () => App.estado.filtroEtiqueta), 'LÇTO EGEO');
+  // Marca: vira o filtro por marca.
+  await p.click('#btnBusca');
+  await p.fill('#buscaTexto', 'eudora');
+  await p.locator('.busca-item', { hasText: 'Marca' }).first().click();
+  assert.strictEqual(await estado(p, () => App.estado.filtro), 'EUD');
+  // Móvel de outra ER: troca de ER e abre a tela do móvel.
+  const alvo = await estado(p, () => {
+    const pl = App.estado.dados.plantas[App.estado.dados.plantas.length - 1];
+    return { er: pl.id, nome: pl.nome, id: pl.moveis.find((m) => m.tipo === 'GONDOLA').id };
+  });
+  await p.keyboard.press('/');
+  await p.waitForSelector('#dlgBusca[open]');
+  await p.fill('#buscaTexto', alvo.id);
+  await p.locator('.busca-item').filter({ hasText: new RegExp('Móvel · .*' + alvo.nome + '$') }).first().click();
+  await p.waitForSelector('#dlgMovel[open]');
+  assert.strictEqual(await estado(p, () => App.estado.planta), alvo.er);
+  assert.match(await p.textContent('#mvTitulo'), new RegExp(alvo.id));
+});
+
 test('modo noturno: liga pelo menu, lembra ao recarregar e desliga', async (t) => {
   const p = await abrir(t);
   const tema = () => p.evaluate(() => document.documentElement.dataset.tema || 'claro');
