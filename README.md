@@ -310,6 +310,7 @@ visualizador/
 dev/
   gas.js            carrega os .gs no Node + planilha em memória (SpreadsheetApp simulado)
   testes.test.js    testes do backend
+  e2e.js            testes end to end do index.html num Chromium (Playwright); qualquer erro na página reprova
   visualizador.test.js  testes da versão só de visualização
   build-web.js      gera index.html (raiz) a partir de src/ + web/
   build-visualizador.js         gera visualizador/apps-script/ a partir de src/
@@ -320,6 +321,7 @@ Para desenvolver (Node 18+):
 
 ```bash
 npm test            # testes do backend (sem Apps Script)
+npm run test:e2e    # testes end to end da versão web (Playwright; rode depois do build:web)
 npm run build:web   # gera index.html na raiz (versão web)
 npm run build:visualizador   # gera visualizador/apps-script/ (versão só de visualização)
 ```

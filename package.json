@@ -5,6 +5,7 @@
   "description": "Visualizador de plantas de loja por ciclo (Google Apps Script).",
   "scripts": {
     "test": "node --test dev/*.test.js",
+    "test:e2e": "node --test dev/e2e.js",
     "build:web": "node dev/build-web.js",
     "push": "clasp push",
     "build:visualizador": "node dev/build-visualizador.js",
