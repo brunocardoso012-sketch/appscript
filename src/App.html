@@ -379,6 +379,7 @@ const App = (() => {
       selecionado: construcao ? construcao.selecionado : '',
       grade: construcao ? construcao.grade : false,
       referencia: construcao ? construcao.referencia : null,
+      escuro: document.documentElement.dataset.tema === 'escuro',
     };
   }
 
@@ -1689,7 +1690,7 @@ const App = (() => {
       const r = conteudo === 'estrategia'
         ? { tela: Estrategia.desenhar(temp, dadosEstrategia(plantaAtual(), estado.ciclo), { recorte: soPlanta }) }
         : Render.desenhar(temp, Object.assign(contextoDesenho(), {
-          somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null,
+          somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null, escuro: false,
           visao: conteudo === 'simplificada' ? 'simplificada' : 'planta',
         }));
       let caixa = { x: 0, y: 0, w: r.tela.w, h: r.tela.h };
@@ -1895,12 +1896,13 @@ const App = (() => {
     });
   }
 
-  // Modo noturno: o script do <head> já aplicou a escolha salva (ou a do sistema); aqui só marca o botão.
-  // A planta (o slide) continua com as cores de sempre, para ficar igual ao PNG.
+  // Modo noturno: o script do <head> já aplicou a escolha salva (ou a do sistema); aqui marca o botão
+  // e redesenha a planta com as cores escuras (o PNG sai sempre com as cores claras do slide).
   function aplicarTema(escuro) {
     if (escuro) document.documentElement.dataset.tema = 'escuro';
     else delete document.documentElement.dataset.tema;
     $('btnTema').setAttribute('aria-pressed', String(escuro));
+    if (estado.dados) desenhar();
   }
   aplicarTema(document.documentElement.dataset.tema === 'escuro');
   // Visão das etiquetas: lembra a última escolha (na planta, por padrão).

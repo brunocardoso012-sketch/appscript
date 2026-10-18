@@ -427,17 +427,42 @@ test('modo noturno: liga pelo menu, lembra ao recarregar e desliga', async (t) =
   const fundo = () => p.evaluate(() => getComputedStyle(document.body).backgroundColor);
   assert.strictEqual(await tema(), 'claro');
   const claro = await fundo();
+  // Fundo do desenho da planta (o primeiro retângulo do slide).
+  const fundoPlanta = () => p.evaluate(() => document.querySelector('#slide > rect').getAttribute('fill'));
+  await escolherCiclo(p, 'Ciclo exemplo');
+  const plantaClara = await fundoPlanta();
   await menuConfig(p, 'btnTema');
   assert.strictEqual(await tema(), 'escuro');
   assert.notStrictEqual(await fundo(), claro);
+  assert.notStrictEqual(await fundoPlanta(), plantaClara);
   assert.strictEqual(await p.getAttribute('#btnTema', 'aria-pressed'), 'true');
+  // O PNG do slide sai com as cores claras de sempre, mesmo no modo noturno.
+  await p.click('#btnPng');
+  await p.waitForSelector('#dlgPng[open]');
+  await p.check('#dlgPng input[name="pngConteudo"][value="planta"]');
+  await p.check('#dlgPng input[name="pngFormato"][value="slide"]');
+  const d = await baixar(p, () => p.click('#dlgPng button[value="baixar"]'));
+  const canto = await p.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + b64;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    return Array.from(g.getImageData(img.width - 3, 3, 1, 1).data.slice(0, 3));
+  }, d.bytes.toString('base64'));
+  assert.ok(canto.every((v) => v > 200), 'PNG escuro no modo noturno: ' + canto);
+  assert.notStrictEqual(await fundoPlanta(), plantaClara); // a tela continua escura depois do PNG
   await p.reload();
   await p.waitForFunction(() => App.estado.dados);
   assert.strictEqual(await tema(), 'escuro');
   assert.strictEqual(await p.getAttribute('#btnTema', 'aria-pressed'), 'true');
+  assert.notStrictEqual(await fundoPlanta(), plantaClara);
   await menuConfig(p, 'btnTema');
   assert.strictEqual(await tema(), 'claro');
   assert.strictEqual(await fundo(), claro);
+  assert.strictEqual(await fundoPlanta(), plantaClara);
 });
 
 test('tela de celular: abre e troca de ciclo sem erro', async (t) => {

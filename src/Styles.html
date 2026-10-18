@@ -810,7 +810,7 @@
   @media (prefers-reduced-motion: reduce) { .tut-foco { transition: none; } }
 
   /* ---------- modo noturno (menu de configurações) ---------- */
-  /* Só a interface escurece: a planta, a miniatura do móvel e o planograma mantêm as cores do slide. */
+  /* A planta escurece pelo Render (ctx.escuro); o PNG e o planograma mantêm as cores do slide. */
   :root[data-tema="escuro"] {
     color-scheme: dark;
     --fundo: #111316;
@@ -824,6 +824,13 @@
     --destaque: #3a3216;
     --sombra: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .35);
   }
+  [data-tema="escuro"] #slide,
+  [data-tema="escuro"] .mv-desenho { background: #16191d; }
+  [data-tema="escuro"] #slide.destacando .grupo-etiquetas.destaque .ficha-fundo,
+  [data-tema="escuro"] #slide.destacando .grupo-etiquetas.destaque .etq,
+  [data-tema="escuro"] #slide.destacando .camada-guias .guia.destaque .guia-linha,
+  [data-tema="escuro"] #slide .arrastavel:hover .ficha-fundo,
+  [data-tema="escuro"] #slide .arrastavel:hover .etq { stroke: #f2f3f5; }
   [data-tema="escuro"] .abas { background: #25292e; }
   [data-tema="escuro"] .btn:hover,
   [data-tema="escuro"] .btn.fantasma:hover,

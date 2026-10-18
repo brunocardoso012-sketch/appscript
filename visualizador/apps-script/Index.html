@@ -820,7 +820,7 @@
   @media (prefers-reduced-motion: reduce) { .tut-foco { transition: none; } }
 
   /* ---------- modo noturno (menu de configurações) ---------- */
-  /* Só a interface escurece: a planta, a miniatura do móvel e o planograma mantêm as cores do slide. */
+  /* A planta escurece pelo Render (ctx.escuro); o PNG e o planograma mantêm as cores do slide. */
   :root[data-tema="escuro"] {
     color-scheme: dark;
     --fundo: #111316;
@@ -834,6 +834,13 @@
     --destaque: #3a3216;
     --sombra: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .35);
   }
+  [data-tema="escuro"] #slide,
+  [data-tema="escuro"] .mv-desenho { background: #16191d; }
+  [data-tema="escuro"] #slide.destacando .grupo-etiquetas.destaque .ficha-fundo,
+  [data-tema="escuro"] #slide.destacando .grupo-etiquetas.destaque .etq,
+  [data-tema="escuro"] #slide.destacando .camada-guias .guia.destaque .guia-linha,
+  [data-tema="escuro"] #slide .arrastavel:hover .ficha-fundo,
+  [data-tema="escuro"] #slide .arrastavel:hover .etq { stroke: #f2f3f5; }
   [data-tema="escuro"] .abas { background: #25292e; }
   [data-tema="escuro"] .btn:hover,
   [data-tema="escuro"] .btn.fantasma:hover,
@@ -1157,7 +1164,7 @@ const Render = (() => {
   // Slide base (16:9). Com etiquetas, o slide cresce na mesma proporção quando as fichas precisam de
   // mais espaço ("canvas infinito"): TELA guarda o tamanho do último desenho (a aplicação usa no zoom e no PNG).
   const TELA_BASE = { w: 1920, h: 1080 };
-  const TELA = { w: TELA_BASE.w, h: TELA_BASE.h, fundo: '#F3EFEA' };
+  const TELA = { w: TELA_BASE.w, h: TELA_BASE.h };
   const REGIAO_PLANTA = { x: 500, y: 70, w: 1400, h: 950 };
   // Etiquetas: medidas no tamanho padrão (ETQ_BASE); ETQ é o tamanho do desenho atual (na visão na planta,
   // multiplicado pelo "Tamanho das etiquetas" da planta, ajustado em "Ajustar etiquetas").
@@ -1189,7 +1196,78 @@ const Render = (() => {
     // Filtro por marca: as outras marcas ficam em cinza (etiquetas mais escuras, móveis mais claros).
     cinzaEtiqueta: '#8C8C8C',
     cinzaMovel: '#D2D2D2',
+    // Fundo, loja e textos do slide (o modo noturno troca estas; as cores das marcas não mudam).
+    fundo: '#F3EFEA',
+    lajeFrente: '#D9D9D9',
+    lajeLado: '#C9C9C9',
+    lajeBorda: '#C4C4C4',
+    parede: '#F1F1F1',
+    placaNeutra: '#CFD2D6',
+    gradeForte: '#9AA3AE',
+    gradeFraca: '#C9CED4',
+    gradeTexto: '#5B6068',
+    notaFundo: '#F7F4F0',
+    notaBorda: '#E2DDD6',
+    legendaTexto: '#1A1A1A',
+    simbolo: '#111111',
+    simboloMiolo: '#FFFFFF',
+    chipEspaco: '#24282E',
+    guiaHalo: '#FFFFFF',
+    guiaMistura: '#000000', // a linha-guia é a cor da etiqueta misturada com esta
+    guiaDestaque: '#3A3A3A',
+    guiaDestaquePonto: '#FFFFFF',
+    fichaFundo: '#FFFFFF',
+    fichaBorda: '#D9D2C8',
+    fichaTitulo: '#3A3A3A',
+    fichaLinha: '#ECE6DE',
+    fichaDivisao: '#F1ECE6',
+    fichaLegenda: '#5F5B56',
+    secaoTitulo: '#2B2B2B',
+    secaoNumero: '#8A847C',
+    icone: '#222222', // ícones do painel lateral (TV, rádio, A, C)
+    cicloTexto: '#6B6B6B',
   };
+  const COR_CLARO = Object.assign({}, COR);
+  // Modo noturno (só na tela; o PNG sai sempre com as cores claras de COR_CLARO).
+  const COR_ESCURO = Object.assign({}, COR_CLARO, {
+    contornoNeutro: '#5D646E',
+    prateleiraNeutra: '#555C66',
+    neutro: '#3A3F47',
+    piso: '#2A2E34',
+    pisoBorda: '#3A3F46',
+    textoNota: '#B9C7EA',
+    tituloNota: '#DBE4FB',
+    cinzaMovel: '#4A4F57',
+    fundo: '#16191D',
+    lajeFrente: '#23272C',
+    lajeLado: '#1D2025',
+    lajeBorda: '#3A3F46',
+    parede: '#33383F',
+    placaNeutra: '#4A5059',
+    gradeForte: '#5D646E',
+    gradeFraca: '#3A3F46',
+    gradeTexto: '#8B929C',
+    notaFundo: '#1F2328',
+    notaBorda: '#3A3F46',
+    legendaTexto: '#E8EAED',
+    simbolo: '#E8EAED',
+    simboloMiolo: '#16191D',
+    chipEspaco: '#454B54',
+    guiaHalo: '#16191D',
+    guiaMistura: '#FFFFFF',
+    guiaDestaque: '#A3A9B2',
+    guiaDestaquePonto: '#16191D',
+    fichaFundo: '#1F2328',
+    fichaBorda: '#3A3F46',
+    fichaTitulo: '#E8EAED',
+    fichaLinha: '#33383F',
+    fichaDivisao: '#2A2E34',
+    fichaLegenda: '#A3A9B2',
+    secaoTitulo: '#E8EAED',
+    secaoNumero: '#8B929C',
+    icone: '#E8EAED',
+    cicloTexto: '#A3A9B2',
+  });
   const ESPESSURA_PAREDE = 0.35;
   const ESPESSURA_PISO = 0.35;
 
@@ -1614,7 +1692,7 @@ const Render = (() => {
         // Estante neutra com prateleiras; a cor do móvel vai só nas placas de comunicação (espaço destaque).
         caixa(pai, P, b, { cores: null, prateleiras: PRATELEIRAS.GONDOLA_PAREDE, modulo: 2.2 });
         placasParede(b).forEach((pl) => {
-          caixa(pai, P, pl.placa, cores ? { cores } : { cores: null, corNeutra: '#CFD2D6' });
+          caixa(pai, P, pl.placa, cores ? { cores } : { cores: null, corNeutra: COR.placaNeutra });
           caixa(pai, P, pl.prendedor, { cores: ['#2B2B2B'] });
         });
         break;
@@ -1843,11 +1921,11 @@ const Render = (() => {
     const t = ESPESSURA_PAREDE, b = ESPESSURA_PISO;
     const g = el('g', { class: 'loja' }, pai);
     // Laje do piso (bordas frontais).
-    poligono(g, [P(-t, D, 0), P(W, D, 0), P(W, D, -b), P(-t, D, -b)], { fill: '#D9D9D9', stroke: '#C4C4C4' });
-    poligono(g, [P(W, -t, 0), P(W, D, 0), P(W, D, -b), P(W, -t, -b)], { fill: '#C9C9C9', stroke: '#C4C4C4' });
+    poligono(g, [P(-t, D, 0), P(W, D, 0), P(W, D, -b), P(-t, D, -b)], { fill: COR.lajeFrente, stroke: COR.lajeBorda });
+    poligono(g, [P(W, -t, 0), P(W, D, 0), P(W, D, -b), P(W, -t, -b)], { fill: COR.lajeLado, stroke: COR.lajeBorda });
     poligono(g, [P(-t, -t, 0), P(W, -t, 0), P(W, D, 0), P(-t, D, 0)], { fill: COR.piso, stroke: COR.pisoBorda });
     // Paredes do fundo (esquerda e direita).
-    const parede = { cores: null, corNeutra: '#F1F1F1' };
+    const parede = { cores: null, corNeutra: COR.parede };
     caixa(g, P, { x: -t, y: -t, z: 0, w: t, d: D + t, h: H }, parede);
     caixa(g, P, { x: 0, y: -t, z: 0, w: W, d: t, h: H }, parede);
   }
@@ -1858,13 +1936,13 @@ const Render = (() => {
     const W = loja.largura, D = loja.profundidade;
     for (let x = 0; x <= W + 1e-6; x += 1) {
       const forte = Math.round(x) % 5 === 0;
-      linha(g, P(x, 0, 0), P(x, D, 0), { stroke: forte ? '#9AA3AE' : '#C9CED4', 'stroke-width': forte ? 1 : 0.6 });
-      if (forte) texto(g, P(x, D, 0)[0] + 4, P(x, D, 0)[1] + 16, 'X ' + x, { 'font-size': 11, fill: '#5B6068', 'font-weight': 700 });
+      linha(g, P(x, 0, 0), P(x, D, 0), { stroke: forte ? COR.gradeForte : COR.gradeFraca, 'stroke-width': forte ? 1 : 0.6 });
+      if (forte) texto(g, P(x, D, 0)[0] + 4, P(x, D, 0)[1] + 16, 'X ' + x, { 'font-size': 11, fill: COR.gradeTexto, 'font-weight': 700 });
     }
     for (let y = 0; y <= D + 1e-6; y += 1) {
       const forte = Math.round(y) % 5 === 0;
-      linha(g, P(0, y, 0), P(W, y, 0), { stroke: forte ? '#9AA3AE' : '#C9CED4', 'stroke-width': forte ? 1 : 0.6 });
-      if (forte) texto(g, P(W, y, 0)[0] + 6, P(W, y, 0)[1] + 14, 'Y ' + y, { 'font-size': 11, fill: '#5B6068', 'font-weight': 700 });
+      linha(g, P(0, y, 0), P(W, y, 0), { stroke: forte ? COR.gradeForte : COR.gradeFraca, 'stroke-width': forte ? 1 : 0.6 });
+      if (forte) texto(g, P(W, y, 0)[0] + 6, P(W, y, 0)[1] + 14, 'Y ' + y, { 'font-size': 11, fill: COR.gradeTexto, 'font-weight': 700 });
     }
   }
 
@@ -1891,13 +1969,13 @@ const Render = (() => {
     const k = escala || 1;
     const g = el('g', { transform: 'translate(' + cx + ',' + cy + ') scale(' + k + ')' }, pai);
     if (simbolo === 'FIXO') { // cadeado
-      el('path', { d: 'M-4.2,-1.5 V-4.6 a4.2,4.2 0 0 1 8.4,0 V-1.5', fill: 'none', stroke: '#111', 'stroke-width': 2.2 }, g);
-      el('rect', { x: -6.8, y: -1.8, width: 13.6, height: 10.3, rx: 1.8, fill: '#111' }, g);
-      el('circle', { cx: 0, cy: 2.6, r: 1.6, fill: '#FFF' }, g);
-      el('rect', { x: -0.7, y: 3.2, width: 1.4, height: 2.8, fill: '#FFF' }, g);
+      el('path', { d: 'M-4.2,-1.5 V-4.6 a4.2,4.2 0 0 1 8.4,0 V-1.5', fill: 'none', stroke: COR.simbolo, 'stroke-width': 2.2 }, g);
+      el('rect', { x: -6.8, y: -1.8, width: 13.6, height: 10.3, rx: 1.8, fill: COR.simbolo }, g);
+      el('circle', { cx: 0, cy: 2.6, r: 1.6, fill: COR.simboloMiolo }, g);
+      el('rect', { x: -0.7, y: 3.2, width: 1.4, height: 2.8, fill: COR.simboloMiolo }, g);
     } else if (simbolo === 'EXPOSICAO') {
-      el('circle', { r: 8.5, fill: '#111', stroke: '#fff', 'stroke-width': 1.2 }, g);
-      texto(g, 0, 4, 'E', { 'font-size': 11, 'font-weight': 700, fill: '#fff', 'text-anchor': 'middle' });
+      el('circle', { r: 8.5, fill: COR.simbolo, stroke: COR.simboloMiolo, 'stroke-width': 1.2 }, g);
+      texto(g, 0, 4, 'E', { 'font-size': 11, 'font-weight': 700, fill: COR.simboloMiolo, 'text-anchor': 'middle' });
     } else if (simbolo === 'NOVO') {
       const pts = [];
       for (let i = 0; i < 24; i++) {
@@ -2097,7 +2175,7 @@ const Render = (() => {
     const g = el('g', Object.assign({ 'data-movel': f.id, 'data-movel-base': f.movel.id }, attrs), pai);
     el('rect', {
       class: 'ficha-fundo', x: f.x, y: f.y, width: f.w, height: f.h, rx: FICHA.raio,
-      fill: '#FFFFFF', stroke: '#D9D2C8', 'stroke-width': 1, filter: 'url(#sombraEtq)',
+      fill: COR.fichaFundo, stroke: COR.fichaBorda, 'stroke-width': 1, filter: 'url(#sombraEtq)',
     }, g);
     // Cabeçalho: plaquinha do número (como na planta) e o nome do móvel.
     const numero = numeroDe(f.movel);
@@ -2111,20 +2189,20 @@ const Render = (() => {
     }
     const nome = f.movel.descricao || f.movel.id;
     texto(g, tx, cy + 3.6, (numero ? nome.replace(/\s*\d+\s*$/, '') : nome).toUpperCase(), {
-      'font-family': FONTE_ETQ, 'font-size': 10.5, 'font-weight': 800, 'letter-spacing': 0.6, fill: '#3A3A3A',
+      'font-family': FONTE_ETQ, 'font-size': 10.5, 'font-weight': 800, 'letter-spacing': 0.6, fill: COR.fichaTitulo,
     });
-    linha(g, [f.x + 1, f.y + FICHA.pad + 17.5], [f.x + f.w - 1, f.y + FICHA.pad + 17.5], { stroke: '#ECE6DE', 'stroke-width': 1 });
+    linha(g, [f.x + 1, f.y + FICHA.pad + 17.5], [f.x + f.w - 1, f.y + FICHA.pad + 17.5], { stroke: COR.fichaLinha, 'stroke-width': 1 });
     // Uma linha por espaço: miniatura do móvel (com o espaço pintado), nome do espaço e as etiquetas dele.
     const xMini = f.x + FICHA.pad;
     const xEtq = f.x + f.xEtq;
     let y = f.y + FICHA.pad + FICHA.cab;
     f.linhas.forEach((ln, k) => {
-      if (k) linha(g, [xMini, y - FICHA.entre / 2], [f.x + f.w - FICHA.pad, y - FICHA.entre / 2], { stroke: '#F1ECE6', 'stroke-width': 1 });
+      if (k) linha(g, [xMini, y - FICHA.entre / 2], [f.x + f.w - FICHA.pad, y - FICHA.entre / 2], { stroke: COR.fichaDivisao, 'stroke-width': 1 });
       const gl = el('g', { class: 'ficha-linha', 'data-espaco': ln.espacos ? ln.espacos.map((e) => e.id).join(' ') : null }, g);
       desenharMiniatura(gl, f.movel, ln.espacos ? ln.espacos.map((e) => e.id) : null, ln.cores, xMini, y + (ln.h - FICHA.miniH) / 2, FICHA.mini, FICHA.miniH);
       const yLeg = y + ln.h / 2 - (ln.legenda.length * 10) / 2 + 7.5;
       ln.legenda.forEach((t, i) => texto(gl, xMini + FICHA.mini + FICHA.vao, yLeg + i * 10, t, {
-        'font-family': FONTE_ETQ, 'font-size': 8.5, 'font-weight': 800, 'letter-spacing': 0.2, fill: '#5F5B56',
+        'font-family': FONTE_ETQ, 'font-size': 8.5, 'font-weight': 800, 'letter-spacing': 0.2, fill: COR.fichaLegenda,
       }));
       let ye = y + (ln.h - ln.med.h) / 2;
       ln.med.itens.forEach((it, i) => {
@@ -2242,13 +2320,13 @@ const Render = (() => {
   function desenharTituloSecao(pai, t) {
     const g = el('g', { class: 'titulo-secao' }, pai);
     texto(g, t.x + 2, t.y + 16, t.texto.toUpperCase(), {
-      'font-family': FONTE_ETQ, 'font-size': 13, 'font-weight': 800, 'letter-spacing': 0.8, fill: '#2B2B2B',
+      'font-family': FONTE_ETQ, 'font-size': 13, 'font-weight': 800, 'letter-spacing': 0.8, fill: COR.secaoTitulo,
     });
     if (t.n) {
       const w = largura(t.texto.toUpperCase(), 13, 800, 'normal', FONTE_ETQ) + t.texto.length * 0.8;
-      texto(g, t.x + 10 + w, t.y + 16, String(t.n), { 'font-family': FONTE_ETQ, 'font-size': 12, 'font-weight': 700, fill: '#8A847C' });
+      texto(g, t.x + 10 + w, t.y + 16, String(t.n), { 'font-family': FONTE_ETQ, 'font-size': 12, 'font-weight': 700, fill: COR.secaoNumero });
     }
-    linha(g, [t.x, t.y + 23], [t.x + FICHA.w, t.y + 23], { stroke: '#2B2B2B', 'stroke-width': 1.5 });
+    linha(g, [t.x, t.y + 23], [t.x + FICHA.w, t.y + 23], { stroke: COR.secaoTitulo, 'stroke-width': 1.5 });
   }
 
   /* ------------------------ etiquetas na planta --------------------------- */
@@ -2565,7 +2643,7 @@ const Render = (() => {
     const g = el('g', Object.assign({ 'data-movel': r.id, 'data-movel-base': r.movel.id, filter: 'url(#sombraEtq)' }, attrs), pai);
     let y = r.y;
     if (r.legenda) {
-      el('rect', { class: 'chip-espaco', x: r.x, y, width: r.wChip, height: ROTULO.chip, rx: 4 * escalaEtq, fill: '#24282E' }, g);
+      el('rect', { class: 'chip-espaco', x: r.x, y, width: r.wChip, height: ROTULO.chip, rx: 4 * escalaEtq, fill: COR.chipEspaco }, g);
       texto(g, r.x + 5 * escalaEtq, y + ROTULO.chip - 3.6 * escalaEtq, r.legenda, {
         'font-family': FONTE_ETQ, 'font-size': ROTULO.fonteChip, 'font-weight': 800, 'letter-spacing': 0.3, fill: '#FFFFFF',
       });
@@ -2589,13 +2667,13 @@ const Render = (() => {
   function desenharGuiaRotulo(pai, r) {
     const ret = { x: r.x, y: r.y, w: r.wEtq, h: r.h };
     const g = el('g', { class: 'guia', 'data-movel-base': r.movel.id }, pai);
-    const escura = misturar(r.cor, '#000000', 0.25);
+    const escura = misturar(r.cor, COR.guiaMistura, 0.25);
     r.pontos.forEach((p) => {
       const q = pontoDaGuia(ret, p);
       const dentro = p[0] >= ret.x && p[0] <= ret.x + ret.w && p[1] >= ret.y && p[1] <= ret.y + ret.h;
       if (dentro) return; // a pilha está em cima do ponto: não precisa de linha
       const d = 'M' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ' L' + p[0].toFixed(1) + ',' + p[1].toFixed(1);
-      el('path', { class: 'guia-halo', d, fill: 'none', stroke: '#FFFFFF', 'stroke-opacity': 0.9, 'stroke-width': 4, 'stroke-linecap': 'round' }, g);
+      el('path', { class: 'guia-halo', d, fill: 'none', stroke: COR.guiaHalo, 'stroke-opacity': 0.9, 'stroke-width': 4, 'stroke-linecap': 'round' }, g);
       el('path', { class: 'guia-linha', d, fill: 'none', stroke: escura, 'stroke-width': 1.6, 'stroke-linecap': 'round' }, g);
       el('circle', { class: 'guia-ponto', cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: 4.4, fill: r.cor, stroke: '#FFFFFF', 'stroke-width': 1.6 }, g);
     });
@@ -2686,21 +2764,21 @@ const Render = (() => {
 
   /** Linha-guia da caixa de destaque até o ponto do móvel. */
   function desenharGuia(pai, rect, ancora) {
-    linha(pai, pontoDaGuia(rect, ancora), ancora, { stroke: '#3A3A3A', 'stroke-width': 1.3 });
-    el('circle', { cx: ancora[0], cy: ancora[1], r: 4, fill: '#FFFFFF', stroke: '#3A3A3A', 'stroke-width': 1.3 }, pai);
+    linha(pai, pontoDaGuia(rect, ancora), ancora, { stroke: COR.guiaDestaque, 'stroke-width': 1.3 });
+    el('circle', { cx: ancora[0], cy: ancora[1], r: 4, fill: COR.guiaDestaquePonto, stroke: COR.guiaDestaque, 'stroke-width': 1.3 }, pai);
   }
 
   /* ----------------------------- painel lateral ---------------------------- */
 
   function iconeTv(pai, cx, cy) {
-    const g = el('g', { fill: 'none', stroke: '#222', 'stroke-width': 2.4, 'stroke-linejoin': 'round' }, pai);
+    const g = el('g', { fill: 'none', stroke: COR.icone, 'stroke-width': 2.4, 'stroke-linejoin': 'round' }, pai);
     el('rect', { x: cx - 21, y: cy - 15, width: 42, height: 27, rx: 2 }, g);
     linha(g, [cx - 7, cy + 17], [cx + 7, cy + 17], {});
     linha(g, [cx, cy + 12], [cx, cy + 17], {});
   }
 
   function iconeRadio(pai, cx, cy) {
-    const g = el('g', { fill: 'none', stroke: '#222', 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, pai);
+    const g = el('g', { fill: 'none', stroke: COR.icone, 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, pai);
     el('rect', { x: cx - 17, y: cy - 10, width: 34, height: 26, rx: 3 }, g);
     linha(g, [cx - 13, cy - 10], [cx + 10, cy - 22], {});
     el('circle', { cx: cx - 6, cy: cy + 7, r: 5 }, g);
@@ -2710,8 +2788,8 @@ const Render = (() => {
   }
 
   function iconeLetra(pai, cx, cy, letra) {
-    el('circle', { cx, cy, r: 20, fill: 'none', stroke: '#222', 'stroke-width': 2.4 }, pai);
-    texto(pai, cx, cy + 12, letra, { 'font-size': 33, 'font-weight': 400, fill: '#222', 'text-anchor': 'middle' });
+    el('circle', { cx, cy, r: 20, fill: 'none', stroke: COR.icone, 'stroke-width': 2.4 }, pai);
+    texto(pai, cx, cy + 12, letra, { 'font-size': 33, 'font-weight': 400, fill: COR.icone, 'text-anchor': 'middle' });
   }
 
   function listaLateral(pai, itens, x, y, w, alturaMin) {
@@ -2738,7 +2816,7 @@ const Render = (() => {
     el('rect', { x: 22, y: 12, width: 260, height: 64, fill: '#0A0A0A', stroke: '#666', 'stroke-width': 1 }, g);
     texto(g, 152, 58, planta.nome, { 'font-size': 38, 'font-weight': 700, fill: '#FFFFFF', 'text-anchor': 'middle' });
     if (ciclo) {
-      texto(g, 24, 100, 'CICLO: ' + ciclo, { 'font-size': 15, 'font-weight': 700, fill: '#6B6B6B' });
+      texto(g, 24, 100, 'CICLO: ' + ciclo, { 'font-size': 15, 'font-weight': 700, fill: COR.cicloTexto });
     }
 
     let y = 117;
@@ -2795,7 +2873,7 @@ const Render = (() => {
 
   function desenharNotas(pai, medida, x, y) {
     const g = el('g', { class: 'notas' }, pai);
-    el('rect', { x, y, width: medida.w, height: medida.h, fill: '#F7F4F0', stroke: '#E2DDD6', filter: 'url(#sombra)' }, g);
+    el('rect', { x, y, width: medida.w, height: medida.h, fill: COR.notaFundo, stroke: COR.notaBorda, filter: 'url(#sombra)' }, g);
     let cy = y + 22 + medida.lh - 6;
     medida.paragrafos.forEach((linhas) => {
       linhas.forEach((ln) => {
@@ -2816,7 +2894,7 @@ const Render = (() => {
     const topo = y - 22;
     ordem.forEach((s) => {
       desenharSimbolo(pai, s, 33, y, 1.45);
-      texto(pai, 58, y + 7, (simbolos[s] && simbolos[s].descricao) || s, { 'font-size': 19, fill: '#1A1A1A', 'font-weight': 400 });
+      texto(pai, 58, y + 7, (simbolos[s] && simbolos[s].descricao) || s, { 'font-size': 19, fill: COR.legendaTexto, 'font-weight': 400 });
       y += 44;
     });
     return ordem.length ? topo : TELA.h - 8;
@@ -2927,11 +3005,13 @@ const Render = (() => {
    *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).
    *   paineis: false = sem o painel lateral, notas, legenda e itens extras (na tela eles ficam no menu
    *   da esquerda) e a planta na largura toda; true (padrão) = slide completo, como no PNG.
+   *   escuro: true = cores do modo noturno (fundo, loja, textos); só na tela, o PNG sai claro.
    * @return {{grupos: Array, tela: {w, h}, simbolos: Array}} grupos de etiquetas (para arrastar no modo
    *   edição), tamanho do slide desenhado e símbolos usados na planta
    */
   function desenhar(svg, ctx) {
     marcas = ctx.dados.marcas;
+    Object.assign(COR, ctx.escuro ? COR_ESCURO : COR_CLARO);
     filtroMarca = ctx.filtro || '';
     comPaineis = ctx.paineis !== false;
     gradientes = {};
@@ -3069,7 +3149,7 @@ const Render = (() => {
     el('feDropShadow', { dx: 0, dy: 3, stdDeviation: 4, 'flood-color': '#000', 'flood-opacity': 0.18 }, filtro);
     const sombraEtq = el('filter', { id: 'sombraEtq', x: '-20%', y: '-30%', width: '140%', height: '170%' }, defs);
     el('feDropShadow', { dx: 0, dy: 1.2, stdDeviation: 1.3, 'flood-color': '#000', 'flood-opacity': 0.22 }, sombraEtq);
-    if (!ctx.somentePlanta) el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: TELA.fundo }, svg);
+    if (!ctx.somentePlanta) el('rect', { x: 0, y: 0, width: TELA.w, height: TELA.h, fill: COR.fundo }, svg);
 
     const projecao = arranjo.projecao || criarProjecao(planta.loja, regiaoPlanta(TELA.w, TELA.h));
     const { P } = projecao;
@@ -5310,6 +5390,7 @@ const App = (() => {
       selecionado: construcao ? construcao.selecionado : '',
       grade: construcao ? construcao.grade : false,
       referencia: construcao ? construcao.referencia : null,
+      escuro: document.documentElement.dataset.tema === 'escuro',
     };
   }
 
@@ -6620,7 +6701,7 @@ const App = (() => {
       const r = conteudo === 'estrategia'
         ? { tela: Estrategia.desenhar(temp, dadosEstrategia(plantaAtual(), estado.ciclo), { recorte: soPlanta }) }
         : Render.desenhar(temp, Object.assign(contextoDesenho(), {
-          somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null,
+          somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null, escuro: false,
           visao: conteudo === 'simplificada' ? 'simplificada' : 'planta',
         }));
       let caixa = { x: 0, y: 0, w: r.tela.w, h: r.tela.h };
@@ -6826,12 +6907,13 @@ const App = (() => {
     });
   }
 
-  // Modo noturno: o script do <head> já aplicou a escolha salva (ou a do sistema); aqui só marca o botão.
-  // A planta (o slide) continua com as cores de sempre, para ficar igual ao PNG.
+  // Modo noturno: o script do <head> já aplicou a escolha salva (ou a do sistema); aqui marca o botão
+  // e redesenha a planta com as cores escuras (o PNG sai sempre com as cores claras do slide).
   function aplicarTema(escuro) {
     if (escuro) document.documentElement.dataset.tema = 'escuro';
     else delete document.documentElement.dataset.tema;
     $('btnTema').setAttribute('aria-pressed', String(escuro));
+    if (estado.dados) desenhar();
   }
   aplicarTema(document.documentElement.dataset.tema === 'escuro');
   // Visão das etiquetas: lembra a última escolha (na planta, por padrão).
