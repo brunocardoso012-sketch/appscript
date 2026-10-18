@@ -782,6 +782,20 @@
   .lj-extra:first-of-type { border-top: 0; padding-top: 0; }
   .lj-extra-nome { font-size: 12px; font-style: italic; color: var(--texto-2); }
 
+  /* Modo apresentação: só a planta, na tela toda. */
+  body.apresentando .topo, body.apresentando .faixa, body.apresentando .barra-edicao,
+  body.apresentando .painel-espaco, body.apresentando .btn-png, body.apresentando .analytics { display: none !important; }
+  body.apresentando .palco { padding: 0; }
+  body.apresentando #slide { min-height: 0; }
+  .apres-rotulo {
+    position: fixed; left: 20px; top: 18px; z-index: 40; padding: 8px 14px; border-radius: 999px;
+    background: rgba(22, 24, 27, .82); color: #fff; font: 700 15px var(--fonte); letter-spacing: .3px;
+    transition: opacity .5s ease; pointer-events: none;
+  }
+  .apres-rotulo.some { opacity: 0; }
+  body:not(.apresentando) .apres-rotulo { display: none; }
+  @media (prefers-reduced-motion: reduce) { .apres-rotulo { transition: none; } }
+
   /* Busca (Ctrl+K): caixa no alto da tela, com a lista de resultados. */
   .dialogo.busca { width: min(620px, calc(100vw - 32px)); margin-top: 12vh; padding: 0; overflow: hidden; background: var(--superficie); }
   .busca-campo { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--borda); }
@@ -1001,6 +1015,9 @@
         <button id="btnBusca" class="btn fantasma icone" type="button" aria-label="Buscar" title="Buscar etiqueta, móvel ou marca (Ctrl+K)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
         </button>
+        <button id="btnApresentar" class="btn fantasma icone" type="button" aria-label="Apresentar" title="Apresentar: só a planta, em tela cheia (F)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8.2v4.6l4-2.3z"/></svg>
+        </button>
         <!-- Configurações: só o ícone; abre o menu com a validação, o ajuste das etiquetas e o modo noturno. -->
         <div class="menu-config" id="menuConfig">
           <button id="btnConfig" class="btn fantasma icone" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menuConfigLista" aria-label="Configurações" title="Configurações">
@@ -1020,6 +1037,10 @@
             <button id="btnTema" class="menu-item" type="button" role="menuitem" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
               Modo noturno
+            </button>
+            <button id="btnLink" class="menu-item" type="button" role="menuitem" title="Link que abre o app neste ciclo, ER, visão e filtro">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+              Copiar link
             </button>
             <button id="btnTutorial" class="menu-item" type="button" role="menuitem">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.7-.8 1.2V14M12 17.2v.1"/></svg>
@@ -1199,6 +1220,8 @@
         </div>
       </form>
     </dialog>
+
+    <div class="apres-rotulo" id="apresRotulo" aria-live="polite" hidden></div>
 
     <div class="carregando" id="carregando" hidden>
       <div class="spinner" aria-hidden="true"></div>
@@ -3014,7 +3037,14 @@ const Render = (() => {
     const topo = y - 22;
     ordem.forEach((s) => {
       desenharSimbolo(pai, s, 33, y, 1.45);
-      texto(pai, 58, y + 7, (simbolos[s] && simbolos[s].descricao) || s, { 'font-size': 19, fill: COR.legendaTexto, 'font-weight': 400 });
+      let xt = 58;
+      if (s === 'FIXO') {
+        // Amostra da hachura que os móveis e etiquetas fixos ganham.
+        el('rect', { x: 56, y: y - 10, width: 30, height: 20, rx: 4, fill: COR.cinzaEtiqueta }, pai);
+        el('rect', { x: 56, y: y - 10, width: 30, height: 20, rx: 4, fill: hachura(COR.cinzaEtiqueta), stroke: misturar(COR.cinzaEtiqueta, '#000000', 0.2), 'stroke-width': 0.8 }, pai);
+        xt = 96;
+      }
+      texto(pai, xt, y + 7, (simbolos[s] && simbolos[s].descricao) || s, { 'font-size': 19, fill: COR.legendaTexto, 'font-weight': 400 });
       y += 44;
     });
     return ordem.length ? topo : TELA.h - 8;
@@ -5329,7 +5359,13 @@ const App = (() => {
     const cicloPref = 'ciclo' in pref ? pref.ciclo : estado.ciclo;
     estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 ? cicloPref : '';
     const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
-    estado.planta = dados.plantas.some((p) => p.id === plantaPref) ? plantaPref : (dados.plantas[0] || {}).id || '';
+    // A planta pode vir pelo ID ou pelo nome ("ER M", do link).
+    const achada = dados.plantas.find((p) => p.id === plantaPref) || dados.plantas.find((p) => p.nome === plantaPref);
+    estado.planta = achada ? achada.id : (dados.plantas[0] || {}).id || '';
+    if ('visao' in pref) estado.visao = pref.visao === 'simplificada' ? 'simplificada' : 'planta';
+    if ('marca' in pref) estado.filtro = dados.marcas[pref.marca] ? pref.marca : '';
+    if ('etiqueta' in pref) estado.filtroEtiqueta = pref.etiqueta || '';
+    if ('comparar' in pref) estado.comparar = pref.comparar || '';
     estado.ajustes = {};
 
     $('avisoLocal').hidden = !dados.modoLocal;
@@ -5477,6 +5513,7 @@ const App = (() => {
     estado.planta = id;
     estado.zoom = { k: 1, x: 0, y: 0 };
     memoria.gravar('planta', id);
+    if (document.body.classList.contains('apresentando')) mostrarRotuloApresentacao();
     Editor.sincronizar(plantaAtual());
     montarAbas();
     atualizarBarraEdicao();
@@ -5559,6 +5596,7 @@ const App = (() => {
     atualizarAnalytics();
     atualizarPainelLoja();
     Validacao.atualizar();
+    gravarLink();
   }
 
   /* --------------------------------- zoom --------------------------------- */
@@ -7110,6 +7148,96 @@ const App = (() => {
     }
   }
 
+  /* ------------------------- link com o estado da tela ------------------------- */
+  // O ciclo, a ER, a visão e os filtros vão no #hash da URL (ex.: #ciclo=C10&er=ER+M&marca=BOT), para
+  // mandar um link que abre o app do mesmo jeito. No Apps Script a página roda num iframe: o hash é lido
+  // e gravado pelo google.script.url / google.script.history.
+
+  const noAppsScript = () => !!(window.google && google.script && google.script.url && google.script.history);
+
+  /** Preferências do link (as que existirem): ciclo, planta (nome da ER), visão, marca, etiqueta, comparar. */
+  function lerLink() {
+    const converter = (hash) => {
+      const q = new URLSearchParams(String(hash || '').replace(/^#/, ''));
+      const pref = {};
+      [['ciclo', 'ciclo'], ['er', 'planta'], ['visao', 'visao'], ['marca', 'marca'], ['etiqueta', 'etiqueta'], ['comparar', 'comparar']]
+        .forEach(([k, campo]) => { if (q.has(k)) pref[campo] = q.get(k); });
+      return pref;
+    };
+    if (!noAppsScript()) return Promise.resolve(converter(window.location.hash));
+    return new Promise((ok) => {
+      try { google.script.url.getLocation((loc) => ok(converter(loc && loc.hash))); } catch (e) { ok({}); }
+    });
+  }
+
+  function hashDoEstado() {
+    const planta = plantaAtual();
+    const q = new URLSearchParams();
+    if (estado.ciclo) q.set('ciclo', estado.ciclo);
+    if (planta) q.set('er', planta.nome);
+    if (estado.visao === 'simplificada') q.set('visao', 'simplificada');
+    if (estado.filtro) q.set('marca', estado.filtro);
+    if (estado.filtroEtiqueta) q.set('etiqueta', estado.filtroEtiqueta);
+    if (estado.ciclo && estado.comparar) q.set('comparar', estado.comparar);
+    return q.toString();
+  }
+
+  let ultimoHash = null;
+  function gravarLink() {
+    const hash = hashDoEstado();
+    if (hash === ultimoHash) return;
+    ultimoHash = hash;
+    try {
+      if (noAppsScript()) google.script.history.replace(null, null, hash);
+      else window.history.replaceState(null, '', window.location.pathname + window.location.search + (hash ? '#' + hash : ''));
+    } catch (e) { /* sem histórico (ex.: página embutida): o link continua funcionando ao copiar */ }
+  }
+
+  async function copiarLink() {
+    const hash = hashDoEstado();
+    const base = noAppsScript() && estado.dados && estado.dados.appUrl
+      ? estado.dados.appUrl : window.location.href.replace(/#.*$/, '');
+    const link = base + (hash ? '#' + hash : '');
+    try {
+      await navigator.clipboard.writeText(link);
+      toast('Link copiado: abre neste ciclo, ER e filtro.');
+    } catch (e) {
+      window.prompt('Copie o link:', link); // sem acesso à área de transferência (ex.: dentro do Apps Script)
+    }
+  }
+
+  /* --------------------------- modo apresentação --------------------------- */
+
+  let rotuloTimer = null;
+  function mostrarRotuloApresentacao() {
+    const planta = plantaAtual();
+    const r = $('apresRotulo');
+    r.textContent = [planta && planta.nome, estado.ciclo].filter(Boolean).join(' · ');
+    r.hidden = false;
+    r.classList.remove('some');
+    clearTimeout(rotuloTimer);
+    rotuloTimer = setTimeout(() => r.classList.add('some'), 2200);
+  }
+
+  /** Só a planta, na tela toda (tela cheia, quando o navegador deixa). As setas trocam a ER; F ou Esc saem. */
+  function alternarApresentacao(ligar) {
+    const ativo = document.body.classList.contains('apresentando');
+    ligar = ligar === undefined ? !ativo : ligar;
+    if (ligar === ativo || (ligar && (!estado.dados || Editor.ativo()))) return;
+    if (ligar && estado.analytics) alternarAnalytics(false);
+    document.body.classList.toggle('apresentando', ligar);
+    if (ligar) {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => { /* sem tela cheia: fica só o layout limpo */ });
+      mostrarRotuloApresentacao();
+    } else {
+      $('apresRotulo').hidden = true;
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    }
+    estado.zoom = { k: 1, x: 0, y: 0 };
+    desenhar();
+  }
+
   /* -------------------------------- busca --------------------------------- */
 
   /** Texto para comparar na busca: sem acentos, maiúsculas nem espaços repetidos. */
@@ -7310,6 +7438,10 @@ const App = (() => {
       memoria.gravar('tema', escuro ? 'escuro' : 'claro');
       aplicarTema(escuro);
     });
+    ao('btnApresentar', 'click', () => alternarApresentacao(true));
+    ao('btnLink', 'click', () => estado.dados && copiarLink());
+    // Esc do navegador sai da tela cheia: sai da apresentação junto.
+    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) alternarApresentacao(false); });
     ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
     // O menu fecha no clique; o tour começa depois, para não destacar o menu ainda aberto.
     ao('btnTutorial', 'click', () => estado.dados && setTimeout(() => Tutorial.iniciar(), 0));
@@ -7337,6 +7469,8 @@ const App = (() => {
       if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
       if (Editor.ativo()) { Editor.tecla(e); return; }
       if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === 'f' || e.key === 'F') { alternarApresentacao(); return; }
+      if (e.key === 'Escape' && document.body.classList.contains('apresentando')) { alternarApresentacao(false); return; }
       if (estado.analytics) {
         // No Analytics, Esc volta para a planta; as setas continuam trocando a ER em destaque.
         if (e.key === 'Escape' && !document.querySelector('.tut-foco')) { alternarAnalytics(false); return; }
@@ -7387,7 +7521,15 @@ const App = (() => {
     fecharAnalytics: () => alternarAnalytics(false),
   });
   // Na primeira visita, depois de carregar, oferece o tutorial guiado.
-  carregar().then(() => { if (estado.dados) Tutorial.oferecer(); });
+  // O link (#ciclo=…&er=…) escolhe ciclo, ER, visão e filtros; sem link, abre como sempre.
+  lerLink().then((pref) => carregar(pref)).then(() => {
+    if (!estado.dados) return;
+    marcarVisao();
+    montarCiclos();
+    montarLegenda();
+    if (estado.comparar && !estado.painelLoja) { estado.painelLoja = true; desenhar(); }
+    Tutorial.oferecer();
+  });
 
   // resolver: usado também para gerar a planilha base da versão de visualização (dev/).
   return { estado, carregar, resolver: { movimento: movimentoDe, linhasPaineis, linhasTipos } };

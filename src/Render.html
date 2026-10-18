@@ -1806,7 +1806,14 @@ const Render = (() => {
     const topo = y - 22;
     ordem.forEach((s) => {
       desenharSimbolo(pai, s, 33, y, 1.45);
-      texto(pai, 58, y + 7, (simbolos[s] && simbolos[s].descricao) || s, { 'font-size': 19, fill: COR.legendaTexto, 'font-weight': 400 });
+      let xt = 58;
+      if (s === 'FIXO') {
+        // Amostra da hachura que os móveis e etiquetas fixos ganham.
+        el('rect', { x: 56, y: y - 10, width: 30, height: 20, rx: 4, fill: COR.cinzaEtiqueta }, pai);
+        el('rect', { x: 56, y: y - 10, width: 30, height: 20, rx: 4, fill: hachura(COR.cinzaEtiqueta), stroke: misturar(COR.cinzaEtiqueta, '#000000', 0.2), 'stroke-width': 0.8 }, pai);
+        xt = 96;
+      }
+      texto(pai, xt, y + 7, (simbolos[s] && simbolos[s].descricao) || s, { 'font-size': 19, fill: COR.legendaTexto, 'font-weight': 400 });
       y += 44;
     });
     return ordem.length ? topo : TELA.h - 8;

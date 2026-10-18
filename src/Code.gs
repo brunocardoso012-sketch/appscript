@@ -85,8 +85,18 @@ function getDados() {
     lerAba_(ss, CONFIG.ABAS.TIPOS, true)
   );
   dados.planilhaUrl = ss.getUrl();
+  dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = !ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS);
   return dados;
+}
+
+/** URL do app publicado (para o "Copiar link"); vazia fora de um app da Web. */
+function urlDoApp_() {
+  try {
+    return ScriptApp.getService().getUrl() || '';
+  } catch (e) {
+    return '';
+  }
 }
 
 /* ======================== VALIDAÇÃO DA ESTRATÉGIA ========================= */

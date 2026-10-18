@@ -187,7 +187,13 @@ const App = (() => {
     const cicloPref = 'ciclo' in pref ? pref.ciclo : estado.ciclo;
     estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 ? cicloPref : '';
     const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
-    estado.planta = dados.plantas.some((p) => p.id === plantaPref) ? plantaPref : (dados.plantas[0] || {}).id || '';
+    // A planta pode vir pelo ID ou pelo nome ("ER M", do link).
+    const achada = dados.plantas.find((p) => p.id === plantaPref) || dados.plantas.find((p) => p.nome === plantaPref);
+    estado.planta = achada ? achada.id : (dados.plantas[0] || {}).id || '';
+    if ('visao' in pref) estado.visao = pref.visao === 'simplificada' ? 'simplificada' : 'planta';
+    if ('marca' in pref) estado.filtro = dados.marcas[pref.marca] ? pref.marca : '';
+    if ('etiqueta' in pref) estado.filtroEtiqueta = pref.etiqueta || '';
+    if ('comparar' in pref) estado.comparar = pref.comparar || '';
     estado.ajustes = {};
 
     $('avisoLocal').hidden = !dados.modoLocal;
@@ -335,6 +341,7 @@ const App = (() => {
     estado.planta = id;
     estado.zoom = { k: 1, x: 0, y: 0 };
     memoria.gravar('planta', id);
+    if (document.body.classList.contains('apresentando')) mostrarRotuloApresentacao();
     Editor.sincronizar(plantaAtual());
     montarAbas();
     atualizarBarraEdicao();
@@ -417,6 +424,7 @@ const App = (() => {
     atualizarAnalytics();
     atualizarPainelLoja();
     Validacao.atualizar();
+    gravarLink();
   }
 
   /* --------------------------------- zoom --------------------------------- */
@@ -1968,6 +1976,96 @@ const App = (() => {
     }
   }
 
+  /* ------------------------- link com o estado da tela ------------------------- */
+  // O ciclo, a ER, a visão e os filtros vão no #hash da URL (ex.: #ciclo=C10&er=ER+M&marca=BOT), para
+  // mandar um link que abre o app do mesmo jeito. No Apps Script a página roda num iframe: o hash é lido
+  // e gravado pelo google.script.url / google.script.history.
+
+  const noAppsScript = () => !!(window.google && google.script && google.script.url && google.script.history);
+
+  /** Preferências do link (as que existirem): ciclo, planta (nome da ER), visão, marca, etiqueta, comparar. */
+  function lerLink() {
+    const converter = (hash) => {
+      const q = new URLSearchParams(String(hash || '').replace(/^#/, ''));
+      const pref = {};
+      [['ciclo', 'ciclo'], ['er', 'planta'], ['visao', 'visao'], ['marca', 'marca'], ['etiqueta', 'etiqueta'], ['comparar', 'comparar']]
+        .forEach(([k, campo]) => { if (q.has(k)) pref[campo] = q.get(k); });
+      return pref;
+    };
+    if (!noAppsScript()) return Promise.resolve(converter(window.location.hash));
+    return new Promise((ok) => {
+      try { google.script.url.getLocation((loc) => ok(converter(loc && loc.hash))); } catch (e) { ok({}); }
+    });
+  }
+
+  function hashDoEstado() {
+    const planta = plantaAtual();
+    const q = new URLSearchParams();
+    if (estado.ciclo) q.set('ciclo', estado.ciclo);
+    if (planta) q.set('er', planta.nome);
+    if (estado.visao === 'simplificada') q.set('visao', 'simplificada');
+    if (estado.filtro) q.set('marca', estado.filtro);
+    if (estado.filtroEtiqueta) q.set('etiqueta', estado.filtroEtiqueta);
+    if (estado.ciclo && estado.comparar) q.set('comparar', estado.comparar);
+    return q.toString();
+  }
+
+  let ultimoHash = null;
+  function gravarLink() {
+    const hash = hashDoEstado();
+    if (hash === ultimoHash) return;
+    ultimoHash = hash;
+    try {
+      if (noAppsScript()) google.script.history.replace(null, null, hash);
+      else window.history.replaceState(null, '', window.location.pathname + window.location.search + (hash ? '#' + hash : ''));
+    } catch (e) { /* sem histórico (ex.: página embutida): o link continua funcionando ao copiar */ }
+  }
+
+  async function copiarLink() {
+    const hash = hashDoEstado();
+    const base = noAppsScript() && estado.dados && estado.dados.appUrl
+      ? estado.dados.appUrl : window.location.href.replace(/#.*$/, '');
+    const link = base + (hash ? '#' + hash : '');
+    try {
+      await navigator.clipboard.writeText(link);
+      toast('Link copiado: abre neste ciclo, ER e filtro.');
+    } catch (e) {
+      window.prompt('Copie o link:', link); // sem acesso à área de transferência (ex.: dentro do Apps Script)
+    }
+  }
+
+  /* --------------------------- modo apresentação --------------------------- */
+
+  let rotuloTimer = null;
+  function mostrarRotuloApresentacao() {
+    const planta = plantaAtual();
+    const r = $('apresRotulo');
+    r.textContent = [planta && planta.nome, estado.ciclo].filter(Boolean).join(' · ');
+    r.hidden = false;
+    r.classList.remove('some');
+    clearTimeout(rotuloTimer);
+    rotuloTimer = setTimeout(() => r.classList.add('some'), 2200);
+  }
+
+  /** Só a planta, na tela toda (tela cheia, quando o navegador deixa). As setas trocam a ER; F ou Esc saem. */
+  function alternarApresentacao(ligar) {
+    const ativo = document.body.classList.contains('apresentando');
+    ligar = ligar === undefined ? !ativo : ligar;
+    if (ligar === ativo || (ligar && (!estado.dados || Editor.ativo()))) return;
+    if (ligar && estado.analytics) alternarAnalytics(false);
+    document.body.classList.toggle('apresentando', ligar);
+    if (ligar) {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => { /* sem tela cheia: fica só o layout limpo */ });
+      mostrarRotuloApresentacao();
+    } else {
+      $('apresRotulo').hidden = true;
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    }
+    estado.zoom = { k: 1, x: 0, y: 0 };
+    desenhar();
+  }
+
   /* -------------------------------- busca --------------------------------- */
 
   /** Texto para comparar na busca: sem acentos, maiúsculas nem espaços repetidos. */
@@ -2168,6 +2266,10 @@ const App = (() => {
       memoria.gravar('tema', escuro ? 'escuro' : 'claro');
       aplicarTema(escuro);
     });
+    ao('btnApresentar', 'click', () => alternarApresentacao(true));
+    ao('btnLink', 'click', () => estado.dados && copiarLink());
+    // Esc do navegador sai da tela cheia: sai da apresentação junto.
+    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) alternarApresentacao(false); });
     ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
     // O menu fecha no clique; o tour começa depois, para não destacar o menu ainda aberto.
     ao('btnTutorial', 'click', () => estado.dados && setTimeout(() => Tutorial.iniciar(), 0));
@@ -2195,6 +2297,8 @@ const App = (() => {
       if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
       if (Editor.ativo()) { Editor.tecla(e); return; }
       if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === 'f' || e.key === 'F') { alternarApresentacao(); return; }
+      if (e.key === 'Escape' && document.body.classList.contains('apresentando')) { alternarApresentacao(false); return; }
       if (estado.analytics) {
         // No Analytics, Esc volta para a planta; as setas continuam trocando a ER em destaque.
         if (e.key === 'Escape' && !document.querySelector('.tut-foco')) { alternarAnalytics(false); return; }
@@ -2245,7 +2349,15 @@ const App = (() => {
     fecharAnalytics: () => alternarAnalytics(false),
   });
   // Na primeira visita, depois de carregar, oferece o tutorial guiado.
-  carregar().then(() => { if (estado.dados) Tutorial.oferecer(); });
+  // O link (#ciclo=…&er=…) escolhe ciclo, ER, visão e filtros; sem link, abre como sempre.
+  lerLink().then((pref) => carregar(pref)).then(() => {
+    if (!estado.dados) return;
+    marcarVisao();
+    montarCiclos();
+    montarLegenda();
+    if (estado.comparar && !estado.painelLoja) { estado.painelLoja = true; desenhar(); }
+    Tutorial.oferecer();
+  });
 
   // resolver: usado também para gerar a planilha base da versão de visualização (dev/).
   return { estado, carregar, resolver: { movimento: movimentoDe, linhasPaineis, linhasTipos } };

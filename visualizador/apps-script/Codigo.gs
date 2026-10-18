@@ -71,8 +71,18 @@ function getDados() {
     lerAbaTexto_(ss, CONFIG.ABAS.TIPOS));
   aplicarAjustesSalvos_(dados.plantas);
   dados.planilhaUrl = ss.getUrl();
+  dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = false;
   return dados;
+}
+
+/** URL do app publicado (para o "Copiar link"); vazia fora de um app da Web. */
+function urlDoApp_() {
+  try {
+    return ScriptApp.getService().getUrl() || '';
+  } catch (e) {
+    return '';
+  }
 }
 
 /**

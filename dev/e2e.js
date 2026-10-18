@@ -79,7 +79,7 @@ async function abrir(t, opcoes) {
   pagina.on('pageerror', (e) => erros.push('pageerror: ' + e.message));
   pagina.on('console', (m) => { if (m.type() === 'error') erros.push('console.error: ' + m.text()); });
   pagina.on('dialog', (d) => d.accept()); // window.confirm (Restaurar exemplo, descartar…)
-  await pagina.goto(INDEX);
+  await pagina.goto(INDEX + (op.hash || ''));
   await pagina.waitForFunction(() => typeof App !== 'undefined' && App.estado.dados && App.estado.dados.ciclos.length);
 
   t.after(async () => {
@@ -489,6 +489,42 @@ test('busca (Ctrl+K): etiqueta, marca e móvel', async (t) => {
   await p.waitForSelector('#dlgMovel[open]');
   assert.strictEqual(await estado(p, () => App.estado.planta), alvo.er);
   assert.match(await p.textContent('#mvTitulo'), new RegExp(alvo.id));
+});
+
+test('link: o #hash abre no ciclo, ER, visão e filtro, e acompanha a tela', async (t) => {
+  const p = await abrir(t, { hash: '#ciclo=Ciclo+exemplo+cheio&er=ER+G&visao=simplificada&marca=BOT&comparar=Ciclo+exemplo' });
+  const e = await estado(p, () => {
+    const s = App.estado;
+    return { ciclo: s.ciclo, er: s.dados.plantas.find((x) => x.id === s.planta).nome, visao: s.visao, filtro: s.filtro, comparar: s.comparar };
+  });
+  assert.deepStrictEqual(e, { ciclo: 'Ciclo exemplo cheio', er: 'ER G', visao: 'simplificada', filtro: 'BOT', comparar: 'Ciclo exemplo' });
+  assert.strictEqual(await p.inputValue('#selCiclo'), 'Ciclo exemplo cheio');
+  assert.strictEqual(await p.inputValue('#selComparar'), 'Ciclo exemplo');
+  // Trocar de ER atualiza o hash.
+  await abaPlanta(p, 'ER M').click();
+  assert.match(await p.evaluate(() => location.hash), /er=ER\+M/);
+  // Copiar link (sem área de transferência no teste: cai no prompt, que o teste aceita).
+  await menuConfig(p, 'btnLink');
+});
+
+test('modo apresentação: F mostra só a planta; setas trocam a ER; F sai', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo');
+  await p.locator('body').click({ position: { x: 700, y: 600 } });
+  await p.keyboard.press('Escape');
+  await p.keyboard.press('f');
+  assert.ok(await p.evaluate(() => document.body.classList.contains('apresentando')));
+  assert.ok(await p.isHidden('.topo'), 'o topo continua visível');
+  assert.ok(await p.isVisible('#apresRotulo'));
+  const antes = await estado(p, () => App.estado.planta);
+  await p.keyboard.press('ArrowRight');
+  assert.notStrictEqual(await estado(p, () => App.estado.planta), antes);
+  await p.keyboard.press('f');
+  assert.ok(!(await p.evaluate(() => document.body.classList.contains('apresentando'))));
+  assert.ok(await p.isVisible('.topo'));
+  // Também pelo botão do topo.
+  await p.click('#btnApresentar');
+  assert.ok(await p.evaluate(() => document.body.classList.contains('apresentando')));
 });
 
 test('modo noturno: liga pelo menu, lembra ao recarregar e desliga', async (t) => {
