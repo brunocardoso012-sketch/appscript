@@ -575,7 +575,8 @@ function normSimbolo_(v, aviso, onde) {
   if (!s) return '';
   const bruto = s.toUpperCase();
   const k = chave_(s);
-  const codigos = Object.keys(SIMBOLOS);
+  // O de antecipação (automatico) não vem da planilha: só da aba Antecipações.
+  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return !SIMBOLOS[c].automatico; });
   for (let i = 0; i < codigos.length; i++) {
     const nomes = [codigos[i]].concat(SIMBOLOS[codigos[i]].apelidos || []);
     for (let j = 0; j < nomes.length; j++) {

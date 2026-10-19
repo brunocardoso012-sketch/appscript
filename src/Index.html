@@ -489,6 +489,20 @@
       </form>
     </dialog>
 
+    <!-- Antecipação: item do próximo ciclo que entra antes num espaço do ciclo atual (Antecipacao.html). -->
+    <dialog id="dlgAntecipacao" class="dialogo rascunho antecipacao" aria-labelledby="antTitulo">
+      <form id="formAntecipacao" method="dialog">
+        <h2 id="antTitulo">Nova antecipação</h2>
+        <p class="sub" id="antSub"></p>
+        <div id="antCorpo"></div>
+        <p class="acesso-erro" id="antErro" role="alert" hidden></p>
+        <div class="rodape-dialogo">
+          <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
+          <button class="btn primario" id="antOk" value="ok" type="submit">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+
     <div class="apres-rotulo" id="apresRotulo" aria-live="polite" hidden></div>
 
     <div class="carregando" id="carregando" hidden>
@@ -504,6 +518,7 @@
     <!-- /so-app-completo -->
     <?!= include('Validacao'); ?>
     <?!= include('Rascunho'); ?>
+    <?!= include('Antecipacao'); ?>
     <?!= include('Estrategia'); ?>
     <?!= include('Analytics'); ?>
     <?!= include('Tutorial'); ?>

@@ -681,6 +681,69 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.ok(fixos.tipos.includes('NOVO MOVIMENTO OUI'), 'os tipos dos movimentos fixos vêm junto');
 });
 
+test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo ⏩', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo');
+  await abaPlanta(p, 'ER P').click();
+  await menuConfig(p, 'btnValidacao');
+  await p.waitForSelector('#dlgAcesso[open]');
+  await p.check('#dlgAcesso input[name="papel"][value="CONSTRUTOR"]');
+  await p.fill('#acessoNome', 'Bia');
+  await p.fill('#acessoSenha', '1234');
+  await p.click('#acessoEntrar');
+  await p.waitForSelector('#btnNovaAntecipacao');
+
+  // Nova antecipação: o espaço é escolhido na planta (o diálogo fecha e volta com o espaço clicado).
+  await p.click('#btnNovaAntecipacao');
+  await p.waitForSelector('#dlgAntecipacao[open]');
+  await p.locator('#antCorpo button', { hasText: 'Escolher na planta' }).click();
+  await p.waitForSelector('#dlgAntecipacao', { state: 'hidden' });
+  assert.ok(await estado(p, () => document.body.classList.contains('escolhendo-antecipacao')));
+  await p.locator('#slide .movel[data-movel="GONDOLA 1"][data-espaco="PONTA-A"]').first().dispatchEvent('click');
+  await p.waitForSelector('#dlgAntecipacao[open]');
+  assert.strictEqual(await p.inputValue('#antMovel'), 'GONDOLA 1/PONTA-A');
+  assert.ok(!(await p.isVisible('#dlgMovel[open]')), 'o clique não abre a tela do móvel');
+  await p.fill('#antEtiqueta', 'LÇTO ANTECIPADO');
+  await p.selectOption('#antMarca', 'EUD');
+  await p.fill('#antData', '2026-10-25');
+  await p.click('#antOk');
+  await p.waitForSelector('#dlgAntecipacao', { state: 'hidden' });
+  await p.waitForSelector('#valCorpo .an-item');
+  assert.match(await p.textContent('#valCorpo .an-item'), /25\/10\/2026[\s\S]*LÇTO ANTECIPADO/);
+
+  // A planta mostra o item no espaço, com o símbolo de antecipação (e a legenda dele).
+  assert.ok((await estado(p, () => App.estado.simbolos)).includes('ANTECIPADO'));
+  assert.match(await p.textContent('#slide'), /LÇTO ANTECIPADO/);
+  assert.match(await p.textContent('#slide'), /Antecipação \(item adiantado do próximo ciclo\)/);
+  const linha = await estado(p, () => App.resolver.movimento('Ciclo exemplo', '01', 'GONDOLA 1/PONTA-A'));
+  assert.ok(!linha || !linha.etiquetas.some((e) => e.texto === 'LÇTO ANTECIPADO'), 'a planilha base não leva a antecipação');
+
+  // Tela do móvel: quando entra e o que tinha antes.
+  await p.locator('#valCorpo .an-item .val-movel').first().click();
+  await p.waitForSelector('#dlgMovel[open]');
+  assert.match(await p.textContent('#mvEstrategia'), /Entra em 25\/10\/2026/);
+  assert.match(await p.textContent('#mvEstrategia'), /Antes/);
+  await p.keyboard.press('Escape');
+  await p.waitForSelector('#dlgMovel:not([open])', { state: 'attached' });
+
+  // Comunicações ER lista as antecipações da ER, para todo mundo.
+  if (!(await p.isVisible('#painelLoja'))) await p.click('#btnLoja');
+  await p.waitForSelector('#lojaCorpo .an-item');
+
+  // Editar (vale em todas as ERs, soma às etiquetas) e excluir.
+  await p.locator('#valCorpo .an-item button', { hasText: 'Editar' }).click();
+  await p.waitForSelector('#dlgAntecipacao[open]');
+  await p.check('#antCorpo input[name="antOnde"][value="TODAS"]');
+  await p.click('#antOk');
+  await p.waitForSelector('#dlgAntecipacao', { state: 'hidden' });
+  assert.strictEqual(await estado(p, () => App.estado.dados.antecipacoes[0].planta), 'TODAS');
+  await abaPlanta(p, 'ER M').click();
+  assert.match(await p.textContent('#slide'), /LÇTO ANTECIPADO/);
+  await p.locator('#valCorpo .an-item button', { hasText: 'Excluir' }).click();
+  await p.waitForFunction(() => !App.estado.dados.antecipacoes.length);
+  assert.ok(!(await estado(p, () => App.estado.simbolos)).includes('ANTECIPADO'));
+});
+
 test('modo noturno: liga pelo menu, lembra ao recarregar e desliga', async (t) => {
   const p = await abrir(t);
   const tema = () => p.evaluate(() => document.documentElement.dataset.tema || 'claro');

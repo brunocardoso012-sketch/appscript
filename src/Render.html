@@ -870,6 +870,9 @@ const Render = (() => {
     return { itens, wEtq, w: wEtq + (simbolo ? ETQ.simbolo + 4 : 0), h, simbolo };
   }
 
+  /** Ordem dos símbolos na legenda (o de antecipação vem da aba Antecipações, não da planilha). */
+  const ORDEM_SIMBOLOS = ['FIXO', 'EXPOSICAO', 'NOVO', 'ANTECIPADO'];
+
   function desenharSimbolo(pai, simbolo, cx, cy, escala) {
     const k = escala || 1;
     const g = el('g', { transform: 'translate(' + cx + ',' + cy + ') scale(' + k + ')' }, pai);
@@ -890,6 +893,11 @@ const Render = (() => {
       }
       poligono(g, pts, { fill: '#FFD21F', stroke: '#B88A00', 'stroke-width': 0.8 });
       texto(g, 0, 2.4, 'NEW', { 'font-size': 6.5, 'font-weight': 700, fill: '#6B4200', 'text-anchor': 'middle' });
+    } else if (simbolo === 'ANTECIPADO') { // antecipação: "avançar" (⏩) num círculo laranja
+      el('circle', { r: 9, fill: '#EA580C', stroke: '#9A3412', 'stroke-width': 1 }, g);
+      poligono(g, [[-5.6, -4.6], [-0.4, 0], [-5.6, 4.6]], { fill: '#FFFFFF' });
+      poligono(g, [[-0.6, -4.6], [4.6, 0], [-0.6, 4.6]], { fill: '#FFFFFF' });
+      el('rect', { x: 4.6, y: -4.6, width: 1.6, height: 9.2, fill: '#FFFFFF' }, g);
     }
     return g;
   }
@@ -1801,7 +1809,7 @@ const Render = (() => {
   }
 
   function desenharLegendaSimbolos(pai, usados, simbolos) {
-    const ordem = ['FIXO', 'EXPOSICAO', 'NOVO'].filter((s) => usados.has(s));
+    const ordem = ORDEM_SIMBOLOS.filter((s) => usados.has(s));
     let y = TELA.h - 28 - (ordem.length - 1) * 44;
     const topo = y - 22;
     ordem.forEach((s) => {
@@ -2015,7 +2023,7 @@ const Render = (() => {
     // Tamanho das etiquetas: só na visão na planta (as fichas da visão simplificada têm largura fixa).
     definirEscalaEtiquetas(simplificada ? 1 : Math.max(0.5, Math.min(3, Number(ctx.escalaEtiquetas) || 1)));
     // Notas e legenda dos símbolos: na tela e no slide (o painel lateral e os extras, só no slide).
-    const nSimbolos = ['FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length;
+    const nSimbolos = ORDEM_SIMBOLOS.filter((x) => simbolosUsados.has(x)).length;
     const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide
     const fichas = simplificada ? montarFichas(moveis, infoVis, infoEspacoVis, ctx.dados.config) : [];
     const rotulos = simplificada ? [] : montarRotulos(moveis, infoVis, infoEspacoVis, ctx.dados.config);
@@ -2030,7 +2038,7 @@ const Render = (() => {
       medNotas ? [{ x: 15, y: yNotas(H), w: medNotas.w, h: medNotas.h }] : [],
       comPaineis && extras.length ? [{ x: W - 16 - 206 * extras.length, y: H - 100, w: 206 * extras.length, h: 84 }] : [],
     );
-    const larguraLegenda = 58 + Math.max.apply(null, [0].concat(['FIXO', 'EXPOSICAO', 'NOVO']
+    const larguraLegenda = 58 + Math.max.apply(null, [0].concat(ORDEM_SIMBOLOS
       .filter((x) => simbolosUsados.has(x)).map((x) => largura((ctx.dados.simbolos[x] && ctx.dados.simbolos[x].descricao) || x, 19, 400))));
     const semPlanta = fichas.length > 0; // visão simplificada com etiquetas: só as fichas
     // Slide com painéis (PNG): a coluna lateral (TV, A, C e destaques), as notas e a legenda têm de caber
@@ -2124,6 +2132,7 @@ const Render = (() => {
         } else if (i) {
           linhasDica.push('Marca: ' + nomeMarca(i));
           i.etiquetas.forEach((e) => linhasDica.push('• ' + e.texto));
+          if (i.antecipacao) linhasDica.push('Antecipação: ' + i.antecipacao);
           if (i.observacao) linhasDica.push('Obs.: ' + i.observacao);
         } else {
           linhasDica.push('Sem movimento neste ciclo');

@@ -2,7 +2,7 @@
  * Gera visualizador/apps-script/: a versão só de visualização para o Google Apps Script.
  * São só dois arquivos (mais o manifesto), fáceis de colar no editor do Apps Script:
  *
- *   - Codigo.gs  = visualizador/fonte/Visualizador.gs + src/Config.gs, Layouts.gs, Dados.gs, Validacao.gs e Rascunhos.gs;
+ *   - Codigo.gs  = visualizador/fonte/Visualizador.gs + src/Config.gs, Layouts.gs, Dados.gs, Validacao.gs, Rascunhos.gs e Antecipacoes.gs;
  *   - Index.html = src/Index.html com Styles, Render e App embutidos, sem os trechos marcados
  *                  com <!-- so-app-completo --> (Construir loja, Baixar / Importar planilha).
  *
@@ -29,6 +29,7 @@ function gerarCodigo() {
     ['src/Dados.gs', ler(SRC, 'Dados.gs')],
     ['src/Validacao.gs', ler(SRC, 'Validacao.gs')],
     ['src/Rascunhos.gs', ler(SRC, 'Rascunhos.gs')],
+    ['src/Antecipacoes.gs', ler(SRC, 'Antecipacoes.gs')],
   ];
   return partes.map(([nome, codigo]) => '/* ===== ' + nome + ' ===== */\n' + codigo.trim() + '\n').join('\n');
 }

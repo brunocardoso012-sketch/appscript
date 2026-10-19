@@ -67,6 +67,7 @@
     getDados() {
       const abas = ler();
       const dados = montarDados_(abas.layout, abas.movimentos, abas.paineis, abas.tipos);
+      dados.antecipacoes = antecipacoesDeValores_(abas['aba:' + CONFIG.ABAS.ANTECIPACOES]);
       dados.planilhaUrl = '';
       dados.precisaConfigurar = false;
       dados.modoLocal = true;
@@ -126,6 +127,10 @@
 
     salvarRascunho(acesso, pedido) {
       return executarRascunho_(ioRascunhos(), acesso, pedido);
+    },
+
+    salvarAntecipacao(acesso, pedido) {
+      return executarAntecipacao_(ioRascunhos(), acesso, pedido);
     },
 
     salvarAjustesEtiquetas(planta, ajustes) {

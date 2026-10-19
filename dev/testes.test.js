@@ -614,3 +614,50 @@ test('ER P: posições fixas das etiquetas no layout padrão', () => {
   assert.equal(p.loja.slide, 1920);
   assert.ok(p.moveis.filter((m) => m.id === 'GONDOLA 1')[0].ajustesEspacos['PONTA-A'].x > 0);
 });
+
+test('antecipação: item do próximo ciclo num espaço do ciclo atual, a partir de uma data', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const salvar = (quem, pedido) => run(`salvarAntecipacao(${quem}, ${JSON.stringify(pedido)})`);
+  assert.deepEqual(run('getDados()').antecipacoes, []);
+
+  const base = { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', movel: 'GONDOLA 1/PONTA-A', etiqueta: 'LÇTO NATIVA', marca: 'bot', data: '2026-10-25', origem: 'C12' };
+  assert.throws(() => salvar("{ papel: 'CONSTRUTOR', senha: 'x', nome: 'Bia' }", base), /Senha incorreta/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { ciclo: 'C99' })), /não está publicado/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { movel: 'GONDOLA 1' })), /Escolha o espaço/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { movel: 'GONDOLA 1/PAINEL-1' })), /não tem o espaço/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { movel: 'NAO EXISTE 9' })), /não existe na ER M/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { data: '31/02/2026' })), /data/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { etiqueta: ' ' })), /movimento/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { origem: 'Ciclo exemplo' })), /ciclo de origem/);
+
+  let l = salvar(C, base);
+  assert.equal(l.length, 1);
+  assert.deepEqual(
+    [l[0].ciclo, l[0].planta, l[0].movel, l[0].etiqueta, l[0].marca, l[0].modo, l[0].data, l[0].dataTexto, l[0].origem, l[0].criadoPor],
+    ['Ciclo exemplo', '02', 'GONDOLA 1/PONTA-A', 'LÇTO NATIVA', 'BOT', 'SUBSTITUIR', '2026-10-25', '25/10/2026', 'C12', 'Bia']
+  );
+  const id = l[0].id;
+  // O validador também pode (mudança de curto prazo); a data aceita dd/mm/aaaa; editar mantém quem criou.
+  l = salvar(V, Object.assign({}, base, { id, planta: 'TODAS', movel: 'piramide 1', modo: 'SOMAR', data: '20/10/2026' }));
+  assert.deepEqual([l.length, l[0].id, l[0].planta, l[0].movel, l[0].modo, l[0].data, l[0].criadoPor], [1, id, 'TODAS', 'PIRAMIDE 1', 'SOMAR', '2026-10-20', 'Bia']);
+  salvar(C, Object.assign({}, base, { data: '2026-10-18' }));
+  const d = run('getDados()');
+  assert.deepEqual(d.antecipacoes.map((a) => a.data), ['2026-10-18', '2026-10-20'], 'em ordem de entrada');
+  assert.deepEqual(d.avisos, []);
+  assert.equal(d.simbolos.ANTECIPADO.automatico, true);
+  // A aba Movimentos não muda: a página junta as duas na hora de desenhar.
+  assert.ok(!JSON.stringify(d.movimentos).includes('LÇTO NATIVA'));
+  const aba = run(`lerAba_(planilha_(), 'Antecipações', true)`);
+  assert.deepEqual(aba[0].slice(0, 8), ['ID', 'Ciclo', 'Planta', 'ID Móvel', 'Movimento (etiqueta)', 'Marca', 'Como entra', 'Data de entrada']);
+  assert.equal(aba[1][7], '20/10/2026');
+  // O símbolo de antecipação não vem da planilha.
+  assert.equal(run("normSimbolo_('ANTECIPADO')"), '');
+
+  assert.throws(() => salvar(C, { acao: 'excluir', id: 'X' }), /não encontrada/);
+  l = salvar(C, { acao: 'excluir', id });
+  assert.deepEqual(l.map((a) => a.data), ['2026-10-18']);
+});

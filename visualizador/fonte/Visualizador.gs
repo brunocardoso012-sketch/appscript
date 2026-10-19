@@ -70,6 +70,7 @@ function getDados() {
   const dados = montarDados_(valoresLayoutPadrao_(), movimentos, lerAbaTexto_(ss, CONFIG.ABAS.PAINEIS),
     lerAbaTexto_(ss, CONFIG.ABAS.TIPOS));
   aplicarAjustesSalvos_(dados.plantas);
+  dados.antecipacoes = antecipacoesDeValores_(lerAbaTexto_(ss, CONFIG.ABAS.ANTECIPACOES));
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = false;
@@ -180,6 +181,17 @@ function getRascunhos(acesso) {
 /** Cria, edita, envia, devolve, aprova ou exclui um ciclo em construção (veja aplicarAcaoRascunho_). */
 function salvarRascunho(acesso, pedido) {
   return executarRascunho_(ioRascunhos_(planilhaVisualizador_()), acesso, pedido);
+}
+
+/* ============================ ANTECIPAÇÕES =============================== */
+/* Itens do ciclo seguinte adiantados para o ciclo atual (aba Antecipações).   */
+
+/**
+ * Cria, edita ou exclui uma antecipação (veja aplicarAcaoAntecipacao_). Todo mundo as recebe no getDados.
+ * @return {Array} antecipações atualizadas
+ */
+function salvarAntecipacao(acesso, pedido) {
+  return executarAntecipacao_(ioRascunhos_(planilhaVisualizador_()), acesso, pedido);
 }
 
 /* ================================ I/O ===================================== */

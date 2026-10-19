@@ -17,7 +17,7 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 
 - **Abre com a planta limpa** (sem cores, etiquetas nem caixas de destaque) até você escolher um ciclo no seletor; a opção *Sem ciclo (planta limpa)* volta a esse estado.
 - **Seletor de ciclo e abas por planta** (ER P, ER M, ER G e ER GG = plantas 01 a 04). As setas ← → do teclado trocam de planta.
-- **Móveis coloridos pela marca**, com as etiquetas (caixas de texto) de cada móvel, os símbolos 🔒 (espaço fixo: a etiqueta tem borda dupla na mesma cor, e o móvel e a etiqueta ganham uma hachura diagonal numa versão mais escura da cor deles; a legenda dos símbolos mostra uma amostra da hachura), Ⓔ e NEW (no PNG do slide, também a lateral TV/rádio, (A), (C) e os destaques com a miniatura do móvel), as notas e a legenda dos símbolos (no canto de baixo) e a faixa Cestinhas / Espaço da Beleza / Cavalete.
+- **Móveis coloridos pela marca**, com as etiquetas (caixas de texto) de cada móvel, os símbolos 🔒 (espaço fixo: a etiqueta tem borda dupla na mesma cor, e o móvel e a etiqueta ganham uma hachura diagonal numa versão mais escura da cor deles; a legenda dos símbolos mostra uma amostra da hachura), Ⓔ, NEW e ⏩ (antecipação, veja abaixo) (no PNG do slide, também a lateral TV/rádio, (A), (C) e os destaques com a miniatura do móvel), as notas e a legenda dos símbolos (no canto de baixo) e a faixa Cestinhas / Espaço da Beleza / Cavalete.
 - **Botão "Baixar planilha base"**: gera um `.xlsx` com uma linha por móvel de cada planta, listas suspensas e cores por marca. Pode vir em branco ou já preenchido com um ciclo existente, para servir de ponto de partida do próximo.
 - **Botão "Importar planilha"**: lê o `.xlsx` preenchido, grava no Google Sheets e já mostra o ciclo importado.
 - **Zoom na planta**: role o mouse sobre a planta (ou use a pinça no celular, os botões − / + acima dela ou as teclas <kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd>). Com zoom, arraste para mover a planta. As etiquetas crescem junto com a planta, para ler melhor; as caixas de destaque continuam do mesmo tamanho na tela. Clique no percentual para voltar a 100%. O PNG sai sempre sem zoom.
@@ -71,6 +71,21 @@ Com o login da validação, o painel tem a seção **Ciclos em construção**. U
 - **Devolver** (validador): o ciclo volta para construção, com um comentário *Devolvido para ajustes: …* na ER da tela.
 - **Aprovar e publicar** (validador): as linhas vão para as abas *Movimentos*, *Painéis* e *Tipos de movimento* e o ciclo aparece para todos.
 - **Na planilha:** enquanto não é aprovado, o ciclo fica nas abas *Rascunho Movimentos*, *Rascunho Painéis* e *Rascunho Tipos* (mesmas colunas das abas publicadas, com a mesma cascata entre as ERs), e o status na aba *Rascunhos*, que guarda também o histórico dos aprovados. As abas são criadas na primeira gravação. As regras ficam em [`src/Rascunhos.gs`](src/Rascunhos.gs) e são conferidas no servidor a cada gravação.
+### Antecipações (item do próximo ciclo que entra antes)
+
+Quando a estratégia muda no curto prazo e um item do ciclo seguinte precisa entrar já no ciclo atual, crie uma **antecipação**. Ela não mexe nas linhas do ciclo (aba *Movimentos*): fica à parte, com a data, e a planta junta as duas na hora de desenhar. Vale no app completo, no visualizador e na versão web.
+
+- **Criar** (validador ou construtor da estratégia, com um ciclo publicado na tela): no painel da validação, seção **Antecipações**, botão *Nova antecipação*. Escolha:
+  - o **móvel / espaço** que recebe (na lista da ER ou com *Escolher na planta*: a janela fecha, você clica no móvel ou no espaço e ela volta; Esc cancela). A janela mostra o que o espaço tem hoje;
+  - **Vale em**: só na ER da tela ou em todas as ERs que têm o móvel;
+  - **Vem do ciclo** (opcional; sugere o ciclo seguinte) e o **movimento** (texto da etiqueta, com sugestões do ciclo de origem; escolhendo uma, a marca vem junto) e a **marca**;
+  - **Como entra**: *Substitui o que está no espaço* (o espaço fica só com o item, na cor da marca) ou *Soma às etiquetas do espaço* (desligado quando o espaço já está cheio);
+  - a **data de entrada** e uma observação.
+- **Na planta** (para todo mundo): o espaço passa a mostrar o item antecipado com o símbolo **⏩** (círculo laranja), que entra na legenda dos símbolos e no PNG. Ao passar o mouse, a dica diz desde quando vale. A **tela do móvel** mostra a antecipação (*Entra em …*, de onde vem, quem criou) e o que o espaço tinha *Antes*. Em **Comunicações ER**, a seção *Antecipações* lista as da ER com a data (clique para abrir o móvel). O Analytics e a comparação de ciclos já contam o item antecipado.
+- **Editar / Excluir**: nos botões de cada antecipação, no painel. Excluir volta o espaço ao que está na aba *Movimentos*.
+- A **planilha base** (*Baixar planilha base*) não leva as antecipações: elas continuam só na aba *Antecipações*.
+- **Na planilha:** aba **Antecipações** (criada na primeira gravação), uma linha por antecipação: *ID*, *Ciclo*, *Planta* (a ER ou `TODAS`), *ID Móvel* (o espaço, ex.: `GONDOLA 1/PONTA-A`), *Movimento (etiqueta)*, *Marca*, *Como entra* (`SUBSTITUIR` ou `SOMAR`), *Data de entrada* (dd/mm/aaaa), *Vem do ciclo*, *Observação*, *Criado por* e *Criado em*. As regras ficam em [`src/Antecipacoes.gs`](src/Antecipacoes.gs) e são conferidas no servidor (ciclo publicado, espaço que existe na ER, data válida).
+
 - **Onde ficam:** na aba **Comentários** da planilha, criada no primeiro comentário, com uma linha por mensagem: as respostas apontam para o comentário na coluna *Responde a*. Na versão web, ficam no navegador.
 
 ## Construir loja (editor do layout)
@@ -174,6 +189,7 @@ Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`
    | Script | `Layouts` | [`src/Layouts.gs`](src/Layouts.gs) |
    | Script | `Validacao` | [`src/Validacao.gs`](src/Validacao.gs) |
    | Script | `Rascunhos` | [`src/Rascunhos.gs`](src/Rascunhos.gs) |
+   | Script | `Antecipacoes` | [`src/Antecipacoes.gs`](src/Antecipacoes.gs) |
    | HTML | `Index` | [`src/Index.html`](src/Index.html) |
    | HTML | `Styles` | [`src/Styles.html`](src/Styles.html) |
    | HTML | `Render` | [`src/Render.html`](src/Render.html) |
@@ -181,6 +197,7 @@ Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`
    | HTML | `Construtor` | [`src/Construtor.html`](src/Construtor.html) |
    | HTML | `Validacao` | [`src/Validacao.html`](src/Validacao.html) |
    | HTML | `Rascunho` | [`src/Rascunho.html`](src/Rascunho.html) |
+   | HTML | `Antecipacao` | [`src/Antecipacao.html`](src/Antecipacao.html) |
    | HTML | `Estrategia` | [`src/Estrategia.html`](src/Estrategia.html) |
    | HTML | `Tutorial` | [`src/Tutorial.html`](src/Tutorial.html) |
    | HTML | `Analytics` | [`src/Analytics.html`](src/Analytics.html) |
@@ -241,7 +258,7 @@ Se você já tinha um ciclo próprio com os IDs antigos (`GON-01`, `PIR-02`…),
 | **Marca do Móvel** | Cor do móvel: `BOT`, `QDB`, `EUD`, `OUI`, `MULTI`, `NEUTRO`. Aceita combinação (`BOT+QDB` gera degradê) ou cor livre (`#FF8800`). |
 | Etiqueta 1…4 | Texto de cada caixinha. Quebra de linha na célula (Alt+Enter) vira quebra na etiqueta. Pirâmide, espaço da gôndola e frente de mesa mostram até 4, empilhadas; balcão, até 3; painel do totem e testeira do make, 1. No ID Móvel, o espaço depois da "/" aceita variações (`TOTEM 1/PAINEL 1`, `GONDOLA 1/PONTA A`). Na planilha base, as colunas que não aparecem na planta ficam cinza. |
 | Marca Etiqueta 1…4 | Cor de cada etiqueta. Se vazio, usa a cor do móvel. |
-| Símbolo | `FIXO` (cadeado 🔒; a etiqueta ganha borda dupla na cor dela), `EXPOSICAO` (Ⓔ), `NOVO` (selo NEW). O antigo `MOVIMENTO` (▶) saiu: se ainda estiver na planilha, é ignorado. |
+| Símbolo | `FIXO` (cadeado 🔒; a etiqueta ganha borda dupla na cor dela), `EXPOSICAO` (Ⓔ), `NOVO` (selo NEW). O antigo `MOVIMENTO` (▶) saiu: se ainda estiver na planilha, é ignorado. O ⏩ (antecipação) não vem daqui: o app põe nos espaços da aba *Antecipações*. |
 | Observação | Aparece ao passar o mouse sobre o móvel. |
 
 Um móvel sem linha no ciclo, ou sem marca, aparece **branco (neutro)**.
@@ -319,6 +336,7 @@ src/
   Layouts.gs        layout padrão das 4 plantas + ciclo de exemplo
   Validacao.gs      validação da estratégia: senhas, aba Comentários e quem pode o quê
   Rascunhos.gs      ciclos em construção: criar, editar, enviar, devolver e aprovar (abas Rascunho…)
+  Antecipacoes.gs   antecipações: item do próximo ciclo num espaço do ciclo atual, com a data (aba Antecipações)
   Index.html        página (inclui os arquivos abaixo)
   Styles.html       estilos
   Render.html       desenho isométrico em SVG (slide 1920×1080)
@@ -329,13 +347,14 @@ src/
   Construtor.html   modo "Construir loja" (editor visual do layout)
   Validacao.html    painel de validação (acesso, comentários, marcadores na planta)
   Rascunho.html     ciclos em construção: novo ciclo, edição dos espaços, Comunicações ER, Tipos, aprovação
+  Antecipacao.html  antecipações: seção no painel da validação, diálogo, junção com a planta e símbolo ⏩
   App.html          estado da tela, botões e chamadas ao servidor
 index.html          versão web gerada (netli.fyi / Netlify)
 netlify.toml        publicação estática a partir da raiz
 web/
   backend-local.js  troca o google.script.run por localStorage (versão web)
 visualizador/
-  fonte/Visualizador.gs   backend da versão só de visualização (lê a planilha; grava os comentários e os ciclos em construção)
+  fonte/Visualizador.gs   backend da versão só de visualização (lê a planilha; grava os comentários, as antecipações e os ciclos em construção)
   apps-script/            projeto gerado para o Apps Script (Codigo.gs, Index.html, manifesto)
   Planilha base - Visualizador.xlsx
 dev/

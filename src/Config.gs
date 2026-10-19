@@ -19,6 +19,8 @@ const CONFIG = {
     R_MOVIMENTOS: 'Rascunho Movimentos',
     R_PAINEIS: 'Rascunho Painéis',
     R_TIPOS: 'Rascunho Tipos',
+    // Itens do ciclo seguinte adiantados para o ciclo atual (Antecipacoes.gs).
+    ANTECIPACOES: 'Antecipações',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -130,6 +132,8 @@ const SIMBOLOS = {
   FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', 'CADEADO', '🔒', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
+  // Não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
+  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: [], automatico: true },
 };
 
 /**

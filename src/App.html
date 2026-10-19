@@ -101,11 +101,18 @@ const App = (() => {
     return i < 0 ? [planta] : ids.slice(0, i + 1).reverse();
   }
 
-  function movimentoDe(ciclo, planta, id) {
+  /**
+   * O que vale para um móvel (ou espaço) numa ER, com a cascata e as antecipações do ciclo (Antecipacao.html).
+   * semAntecipacao: só a aba Movimentos (planilha base).
+   */
+  function movimentoDe(ciclo, planta, id, semAntecipacao) {
     const c = estado.dados.movimentos[ciclo] || {};
     const achada = cascata(planta).find((p) => c[p] && c[p][id]);
-    return (achada && c[achada][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+    const linha = (achada && c[achada][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+    return semAntecipacao ? linha : Antecipacao.aplicar(ciclo, planta, id, linha);
   }
+  /** Só a aba Movimentos: a planilha base não leva as antecipações (elas ficam na aba Antecipações). */
+  const movimentoDaPlanilha = (ciclo, planta, id) => movimentoDe(ciclo, planta, id, true);
 
   /** Painéis de uma planta: por seção, vale a planta mais próxima na cascata que tiver a seção; senão "TODAS". */
   function paineisDe(ciclo, planta) {
@@ -573,8 +580,12 @@ const App = (() => {
       if (marcador) { Validacao.focar(marcador.getAttribute('data-movel')); return; }
       const alvo = ev.target.closest('[data-movel]');
       if (!alvo) { Rascunho.aoClicarMovel(''); return; } // no piso: tira a seleção da construção
-      const id = alvo.getAttribute('data-movel').split('/')[0];
-      // Construindo um ciclo, o clique seleciona o móvel para editar na lateral.
+      const bruto = alvo.getAttribute('data-movel');
+      const id = bruto.split('/')[0];
+      // Espaço clicado (gôndola, mesas, totem, make): o do desenho ou o da pilha de etiquetas.
+      const espaco = (alvo.getAttribute('data-espaco') || (bruto.indexOf('/') >= 0 ? bruto.split('/')[1] : '')).split(/[+ ]/)[0];
+      // "Escolher na planta" da antecipação; construindo um ciclo, o clique seleciona o móvel para editar na lateral.
+      if (Antecipacao.aoClicarMovel(id, espaco)) return;
       if (!Validacao.aoClicarMovel(id) && !Rascunho.aoClicarMovel(id)) abrirMovel(id);
     });
   }
@@ -1295,6 +1306,9 @@ const App = (() => {
       return { sec, h };
     };
     if (estado.comparar) secaoMudancas(secao('Mudou desde ' + estado.comparar).sec, planta);
+    // Antecipações do ciclo nesta ER (itens do próximo ciclo que entram antes).
+    const antecipadas = Antecipacao.daEr(estado.ciclo, planta);
+    if (antecipadas.length) Antecipacao.montarLista(secao('Antecipações').sec, antecipadas, planta, false);
     if (pain.TV.length) {
       const s = secao('TV e rádio');
       s.h.insertAdjacentHTML('afterbegin', ICONES_LOJA.TV + ICONES_LOJA.RADIO);
@@ -1421,8 +1435,10 @@ const App = (() => {
       const sim = novo('div', 'mv-linha', null, sec);
       novo('span', 'mv-rotulo', 'Símbolo', sim);
       const d = estado.dados.simbolos[i.simbolo];
-      novo('span', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
+      novo('span', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
     }
+    // Antecipação: quando entra, de onde vem e o que o espaço tinha antes.
+    if (i.antecipacoes) Antecipacao.montarDetalhe(sec, i);
     const etiquetas = i.etiquetas.slice(0, op.limite || i.etiquetas.length);
     const lista = novo('div', 'mv-linha mv-etiquetas', null, sec);
     novo('span', 'mv-rotulo', 'Etiquetas', lista);
@@ -1716,7 +1732,7 @@ const App = (() => {
     carregando(true, 'Gerando planilha…');
     try {
       const nome = await Planilha.baixarModelo(estado.dados, op, {
-        movimento: movimentoDe,
+        movimento: movimentoDaPlanilha,
         linhasPaineis,
         linhasTipos,
       });
@@ -2427,7 +2443,7 @@ const App = (() => {
     estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta,
     abrirMovel: (id) => abrirMovel(id),
     fecharAnalytics: () => alternarAnalytics(false),
-    montarRascunhos: (corpo) => Rascunho.montarSecao(corpo),
+    montarRascunhos: (corpo) => { Rascunho.montarSecao(corpo); Antecipacao.montarSecao(corpo); },
     construindo: () => Rascunho.painelVisivel(),
     aoEntrar: () => Rascunho.recarregar(),
     aoSair: () => Rascunho.limpar(),
@@ -2441,6 +2457,11 @@ const App = (() => {
     abrirComentarios: () => Validacao.abrirPainel(),
     estatisticas: estatisticasConstrucao,
   });
+  Antecipacao.iniciar({
+    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca,
+    acesso: () => Validacao.acesso(),
+    movimentoDaPlanilha,
+  });
   // Na primeira visita, depois de carregar, oferece o tutorial guiado.
   // O link (#ciclo=…&er=…) escolhe ciclo, ER, visão e filtros; sem link, abre como sempre.
   lerLink().then((pref) => carregar(pref)).then(() => {
@@ -2453,6 +2474,6 @@ const App = (() => {
   });
 
   // resolver: usado também para gerar a planilha base da versão de visualização (dev/).
-  return { estado, carregar, resolver: { movimento: movimentoDe, linhasPaineis, linhasTipos } };
+  return { estado, carregar, resolver: { movimento: movimentoDaPlanilha, linhasPaineis, linhasTipos } };
 })();
 </script>

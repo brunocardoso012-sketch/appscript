@@ -197,7 +197,8 @@ const Planilha = (() => {
     r++;
     titulo('Símbolos');
     const desenho = { FIXO: '🔒', EXPOSICAO: 'Ⓔ', NOVO: 'NEW' };
-    Object.keys(dados.simbolos).forEach((s) => {
+    // O de antecipação não vai na planilha (vem da aba Antecipações do app).
+    Object.keys(dados.simbolos).filter((s) => !dados.simbolos[s].automatico).forEach((s) => {
       ws.getCell(r, 2).value = s;
       ws.getCell(r, 2).font = { bold: true };
       ws.getCell(r, 3).value = desenho[s] || '';
@@ -297,13 +298,14 @@ const Planilha = (() => {
 
     const ultima = ws.rowCount + LINHAS_EXTRAS;
     const ajudaMarca = textoAjudaMarca(dados.marcas);
+    const simbolosPlanilha = Object.keys(dados.simbolos).filter((s) => !dados.simbolos[s].automatico);
     cols.forEach((c, i) => {
       if (/^marca/i.test(c.chave)) {
         validarColuna(ws, i + 1, ultima, Object.keys(dados.marcas), c.titulo, ajudaMarca);
         colorirMarcas(ws, i + 1, ultima, dados.marcas);
       } else if (c.chave === 'simbolo') {
-        validarColuna(ws, i + 1, ultima, Object.keys(dados.simbolos), 'Símbolo',
-          Object.keys(dados.simbolos).map((s) => s + ' = ' + dados.simbolos[s].descricao).join('; '));
+        validarColuna(ws, i + 1, ultima, simbolosPlanilha, 'Símbolo',
+          simbolosPlanilha.map((s) => s + ' = ' + dados.simbolos[s].descricao).join('; '));
       }
     });
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };

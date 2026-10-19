@@ -81,6 +81,7 @@ function getDados() {
   const dados = montarDados_(valoresLayoutPadrao_(), movimentos, lerAbaTexto_(ss, CONFIG.ABAS.PAINEIS),
     lerAbaTexto_(ss, CONFIG.ABAS.TIPOS));
   aplicarAjustesSalvos_(dados.plantas);
+  dados.antecipacoes = antecipacoesDeValores_(lerAbaTexto_(ss, CONFIG.ABAS.ANTECIPACOES));
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = false;
@@ -193,6 +194,17 @@ function salvarRascunho(acesso, pedido) {
   return executarRascunho_(ioRascunhos_(planilhaVisualizador_()), acesso, pedido);
 }
 
+/* ============================ ANTECIPAÇÕES =============================== */
+/* Itens do ciclo seguinte adiantados para o ciclo atual (aba Antecipações).   */
+
+/**
+ * Cria, edita ou exclui uma antecipação (veja aplicarAcaoAntecipacao_). Todo mundo as recebe no getDados.
+ * @return {Array} antecipações atualizadas
+ */
+function salvarAntecipacao(acesso, pedido) {
+  return executarAntecipacao_(ioRascunhos_(planilhaVisualizador_()), acesso, pedido);
+}
+
 /* ================================ I/O ===================================== */
 
 /** Planilha dos ciclos: a de VISUALIZADOR.PLANILHA (link ou ID), a propriedade SPREADSHEET_ID ou a vinculada. */
@@ -297,6 +309,8 @@ const CONFIG = {
     R_MOVIMENTOS: 'Rascunho Movimentos',
     R_PAINEIS: 'Rascunho Painéis',
     R_TIPOS: 'Rascunho Tipos',
+    // Itens do ciclo seguinte adiantados para o ciclo atual (Antecipacoes.gs).
+    ANTECIPACOES: 'Antecipações',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -408,6 +422,8 @@ const SIMBOLOS = {
   FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', 'CADEADO', '🔒', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
+  // Não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
+  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: [], automatico: true },
 };
 
 /**
@@ -1673,7 +1689,8 @@ function normSimbolo_(v, aviso, onde) {
   if (!s) return '';
   const bruto = s.toUpperCase();
   const k = chave_(s);
-  const codigos = Object.keys(SIMBOLOS);
+  // O de antecipação (automatico) não vem da planilha: só da aba Antecipações.
+  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return !SIMBOLOS[c].automatico; });
   for (let i = 0; i < codigos.length; i++) {
     const nomes = [codigos[i]].concat(SIMBOLOS[codigos[i]].apelidos || []);
     for (let j = 0; j < nomes.length; j++) {
@@ -2400,6 +2417,212 @@ function executarRascunho_(io, acesso, pedido) {
   });
 }
 
+/* ===== src/Antecipacoes.gs ===== */
+/**
+ * ============================================================================
+ *  ANTECIPAÇÕES (itens do ciclo seguinte que entram antes, no ciclo atual)
+ * ============================================================================
+ *  Uma mudança de estratégia de curto prazo: um movimento que estava para o
+ *  próximo ciclo é adiantado para um espaço do ciclo atual, a partir de uma
+ *  data. Quem entrou na validação (validador ou construtor da estratégia) cria,
+ *  edita e exclui; todo mundo vê na planta: o espaço passa a mostrar o
+ *  movimento antecipado, com o símbolo de antecipação (SIMBOLOS.ANTECIPADO).
+ *
+ *  As antecipações ficam na aba "Antecipações" (uma linha por antecipação) e
+ *  não mudam as linhas da aba Movimentos: a página junta as duas na hora de
+ *  desenhar (Antecipacao.html). Este arquivo só tem regras sobre matrizes: quem
+ *  lê e grava a aba é o Code.gs, o Visualizador.gs e, na versão web, o
+ *  web/backend-local.js (executarAntecipacao_, com o leitor / gravador de cada um).
+ */
+
+/** Como o movimento antecipado entra no espaço. */
+const MODOS_ANTECIPACAO = {
+  SUBSTITUIR: { nome: 'Substitui o que está no espaço' },
+  SOMAR: { nome: 'Soma às etiquetas do espaço' },
+};
+
+/** Colunas da aba Antecipações. */
+function colunasAntecipacoes_() {
+  return [
+    { titulo: 'ID', chave: 'id', obrigatoria: true, texto: true },
+    { titulo: 'Ciclo', chave: 'ciclo', obrigatoria: true, texto: true },
+    { titulo: 'Planta', chave: 'planta', texto: true },
+    { titulo: 'ID Móvel', chave: 'movel', obrigatoria: true, texto: true, apelidos: ['Espaço', 'Móvel'] },
+    { titulo: 'Movimento (etiqueta)', chave: 'etiqueta', obrigatoria: true, texto: true, apelidos: ['Movimento', 'Etiqueta'] },
+    { titulo: 'Marca', chave: 'marca', texto: true, apelidos: ['Cor'] },
+    { titulo: 'Como entra', chave: 'modo', texto: true, apelidos: ['Modo'] },
+    { titulo: 'Data de entrada', chave: 'data', texto: true, apelidos: ['Entra em', 'Data'] },
+    { titulo: 'Vem do ciclo', chave: 'origem', texto: true, apelidos: ['Ciclo de origem', 'Origem'] },
+    { titulo: 'Observação', chave: 'observacao', texto: true, apelidos: ['Obs'] },
+    { titulo: 'Criado por', chave: 'criadoPor', texto: true },
+    { titulo: 'Criado em', chave: 'criadoEm', texto: true },
+  ];
+}
+
+/** Matriz vazia da aba (só o cabeçalho). */
+function valoresAntecipacoesVazios_() {
+  return [colunasAntecipacoes_().map(function (c) { return c.titulo; })];
+}
+
+/**
+ * Data de entrada: aceita "25/10/2026", "2026-10-25" ou uma data do Sheets.
+ * @return {string} "2026-10-25" (ou '' quando vazia ou inválida)
+ */
+function dataAntecipacao_(v) {
+  const s = texto_(v); // texto_ já passa as datas do Sheets para dd/mm/aaaa
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  let a, mes, d;
+  if (m) {
+    a = +m[1]; mes = +m[2]; d = +m[3];
+  } else {
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+    if (!m) return '';
+    d = +m[1]; mes = +m[2]; a = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+  }
+  const data = new Date(a, mes - 1, d);
+  if (data.getFullYear() !== a || data.getMonth() !== mes - 1 || data.getDate() !== d) return '';
+  const p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+  return a + '-' + p2(mes) + '-' + p2(d);
+}
+
+/** "2026-10-25" → "25/10/2026". */
+function dataAntecipacaoTexto_(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+}
+
+/**
+ * Antecipações da aba, já normalizadas (as linhas sem ciclo, espaço, movimento ou data válida ficam de fora),
+ * em ordem de entrada (data e, no mesmo dia, de criação).
+ * @return {Array<{id, ciclo, planta, movel, etiqueta, marca, modo, data, dataTexto, origem, observacao, criadoPor, criadoEm}>}
+ *   planta: ID da ER ("02") ou "TODAS"; data: "2026-10-25"
+ */
+function antecipacoesDeValores_(valores) {
+  if (!valores || !valores.length) return [];
+  const lista = [];
+  objetosDeValores_(valores, colunasAntecipacoes_()).linhas.forEach(function (l, i) {
+    const data = dataAntecipacao_(l.data);
+    const a = {
+      id: texto_(l.id), ciclo: texto_(l.ciclo), planta: normPlanta_(l.planta) || CONFIG.PLANTA_TODAS,
+      movel: normIdEspaco_(l.movel), etiqueta: texto_(l.etiqueta), marca: normMarca_(l.marca),
+      modo: MODOS_ANTECIPACAO[chave_(l.modo)] ? chave_(l.modo) : 'SUBSTITUIR',
+      data: data, dataTexto: dataAntecipacaoTexto_(data), origem: texto_(l.origem), observacao: texto_(l.observacao),
+      criadoPor: texto_(l.criadoPor), criadoEm: texto_(l.criadoEm), _ordem: i,
+    };
+    if (a.id && a.ciclo && a.movel && a.etiqueta && a.data) lista.push(a);
+  });
+  lista.sort(function (x, y) { return x.data < y.data ? -1 : x.data > y.data ? 1 : x._ordem - y._ordem; });
+  return lista.map(function (a) { delete a._ordem; return a; });
+}
+
+/**
+ * Espaço do layout que a antecipação usa: o ID do móvel (móveis de um espaço só) ou "MÓVEL/ESPAÇO"
+ * (gôndola, mesas, totem e móvel make). @return {{id, movel}} ou lança erro com o motivo
+ */
+function espacoDaAntecipacao_(plantas, planta, id) {
+  const base = id.split('/')[0];
+  const espaco = id.indexOf('/') >= 0 ? id.slice(id.indexOf('/') + 1) : '';
+  const onde = planta === CONFIG.PLANTA_TODAS ? plantas : plantas.filter(function (p) { return p.id === planta; });
+  if (!onde.length) throw new Error('A ER escolhida não existe no layout.');
+  const moveis = [];
+  onde.forEach(function (p) { p.moveis.forEach(function (m) { if (m.id === base) moveis.push(m); }); });
+  if (!moveis.length) {
+    throw new Error('O móvel "' + base + '" não existe ' + (planta === CONFIG.PLANTA_TODAS ? 'em nenhuma ER.' : 'na ' + nomePlanta_(planta) + '.'));
+  }
+  const m = moveis[0];
+  if (m.tipo === 'EXTRA' || TIPOS_SEM_ETIQUETA.indexOf(m.tipo) >= 0) throw new Error('"' + base + '" não leva movimento: escolha outro móvel.');
+  if (espacosDoMovel_(m).length && !espaco) throw new Error('Escolha o espaço do móvel "' + base + '" (ex.: ' + base + '/' + espacosDoMovel_(m)[0].id + ').');
+  if (espaco && !moveis.some(function (x) { return espacosAceitos_(x).indexOf(espaco) >= 0; })) {
+    throw new Error('O móvel "' + base + '" não tem o espaço "' + espaco + '".');
+  }
+  return { id: id, movel: m };
+}
+
+/**
+ * Aplica uma ação às antecipações e devolve a matriz nova da aba (sem gravar nada).
+ *  - salvar:  { acao, id?, ciclo, planta, movel, etiqueta, marca, modo, data, origem, observacao }
+ *             cria (sem id) ou troca a antecipação do id; ciclo = um ciclo publicado; planta = ER ou "TODAS";
+ *  - excluir: { acao, id }.
+ * Os dois papéis da validação podem tudo (a mudança de curto prazo não espera o validador).
+ * @param {Array<Array>} valores  matriz atual da aba (com cabeçalho), ou vazia
+ * @param {{plantas: Array, ciclos: Object}} contexto  plantas do layout (montarPlantas_) e ciclos publicados
+ * @param {{papel, autor}} quem  resultado de conferirAcesso_
+ * @return {{valores: Array<Array>, id: string}}
+ */
+function aplicarAcaoAntecipacao_(valores, contexto, quem, pedido, agora) {
+  const p = pedido || {};
+  const cols = colunasAntecipacoes_();
+  const objetos = valores && valores.length ? objetosDaMatriz_(valores, cols) : [];
+  const id = texto_(p.id);
+  const existe = function () {
+    if (!objetos.some(function (o) { return texto_(o.id) === id; })) {
+      throw new Error('Antecipação não encontrada (pode ter sido excluída). Clique em Atualizar.');
+    }
+  };
+
+  if (p.acao === 'excluir') {
+    existe();
+    return { valores: matrizDeObjetos_(objetos.filter(function (o) { return texto_(o.id) !== id; }), cols), id: id };
+  }
+
+  if (p.acao === 'salvar') {
+    if (id) existe();
+    const ciclo = texto_(p.ciclo).slice(0, 60);
+    if (!ciclo) throw new Error('Escolha o ciclo que recebe a antecipação.');
+    if (!contexto.ciclos[ciclo]) throw new Error('O ciclo "' + ciclo + '" não está publicado: a antecipação vale só para um ciclo da planilha.');
+    const planta = normPlanta_(p.planta) || CONFIG.PLANTA_TODAS;
+    const movel = normIdEspaco_(p.movel);
+    if (!movel) throw new Error('Escolha o móvel (ou o espaço do móvel) que recebe a antecipação.');
+    espacoDaAntecipacao_(contexto.plantas, planta, movel);
+    const etiqueta = texto_(p.etiqueta).slice(0, 200);
+    if (!etiqueta) throw new Error('Escreva o movimento (texto da etiqueta) que vai ser antecipado.');
+    const data = dataAntecipacao_(p.data);
+    if (!data) throw new Error('Informe a data em que a antecipação entra.');
+    const modo = MODOS_ANTECIPACAO[chave_(p.modo)] ? chave_(p.modo) : 'SUBSTITUIR';
+    const origem = texto_(p.origem).slice(0, 60);
+    if (origem && origem === ciclo) throw new Error('O ciclo de origem tem de ser outro (o ciclo seguinte), não o próprio ciclo.');
+    const anterior = objetos.filter(function (o) { return texto_(o.id) === id; })[0];
+    const novoId = id || 'A' + (agora || new Date()).getTime().toString(36).toUpperCase() + Math.floor(Math.random() * 1296).toString(36).toUpperCase();
+    const linha = {
+      id: novoId, ciclo: ciclo, planta: planta === CONFIG.PLANTA_TODAS ? CONFIG.PLANTA_TODAS : nomePlanta_(planta),
+      movel: movel, etiqueta: etiqueta, marca: normMarca_(p.marca), modo: modo, data: dataAntecipacaoTexto_(data),
+      origem: origem, observacao: texto_(p.observacao).slice(0, 2000),
+      // Editar não muda quem criou.
+      criadoPor: anterior ? texto_(anterior.criadoPor) : quem.autor,
+      criadoEm: anterior ? texto_(anterior.criadoEm) : formatarDataComentario_(agora || new Date()),
+    };
+    const lista = anterior
+      ? objetos.map(function (o) { return o === anterior ? linha : o; })
+      : objetos.concat([linha]);
+    return { valores: matrizDeObjetos_(lista, cols), id: novoId };
+  }
+
+  throw new Error('Ação inválida.');
+}
+
+/**
+ * Executa um pedido da página: confere o acesso, lê a aba, aplica a ação e grava. io = o mesmo dos rascunhos
+ * ({ ler(nomeDaAba), gravar(nomeDaAba, colunas, matriz), layout(), travar(fn) }).
+ * @return {Array} antecipações atualizadas (como em antecipacoesDeValores_)
+ */
+function executarAntecipacao_(io, acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  return io.travar(function () {
+    const valores = io.ler(CONFIG.ABAS.ANTECIPACOES);
+    const abas = {
+      movimentos: io.ler(CONFIG.ABAS.MOVIMENTOS) || [],
+      paineis: io.ler(CONFIG.ABAS.PAINEIS) || [],
+      tipos: io.ler(CONFIG.ABAS.TIPOS) || [],
+    };
+    const layout = io.layout();
+    const linhasLayout = objetosDeValores_(layout && layout.length ? layout : valoresLayoutPadrao_(), colunasLayout_()).linhas;
+    const contexto = { plantas: montarPlantas_(linhasLayout, function () {}), ciclos: ciclosPublicados_(abas) };
+    const r = aplicarAcaoAntecipacao_(valores, contexto, quem, pedido);
+    io.gravar(CONFIG.ABAS.ANTECIPACOES, colunasAntecipacoes_(), r.valores);
+    return antecipacoesDeValores_(r.valores);
+  });
+}
+
 /* ===== Página do app (gerada a partir de src/Index.html) ===== */
 const PAGINA_ = [
   "<!DOCTYPE html>",
@@ -3116,8 +3339,8 @@ const PAGINA_ = [
   "  .mv-validacao .val-novo { max-width: 760px; }",
   "  #slide .marcador-comentario { cursor: pointer; }",
   "  #slide .marcador-comentario:hover circle { fill: #c2410c; }",
-  "  body.escolhendo-movel #slide .movel { cursor: crosshair; }",
-  "  body.escolhendo-movel #slide .movel:hover polygon { stroke: #E8590C; stroke-width: 2.6; }",
+  "  body.escolhendo-movel #slide .movel, body.escolhendo-antecipacao #slide .movel { cursor: crosshair; }",
+  "  body.escolhendo-movel #slide .movel:hover polygon, body.escolhendo-antecipacao #slide .movel:hover polygon { stroke: #E8590C; stroke-width: 2.6; }",
   "",
   "  .lista-avisos { max-height: 240px; overflow: auto; font-size: 12px; color: #7a4b00; padding-left: 18px; }",
   "  .lista-avisos:empty { display: none; }",
@@ -3199,6 +3422,23 @@ const PAGINA_ = [
   "  .rs-item-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }",
   "  .rs-item-txt strong { font-size: 13px; }",
   "  .rs-item-txt span { font-size: 11.5px; color: var(--texto-2); }",
+  "  /* Antecipações (Antecipacao.html): itens do próximo ciclo que entram antes, com a data */",
+  "  .an-item { display: flex; flex-direction: column; gap: 5px; padding: 8px 0; border-top: 1px solid var(--borda); }",
+  "  .lj-secao .an-item:first-of-type { border-top: 0; padding-top: 0; }",
+  "  .an-item-topo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }",
+  "  .an-data { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #ffedd5; color: #9a3412; white-space: nowrap; }",
+  "  .an-item .val-movel { flex: 1 1 auto; min-width: 0; text-align: left; }",
+  "  .an-item .lj-chip { align-self: flex-start; }",
+  "  .an-meta { font-size: 11.5px; color: var(--texto-2); }",
+  "  .an-item .val-acoes { margin-top: 2px; }",
+  "  .an-atual { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -2px 0 12px; }",
+  "  .an-atual .mv-rotulo { flex: none; font-size: 12px; }",
+  "  .an-atual .an-meta { flex-basis: 100%; }",
+  "  .an-lista-detalhe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }",
+  "  .an-lista-detalhe li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 15px; }",
+  "  .an-lista-detalhe .an-meta { flex-basis: 100%; font-size: 13px; }",
+  "  .mv-etiqueta.an-antes { opacity: .55; margin-right: 6px; }",
+  "  .dialogo.antecipacao input[type=\"date\"] { font: inherit; font-size: 14px; color: var(--texto); background: var(--superficie); padding: 6px 9px; border: 1px solid var(--borda); border-radius: var(--raio); }",
   "  .lj-editar { margin: 12px 0 0; }",
   "  /* Formulário de um espaço na tela do móvel. */",
   "  .rs-espaco { display: grid; gap: 10px; }",
@@ -3249,6 +3489,7 @@ const PAGINA_ = [
   "  [data-tema=\"escuro\"] .barra-rascunho { background: #1e2440; border-color: #3a4580; }",
   "  [data-tema=\"escuro\"] .rs-status.em_construcao { background: #4a2510; color: #ffb38a; }",
   "  [data-tema=\"escuro\"] .rs-status.enviado { background: #2a3260; color: #c5cef8; }",
+  "  [data-tema=\"escuro\"] .an-data { background: #4a2510; color: #ffb38a; }",
   "  [data-tema=\"escuro\"] .rs-etq select.fora { color: #ffb38a; }",
   "  [data-tema=\"escuro\"] .rs-herdado { color: #f1c76b; background: #2e2512; border-color: #6b5520; }",
   "",
@@ -3782,6 +4023,20 @@ const PAGINA_ = [
   "        <div class=\"rodape-dialogo\">",
   "          <button class=\"btn\" value=\"cancelar\" type=\"submit\" formnovalidate>Cancelar</button>",
   "          <button class=\"btn primario\" id=\"rascunhoOk\" value=\"ok\" type=\"submit\">Salvar</button>",
+  "        </div>",
+  "      </form>",
+  "    </dialog>",
+  "",
+  "    <!-- Antecipação: item do próximo ciclo que entra antes num espaço do ciclo atual (Antecipacao.html). -->",
+  "    <dialog id=\"dlgAntecipacao\" class=\"dialogo rascunho antecipacao\" aria-labelledby=\"antTitulo\">",
+  "      <form id=\"formAntecipacao\" method=\"dialog\">",
+  "        <h2 id=\"antTitulo\">Nova antecipação</h2>",
+  "        <p class=\"sub\" id=\"antSub\"></p>",
+  "        <div id=\"antCorpo\"></div>",
+  "        <p class=\"acesso-erro\" id=\"antErro\" role=\"alert\" hidden></p>",
+  "        <div class=\"rodape-dialogo\">",
+  "          <button class=\"btn\" value=\"cancelar\" type=\"submit\" formnovalidate>Cancelar</button>",
+  "          <button class=\"btn primario\" id=\"antOk\" value=\"ok\" type=\"submit\">Salvar</button>",
   "        </div>",
   "      </form>",
   "    </dialog>",
@@ -4666,6 +4921,9 @@ const PAGINA_ = [
   "    return { itens, wEtq, w: wEtq + (simbolo ? ETQ.simbolo + 4 : 0), h, simbolo };",
   "  }",
   "",
+  "  /** Ordem dos símbolos na legenda (o de antecipação vem da aba Antecipações, não da planilha). */",
+  "  const ORDEM_SIMBOLOS = ['FIXO', 'EXPOSICAO', 'NOVO', 'ANTECIPADO'];",
+  "",
   "  function desenharSimbolo(pai, simbolo, cx, cy, escala) {",
   "    const k = escala || 1;",
   "    const g = el('g', { transform: 'translate(' + cx + ',' + cy + ') scale(' + k + ')' }, pai);",
@@ -4686,6 +4944,11 @@ const PAGINA_ = [
   "      }",
   "      poligono(g, pts, { fill: '#FFD21F', stroke: '#B88A00', 'stroke-width': 0.8 });",
   "      texto(g, 0, 2.4, 'NEW', { 'font-size': 6.5, 'font-weight': 700, fill: '#6B4200', 'text-anchor': 'middle' });",
+  "    } else if (simbolo === 'ANTECIPADO') { // antecipação: \"avançar\" (⏩) num círculo laranja",
+  "      el('circle', { r: 9, fill: '#EA580C', stroke: '#9A3412', 'stroke-width': 1 }, g);",
+  "      poligono(g, [[-5.6, -4.6], [-0.4, 0], [-5.6, 4.6]], { fill: '#FFFFFF' });",
+  "      poligono(g, [[-0.6, -4.6], [4.6, 0], [-0.6, 4.6]], { fill: '#FFFFFF' });",
+  "      el('rect', { x: 4.6, y: -4.6, width: 1.6, height: 9.2, fill: '#FFFFFF' }, g);",
   "    }",
   "    return g;",
   "  }",
@@ -5597,7 +5860,7 @@ const PAGINA_ = [
   "  }",
   "",
   "  function desenharLegendaSimbolos(pai, usados, simbolos) {",
-  "    const ordem = ['FIXO', 'EXPOSICAO', 'NOVO'].filter((s) => usados.has(s));",
+  "    const ordem = ORDEM_SIMBOLOS.filter((s) => usados.has(s));",
   "    let y = TELA.h - 28 - (ordem.length - 1) * 44;",
   "    const topo = y - 22;",
   "    ordem.forEach((s) => {",
@@ -5811,7 +6074,7 @@ const PAGINA_ = [
   "    // Tamanho das etiquetas: só na visão na planta (as fichas da visão simplificada têm largura fixa).",
   "    definirEscalaEtiquetas(simplificada ? 1 : Math.max(0.5, Math.min(3, Number(ctx.escalaEtiquetas) || 1)));",
   "    // Notas e legenda dos símbolos: na tela e no slide (o painel lateral e os extras, só no slide).",
-  "    const nSimbolos = ['FIXO', 'EXPOSICAO', 'NOVO'].filter((x) => simbolosUsados.has(x)).length;",
+  "    const nSimbolos = ORDEM_SIMBOLOS.filter((x) => simbolosUsados.has(x)).length;",
   "    const legendaAteOPe = nSimbolos ? 50 + (nSimbolos - 1) * 44 : 8; // do topo da legenda ao pé do slide",
   "    const fichas = simplificada ? montarFichas(moveis, infoVis, infoEspacoVis, ctx.dados.config) : [];",
   "    const rotulos = simplificada ? [] : montarRotulos(moveis, infoVis, infoEspacoVis, ctx.dados.config);",
@@ -5826,7 +6089,7 @@ const PAGINA_ = [
   "      medNotas ? [{ x: 15, y: yNotas(H), w: medNotas.w, h: medNotas.h }] : [],",
   "      comPaineis && extras.length ? [{ x: W - 16 - 206 * extras.length, y: H - 100, w: 206 * extras.length, h: 84 }] : [],",
   "    );",
-  "    const larguraLegenda = 58 + Math.max.apply(null, [0].concat(['FIXO', 'EXPOSICAO', 'NOVO']",
+  "    const larguraLegenda = 58 + Math.max.apply(null, [0].concat(ORDEM_SIMBOLOS",
   "      .filter((x) => simbolosUsados.has(x)).map((x) => largura((ctx.dados.simbolos[x] && ctx.dados.simbolos[x].descricao) || x, 19, 400))));",
   "    const semPlanta = fichas.length > 0; // visão simplificada com etiquetas: só as fichas",
   "    // Slide com painéis (PNG): a coluna lateral (TV, A, C e destaques), as notas e a legenda têm de caber",
@@ -5920,6 +6183,7 @@ const PAGINA_ = [
   "        } else if (i) {",
   "          linhasDica.push('Marca: ' + nomeMarca(i));",
   "          i.etiquetas.forEach((e) => linhasDica.push('• ' + e.texto));",
+  "          if (i.antecipacao) linhasDica.push('Antecipação: ' + i.antecipacao);",
   "          if (i.observacao) linhasDica.push('Obs.: ' + i.observacao);",
   "        } else {",
   "          linhasDica.push('Sem movimento neste ciclo');",
@@ -7024,7 +7288,7 @@ const PAGINA_ = [
   "    const simbolo = n('select', null, null, linha('Símbolo'));",
   "    simbolo.setAttribute('aria-label', 'Símbolo de ' + b.titulo);",
   "    n('option', null, 'Nenhum', simbolo).value = '';",
-  "    Object.keys(app.estado.dados.simbolos).forEach((x) => {",
+  "    Object.keys(app.estado.dados.simbolos).filter((x) => !app.estado.dados.simbolos[x].automatico).forEach((x) => {",
   "      const d = app.estado.dados.simbolos[x];",
   "      n('option', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[x] || '') + (d.descricao || x), simbolo).value = x;",
   "    });",
@@ -7342,6 +7606,463 @@ const PAGINA_ = [
   "    iniciar, atualizar, recarregar, limpar, mesclar, montarSecao, editarPaineis, editavel, painelVisivel,",
   "    selecionado, aoClicarMovel, esvaziarTudo, lista: () => lista, tem: (ciclo) => !!doCiclo(ciclo),",
   "  };",
+  "})();",
+  "</script>",
+  "",
+  "    <script>",
+  "/**",
+  " * ============================================================================",
+  " *  ANTECIPAÇÕES (página)",
+  " * ============================================================================",
+  " *  Mudança de estratégia de curto prazo: um item do ciclo seguinte que entra",
+  " *  antes, num espaço do ciclo atual, a partir de uma data. Quem entrou na",
+  " *  validação cria, edita e exclui (seção \"Antecipações\" do painel da validação,",
+  " *  diálogo com o espaço — da lista ou \"Escolher na planta\" —, o movimento, a",
+  " *  marca, como entra e a data). Todo mundo vê: o espaço passa a mostrar o",
+  " *  movimento antecipado com o símbolo ⏩ (desenhado em Render.html), a tela do",
+  " *  móvel mostra quando entra e o que tinha antes, e Comunicações ER lista as",
+  " *  antecipações da ER. As regras ficam em Antecipacoes.gs (conferidas no servidor).",
+  " */",
+  "const Antecipacao = (() => {",
+  "  const $ = (id) => document.getElementById(id);",
+  "  let app = null; // { estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca, acesso, movimentoDaPlanilha }",
+  "  let escolhendo = null; // valores do formulário enquanto a pessoa escolhe o espaço na planta",
+  "",
+  "  function n(tag, classe, texto, pai) {",
+  "    const e = document.createElement(tag);",
+  "    if (classe) e.className = classe;",
+  "    if (texto !== undefined && texto !== null) e.textContent = texto;",
+  "    if (pai) pai.appendChild(e);",
+  "    return e;",
+  "  }",
+  "",
+  "  function botao(texto, classe, fn, pai) {",
+  "    const b = n('button', 'btn pequeno ' + (classe || ''), texto, pai);",
+  "    b.type = 'button';",
+  "    b.addEventListener('click', fn);",
+  "    return b;",
+  "  }",
+  "",
+  "  const dados = () => app.estado.dados;",
+  "  const TODAS = () => dados().config.plantaTodas;",
+  "  const todas = () => (dados() && dados().antecipacoes) || [];",
+  "  const publicado = (ciclo) => !!ciclo && dados().ciclos.indexOf(ciclo) >= 0;",
+  "  const hojeIso = () => {",
+  "    const d = new Date();",
+  "    const p2 = (x) => (x < 10 ? '0' : '') + x;",
+  "    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());",
+  "  };",
+  "  const nomeEr = (planta) => (planta === TODAS() ? 'todas as ERs' : (dados().plantas.find((p) => p.id === planta) || {}).nome || planta);",
+  "",
+  "  /** Nome do espaço para a tela: \"Gôndola 1 · Ponta A\" (ou só o móvel). */",
+  "  function nomeEspaco(planta, id) {",
+  "    const [base, esp] = id.split('/');",
+  "    const m = planta && planta.moveis.find((x) => x.id === base);",
+  "    const simples = (t) => String(t || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toUpperCase();",
+  "    const nomeMovel = m && m.descricao && simples(m.descricao) !== simples(base) ? base + ' · ' + m.descricao : base;",
+  "    if (!esp) return nomeMovel;",
+  "    const e = m ? Render.espacos(Object.assign({}, m, { dividido: 'AB' })).concat(Render.espacos(m)).find((x) => x.id === esp) : null;",
+  "    return nomeMovel + ' · ' + (e ? e.nome : esp);",
+  "  }",
+  "",
+  "  /* ------------------------- junção com a planta --------------------------- */",
+  "",
+  "  /** Antecipações do ciclo que valem para um móvel / espaço numa ER (em ordem de entrada). */",
+  "  function doEspaco(ciclo, planta, id) {",
+  "    return todas().filter((a) => a.ciclo === ciclo && a.movel === id && (a.planta === planta || a.planta === TODAS()));",
+  "  }",
+  "",
+  "  /**",
+  "   * Linha que o espaço mostra com as antecipações: \"substitui\" troca a marca e as etiquetas pelo movimento",
+  "   * antecipado; \"soma\" acrescenta a etiqueta. O espaço ganha o símbolo ANTECIPADO e guarda o que tinha antes.",
+  "   * @return {Object|null} a linha (a mesma, quando não há antecipação)",
+  "   */",
+  "  function aplicar(ciclo, planta, id, linha) {",
+  "    if (!ciclo || !dados()) return linha;",
+  "    const lista = doEspaco(ciclo, planta, id);",
+  "    if (!lista.length) return linha;",
+  "    const r = { marca: linha ? linha.marca : '', etiquetas: linha ? linha.etiquetas.slice() : [], simbolo: 'ANTECIPADO', observacao: linha ? linha.observacao : '' };",
+  "    lista.forEach((a) => {",
+  "      const etq = { texto: a.etiqueta, marca: a.marca };",
+  "      if (a.modo === 'SOMAR') {",
+  "        r.etiquetas.push(etq);",
+  "        if (!r.marca || r.marca === 'NEUTRO') r.marca = a.marca;",
+  "      } else {",
+  "        r.marca = a.marca;",
+  "        r.etiquetas = [etq];",
+  "      }",
+  "    });",
+  "    r.etiquetas = r.etiquetas.map((e, k) => Object.assign({}, e, { posicao: k + 1 }));",
+  "    r.antecipacoes = lista;",
+  "    r.antes = linha;",
+  "    r.antecipacao = lista.map((a) => a.etiqueta + ' a partir de ' + a.dataTexto + (a.origem ? ' (vem do ' + a.origem + ')' : '')).join('; ');",
+  "    return r;",
+  "  }",
+  "",
+  "  /** Antecipações do ciclo numa ER (as da ER e as de todas as ERs, se o móvel existe nela). */",
+  "  function daEr(ciclo, planta) {",
+  "    if (!ciclo || !planta || !dados()) return [];",
+  "    const ids = {};",
+  "    planta.moveis.forEach((m) => { ids[m.id] = true; });",
+  "    return todas().filter((a) => a.ciclo === ciclo && (a.planta === planta.id || (a.planta === TODAS() && ids[a.movel.split('/')[0]])));",
+  "  }",
+  "",
+  "  /* --------------------------- telas de leitura ---------------------------- */",
+  "",
+  "  /** Na tela do móvel: quando cada antecipação entra, de onde vem e o que o espaço tinha antes. */",
+  "  function montarDetalhe(sec, i) {",
+  "    const box = n('div', 'mv-linha an-detalhe', null, sec);",
+  "    n('span', 'mv-rotulo', 'Antecipação', box);",
+  "    const ul = n('ul', 'an-lista-detalhe', null, box);",
+  "    i.antecipacoes.forEach((a) => {",
+  "      const li = n('li', null, null, ul);",
+  "      n('strong', null, 'Entra em ' + a.dataTexto, li);",
+  "      const chip = n('span', 'mv-etiqueta', a.etiqueta, li);",
+  "      chip.style.background = app.corDaMarca(a.marca, 'etiqueta');",
+  "      n('span', 'an-meta', [a.modo === 'SOMAR' ? 'soma às etiquetas' : 'substitui o espaço', a.origem ? 'vem do ' + a.origem : '',",
+  "        a.planta === TODAS() ? 'todas as ERs' : '', a.criadoPor ? 'por ' + a.criadoPor : ''].filter(Boolean).join(' · '), li);",
+  "      if (a.observacao) n('span', 'an-meta', a.observacao, li);",
+  "    });",
+  "    const antes = n('div', 'mv-linha', null, sec);",
+  "    n('span', 'mv-rotulo', 'Antes', antes);",
+  "    const etqs = i.antes ? i.antes.etiquetas : [];",
+  "    if (!etqs.length) n('span', 'mv-vazio', 'sem movimento', antes);",
+  "    etqs.forEach((e) => {",
+  "      const chip = n('span', 'mv-etiqueta an-antes', e.texto, antes);",
+  "      chip.style.background = app.corDaMarca(e.marca || (i.antes.marca !== 'NEUTRO' ? i.antes.marca : ''), 'etiqueta');",
+  "    });",
+  "  }",
+  "",
+  "  /**",
+  "   * Lista de antecipações (Comunicações ER e painel da validação): data, espaço e movimento; clique abre o",
+  "   * móvel. editar: com os botões Editar e Excluir (para quem entrou).",
+  "   */",
+  "  function montarLista(sec, lista, planta, editar) {",
+  "    lista.forEach((a) => {",
+  "      const item = n('div', 'an-item', null, sec);",
+  "      item.dataset.antecipacao = a.id;",
+  "      const topo = n('div', 'an-item-topo', null, item);",
+  "      n('span', 'an-data', '⏩ ' + a.dataTexto, topo);",
+  "      const b = botao(nomeEspaco(planta, a.movel), 'val-movel', () => app.abrirMovel(a.movel.split('/')[0]), topo);",
+  "      b.title = 'Ver a estratégia deste móvel';",
+  "      const chip = n('span', 'lj-chip', a.etiqueta, item);",
+  "      chip.style.background = app.corDaMarca(a.marca, 'etiqueta');",
+  "      n('span', 'an-meta', [a.modo === 'SOMAR' ? 'Soma às etiquetas' : 'Substitui o espaço', a.origem ? 'vem do ' + a.origem : '',",
+  "        a.planta === TODAS() ? 'todas as ERs' : ''].filter(Boolean).join(' · '), item);",
+  "      if (!editar) return;",
+  "      const acoes = n('div', 'val-acoes', null, item);",
+  "      botao('Editar', '', () => abrirDialogo(a), acoes);",
+  "      botao('Excluir', 'fantasma perigo', () => {",
+  "        if (window.confirm('Excluir a antecipação de \"' + a.etiqueta + '\" (' + a.dataTexto + ')? O espaço volta ao que está na planilha.')) {",
+  "          salvar({ acao: 'excluir', id: a.id }, 'Antecipação excluída.');",
+  "        }",
+  "      }, acoes);",
+  "    });",
+  "  }",
+  "",
+  "  /** Seção \"Antecipações\" no painel da validação (ciclo publicado na tela). */",
+  "  function montarSecao(corpo) {",
+  "    if (!app.acesso()) return;",
+  "    const e = app.estado;",
+  "    const planta = app.plantaAtual();",
+  "    if (!planta || !publicado(e.ciclo)) return;",
+  "    const sec = n('section', 'rs-secao an-secao', null, corpo);",
+  "    const topo = n('div', 'rs-secao-topo', null, sec);",
+  "    n('h3', null, 'Antecipações', topo);",
+  "    botao('Nova antecipação', 'primario', () => abrirDialogo(null), topo).id = 'btnNovaAntecipacao';",
+  "    const lista = daEr(e.ciclo, planta);",
+  "    if (!lista.length) {",
+  "      n('p', 'val-dica', 'Um item do próximo ciclo que precisa entrar antes: escolha o espaço e a data, e a planta da ' + planta.nome",
+  "        + ' passa a mostrar o item com o símbolo ⏩.', sec);",
+  "    }",
+  "    montarLista(sec, lista, planta, true);",
+  "    // Antecipações do ciclo em outras ERs (clique para ir até a ER).",
+  "    const outras = dados().plantas.filter((p) => p.id !== planta.id).map((p) => ({ p, n: daEr(e.ciclo, p).length })).filter((x) => x.n);",
+  "    if (outras.length) {",
+  "      const box = n('div', 'val-outras', null, sec);",
+  "      outras.forEach((x) => botao(x.p.nome + ' · ' + x.n, 'fantasma', () => app.trocarPlanta(x.p.id), box));",
+  "    }",
+  "  }",
+  "",
+  "  /* ------------------------------- servidor -------------------------------- */",
+  "",
+  "  async function salvar(pedido, mensagem) {",
+  "    try {",
+  "      dados().antecipacoes = await app.chamar('salvarAntecipacao', app.acesso(), pedido);",
+  "      if (mensagem) app.toast(mensagem);",
+  "      app.desenhar();",
+  "      return '';",
+  "    } catch (e) {",
+  "      if (pedido.acao === 'excluir') app.erro(e);",
+  "      return (e && e.message) || String(e);",
+  "    }",
+  "  }",
+  "",
+  "  /* -------------------------------- diálogo -------------------------------- */",
+  "",
+  "  /** Espaços que podem receber uma antecipação numa ER: cada espaço dos móveis com espaços ou o móvel inteiro. */",
+  "  function espacosDaEr(planta) {",
+  "    const config = dados().config || {};",
+  "    const lista = [];",
+  "    planta.moveis.filter((m) => m.tipo !== 'CAIXA' && m.tipo !== 'EXTRA').slice()",
+  "      .sort((a, b) => a.id.localeCompare(b.id, 'pt-BR', { numeric: true }))",
+  "      .forEach((m) => {",
+  "        const esp = Render.espacos(m);",
+  "        if (!esp.length) {",
+  "          lista.push({ id: m.id, movel: m, limite: (config.etiquetasPorTipo || {})[m.tipo] || config.maxEtiquetas || 4 });",
+  "          return;",
+  "        }",
+  "        esp.forEach((e) => lista.push({ id: m.id + '/' + e.id, movel: m, limite: (config.etiquetasPorBloco || {})[m.tipo] || 1 }));",
+  "      });",
+  "    return lista;",
+  "  }",
+  "",
+  "  /** O que o espaço tem hoje na planilha (a metade sem linha própria usa a do meio). */",
+  "  function linhaAtual(ciclo, planta, id) {",
+  "    const linha = (x) => app.movimentoDaPlanilha(ciclo, planta, x);",
+  "    const meio = /\\/MEIO-[AB]-\\d$/.test(id) ? id.slice(0, -2) : null;",
+  "    return linha(id) || (meio && linha(meio)) || null;",
+  "  }",
+  "",
+  "  /** Movimentos sugeridos (texto e marca) de um ciclo — o de origem — ou de todos os outros ciclos. */",
+  "  function sugestoes(origem, ciclo) {",
+  "    const d = dados();",
+  "    const ciclos = origem ? [origem] : Object.keys(d.movimentos).filter((c) => c !== ciclo);",
+  "    const vistos = {};",
+  "    const lista = [];",
+  "    const incluir = (texto, marca) => {",
+  "      const k = Render.chaveEtiqueta(texto);",
+  "      if (!k || vistos[k]) return;",
+  "      vistos[k] = true;",
+  "      lista.push({ texto: String(texto).trim(), marca: marca || '' });",
+  "    };",
+  "    ciclos.forEach((c) => {",
+  "      Object.values(d.movimentos[c] || {}).forEach((pl) => Object.values(pl).forEach((i) => {",
+  "        i.etiquetas.forEach((e) => incluir(e.texto, e.marca || (i.marca !== 'NEUTRO' ? i.marca : '')));",
+  "      }));",
+  "      Object.values((d.tiposMovimento || {})[c] || {}).forEach((t) => incluir(t.texto, ''));",
+  "    });",
+  "    return lista.sort((a, b) => a.texto.localeCompare(b.texto, 'pt-BR'));",
+  "  }",
+  "",
+  "  /** Abre o diálogo (a: antecipação a editar; null = nova; v: valores do formulário, ao voltar de \"Escolher na planta\"). */",
+  "  function abrirDialogo(a, v) {",
+  "    const e = app.estado;",
+  "    const planta = app.plantaAtual();",
+  "    if (!planta || !publicado(e.ciclo)) return;",
+  "    const val = v || (a ? {",
+  "      id: a.id, movel: a.movel, todas: a.planta === TODAS(), etiqueta: a.etiqueta, marca: a.marca, modo: a.modo,",
+  "      data: a.data, origem: a.origem, observacao: a.observacao,",
+  "    } : { id: '', movel: '', todas: false, etiqueta: '', marca: '', modo: 'SUBSTITUIR', data: hojeIso(), origem: proximoCiclo(e.ciclo), observacao: '' });",
+  "    const dlg = $('dlgAntecipacao');",
+  "    $('antTitulo').textContent = val.id ? 'Editar antecipação' : 'Nova antecipação';",
+  "    $('antSub').textContent = e.ciclo + ' · ' + planta.nome + '. O espaço passa a mostrar o item antecipado com o símbolo ⏩ (a data aparece na tela do móvel e em Comunicações ER).';",
+  "    $('antErro').hidden = true;",
+  "    const corpo = $('antCorpo');",
+  "    corpo.innerHTML = '';",
+  "",
+  "    // Espaço: lista da ER ou \"Escolher na planta\".",
+  "    const espacos = espacosDaEr(planta);",
+  "    const l1 = n('div', 'acesso-campo', 'Móvel / espaço que recebe', corpo);",
+  "    const linhaEsp = n('div', 'val-alvo', null, l1);",
+  "    const movel = n('select', null, null, linhaEsp);",
+  "    movel.id = 'antMovel';",
+  "    n('option', null, 'Escolha o espaço…', movel).value = '';",
+  "    espacos.forEach((x) => { n('option', null, nomeEspaco(planta, x.id), movel).value = x.id; });",
+  "    if (val.movel && !espacos.some((x) => x.id === val.movel)) n('option', null, val.movel + ' (não está nesta ER)', movel).value = val.movel;",
+  "    movel.value = val.movel;",
+  "    movel.required = true;",
+  "    const escolher = botao('Escolher na planta', '', () => {",
+  "      escolhendo = Object.assign(lerFormulario(), { a });",
+  "      dlg.close();",
+  "      document.body.classList.add('escolhendo-antecipacao');",
+  "      app.toast('Clique no móvel (ou no espaço) da planta. Esc cancela.');",
+  "    }, linhaEsp);",
+  "    escolher.title = 'Fecha esta janela até você clicar no móvel, na planta';",
+  "    const atual = n('div', 'an-atual', null, corpo);",
+  "",
+  "    const onde = n('fieldset', 'campo bloco rs-copiar', null, corpo);",
+  "    n('legend', null, 'Vale em', onde);",
+  "    const todasEr = [];",
+  "    [[false, 'Só na ' + planta.nome], [true, 'Todas as ERs que têm este móvel']].forEach(([v2, rot]) => {",
+  "      const l = n('label', 'opcao', null, onde);",
+  "      const r = n('input', null, null, l);",
+  "      r.type = 'radio';",
+  "      r.name = 'antOnde';",
+  "      r.value = v2 ? 'TODAS' : planta.id;",
+  "      r.checked = !!val.todas === v2;",
+  "      todasEr.push(r);",
+  "      n('span', null, rot, l);",
+  "    });",
+  "",
+  "    // De onde vem e o movimento (com as sugestões do ciclo de origem).",
+  "    const l2 = n('label', 'acesso-campo', 'Vem do ciclo', corpo);",
+  "    const origem = n('select', null, null, l2);",
+  "    origem.id = 'antOrigem';",
+  "    n('option', null, '— (não informar)', origem).value = '';",
+  "    const ciclos = Object.keys(dados().movimentos).filter((c) => c !== e.ciclo);",
+  "    dados().ciclos.concat(ciclos.filter((c) => dados().ciclos.indexOf(c) < 0)).filter((c) => c !== e.ciclo)",
+  "      .forEach((c) => { n('option', null, c + (dados().ciclos.indexOf(c) < 0 ? ' (em construção)' : ''), origem).value = c; });",
+  "    if (val.origem && !Array.from(origem.options).some((o) => o.value === val.origem)) n('option', null, val.origem, origem).value = val.origem;",
+  "    origem.value = val.origem || '';",
+  "    const l3 = n('label', 'acesso-campo', 'Movimento (texto da etiqueta)', corpo);",
+  "    const etiqueta = n('input', null, null, l3);",
+  "    etiqueta.id = 'antEtiqueta';",
+  "    etiqueta.type = 'text';",
+  "    etiqueta.maxLength = 200;",
+  "    etiqueta.required = true;",
+  "    etiqueta.placeholder = 'Ex.: LÇTO NATIVA SPA';",
+  "    etiqueta.value = val.etiqueta;",
+  "    const lista = n('datalist', null, null, corpo);",
+  "    lista.id = 'antSugestoes';",
+  "    etiqueta.setAttribute('list', lista.id);",
+  "    let sugeridas = [];",
+  "    const montarSugestoes = () => {",
+  "      sugeridas = sugestoes(origem.value, e.ciclo);",
+  "      lista.innerHTML = '';",
+  "      sugeridas.forEach((s) => { n('option', null, null, lista).value = s.texto; });",
+  "    };",
+  "    montarSugestoes();",
+  "    origem.addEventListener('change', montarSugestoes);",
+  "",
+  "    const l4 = n('label', 'acesso-campo', 'Marca', corpo);",
+  "    const marca = n('select', 'rs-marca', null, l4);",
+  "    marca.id = 'antMarca';",
+  "    n('option', null, 'Sem marca (branco)', marca).value = '';",
+  "    Object.keys(dados().marcas).filter((c) => c !== 'NEUTRO').forEach((c) => { n('option', null, dados().marcas[c].nome, marca).value = c; });",
+  "    if (val.marca && !dados().marcas[val.marca]) n('option', null, app.nomeDaMarca(val.marca), marca).value = val.marca;",
+  "    marca.value = val.marca || '';",
+  "    // Movimento escolhido da lista: a marca vem junto (a da etiqueta no ciclo de origem).",
+  "    etiqueta.addEventListener('change', () => {",
+  "      const s = sugeridas.find((x) => Render.chaveEtiqueta(x.texto) === Render.chaveEtiqueta(etiqueta.value));",
+  "      if (s && s.marca && marca.querySelector('option[value=\"' + s.marca + '\"]')) marca.value = s.marca;",
+  "    });",
+  "",
+  "    const modo = n('fieldset', 'campo bloco rs-copiar', null, corpo);",
+  "    n('legend', null, 'Como entra', modo);",
+  "    const modos = {};",
+  "    [['SUBSTITUIR', 'Substitui o que está no espaço', 'o espaço fica só com o item antecipado, na cor da marca'],",
+  "      ['SOMAR', 'Soma às etiquetas do espaço', 'o item entra junto com o que já está lá']].forEach(([v2, rot, sub]) => {",
+  "      const l = n('label', 'opcao', null, modo);",
+  "      const r = n('input', null, null, l);",
+  "      r.type = 'radio';",
+  "      r.name = 'antModo';",
+  "      r.value = v2;",
+  "      r.checked = (val.modo || 'SUBSTITUIR') === v2;",
+  "      modos[v2] = r;",
+  "      const t = n('span', null, rot + ' ', l);",
+  "      n('small', null, '— ' + sub, t);",
+  "    });",
+  "",
+  "    const l5 = n('label', 'acesso-campo', 'Data de entrada', corpo);",
+  "    const data = n('input', null, null, l5);",
+  "    data.id = 'antData';",
+  "    data.type = 'date';",
+  "    data.required = true;",
+  "    data.value = val.data || hojeIso();",
+  "    const l6 = n('label', 'acesso-campo', 'Observação (opcional)', corpo);",
+  "    const obs = n('textarea', null, null, l6);",
+  "    obs.id = 'antObs';",
+  "    obs.rows = 2;",
+  "    obs.maxLength = 2000;",
+  "    obs.placeholder = 'Ex.: estoque chega antes; trocar a comunicação na abertura da loja';",
+  "    obs.value = val.observacao || '';",
+  "",
+  "    // O que o espaço tem hoje e se ainda cabe uma etiqueta (para \"somar\").",
+  "    const mostrarAtual = () => {",
+  "      atual.innerHTML = '';",
+  "      const x = espacos.find((s) => s.id === movel.value);",
+  "      if (!x) return;",
+  "      const i = linhaAtual(e.ciclo, planta.id, x.id);",
+  "      n('span', 'mv-rotulo', 'Hoje tem', atual);",
+  "      const etqs = i ? i.etiquetas : [];",
+  "      if (!etqs.length) n('span', 'mv-vazio', 'sem movimento', atual);",
+  "      etqs.forEach((t) => { n('span', 'lj-chip', t.texto, atual).style.background = app.corDaMarca(t.marca || (i.marca !== 'NEUTRO' ? i.marca : ''), 'etiqueta'); });",
+  "      const outras = doEspaco(e.ciclo, planta.id, x.id).filter((o) => o.id !== val.id);",
+  "      const cheio = etqs.length + outras.length >= x.limite;",
+  "      modos.SOMAR.disabled = cheio;",
+  "      if (cheio && modos.SOMAR.checked) modos.SUBSTITUIR.checked = true;",
+  "      if (cheio) n('small', 'an-meta', x.limite === 1 ? 'Este espaço leva uma etiqueta só: a antecipação substitui.' : 'O espaço já está com as ' + x.limite + ' etiquetas: a antecipação substitui.', atual);",
+  "      if (outras.length) n('small', 'an-meta', 'Já tem antecipação: ' + outras.map((o) => o.etiqueta + ' (' + o.dataTexto + ')').join(', ') + '.', atual);",
+  "    };",
+  "    movel.addEventListener('change', mostrarAtual);",
+  "    mostrarAtual();",
+  "",
+  "    function lerFormulario() {",
+  "      return {",
+  "        id: val.id, movel: movel.value, todas: todasEr[1].checked, etiqueta: etiqueta.value, marca: marca.value,",
+  "        modo: modos.SOMAR.checked ? 'SOMAR' : 'SUBSTITUIR', data: data.value, origem: origem.value, observacao: obs.value,",
+  "      };",
+  "    }",
+  "",
+  "    dlg.onsubmit = async (ev) => {",
+  "      if (ev.submitter && ev.submitter.value === 'cancelar') return;",
+  "      ev.preventDefault();",
+  "      const f = lerFormulario();",
+  "      $('antOk').disabled = true;",
+  "      try {",
+  "        const falha = await salvar({",
+  "          acao: 'salvar', id: f.id, ciclo: e.ciclo, planta: f.todas ? TODAS() : planta.id, movel: f.movel, etiqueta: f.etiqueta,",
+  "          marca: f.marca, modo: f.modo, data: f.data, origem: f.origem, observacao: f.observacao,",
+  "        }, f.id ? 'Antecipação atualizada.' : 'Antecipação criada: a planta já mostra o item com ⏩.');",
+  "        if (falha) {",
+  "          $('antErro').textContent = falha;",
+  "          $('antErro').hidden = false;",
+  "          return;",
+  "        }",
+  "        dlg.close();",
+  "      } finally {",
+  "        $('antOk').disabled = false;",
+  "      }",
+  "    };",
+  "    if (!dlg.open) dlg.showModal();",
+  "    (movel.value ? etiqueta : movel).focus();",
+  "  }",
+  "",
+  "  /** Ciclo seguinte ao da tela, na ordem da planilha (sugestão para \"Vem do ciclo\"), ou ''. */",
+  "  function proximoCiclo(ciclo) {",
+  "    const lista = dados().ciclos;",
+  "    const i = lista.indexOf(ciclo);",
+  "    return i >= 0 && i < lista.length - 1 ? lista[i + 1] : '';",
+  "  }",
+  "",
+  "  /**",
+  "   * Clique num móvel da planta. Em \"Escolher na planta\", o móvel (ou o espaço clicado) vira o espaço da",
+  "   * antecipação e o diálogo volta. @return {boolean} tratado",
+  "   */",
+  "  function aoClicarMovel(id, espaco) {",
+  "    if (!escolhendo) return false;",
+  "    const planta = app.plantaAtual();",
+  "    const lista = planta ? espacosDaEr(planta) : [];",
+  "    const doMovel = lista.filter((x) => x.movel.id === id);",
+  "    if (!doMovel.length) {",
+  "      app.toast('Este móvel não leva movimento. Clique em outro (Esc cancela).', true);",
+  "      return true;",
+  "    }",
+  "    const exato = espaco && doMovel.find((x) => x.id === id + '/' + espaco);",
+  "    const v = escolhendo;",
+  "    v.movel = (exato || doMovel[0]).id;",
+  "    pararEscolha();",
+  "    abrirDialogo(v.a, v);",
+  "    return true;",
+  "  }",
+  "",
+  "  function pararEscolha() {",
+  "    escolhendo = null;",
+  "    document.body.classList.remove('escolhendo-antecipacao');",
+  "  }",
+  "",
+  "  function iniciar(contexto) {",
+  "    app = contexto;",
+  "    document.addEventListener('keydown', (ev) => {",
+  "      if (ev.key !== 'Escape' || !escolhendo) return;",
+  "      const v = escolhendo;",
+  "      pararEscolha();",
+  "      abrirDialogo(v.a, v);",
+  "    });",
+  "  }",
+  "",
+  "  return { iniciar, aplicar, daEr, montarDetalhe, montarLista, montarSecao, aoClicarMovel, escolhendo: () => !!escolhendo };",
   "})();",
   "</script>",
   "",
@@ -8744,11 +9465,18 @@ const PAGINA_ = [
   "    return i < 0 ? [planta] : ids.slice(0, i + 1).reverse();",
   "  }",
   "",
-  "  function movimentoDe(ciclo, planta, id) {",
+  "  /**",
+  "   * O que vale para um móvel (ou espaço) numa ER, com a cascata e as antecipações do ciclo (Antecipacao.html).",
+  "   * semAntecipacao: só a aba Movimentos (planilha base).",
+  "   */",
+  "  function movimentoDe(ciclo, planta, id, semAntecipacao) {",
   "    const c = estado.dados.movimentos[ciclo] || {};",
   "    const achada = cascata(planta).find((p) => c[p] && c[p][id]);",
-  "    return (achada && c[achada][id]) || (c[TODAS()] && c[TODAS()][id]) || null;",
+  "    const linha = (achada && c[achada][id]) || (c[TODAS()] && c[TODAS()][id]) || null;",
+  "    return semAntecipacao ? linha : Antecipacao.aplicar(ciclo, planta, id, linha);",
   "  }",
+  "  /** Só a aba Movimentos: a planilha base não leva as antecipações (elas ficam na aba Antecipações). */",
+  "  const movimentoDaPlanilha = (ciclo, planta, id) => movimentoDe(ciclo, planta, id, true);",
   "",
   "  /** Painéis de uma planta: por seção, vale a planta mais próxima na cascata que tiver a seção; senão \"TODAS\". */",
   "  function paineisDe(ciclo, planta) {",
@@ -9216,8 +9944,12 @@ const PAGINA_ = [
   "      if (marcador) { Validacao.focar(marcador.getAttribute('data-movel')); return; }",
   "      const alvo = ev.target.closest('[data-movel]');",
   "      if (!alvo) { Rascunho.aoClicarMovel(''); return; } // no piso: tira a seleção da construção",
-  "      const id = alvo.getAttribute('data-movel').split('/')[0];",
-  "      // Construindo um ciclo, o clique seleciona o móvel para editar na lateral.",
+  "      const bruto = alvo.getAttribute('data-movel');",
+  "      const id = bruto.split('/')[0];",
+  "      // Espaço clicado (gôndola, mesas, totem, make): o do desenho ou o da pilha de etiquetas.",
+  "      const espaco = (alvo.getAttribute('data-espaco') || (bruto.indexOf('/') >= 0 ? bruto.split('/')[1] : '')).split(/[+ ]/)[0];",
+  "      // \"Escolher na planta\" da antecipação; construindo um ciclo, o clique seleciona o móvel para editar na lateral.",
+  "      if (Antecipacao.aoClicarMovel(id, espaco)) return;",
   "      if (!Validacao.aoClicarMovel(id) && !Rascunho.aoClicarMovel(id)) abrirMovel(id);",
   "    });",
   "  }",
@@ -9938,6 +10670,9 @@ const PAGINA_ = [
   "      return { sec, h };",
   "    };",
   "    if (estado.comparar) secaoMudancas(secao('Mudou desde ' + estado.comparar).sec, planta);",
+  "    // Antecipações do ciclo nesta ER (itens do próximo ciclo que entram antes).",
+  "    const antecipadas = Antecipacao.daEr(estado.ciclo, planta);",
+  "    if (antecipadas.length) Antecipacao.montarLista(secao('Antecipações').sec, antecipadas, planta, false);",
   "    if (pain.TV.length) {",
   "      const s = secao('TV e rádio');",
   "      s.h.insertAdjacentHTML('afterbegin', ICONES_LOJA.TV + ICONES_LOJA.RADIO);",
@@ -10064,8 +10799,10 @@ const PAGINA_ = [
   "      const sim = novo('div', 'mv-linha', null, sec);",
   "      novo('span', 'mv-rotulo', 'Símbolo', sim);",
   "      const d = estado.dados.simbolos[i.simbolo];",
-  "      novo('span', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);",
+  "      novo('span', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);",
   "    }",
+  "    // Antecipação: quando entra, de onde vem e o que o espaço tinha antes.",
+  "    if (i.antecipacoes) Antecipacao.montarDetalhe(sec, i);",
   "    const etiquetas = i.etiquetas.slice(0, op.limite || i.etiquetas.length);",
   "    const lista = novo('div', 'mv-linha mv-etiquetas', null, sec);",
   "    novo('span', 'mv-rotulo', 'Etiquetas', lista);",
@@ -10359,7 +11096,7 @@ const PAGINA_ = [
   "    carregando(true, 'Gerando planilha…');",
   "    try {",
   "      const nome = await Planilha.baixarModelo(estado.dados, op, {",
-  "        movimento: movimentoDe,",
+  "        movimento: movimentoDaPlanilha,",
   "        linhasPaineis,",
   "        linhasTipos,",
   "      });",
@@ -11070,7 +11807,7 @@ const PAGINA_ = [
   "    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta,",
   "    abrirMovel: (id) => abrirMovel(id),",
   "    fecharAnalytics: () => alternarAnalytics(false),",
-  "    montarRascunhos: (corpo) => Rascunho.montarSecao(corpo),",
+  "    montarRascunhos: (corpo) => { Rascunho.montarSecao(corpo); Antecipacao.montarSecao(corpo); },",
   "    construindo: () => Rascunho.painelVisivel(),",
   "    aoEntrar: () => Rascunho.recarregar(),",
   "    aoSair: () => Rascunho.limpar(),",
@@ -11084,6 +11821,11 @@ const PAGINA_ = [
   "    abrirComentarios: () => Validacao.abrirPainel(),",
   "    estatisticas: estatisticasConstrucao,",
   "  });",
+  "  Antecipacao.iniciar({",
+  "    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca,",
+  "    acesso: () => Validacao.acesso(),",
+  "    movimentoDaPlanilha,",
+  "  });",
   "  // Na primeira visita, depois de carregar, oferece o tutorial guiado.",
   "  // O link (#ciclo=…&er=…) escolhe ciclo, ER, visão e filtros; sem link, abre como sempre.",
   "  lerLink().then((pref) => carregar(pref)).then(() => {",
@@ -11096,7 +11838,7 @@ const PAGINA_ = [
   "  });",
   "",
   "  // resolver: usado também para gerar a planilha base da versão de visualização (dev/).",
-  "  return { estado, carregar, resolver: { movimento: movimentoDe, linhasPaineis, linhasTipos } };",
+  "  return { estado, carregar, resolver: { movimento: movimentoDaPlanilha, linhasPaineis, linhasTipos } };",
   "})();",
   "</script>",
   "",

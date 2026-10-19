@@ -571,7 +571,7 @@ const Rascunho = (() => {
     const simbolo = n('select', null, null, linha('Símbolo'));
     simbolo.setAttribute('aria-label', 'Símbolo de ' + b.titulo);
     n('option', null, 'Nenhum', simbolo).value = '';
-    Object.keys(app.estado.dados.simbolos).forEach((x) => {
+    Object.keys(app.estado.dados.simbolos).filter((x) => !app.estado.dados.simbolos[x].automatico).forEach((x) => {
       const d = app.estado.dados.simbolos[x];
       n('option', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ' }[x] || '') + (d.descricao || x), simbolo).value = x;
     });

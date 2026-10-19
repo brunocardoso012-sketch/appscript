@@ -27,6 +27,7 @@ Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (pas
 - **Baixar PNG:** escolha o conteúdo (planta, visão simplificada ou **estratégia**, que é o espaço da ER em gráficos) e o formato (PNG recortado ou slide completo).
 - **Tutorial guiado:** quem abre o app pela primeira vez recebe um convite para um tour de cerca de 2 minutos.
 - **Montar um ciclo novo no app:** com o login da validação, o construtor da estratégia cria um ciclo (em branco, copiando outro ou só os espaços fixos 🔒 de outro) e monta em três passos, num painel na lateral: os Tipos de movimento com o GMV, depois os móveis (clicando na planta; ela pinta e mostra as etiquetas na hora, tudo é salvo sozinho e o painel mostra os números da ER), depois o envio para aprovação. O validador aprova (o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*) ou devolve com um comentário. Enquanto não é aprovado, o ciclo fica em quatro abas novas, criadas sozinhas na primeira vez: *Rascunhos*, *Rascunho Movimentos*, *Rascunho Painéis* e *Rascunho Tipos*. Não apague essas abas nem mexa nelas à mão.
+- **Antecipações:** quando um item do próximo ciclo precisa entrar antes, quem entrou na validação cria uma *antecipação* (seção *Antecipações* do painel da validação): escolhe o espaço (na lista ou clicando na planta), o movimento, a marca, se ele substitui o espaço ou soma às etiquetas, e a data em que entra. A planta mostra o item no espaço com o símbolo ⏩ para todo mundo, e a data aparece na tela do móvel e em *Comunicações ER*. As antecipações ficam numa aba nova, *Antecipações*, criada sozinha na primeira vez; as abas *Movimentos* e *Painéis* não mudam.
 
 ---
 
@@ -53,7 +54,7 @@ Se algo der errado, a cópia tem tudo como estava antes.
 
 ## Parte A · Atualizar o **visualizador**
 
-O visualizador lê a planilha e grava só os comentários da validação (aba *Comentários*) e os ciclos montados no app (abas *Rascunho…*; quando o validador aprova, o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*). Ao atualizar, nada da planilha muda, e as posições das etiquetas que você já salvou também ficam.
+O visualizador lê a planilha e grava só os comentários da validação (aba *Comentários*), as antecipações (aba *Antecipações*) e os ciclos montados no app (abas *Rascunho…*; quando o validador aprova, o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*). Ao atualizar, nada da planilha muda, e as posições das etiquetas que você já salvou também ficam.
 
 ### A1. Guarde o link da planilha, se ele estiver no código
 
@@ -209,6 +210,7 @@ Abra o link do app e confira:
 - [ ] **Baixar PNG** (canto de baixo da planta) baixa a planta, a visão simplificada e a estratégia.
 - [ ] As posições de etiquetas que você já tinha salvado continuam no lugar.
 - [ ] Entre na *Validação* como construtor: o painel mostra **Ciclos em construção** com o botão *Novo ciclo*. Se quiser testar, crie um ciclo de teste, mude um espaço e depois clique em *Excluir* na faixa do ciclo.
+- [ ] Com um ciclo publicado na tela, a seção **Antecipações** aparece no mesmo painel. Se quiser testar, crie uma antecipação num espaço (o espaço ganha o ⏩) e depois clique em *Excluir*.
 
 Se tudo estiver certo, avise os usuários: o link é o mesmo.
 

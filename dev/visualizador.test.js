@@ -134,6 +134,15 @@ test('visualizador: ciclo montado no app entra nas abas da planilha quando aprov
   assert.deepEqual(d.avisos, []);
 });
 
+test('visualizador: antecipações ficam na aba Antecipações e chegam a todos no getDados', () => {
+  const { run, falsos } = carregarVisualizador();
+  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  run(`salvarAntecipacao(${C}, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', movel: 'PIRAMIDE 1', etiqueta: 'NOVO ITEM', data: '2026-11-03' })`);
+  assert.ok(falsos.planilha.getSheetByName('Antecipações'), 'aba criada');
+  const a = run('getDados()').antecipacoes;
+  assert.deepEqual(a.map((x) => [x.planta, x.movel, x.etiqueta, x.dataTexto]), [['01', 'PIRAMIDE 1', 'NOVO ITEM', '03/11/2026']]);
+});
+
 test('arquivo único para o Apps Script: atualizado, serve a página embutida e lê a planilha', () => {
   const fs = require('fs');
   const unico = fs.readFileSync(ARQUIVO_UNICO, 'utf8');
