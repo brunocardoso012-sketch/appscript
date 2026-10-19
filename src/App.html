@@ -2192,7 +2192,10 @@ const App = (() => {
         itens.push(Object.assign(it, { sub: 'Etiqueta · ' + nomes.join(', ') }));
       });
       Object.keys(estado.dados.marcas).filter((c) => c !== 'NEUTRO').forEach((c) => {
-        itens.push({ tipo: 'marca', texto: estado.dados.marcas[c].nome, marca: c, sub: 'Marca · ' + c });
+        // Acha também pelo nome completo e pelos outros nomes aceitos na planilha ("eudora" → EUD).
+        const m = estado.dados.marcas[c];
+        const completo = (m.apelidos || [])[0] || '';
+        itens.push({ tipo: 'marca', texto: m.nome, marca: c, sub: 'Marca' + (completo && completo !== m.nome ? ' · ' + completo : ''), extra: (m.apelidos || []).join(' ') });
       });
     }
     estado.dados.plantas.forEach((pl) => pl.moveis.forEach((m) => {

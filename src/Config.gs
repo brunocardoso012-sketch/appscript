@@ -81,7 +81,8 @@ const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
  * Marcas e cores.
  *  - etiqueta: cor da caixa de texto (fundo) — texto sempre branco.
  *  - movel:    cor de preenchimento do móvel na planta.
- *  - apelidos: outras formas aceitas na planilha (comparação ignora acentos,
+ *  - nome:     como a marca aparece no app (legenda, listas, Analytics e PNG): a sigla de 3 letras;
+ *  - apelidos: outras formas aceitas na planilha (o nome completo continua aceito) (comparação ignora acentos,
  *              maiúsculas, espaços e pontuação).
  *
  * Na planilha também é possível:
@@ -90,28 +91,28 @@ const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
  */
 const MARCAS = {
   BOT: {
-    nome: 'Boticário',
+    nome: 'BOT',
     etiqueta: '#3E9D6B',
     movel: '#7CC9A0',
-    apelidos: ['BOTICARIO', 'OBOTICARIO', 'BOTI', 'VERDE'],
+    apelidos: ['Boticário', 'BOTICARIO', 'OBOTICARIO', 'BOTI', 'VERDE'],
   },
   QDB: {
-    nome: 'Quem disse, berenice?',
+    nome: 'QDB',
     etiqueta: '#E23FB4',
     movel: '#F07ACD',
-    apelidos: ['QUEMDISSEBERENICE', 'BERENICE', 'ROSA'],
+    apelidos: ['Quem disse, berenice?', 'QUEMDISSEBERENICE', 'BERENICE', 'ROSA'],
   },
   EUD: {
-    nome: 'Eudora',
+    nome: 'EUD',
     etiqueta: '#A11FC9',
     movel: '#B666D8',
-    apelidos: ['EUDORA', 'ROXO'],
+    apelidos: ['Eudora', 'EUDORA', 'ROXO'],
   },
   OUI: {
-    nome: 'O.U.i',
+    nome: 'OUI',
     etiqueta: '#E1262F',
     movel: '#C9343F',
-    apelidos: ['OUIPARIS', 'VERMELHO'],
+    apelidos: ['O.U.i', 'OUIPARIS', 'VERMELHO'],
   },
   MULTI: {
     nome: 'Multimarca',

@@ -176,7 +176,7 @@ test('setas do teclado trocam de planta e o zoom muda o percentual', async (t) =
 test('filtro por marca na legenda liga e desliga', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo');
-  const chip = p.locator('#legenda button', { hasText: 'Boticário' }).first();
+  const chip = p.locator('#legenda button', { hasText: /^BOT$/ }).first();
   await chip.click();
   assert.ok(await estado(p, () => App.estado.filtro), 'filtro não foi ligado');
   await chip.click();
@@ -605,7 +605,7 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await p.waitForFunction(() => ((App.estado.dados.movimentos['C11/2026'] || {})['01'] || {})['GONDOLA 1/PONTA-A']);
   assert.deepStrictEqual((await espacos())['01']['GONDOLA 1/PONTA-A'], linha);
   assert.ok(await p.locator('#pcStats .pc-gmv', { hasText: 'NOVO MOVIMENTO OUI' }).count() === 1, 'GMV × espaço lista o movimento');
-  assert.ok(await p.locator('#pcStats .pc-legenda', { hasText: 'O.U.i' }).count() > 0, 'a marca entra no espaço por marca');
+  assert.ok(await p.locator('#pcStats .pc-legenda', { hasText: 'OUI' }).count() > 0, 'a marca entra no espaço por marca');
   // Observação da etiqueta: aparece na planta depois do "|", mas o movimento (e as contas) continua o mesmo.
   await ponta.locator('.rs-etq-obs').first().fill('só no kit');
   await ponta.locator('.rs-etq-obs').first().dispatchEvent('change');

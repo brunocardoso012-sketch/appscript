@@ -4,7 +4,7 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 
 ![Exemplo — ER M (planta 02)](docs/exemplo-planta-02.png)
 
-| Cor | Marca | Código na planilha |
+| Cor | Marca | Código (na planilha e no app) |
 |---|---|---|
 | verde | Boticário | `BOT` |
 | rosa | Quem disse, berenice? | `QDB` |
@@ -12,6 +12,8 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 | vermelho | O.U.i | `OUI` |
 | azul | Multimarca | `MULTI` |
 | branco | Sem marca / sem movimento | `NEUTRO` (ou vazio) |
+
+No app (legenda, listas, Analytics, PNG), as marcas aparecem pela sigla de 3 letras (`BOT`, `QDB`, `EUD`, `OUI`); na planilha, o nome completo (*Boticário*, *Quem disse, berenice?*…) continua aceito.
 
 ## O que ele faz
 
