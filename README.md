@@ -10,10 +10,10 @@ App em **Google Apps Script** que desenha as plantas da loja em 3D isométrico, 
 | rosa | Quem disse, berenice? | `QDB` |
 | roxo | Eudora | `EUD` |
 | vermelho | O.U.i | `OUI` |
-| azul | Multimarca | `MULTI` |
+| azul | Multimarca | `MULTI` (aparece como `MM`; `MM` também é aceito na planilha) |
 | branco | Sem marca / sem movimento | `NEUTRO` (ou vazio) |
 
-No app (legenda, listas, Analytics, PNG), as marcas aparecem pela sigla de 3 letras (`BOT`, `QDB`, `EUD`, `OUI`); na planilha, o nome completo (*Boticário*, *Quem disse, berenice?*…) continua aceito.
+No app (legenda, listas, Analytics, PNG), as marcas aparecem pela sigla de 3 letras (`BOT`, `QDB`, `EUD`, `OUI`, e `MM` para a multimarca); na planilha, o nome completo (*Boticário*, *Quem disse, berenice?*…) continua aceito.
 
 ## O que ele faz
 

@@ -405,10 +405,10 @@ const MARCAS = {
     apelidos: ['O.U.i', 'OUIPARIS', 'VERMELHO'],
   },
   MULTI: {
-    nome: 'Multimarca',
+    nome: 'MM',
     etiqueta: '#2B4DE3',
     movel: '#7D90EC',
-    apelidos: ['MULTIMARCA', 'MM', 'AZUL'],
+    apelidos: ['Multimarca', 'MULTIMARCA', 'MM', 'AZUL'],
   },
   NEUTRO: {
     nome: 'Neutro (sem marca)',
