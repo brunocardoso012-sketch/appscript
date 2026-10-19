@@ -661,3 +661,30 @@ test('antecipação: item do próximo ciclo num espaço do ciclo atual, a partir
   l = salvar(C, { acao: 'excluir', id });
   assert.deepEqual(l.map((a) => a.data), ['2026-10-18']);
 });
+
+test('observação da etiqueta depois do "|": aparece na etiqueta, mas o movimento é o que vem antes', () => {
+  const { run } = carregarGas();
+  assert.equal(run("chaveEtiqueta_('Lçto  Egeo | só no kit')"), run("chaveEtiqueta_('LÇTO EGEO')"));
+  assert.equal(run("movimentoDaEtiqueta_('BOTIPROMO|50% off')"), 'BOTIPROMO');
+  const mov = [['Ciclo', 'Planta', 'ID Móvel', 'Etiqueta 1'], ['C1', 'ER P', 'PIRAMIDE 1', 'BOTIPROMO | 50% off']];
+  const tipos = [['Ciclo', 'Movimento (etiqueta)', 'GMV esperado (R$)'], ['C1', 'BOTIPROMO', '100']];
+  const d = run(`montarDados_(valoresLayoutPadrao_(), ${JSON.stringify(mov)}, [], ${JSON.stringify(tipos)})`);
+  assert.equal(d.movimentos.C1['01']['PIRAMIDE 1'].etiquetas[0].texto, 'BOTIPROMO | 50% off', 'a planta mostra a etiqueta inteira');
+  assert.deepEqual(Object.keys(d.tiposMovimento.C1), ['BOTIPROMO']);
+  assert.ok(!d.avisos.some((a) => /não aparece em nenhuma etiqueta/.test(a)), 'o tipo acha o movimento');
+});
+
+test('ciclo em construção: etiqueta com observação usa o movimento cadastrado nos tipos', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const salvar = (pedido) => run(`salvarRascunho(${C}, ${JSON.stringify(pedido)})`);
+  salvar({ acao: 'criar', ciclo: 'C30' });
+  salvar({ acao: 'salvarTipos', ciclo: 'C30', linhas: [{ etiqueta: 'OUTLET | não vai', gmv: '10 mil' }] });
+  const r = salvar({ acao: 'salvarEspaco', ciclo: 'C30', planta: 'ER P', movel: 'PIRAMIDE 1', linha: { marca: 'EUD', etiquetas: [{ texto: 'OUTLET | só no kit' }, { texto: 'outlet | vitrine' }] } });
+  assert.deepEqual(Object.keys(r.tiposMovimento.C30), ['OUTLET'], 'o tipo fica sem a observação');
+  assert.deepEqual(r.movimentos.C30['01']['PIRAMIDE 1'].etiquetas.map((e) => e.texto), ['OUTLET | só no kit', 'outlet | vitrine']);
+  assert.throws(() => salvar({ acao: 'salvarEspaco', ciclo: 'C30', planta: 'ER P', movel: 'PIRAMIDE 2', linha: { etiquetas: [{ texto: 'OUTRO | OUTLET' }] } }), /fora dos Tipos/);
+  salvar({ acao: 'enviar', ciclo: 'C30' });
+});

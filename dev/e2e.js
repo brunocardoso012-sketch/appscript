@@ -606,6 +606,16 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.deepStrictEqual((await espacos())['01']['GONDOLA 1/PONTA-A'], linha);
   assert.ok(await p.locator('#pcStats .pc-gmv', { hasText: 'NOVO MOVIMENTO OUI' }).count() === 1, 'GMV × espaço lista o movimento');
   assert.ok(await p.locator('#pcStats .pc-legenda', { hasText: 'O.U.i' }).count() > 0, 'a marca entra no espaço por marca');
+  // Observação da etiqueta: aparece na planta depois do "|", mas o movimento (e as contas) continua o mesmo.
+  await ponta.locator('.rs-etq-obs').first().fill('só no kit');
+  await ponta.locator('.rs-etq-obs').first().dispatchEvent('change');
+  await gravado();
+  assert.strictEqual((await espacos())['01']['GONDOLA 1/PONTA-A'].etiquetas[0].texto, 'NOVO MOVIMENTO OUI | só no kit');
+  const textosPlanta = await p.$$eval('#slide .grupo-etiquetas', (gs) => gs.map((g) => g.textContent.replace(/\s+/g, '').toLowerCase()));
+  assert.ok(textosPlanta.some((t) => t.includes('novomovimentooui|sónokit')), 'a observação aparece depois do |');
+  assert.ok(await p.locator('#pcStats .pc-gmv', { hasText: 'NOVO MOVIMENTO OUI' }).count() === 1, 'conta no mesmo movimento');
+  assert.strictEqual(await p.locator('#pcStats .pc-alertas li.erro').count(), 0, 'não fica fora dos tipos');
+  assert.strictEqual(await p.inputValue('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-A"] .rs-etq-obs'), 'só no kit');
   // Limpar um espaço: some da planta e o espaço vazio aparece na lista; clicar nele seleciona o móvel.
   await p.evaluate(() => document.querySelector('#slide .movel[data-movel="PIRAMIDE 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
   await p.waitForSelector('#pcForm .pc-espaco[data-espaco="PIRAMIDE 1"]');

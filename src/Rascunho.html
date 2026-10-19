@@ -58,7 +58,7 @@ const Rascunho = (() => {
     return Object.keys(t).map((k) => Object.assign({ chave: k }, t[k], { texto: t[k].texto || k }))
       .sort((a, b) => a.texto.localeCompare(b.texto, 'pt-BR'));
   }
-  const chaveEtq = (t) => String(t || '').trim().replace(/\s+/g, ' ').toUpperCase();
+  const chaveEtq = (t) => Render.chaveEtiqueta(t); // o movimento, sem a observação depois do "|"
 
   /** Situação dos três passos do ciclo da tela (para o painel e a faixa). */
   function passos() {
@@ -72,7 +72,7 @@ const Rascunho = (() => {
       espacos++;
       i.etiquetas.forEach((e) => {
         usados[chaveEtq(e.texto)] = true;
-        if (!cadastrados[chaveEtq(e.texto)]) fora[chaveEtq(e.texto)] = e.texto;
+        if (!cadastrados[chaveEtq(e.texto)]) fora[chaveEtq(e.texto)] = Render.movimentoDaEtiqueta(e.texto);
       });
     }));
     const semGmv = tipos.filter((t) => typeof t.gmv !== 'number');
@@ -592,17 +592,26 @@ const Rascunho = (() => {
       n('option', null, '— sem etiqueta —', t).value = '';
       tipos.forEach((x) => { n('option', null, x.texto + (typeof x.gmv === 'number' ? '' : ' (sem GMV)'), t).value = x.texto; });
       const atualT = e.texto ? tipos.find((x) => x.chave === chaveEtq(e.texto)) : null;
+      const movimento = Render.movimentoDaEtiqueta(e.texto);
       if (e.texto && !atualT) {
         // Veio de uma cópia ou o tipo saiu da lista: aparece marcado, para trocar ou cadastrar nos tipos.
-        const op = n('option', null, e.texto + ' — fora dos tipos de movimento', t);
-        op.value = e.texto;
+        const op = n('option', null, movimento + ' — fora dos tipos de movimento', t);
+        op.value = movimento;
         t.classList.add('fora');
       }
-      t.value = atualT ? atualT.texto : e.texto || '';
+      t.value = atualT ? atualT.texto : movimento;
       t.setAttribute('aria-label', 'Etiqueta ' + (k + 1) + ' de ' + b.titulo);
+      // Observação da etiqueta: aparece na planta depois de um "|", mas não muda o movimento nem as contas.
+      const o = n('input', 'rs-etq-obs', null, row);
+      o.type = 'text';
+      o.maxLength = 120;
+      o.placeholder = '| observação (opcional)';
+      o.title = 'Aparece na planta depois de um "|" (ex.: ' + (movimento || 'LÇTO EGEO') + ' | só no kit). Não entra nas contas.';
+      o.value = Render.obsDaEtiqueta(e.texto);
+      o.setAttribute('aria-label', 'Observação da etiqueta ' + (k + 1) + ' de ' + b.titulo);
       const m = selectMarca(row, e.marca, 'Cor da marca do espaço');
       m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1) + ' de ' + b.titulo);
-      campos.push({ t, m });
+      campos.push({ t, o, m });
     }
     const obs = n('textarea', null, null, linha('Observação'));
     obs.rows = 2;
@@ -610,7 +619,10 @@ const Rascunho = (() => {
     obs.setAttribute('aria-label', 'Observação de ' + b.titulo);
     const ler = () => ({
       marca: marca.value, simbolo: simbolo.value, observacao: obs.value,
-      etiquetas: campos.map((c) => ({ texto: c.t.value, marca: c.m.value })).filter((e) => e.texto.trim()),
+      etiquetas: campos.filter((c) => c.t.value.trim()).map((c) => {
+        const obsEtq = c.o.value.replace(/\|/g, '/').trim();
+        return { texto: c.t.value + (obsEtq ? ' | ' + obsEtq : ''), marca: c.m.value };
+      }),
     });
     const mudou = (redesenhar) => {
       campos.forEach((c) => c.t.classList.toggle('fora', !!c.t.value && !tipos.some((x) => x.texto === c.t.value)));
@@ -621,11 +633,11 @@ const Rascunho = (() => {
       if (redesenhar) app.desenhar();
       else montarStats();
     };
-    [marca, simbolo].concat(campos.reduce((a, c) => a.concat([c.t, c.m]), [])).forEach((el) => el.addEventListener('change', () => mudou(true)));
+    [marca, simbolo].concat(campos.reduce((a, c) => a.concat([c.t, c.m, c.o]), [])).forEach((el) => el.addEventListener('change', () => mudou(true)));
     obs.addEventListener('input', () => mudou(false));
     const acoes = n('div', 'val-acoes', null, f);
     botao('Limpar espaço', 'fantasma', () => {
-      [marca, simbolo, obs].concat(campos.reduce((a, c) => a.concat([c.t, c.m]), [])).forEach((el) => { el.value = ''; });
+      [marca, simbolo, obs].concat(campos.reduce((a, c) => a.concat([c.t, c.o, c.m]), [])).forEach((el) => { el.value = ''; });
       mudou(true);
     }, acoes);
   }

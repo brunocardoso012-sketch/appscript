@@ -121,7 +121,7 @@ function tiposQueFaltam_(ciclo, movimentos, tipos) {
       const k = chaveEtiqueta_(e);
       if (tem[k]) return;
       tem[k] = true;
-      novos.push({ ciclo: ciclo, etiqueta: e, classificacao: '', gmv: '', observacao: '' });
+      novos.push({ ciclo: ciclo, etiqueta: movimentoDaEtiqueta_(e), classificacao: '', gmv: '', observacao: '' });
     });
   });
   return novos;
@@ -264,7 +264,8 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigirRascunho('EM_CONSTRUCAO');
     const vistos = {};
     const linhas = (Array.isArray(p.linhas) ? p.linhas : []).map(function (l) {
-      const etiqueta = texto_(l && l.etiqueta).slice(0, 200);
+      // O tipo é o movimento: uma observação depois do "|" fica só nas etiquetas dos espaços.
+      const etiqueta = movimentoDaEtiqueta_(l && l.etiqueta).slice(0, 200);
       const k = chaveEtiqueta_(etiqueta);
       if (!etiqueta || vistos[k]) return null;
       vistos[k] = true;

@@ -1289,7 +1289,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
         if (!etiquetasPorCiclo[ciclo][k]) aviso(onde + ': "' + texto + '" não aparece em nenhuma etiqueta do ciclo ' + ciclo + '.');
       }
       tiposMovimento[ciclo][k] = {
-        texto: texto,
+        texto: movimentoDaEtiqueta_(texto),
         classificacao: normClassificacao_(l.classificacao),
         gmv: gmv,
         observacao: texto_(l.observacao),
@@ -1490,9 +1490,22 @@ function normTamanhoEtiquetas_(v) {
   return n > 0 ? Math.max(60, Math.min(250, n)) : 100;
 }
 
-/** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (igual ao Analytics). */
+/**
+ * Separador da observação da etiqueta: "LÇTO EGEO | só no kit" aparece assim na planta, mas o movimento
+ * (o que entra nas contas, nos Tipos de movimento e no Analytics) é só o que vem antes: "LÇTO EGEO".
+ */
+const SEPARADOR_OBS_ETIQUETA = '|';
+
+/** Movimento de uma etiqueta: o texto sem a observação depois do "|". */
+function movimentoDaEtiqueta_(t) {
+  const s = texto_(t);
+  const i = s.indexOf(SEPARADOR_OBS_ETIQUETA);
+  return (i < 0 ? s : s.slice(0, i)).trim();
+}
+
+/** Mesmo movimento, com variações de maiúsculas e espaços e sem a observação depois do "|" (igual ao Analytics). */
 function chaveEtiqueta_(t) {
-  return texto_(t).replace(/\s+/g, ' ').toUpperCase();
+  return movimentoDaEtiqueta_(t).replace(/\s+/g, ' ').toUpperCase();
 }
 
 /**
@@ -2157,7 +2170,7 @@ function tiposQueFaltam_(ciclo, movimentos, tipos) {
       const k = chaveEtiqueta_(e);
       if (tem[k]) return;
       tem[k] = true;
-      novos.push({ ciclo: ciclo, etiqueta: e, classificacao: '', gmv: '', observacao: '' });
+      novos.push({ ciclo: ciclo, etiqueta: movimentoDaEtiqueta_(e), classificacao: '', gmv: '', observacao: '' });
     });
   });
   return novos;
@@ -2300,7 +2313,8 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigirRascunho('EM_CONSTRUCAO');
     const vistos = {};
     const linhas = (Array.isArray(p.linhas) ? p.linhas : []).map(function (l) {
-      const etiqueta = texto_(l && l.etiqueta).slice(0, 200);
+      // O tipo é o movimento: uma observação depois do "|" fica só nas etiquetas dos espaços.
+      const etiqueta = movimentoDaEtiqueta_(l && l.etiqueta).slice(0, 200);
       const k = chaveEtiqueta_(etiqueta);
       if (!etiqueta || vistos[k]) return null;
       vistos[k] = true;
@@ -3448,7 +3462,7 @@ const PAGINA_ = [
   "  .rs-linha > select, .rs-linha > textarea { min-width: 0; flex: 0 1 360px; }",
   "  .rs-linha > textarea { font: inherit; padding: 7px 10px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); resize: vertical; }",
   "  .rs-etiquetas { display: grid; gap: 6px; flex: 1 1 auto; max-width: 620px; }",
-  "  .rs-etq { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 6px; }",
+  "  .rs-etq { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr) 200px; gap: 6px; }",
   "  .rs-etq input, .rs-etq select { min-width: 0; width: 100%; }",
   "  .rs-espaco .val-acoes { justify-content: flex-start; }",
   "  /* Diálogo (novo ciclo, Comunicações ER, Tipos de movimento, devolver). */",
@@ -3523,6 +3537,7 @@ const PAGINA_ = [
   "  .pc-linha textarea { font: inherit; font-size: 13px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); resize: vertical; }",
   "  .pc-etiquetas { max-width: none; gap: 4px; }",
   "  .pc-etiquetas .rs-etq { grid-template-columns: minmax(0, 1fr) 118px; }",
+  "  .pc-etiquetas .rs-etq .rs-etq-obs { grid-column: 1 / -1; order: 3; font-size: 12px; }",
   "  .pc-etiquetas select { padding: 5px 7px; font-size: 13px; }",
   "  .pc-espaco .val-acoes { margin: 0; }",
   "  .pc-bloco { margin: 0 0 16px; }",
@@ -4313,8 +4328,15 @@ const PAGINA_ = [
   "    return cores.every((c) => c === cinza) ? [cinza] : cores;",
   "  }",
   "",
-  "  /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (\"Multi  promo\" = \"MULTI PROMO\"). */",
-  "  const chaveEtiqueta = (t) => String(t || '').trim().replace(/\\s+/g, ' ').toUpperCase();",
+  "  /**",
+  "   * Movimento de uma etiqueta: o texto sem a observação depois do \"|\" (\"LÇTO EGEO | só no kit\" → \"LÇTO EGEO\").",
+  "   * A planta mostra a etiqueta inteira; as contas (Analytics, Tipos de movimento, filtros) usam só o movimento.",
+  "   */",
+  "  const movimentoDaEtiqueta = (t) => String(t || '').split('|')[0].trim();",
+  "  /** Observação da etiqueta (o que vem depois do \"|\"), ou ''. */",
+  "  const obsDaEtiqueta = (t) => { const s = String(t || ''); const i = s.indexOf('|'); return i < 0 ? '' : s.slice(i + 1).trim(); };",
+  "  /** Mesmo movimento, com variações de maiúsculas e espaços (\"Multi  promo\" = \"MULTI PROMO\") e sem a observação. */",
+  "  const chaveEtiqueta = (t) => movimentoDaEtiqueta(t).replace(/\\s+/g, ' ').toUpperCase();",
   "",
   "  /** Cor da etiqueta sem marca: cinza escuro padrão (ou o cinza do filtro, quando há marca filtrada). */",
   "  const corEtiquetaPadrao = (filtrar) => [filtrar && filtroMarca ? COR.cinzaEtiqueta : COR.etiquetaPadrao];",
@@ -6303,7 +6325,7 @@ const PAGINA_ = [
   "    desenharMiniatura(svg, m, null, (e) => { const c = corDoEspaco(e); return c ? [c] : null; }, 1, 1, w - 2, h - 2, verso);",
   "  }",
   "",
-  "  return { desenhar, paleta, corDaTela, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };",
+  "  return { desenhar, paleta, corDaTela, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, movimentoDaEtiqueta, obsDaEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };",
   "})();",
   "</script>",
   "",
@@ -6775,7 +6797,7 @@ const PAGINA_ = [
   "    return Object.keys(t).map((k) => Object.assign({ chave: k }, t[k], { texto: t[k].texto || k }))",
   "      .sort((a, b) => a.texto.localeCompare(b.texto, 'pt-BR'));",
   "  }",
-  "  const chaveEtq = (t) => String(t || '').trim().replace(/\\s+/g, ' ').toUpperCase();",
+  "  const chaveEtq = (t) => Render.chaveEtiqueta(t); // o movimento, sem a observação depois do \"|\"",
   "",
   "  /** Situação dos três passos do ciclo da tela (para o painel e a faixa). */",
   "  function passos() {",
@@ -6789,7 +6811,7 @@ const PAGINA_ = [
   "      espacos++;",
   "      i.etiquetas.forEach((e) => {",
   "        usados[chaveEtq(e.texto)] = true;",
-  "        if (!cadastrados[chaveEtq(e.texto)]) fora[chaveEtq(e.texto)] = e.texto;",
+  "        if (!cadastrados[chaveEtq(e.texto)]) fora[chaveEtq(e.texto)] = Render.movimentoDaEtiqueta(e.texto);",
   "      });",
   "    }));",
   "    const semGmv = tipos.filter((t) => typeof t.gmv !== 'number');",
@@ -7309,17 +7331,26 @@ const PAGINA_ = [
   "      n('option', null, '— sem etiqueta —', t).value = '';",
   "      tipos.forEach((x) => { n('option', null, x.texto + (typeof x.gmv === 'number' ? '' : ' (sem GMV)'), t).value = x.texto; });",
   "      const atualT = e.texto ? tipos.find((x) => x.chave === chaveEtq(e.texto)) : null;",
+  "      const movimento = Render.movimentoDaEtiqueta(e.texto);",
   "      if (e.texto && !atualT) {",
   "        // Veio de uma cópia ou o tipo saiu da lista: aparece marcado, para trocar ou cadastrar nos tipos.",
-  "        const op = n('option', null, e.texto + ' — fora dos tipos de movimento', t);",
-  "        op.value = e.texto;",
+  "        const op = n('option', null, movimento + ' — fora dos tipos de movimento', t);",
+  "        op.value = movimento;",
   "        t.classList.add('fora');",
   "      }",
-  "      t.value = atualT ? atualT.texto : e.texto || '';",
+  "      t.value = atualT ? atualT.texto : movimento;",
   "      t.setAttribute('aria-label', 'Etiqueta ' + (k + 1) + ' de ' + b.titulo);",
+  "      // Observação da etiqueta: aparece na planta depois de um \"|\", mas não muda o movimento nem as contas.",
+  "      const o = n('input', 'rs-etq-obs', null, row);",
+  "      o.type = 'text';",
+  "      o.maxLength = 120;",
+  "      o.placeholder = '| observação (opcional)';",
+  "      o.title = 'Aparece na planta depois de um \"|\" (ex.: ' + (movimento || 'LÇTO EGEO') + ' | só no kit). Não entra nas contas.';",
+  "      o.value = Render.obsDaEtiqueta(e.texto);",
+  "      o.setAttribute('aria-label', 'Observação da etiqueta ' + (k + 1) + ' de ' + b.titulo);",
   "      const m = selectMarca(row, e.marca, 'Cor da marca do espaço');",
   "      m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1) + ' de ' + b.titulo);",
-  "      campos.push({ t, m });",
+  "      campos.push({ t, o, m });",
   "    }",
   "    const obs = n('textarea', null, null, linha('Observação'));",
   "    obs.rows = 2;",
@@ -7327,7 +7358,10 @@ const PAGINA_ = [
   "    obs.setAttribute('aria-label', 'Observação de ' + b.titulo);",
   "    const ler = () => ({",
   "      marca: marca.value, simbolo: simbolo.value, observacao: obs.value,",
-  "      etiquetas: campos.map((c) => ({ texto: c.t.value, marca: c.m.value })).filter((e) => e.texto.trim()),",
+  "      etiquetas: campos.filter((c) => c.t.value.trim()).map((c) => {",
+  "        const obsEtq = c.o.value.replace(/\\|/g, '/').trim();",
+  "        return { texto: c.t.value + (obsEtq ? ' | ' + obsEtq : ''), marca: c.m.value };",
+  "      }),",
   "    });",
   "    const mudou = (redesenhar) => {",
   "      campos.forEach((c) => c.t.classList.toggle('fora', !!c.t.value && !tipos.some((x) => x.texto === c.t.value)));",
@@ -7338,11 +7372,11 @@ const PAGINA_ = [
   "      if (redesenhar) app.desenhar();",
   "      else montarStats();",
   "    };",
-  "    [marca, simbolo].concat(campos.reduce((a, c) => a.concat([c.t, c.m]), [])).forEach((el) => el.addEventListener('change', () => mudou(true)));",
+  "    [marca, simbolo].concat(campos.reduce((a, c) => a.concat([c.t, c.m, c.o]), [])).forEach((el) => el.addEventListener('change', () => mudou(true)));",
   "    obs.addEventListener('input', () => mudou(false));",
   "    const acoes = n('div', 'val-acoes', null, f);",
   "    botao('Limpar espaço', 'fantasma', () => {",
-  "      [marca, simbolo, obs].concat(campos.reduce((a, c) => a.concat([c.t, c.m]), [])).forEach((el) => { el.value = ''; });",
+  "      [marca, simbolo, obs].concat(campos.reduce((a, c) => a.concat([c.t, c.o, c.m]), [])).forEach((el) => { el.value = ''; });",
   "      mudou(true);",
   "    }, acoes);",
   "  }",
@@ -9522,7 +9556,7 @@ const PAGINA_ = [
   "    Object.keys(c).filter((p) => p === TODAS() || plantas.indexOf(p) >= 0).forEach((p) => {",
   "      Object.keys(c[p]).forEach((id) => c[p][id].etiquetas.forEach((e) => {",
   "        const k = Render.chaveEtiqueta(e.texto);",
-  "        if (k && !linhas[k]) linhas[k] = { texto: String(e.texto).trim(), classificacao: '', gmv: null, observacao: '' };",
+  "        if (k && !linhas[k]) linhas[k] = { texto: Render.movimentoDaEtiqueta(e.texto), classificacao: '', gmv: null, observacao: '' };",
   "      }));",
   "    });",
   "    return Object.values(linhas).sort((x, y) => x.texto.localeCompare(y.texto, 'pt-BR'));",
@@ -10283,7 +10317,8 @@ const PAGINA_ = [
   "   */",
   "  function mudancasEntre(planta, ciclo, outro) {",
   "    const assinatura = (i) => (linhaValida(i)",
-  "      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => chaveEtiqueta(e.texto) + '|' + (e.marca || ''))]) : '');",
+  "      // A etiqueta inteira (com a observação depois do \"|\"): mudar só a observação também é mudança.",
+  "      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => String(e.texto).trim().replace(/\\s+/g, ' ').toUpperCase() + '#' + (e.marca || ''))]) : '');",
   "    return espacosDaPlanta(planta, ciclo).map((x) => {",
   "      const id = x.espaco && x.espaco.id;",
   "      const depois = linhaDoEspaco(ciclo, planta.id, x.movel, id);",
@@ -10337,7 +10372,7 @@ const PAGINA_ = [
   "      movs.forEach((m) => {",
   "        const e = m.etiquetas[0];",
   "        const g = r.porEtiqueta[m.chave] || (r.porEtiqueta[m.chave] = {",
-  "          texto: String(e.texto).trim(), espacos: 0, marcas: {}, tipo: tipoDe(estado.ciclo, e.texto), classificacao: classificacaoDe(e.texto),",
+  "          texto: Render.movimentoDaEtiqueta(e.texto), espacos: 0, marcas: {}, tipo: tipoDe(estado.ciclo, e.texto), classificacao: classificacaoDe(e.texto),",
   "        });",
   "        g.espacos += m.valor;",
   "        const marcas = m.etiquetas.map((x) => x.marca).filter(Boolean)",
@@ -11544,7 +11579,7 @@ const PAGINA_ = [
   "        ((i && i.etiquetas) || []).forEach((e) => {",
   "          const k = chaveEtiqueta(e.texto);",
   "          const it = etiquetas[k] || (etiquetas[k] = {",
-  "            tipo: 'etiqueta', texto: e.texto, marca: e.marca || (i.marca !== 'NEUTRO' ? i.marca : ''), ers: [], espacos: 0,",
+  "            tipo: 'etiqueta', texto: Render.movimentoDaEtiqueta(e.texto), marca: e.marca || (i.marca !== 'NEUTRO' ? i.marca : ''), ers: [], espacos: 0,",
   "          });",
   "          if (it.ers.indexOf(pl.id) < 0) it.ers.push(pl.id);",
   "          it.espacos++;",

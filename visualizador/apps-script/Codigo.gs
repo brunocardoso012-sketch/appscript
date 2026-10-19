@@ -1279,7 +1279,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
         if (!etiquetasPorCiclo[ciclo][k]) aviso(onde + ': "' + texto + '" não aparece em nenhuma etiqueta do ciclo ' + ciclo + '.');
       }
       tiposMovimento[ciclo][k] = {
-        texto: texto,
+        texto: movimentoDaEtiqueta_(texto),
         classificacao: normClassificacao_(l.classificacao),
         gmv: gmv,
         observacao: texto_(l.observacao),
@@ -1480,9 +1480,22 @@ function normTamanhoEtiquetas_(v) {
   return n > 0 ? Math.max(60, Math.min(250, n)) : 100;
 }
 
-/** Mesmo texto de etiqueta, com variações de maiúsculas e espaços (igual ao Analytics). */
+/**
+ * Separador da observação da etiqueta: "LÇTO EGEO | só no kit" aparece assim na planta, mas o movimento
+ * (o que entra nas contas, nos Tipos de movimento e no Analytics) é só o que vem antes: "LÇTO EGEO".
+ */
+const SEPARADOR_OBS_ETIQUETA = '|';
+
+/** Movimento de uma etiqueta: o texto sem a observação depois do "|". */
+function movimentoDaEtiqueta_(t) {
+  const s = texto_(t);
+  const i = s.indexOf(SEPARADOR_OBS_ETIQUETA);
+  return (i < 0 ? s : s.slice(0, i)).trim();
+}
+
+/** Mesmo movimento, com variações de maiúsculas e espaços e sem a observação depois do "|" (igual ao Analytics). */
 function chaveEtiqueta_(t) {
-  return texto_(t).replace(/\s+/g, ' ').toUpperCase();
+  return movimentoDaEtiqueta_(t).replace(/\s+/g, ' ').toUpperCase();
 }
 
 /**
@@ -2147,7 +2160,7 @@ function tiposQueFaltam_(ciclo, movimentos, tipos) {
       const k = chaveEtiqueta_(e);
       if (tem[k]) return;
       tem[k] = true;
-      novos.push({ ciclo: ciclo, etiqueta: e, classificacao: '', gmv: '', observacao: '' });
+      novos.push({ ciclo: ciclo, etiqueta: movimentoDaEtiqueta_(e), classificacao: '', gmv: '', observacao: '' });
     });
   });
   return novos;
@@ -2290,7 +2303,8 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigirRascunho('EM_CONSTRUCAO');
     const vistos = {};
     const linhas = (Array.isArray(p.linhas) ? p.linhas : []).map(function (l) {
-      const etiqueta = texto_(l && l.etiqueta).slice(0, 200);
+      // O tipo é o movimento: uma observação depois do "|" fica só nas etiquetas dos espaços.
+      const etiqueta = movimentoDaEtiqueta_(l && l.etiqueta).slice(0, 200);
       const k = chaveEtiqueta_(etiqueta);
       if (!etiqueta || vistos[k]) return null;
       vistos[k] = true;

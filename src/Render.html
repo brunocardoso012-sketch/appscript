@@ -262,8 +262,15 @@ const Render = (() => {
     return cores.every((c) => c === cinza) ? [cinza] : cores;
   }
 
-  /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços ("Multi  promo" = "MULTI PROMO"). */
-  const chaveEtiqueta = (t) => String(t || '').trim().replace(/\s+/g, ' ').toUpperCase();
+  /**
+   * Movimento de uma etiqueta: o texto sem a observação depois do "|" ("LÇTO EGEO | só no kit" → "LÇTO EGEO").
+   * A planta mostra a etiqueta inteira; as contas (Analytics, Tipos de movimento, filtros) usam só o movimento.
+   */
+  const movimentoDaEtiqueta = (t) => String(t || '').split('|')[0].trim();
+  /** Observação da etiqueta (o que vem depois do "|"), ou ''. */
+  const obsDaEtiqueta = (t) => { const s = String(t || ''); const i = s.indexOf('|'); return i < 0 ? '' : s.slice(i + 1).trim(); };
+  /** Mesmo movimento, com variações de maiúsculas e espaços ("Multi  promo" = "MULTI PROMO") e sem a observação. */
+  const chaveEtiqueta = (t) => movimentoDaEtiqueta(t).replace(/\s+/g, ' ').toUpperCase();
 
   /** Cor da etiqueta sem marca: cinza escuro padrão (ou o cinza do filtro, quando há marca filtrada). */
   const corEtiquetaPadrao = (filtrar) => [filtrar && filtroMarca ? COR.cinzaEtiqueta : COR.etiquetaPadrao];
@@ -2252,6 +2259,6 @@ const Render = (() => {
     desenharMiniatura(svg, m, null, (e) => { const c = corDoEspaco(e); return c ? [c] : null; }, 1, 1, w - 2, h - 2, verso);
   }
 
-  return { desenhar, paleta, corDaTela, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
+  return { desenhar, paleta, corDaTela, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, movimentoDaEtiqueta, obsDaEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
 })();
 </script>

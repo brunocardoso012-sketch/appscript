@@ -58,7 +58,7 @@ Com o login da validação, o painel tem a seção **Ciclos em construção**. U
 - **Novo ciclo** (construtor): dê o nome e escolha *Começar de*: em branco ou cópia de um ciclo (publicado ou em construção). Na cópia, escolha *O que copiar*: **Tudo** (os espaços, as Comunicações ER e os Tipos de movimento) ou **Só os movimentos fixos (🔒)** (só os espaços com cadeado e os tipos desses movimentos; o resto começa vazio).
 - **Três passos**, mostrados na faixa acima da planta (com ✓ quando prontos):
   1. **Tipos de movimento:** cadastre os movimentos do ciclo, com a classificação e o **GMV esperado**. Na cópia, os movimentos que já estão nos espaços entram sozinhos (os que não tinham tipo no ciclo de origem vêm sem GMV, para completar).
-  2. **Móveis:** preencha os espaços. As etiquetas são escolhidas **só entre os movimentos cadastrados no passo 1** (o servidor confere). Uma etiqueta copiada que saiu dos tipos aparece marcada como *fora dos tipos de movimento*, para trocar ou cadastrar.
+  2. **Móveis:** preencha os espaços. As etiquetas são escolhidas **só entre os movimentos cadastrados no passo 1** (o servidor confere). Embaixo de cada etiqueta, o campo *observação (opcional)* diferencia etiquetas do mesmo movimento: ele aparece na planta depois de um `|` e não entra nas contas. Uma etiqueta copiada que saiu dos tipos aparece marcada como *fora dos tipos de movimento*, para trocar ou cadastrar.
   3. **Enviar para aprovação:** só vai com todos os tipos com GMV, pelo menos um espaço preenchido e todos os espaços usando movimentos cadastrados; senão, a mensagem diz o que falta.
 - Na aprovação, os tipos cadastrados que nenhum espaço usou ficam fora da planilha.
 - **Seletor de ciclo:** para quem entrou, os ciclos em construção aparecem no grupo *Em construção*. Eles funcionam como um ciclo qualquer: planta, visão simplificada, Analytics, comparação, busca, PNG e comentários. Quem não entrou na validação não vê.
@@ -256,7 +256,7 @@ Se você já tinha um ciclo próprio com os IDs antigos (`GON-01`, `PIR-02`…),
 | **ID Móvel** | Liga a linha ao desenho. **Não altere**, deve existir na aba Layout. |
 | Móvel (referência) | Só para orientação (ex.: *Ilha central – Botik*). |
 | **Marca do Móvel** | Cor do móvel: `BOT`, `QDB`, `EUD`, `OUI`, `MULTI`, `NEUTRO`. Aceita combinação (`BOT+QDB` gera degradê) ou cor livre (`#FF8800`). |
-| Etiqueta 1…4 | Texto de cada caixinha. Quebra de linha na célula (Alt+Enter) vira quebra na etiqueta. Pirâmide, espaço da gôndola e frente de mesa mostram até 4, empilhadas; balcão, até 3; painel do totem e testeira do make, 1. No ID Móvel, o espaço depois da "/" aceita variações (`TOTEM 1/PAINEL 1`, `GONDOLA 1/PONTA A`). Na planilha base, as colunas que não aparecem na planta ficam cinza. |
+| Etiqueta 1…4 | Texto de cada caixinha. Quebra de linha na célula (Alt+Enter) vira quebra na etiqueta. **Observação da etiqueta:** o que vem depois de um `|` (ex.: `LÇTO EGEO | só no kit`) aparece na planta, mas não entra nas contas: o movimento é só o texto antes do `|` (Tipos de movimento, Analytics, filtros, busca e números da construção juntam `LÇTO EGEO | só no kit` com `LÇTO EGEO`). A comparação de ciclos mostra a mudança de observação. Pirâmide, espaço da gôndola e frente de mesa mostram até 4, empilhadas; balcão, até 3; painel do totem e testeira do make, 1. No ID Móvel, o espaço depois da "/" aceita variações (`TOTEM 1/PAINEL 1`, `GONDOLA 1/PONTA A`). Na planilha base, as colunas que não aparecem na planta ficam cinza. |
 | Marca Etiqueta 1…4 | Cor de cada etiqueta. Se vazio, usa a cor do móvel. |
 | Símbolo | `FIXO` (cadeado 🔒; a etiqueta ganha borda dupla na cor dela), `EXPOSICAO` (Ⓔ), `NOVO` (selo NEW). O antigo `MOVIMENTO` (▶) saiu: se ainda estiver na planilha, é ignorado. O ⏩ (antecipação) não vem daqui: o app põe nos espaços da aba *Antecipações*. |
 | Observação | Aparece ao passar o mouse sobre o móvel. |
@@ -275,7 +275,7 @@ Um móvel sem linha no ciclo, ou sem marca, aparece **branco (neutro)**.
 
 ### Aba `Tipos de movimento` — classificação e GMV esperado de cada movimento
 
-Uma linha por movimento do ciclo. O movimento é ligado às etiquetas pelo texto (o mesmo da coluna *Etiqueta* da aba Movimentos; maiúsculas e espaços a mais não importam).
+Uma linha por movimento do ciclo. O movimento é ligado às etiquetas pelo texto (o mesmo da coluna *Etiqueta* da aba Movimentos; maiúsculas, espaços a mais e a observação depois do `|` não importam).
 
 | Coluna | O que é |
 |---|---|

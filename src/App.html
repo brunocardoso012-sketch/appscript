@@ -158,7 +158,7 @@ const App = (() => {
     Object.keys(c).filter((p) => p === TODAS() || plantas.indexOf(p) >= 0).forEach((p) => {
       Object.keys(c[p]).forEach((id) => c[p][id].etiquetas.forEach((e) => {
         const k = Render.chaveEtiqueta(e.texto);
-        if (k && !linhas[k]) linhas[k] = { texto: String(e.texto).trim(), classificacao: '', gmv: null, observacao: '' };
+        if (k && !linhas[k]) linhas[k] = { texto: Render.movimentoDaEtiqueta(e.texto), classificacao: '', gmv: null, observacao: '' };
       }));
     });
     return Object.values(linhas).sort((x, y) => x.texto.localeCompare(y.texto, 'pt-BR'));
@@ -919,7 +919,8 @@ const App = (() => {
    */
   function mudancasEntre(planta, ciclo, outro) {
     const assinatura = (i) => (linhaValida(i)
-      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => chaveEtiqueta(e.texto) + '|' + (e.marca || ''))]) : '');
+      // A etiqueta inteira (com a observação depois do "|"): mudar só a observação também é mudança.
+      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => String(e.texto).trim().replace(/\s+/g, ' ').toUpperCase() + '#' + (e.marca || ''))]) : '');
     return espacosDaPlanta(planta, ciclo).map((x) => {
       const id = x.espaco && x.espaco.id;
       const depois = linhaDoEspaco(ciclo, planta.id, x.movel, id);
@@ -973,7 +974,7 @@ const App = (() => {
       movs.forEach((m) => {
         const e = m.etiquetas[0];
         const g = r.porEtiqueta[m.chave] || (r.porEtiqueta[m.chave] = {
-          texto: String(e.texto).trim(), espacos: 0, marcas: {}, tipo: tipoDe(estado.ciclo, e.texto), classificacao: classificacaoDe(e.texto),
+          texto: Render.movimentoDaEtiqueta(e.texto), espacos: 0, marcas: {}, tipo: tipoDe(estado.ciclo, e.texto), classificacao: classificacaoDe(e.texto),
         });
         g.espacos += m.valor;
         const marcas = m.etiquetas.map((x) => x.marca).filter(Boolean)
@@ -2180,7 +2181,7 @@ const App = (() => {
         ((i && i.etiquetas) || []).forEach((e) => {
           const k = chaveEtiqueta(e.texto);
           const it = etiquetas[k] || (etiquetas[k] = {
-            tipo: 'etiqueta', texto: e.texto, marca: e.marca || (i.marca !== 'NEUTRO' ? i.marca : ''), ers: [], espacos: 0,
+            tipo: 'etiqueta', texto: Render.movimentoDaEtiqueta(e.texto), marca: e.marca || (i.marca !== 'NEUTRO' ? i.marca : ''), ers: [], espacos: 0,
           });
           if (it.ers.indexOf(pl.id) < 0) it.ers.push(pl.id);
           it.espacos++;

@@ -811,7 +811,7 @@
   .rs-linha > select, .rs-linha > textarea { min-width: 0; flex: 0 1 360px; }
   .rs-linha > textarea { font: inherit; padding: 7px 10px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); resize: vertical; }
   .rs-etiquetas { display: grid; gap: 6px; flex: 1 1 auto; max-width: 620px; }
-  .rs-etq { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 6px; }
+  .rs-etq { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr) 200px; gap: 6px; }
   .rs-etq input, .rs-etq select { min-width: 0; width: 100%; }
   .rs-espaco .val-acoes { justify-content: flex-start; }
   /* Diálogo (novo ciclo, Comunicações ER, Tipos de movimento, devolver). */
@@ -886,6 +886,7 @@
   .pc-linha textarea { font: inherit; font-size: 13px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); resize: vertical; }
   .pc-etiquetas { max-width: none; gap: 4px; }
   .pc-etiquetas .rs-etq { grid-template-columns: minmax(0, 1fr) 118px; }
+  .pc-etiquetas .rs-etq .rs-etq-obs { grid-column: 1 / -1; order: 3; font-size: 12px; }
   .pc-etiquetas select { padding: 5px 7px; font-size: 13px; }
   .pc-espaco .val-acoes { margin: 0; }
   .pc-bloco { margin: 0 0 16px; }
