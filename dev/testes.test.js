@@ -340,12 +340,16 @@ test('gôndola, mesas, totem e móvel make: linha do móvel inteiro é ignorada 
 test('validação: senha por papel, quem pode o quê e aba Comentários', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  const V = "{ papel: 'validador', senha: '1234', nome: 'Ana' }";
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const V = "{ papel: 'validador', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   assert.deepEqual(run(`entrarValidacao(${V})`), { papel: 'VALIDADOR', autor: 'Ana', nomePapel: 'Validador' });
   assert.throws(() => run("entrarValidacao({ papel: 'VALIDADOR', senha: '0000', nome: 'Ana' })"), /Senha incorreta/);
-  assert.throws(() => run("entrarValidacao({ papel: 'VALIDADOR', senha: '1234', nome: ' ' })"), /nome/);
-  assert.throws(() => run("entrarValidacao({ papel: 'CHEFE', senha: '1234', nome: 'X' })"), /validador ou construtor/);
+  // Cada módulo tem a sua senha: a da construção não entra na validação, e vice-versa.
+  assert.throws(() => run("entrarValidacao({ papel: 'VALIDADOR', senha: 'construcao_exposicao', nome: 'Ana' })"), /Senha incorreta/);
+  assert.throws(() => run("entrarValidacao({ papel: 'CONSTRUTOR', senha: 'validacao_exposicao', nome: 'Bia' })"), /Senha incorreta/);
+  assert.equal(run(`entrarValidacao(${C})`).papel, 'CONSTRUTOR');
+  assert.throws(() => run("entrarValidacao({ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: ' ' })"), /nome/);
+  assert.throws(() => run("entrarValidacao({ papel: 'CHEFE', senha: 'validacao_exposicao', nome: 'X' })"), /validador ou construtor/);
 
   assert.throws(() => run(`salvarComentario(${C}, { acao: 'novo', ciclo: 'C1', planta: '01', texto: 'x' })`), /Só o validador cria/);
   let l = run(`salvarComentario(${V}, { acao: 'novo', ciclo: 'C1', planta: 'ER P', movel: 'gôndola 1', texto: 'Trocar o lado A' })`);
@@ -373,8 +377,8 @@ test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
   run('configurarPlanilha()');
-  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   const salvar = (quem, pedido) => run(`salvarRascunho(${quem}, ${JSON.stringify(pedido)})`);
   const exemplo = run('getDados()');
   const nLinhasExemplo = Object.values(exemplo.movimentos['Ciclo exemplo']).reduce((s, p) => s + Object.keys(p).length, 0);
@@ -619,8 +623,8 @@ test('antecipação: item do próximo ciclo num espaço do ciclo atual, a partir
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
   run('configurarPlanilha()');
-  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   const salvar = (quem, pedido) => run(`salvarAntecipacao(${quem}, ${JSON.stringify(pedido)})`);
   assert.deepEqual(run('getDados()').antecipacoes, []);
 
@@ -678,7 +682,7 @@ test('ciclo em construção: etiqueta com observação usa o movimento cadastrad
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
   run('configurarPlanilha()');
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   const salvar = (pedido) => run(`salvarRascunho(${C}, ${JSON.stringify(pedido)})`);
   salvar({ acao: 'criar', ciclo: 'C30' });
   salvar({ acao: 'salvarTipos', ciclo: 'C30', linhas: [{ etiqueta: 'OUTLET | não vai', gmv: '10 mil' }] });

@@ -61,7 +61,7 @@ const VISUALIZADOR = {
 - Depois de editar, clique em **Atualizar** no app.
 - Não renomeie as abas nem os títulos das colunas. As regras de preenchimento (cores, etiquetas por bloco, gôndola, cascata ER P → ER GG…) estão na aba **Instruções** da planilha.
 - Se algo estiver errado (marca desconhecida, ID de móvel que não existe…), o app mostra **avisos** com a aba e a linha a corrigir.
-- **Validação:** o botão *Validação* pede papel (validador ou construtor da estratégia), nome e senha (provisória: `1234`, em `SENHAS_ACESSO`, na seção `CONFIGURAÇÕES` do `Codigo.gs`). Os comentários ficam na aba **Comentários** desta planilha, criada no primeiro comentário. Não edite os IDs dessa aba.
+- **Validação e Construção:** dois itens na engrenagem, cada um com a sua senha: *Validação* (validador, senha `validacao_exposicao`) e *Construção* (construtor da estratégia, senha `construcao_exposicao`). As senhas ficam em `SENHAS_ACESSO`, na seção `CONFIGURAÇÕES` do `Codigo.gs`. Os comentários ficam na aba **Comentários** desta planilha, criada no primeiro comentário. Não edite os IDs dessa aba.
 
 ## O que fica no código
 

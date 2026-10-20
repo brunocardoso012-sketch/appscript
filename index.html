@@ -1173,8 +1173,8 @@ const CONFIG = {
  * Provisórias: no futuro virão da planilha (troque em senhasDeAcesso_, Validacao.gs).
  */
 const SENHAS_ACESSO = {
-  VALIDADOR: '1234',
-  CONSTRUTOR: '1234',
+  VALIDADOR: 'validacao_exposicao',
+  CONSTRUTOR: 'construcao_exposicao',
 };
 
 /**
@@ -4423,17 +4423,22 @@ function executarAntecipacao_(io, acesso, pedido) {
         <button id="btnApresentar" class="btn fantasma icone" type="button" aria-label="Apresentar" title="Apresentar: só a planta, em tela cheia (F)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8.2v4.6l4-2.3z"/></svg>
         </button>
-        <!-- Configurações: só o ícone; abre o menu com a validação, o ajuste das etiquetas, o modo noturno e a planilha. -->
+        <!-- Configurações: só o ícone; abre o menu com a validação, a construção, o ajuste das etiquetas, o modo noturno e a planilha. -->
         <div class="menu-config" id="menuConfig">
           <button id="btnConfig" class="btn fantasma icone" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menuConfigLista" aria-label="Configurações" title="Configurações">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
             <span class="badge" id="cfgBadge" hidden></span>
           </button>
           <div class="menu-lista" id="menuConfigLista" role="menu" hidden>
-            <button id="btnValidacao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Validação da estratégia (pede senha)">
+            <button id="btnValidacao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Validação da estratégia e aprovação dos ciclos novos (pede senha)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z"/><path d="m8.5 12 2.3 2.3L15.5 9.5"/></svg>
               Validação
               <span class="badge" id="valBadge" hidden></span>
+            </button>
+            <button id="btnConstrucao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Construção dos ciclos novos (pede senha)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V10l7-6 7 6v11"/><path d="M9 21v-5h6v5"/></svg>
+              Construção
+              <span class="badge" id="consBadge" hidden></span>
             </button>
             <button id="btnEditar" class="menu-item" type="button" role="menuitem" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
@@ -4538,7 +4543,7 @@ function executarAntecipacao_(io, acesso, pedido) {
       <aside class="painel-espaco painel-validacao" id="painelValidacao" hidden aria-label="Validação da estratégia">
         <header class="esp-topo">
           <div>
-            <h2>Validação</h2>
+            <h2 id="valTitulo">Validação</h2>
             <span id="valSub"></span>
           </div>
           <button id="valFechar" class="btn fantasma pequeno" type="button" title="Fechar o painel">✕</button>
@@ -4794,13 +4799,10 @@ function executarAntecipacao_(io, acesso, pedido) {
 
     <dialog id="dlgAcesso" class="dialogo">
       <form id="formAcesso">
-        <h2>Validação da estratégia</h2>
-        <p class="sub">O validador comenta a estratégia do ciclo e aprova os ciclos novos; o construtor da estratégia monta os ciclos novos na planta, vê os comentários, responde e marca como resolvido.</p>
-        <fieldset class="acesso-papeis">
-          <legend>Entrar como</legend>
-          <label class="opcao"><input type="radio" name="papel" value="VALIDADOR" checked> Validador</label>
-          <label class="opcao"><input type="radio" name="papel" value="CONSTRUTOR"> Construtor da estratégia</label>
-        </fieldset>
+        <!-- O papel vem do item escolhido na engrenagem: Validação (validador) ou Construção (construtor). -->
+        <h2 id="acessoTitulo">Validação</h2>
+        <p class="sub" id="acessoSub"></p>
+        <input type="hidden" id="acessoPapel" value="VALIDADOR">
         <label class="acesso-campo">Seu nome <input type="text" id="acessoNome" autocomplete="name" maxlength="60" required></label>
         <label class="acesso-campo">Senha <input type="password" id="acessoSenha" autocomplete="current-password" required></label>
         <p class="acesso-erro" id="acessoErro" role="alert" hidden></p>
@@ -8431,8 +8433,8 @@ const Construtor = (() => {
  * ============================================================================
  *  VALIDAÇÃO DA ESTRATÉGIA (página)
  * ============================================================================
- *  Botão "Validação": entra como validador ou construtor da estratégia (nome +
- *  senha). O validador comenta a planta ou um móvel no ciclo escolhido; o
+ *  Dois itens na engrenagem, cada um com a sua senha: "Validação" entra como
+ *  validador e "Construção" como construtor da estratégia (nome + senha). O validador comenta a planta ou um móvel no ciclo escolhido; o
  *  construtor vê, responde e marca como resolvido. Painel ao lado da planta com
  *  os comentários do ciclo e da planta, marcadores nos móveis com comentários
  *  abertos e a seção "Comentários da validação" na tela do móvel.
@@ -8487,7 +8489,24 @@ const Validacao = (() => {
 
   /* ------------------------------- acesso --------------------------------- */
 
-  function abrirAcesso() {
+  /** Texto do diálogo de acesso e do painel de cada papel (o item da engrenagem escolhe o papel). */
+  const MODULOS = {
+    VALIDADOR: {
+      titulo: 'Validação',
+      sub: 'Para o validador: comente a estratégia do ciclo e aprove (ou devolva) os ciclos novos.',
+    },
+    CONSTRUTOR: {
+      titulo: 'Construção',
+      sub: 'Para o construtor da estratégia: monte os ciclos novos na planta, responda aos comentários do validador e marque como resolvido.',
+    },
+  };
+
+  /** Diálogo de acesso ao módulo de um papel ('VALIDADOR' ou 'CONSTRUTOR'), com a senha dele. */
+  function abrirAcesso(papel) {
+    const m = MODULOS[papel] || MODULOS.VALIDADOR;
+    $('acessoPapel').value = MODULOS[papel] ? papel : 'VALIDADOR';
+    $('acessoTitulo').textContent = m.titulo;
+    $('acessoSub').textContent = m.sub;
     const dlg = $('dlgAcesso');
     $('acessoErro').hidden = true;
     $('acessoSenha').value = '';
@@ -8500,13 +8519,15 @@ const Validacao = (() => {
   async function entrar(ev) {
     ev.preventDefault();
     const dlg = $('dlgAcesso');
-    const papel = (dlg.querySelector('input[name="papel"]:checked') || {}).value || '';
+    const papel = $('acessoPapel').value;
     const pedido = { papel, nome: $('acessoNome').value.trim(), senha: $('acessoSenha').value };
     const botaoEntrar = $('acessoEntrar');
     botaoEntrar.disabled = true;
     try {
       const r = await app.chamar('entrarValidacao', pedido);
+      const trocou = !!acesso; // já estava no outro módulo: sai dele antes (ciclos em construção, painel)
       acesso = Object.assign(pedido, { papel: r.papel, nome: r.autor, nomePapel: r.nomePapel });
+      if (trocou && app.aoSair) app.aoSair();
       sessao.gravar(acesso);
       dlg.close();
       app.toast('Você entrou como ' + r.nomePapel.toLowerCase() + '.');
@@ -8563,7 +8584,7 @@ const Validacao = (() => {
   /* ------------------------------- painel ---------------------------------- */
 
   function abrirPainel() {
-    if (!acesso) { abrirAcesso(); return; }
+    if (!acesso) { abrirAcesso('VALIDADOR'); return; }
     painelAberto = true;
     if (app.fecharAnalytics) app.fecharAnalytics();
     atualizar();
@@ -8581,17 +8602,21 @@ const Validacao = (() => {
     const e = app.estado;
     const planta = app.plantaAtual();
     const abertos = ativo() && e.ciclo ? doCiclo().filter((c) => c.status === 'ABERTO').length : 0;
-    const btn = $('btnValidacao');
-    if (btn) {
-      btn.setAttribute('aria-pressed', String(painelAberto && ativo()));
-      $('valBadge').textContent = abertos ? String(abertos) : '';
-      $('valBadge').hidden = !abertos;
-      // O botão fica no menu de configurações: o ícone dele mostra o mesmo número.
-      if ($('cfgBadge')) {
-        $('cfgBadge').textContent = abertos ? String(abertos) : '';
-        $('cfgBadge').hidden = !abertos;
-      }
-      btn.title = ativo() ? 'Validação: ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : 'Validação da estratégia (pede senha)';
+    // Um item por módulo na engrenagem: o do papel que entrou fica marcado e mostra os comentários abertos.
+    [['btnValidacao', 'valBadge', 'VALIDADOR', 'Validação da estratégia e aprovação dos ciclos novos (pede senha)'],
+      ['btnConstrucao', 'consBadge', 'CONSTRUTOR', 'Construção dos ciclos novos (pede senha)']].forEach(([id, badge, papel, dica]) => {
+      const btn = $(id);
+      if (!btn) return;
+      const meu = ativo() && acesso.papel === papel;
+      btn.setAttribute('aria-pressed', String(painelAberto && meu));
+      $(badge).textContent = meu && abertos ? String(abertos) : '';
+      $(badge).hidden = !(meu && abertos);
+      btn.title = meu ? MODULOS[papel].titulo + ': ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : dica;
+    });
+    // Os itens ficam no menu de configurações: o ícone dele mostra o mesmo número.
+    if ($('cfgBadge')) {
+      $('cfgBadge').textContent = abertos ? String(abertos) : '';
+      $('cfgBadge').hidden = !abertos;
     }
     const painel = $('painelValidacao');
     // Construindo um ciclo, o painel de construção (Rascunho.html) fica no lugar deste.
@@ -8605,6 +8630,7 @@ const Validacao = (() => {
 
   function montarPainel(planta) {
     const e = app.estado;
+    $('valTitulo').textContent = MODULOS[acesso.papel] ? MODULOS[acesso.papel].titulo : 'Validação';
     $('valSub').textContent = planta.nome + (e.ciclo ? ' · ' + e.ciclo : '');
     const corpo = $('valCorpo');
     corpo.innerHTML = '';
@@ -8809,10 +8835,15 @@ const Validacao = (() => {
 
   function iniciar(contexto) {
     app = contexto;
-    $('btnValidacao').addEventListener('click', () => {
-      if (painelAberto && ativo()) fecharPainel();
+    // Validação e Construção: já dentro do módulo, o item abre / fecha o painel; senão, pede a senha do módulo
+    // (entrar num módulo sai do outro).
+    const alternar = (papel) => {
+      if (!ativo() || acesso.papel !== papel) { abrirAcesso(papel); return; }
+      if (painelAberto) fecharPainel();
       else abrirPainel();
-    });
+    };
+    $('btnValidacao').addEventListener('click', () => alternar('VALIDADOR'));
+    if ($('btnConstrucao')) $('btnConstrucao').addEventListener('click', () => alternar('CONSTRUTOR'));
     $('valFechar').addEventListener('click', fecharPainel);
     $('formAcesso').addEventListener('submit', entrar);
     $('acessoCancelar').addEventListener('click', () => $('dlgAcesso').close());
@@ -11346,7 +11377,7 @@ const Tutorial = (() => {
       {
         alvo: '#btnConfig',
         titulo: 'Engrenagem',
-        texto: 'Validação, ajuste das etiquetas, planilha e este tutorial.',
+        texto: 'Validação e Construção (cada uma com a sua senha), ajuste das etiquetas, planilha e este tutorial.',
       },
     ];
   }

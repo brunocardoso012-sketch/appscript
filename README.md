@@ -46,9 +46,9 @@ No app (legenda, listas, Analytics, PNG), as marcas aparecem pela sigla de 3 let
 
 ## Validação da estratégia
 
-O item **Validação** do menu de configurações (engrenagem) abre um painel de comentários sobre a estratégia do ciclo, para o **validador** apontar o que precisa mudar e o **construtor da estratégia** ver, responder e resolver.
+O menu de configurações (engrenagem) tem dois módulos separados, cada um com a sua senha: **Validação**, para o **validador** comentar a estratégia do ciclo e aprovar (ou devolver) os ciclos novos, e **Construção**, para o **construtor da estratégia** montar os ciclos novos e ver, responder e resolver os comentários. Os dois abrem o painel de comentários ao lado da planta.
 
-- **Acesso:** escolha *Validador* ou *Construtor da estratégia*, digite o seu nome e a senha. As senhas são provisórias (**1234** para os dois papéis), ficam em `SENHAS_ACESSO` (`src/Config.gs`) e são conferidas no servidor a cada gravação. Para passar a lê-las da planilha, basta mudar `senhasDeAcesso_()` em `src/Validacao.gs`. O acesso vale até fechar a aba do navegador; *Sair* encerra antes.
+- **Acesso:** escolha *Validação* ou *Construção* na engrenagem e digite o seu nome e a senha do módulo: `validacao_exposicao` na Validação e `construcao_exposicao` na Construção (a senha de um não entra no outro). Entrar num módulo sai do outro. As senhas ficam em `SENHAS_ACESSO` (`src/Config.gs`) e são conferidas no servidor a cada gravação. Para passar a lê-las da planilha, basta mudar `senhasDeAcesso_()` em `src/Validacao.gs`. O acesso vale até fechar a aba do navegador; *Sair* encerra antes.
 - **Validador:** comenta a planta em geral ou um móvel. O móvel pode ser escolhido na lista, com *Escolher na planta* (e depois um clique no móvel) ou direto na tela do móvel. O validador também pode reabrir e excluir comentários.
 - **Construtor da estratégia:** vê os comentários, responde e usa *Marcar como resolvido*.
 - **Onde aparecem:** no painel (filtros *Abertos*, *Resolvidos* e *Todos*, da planta e do ciclo escolhidos, com atalhos para as outras plantas que têm comentários abertos); como um balão laranja com o número de comentários abertos no canto do móvel (clique para ver os comentários); e na seção *Comentários da validação* da tela do móvel. O número no botão é o total de comentários abertos no ciclo. O balão não sai no PNG.

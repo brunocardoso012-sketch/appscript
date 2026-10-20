@@ -96,6 +96,9 @@ async function abrir(t, opcoes) {
 }
 
 const estado = (p, expr) => p.evaluate(expr);
+// Validação e Construção: um item na engrenagem e uma senha para cada papel (SENHAS_ACESSO, em Config.gs).
+const MENU = { VALIDADOR: 'btnValidacao', CONSTRUTOR: 'btnConstrucao' };
+const SENHA = { VALIDADOR: 'validacao_exposicao', CONSTRUTOR: 'construcao_exposicao' };
 const escolherCiclo = (p, ciclo) => p.selectOption('#selCiclo', ciclo);
 const abaPlanta = (p, nome) => p.locator('#abasPlanta .aba', { hasText: new RegExp('^' + nome + '$') });
 
@@ -391,9 +394,8 @@ test('validação: senha errada, comentário, resposta e resolução', async (t)
   await escolherCiclo(p, 'Ciclo exemplo');
 
   const entrar = async (papel, nome, senha) => {
-    await menuConfig(p, 'btnValidacao');
+    await menuConfig(p, MENU[papel]);
     await p.waitForSelector('#dlgAcesso[open]');
-    await p.check('#dlgAcesso input[name="papel"][value="' + papel + '"]');
     await p.fill('#acessoNome', nome);
     await p.fill('#acessoSenha', senha);
     await p.click('#acessoEntrar');
@@ -401,9 +403,14 @@ test('validação: senha errada, comentário, resposta e resolução', async (t)
 
   await entrar('VALIDADOR', 'Teste E2E', 'errada');
   await p.waitForSelector('#acessoErro:not([hidden])');
+  assert.strictEqual(await p.textContent('#acessoTitulo'), 'Validação');
+  await p.click('#acessoCancelar');
+  // A senha da construção não entra na validação.
+  await entrar('VALIDADOR', 'Teste E2E', SENHA.CONSTRUTOR);
+  await p.waitForSelector('#acessoErro:not([hidden])');
   await p.click('#acessoCancelar');
 
-  await entrar('VALIDADOR', 'Teste E2E', '1234');
+  await entrar('VALIDADOR', 'Teste E2E', SENHA.VALIDADOR);
   await p.waitForSelector('#painelValidacao:not([hidden])');
   await p.fill('#valCorpo .val-novo textarea', 'Trocar a cor da gôndola 1');
   await p.click('#valCorpo .val-novo button[type="submit"]');
@@ -411,8 +418,11 @@ test('validação: senha errada, comentário, resposta e resolução', async (t)
   assert.match(await p.textContent('#valBadge'), /1/);
   await p.click('#valCorpo button:has-text("Sair")');
 
-  await entrar('CONSTRUTOR', 'Construtor E2E', '1234');
+  await entrar('CONSTRUTOR', 'Construtor E2E', SENHA.CONSTRUTOR);
   await p.waitForSelector('#valCorpo .val-cartao');
+  assert.strictEqual(await p.textContent('#valTitulo'), 'Construção', 'o painel mostra o módulo de construção');
+  assert.strictEqual(await p.getAttribute('#btnConstrucao', 'aria-pressed'), 'true');
+  assert.strictEqual(await p.getAttribute('#btnValidacao', 'aria-pressed'), 'false');
   const cartao = p.locator('#valCorpo .val-cartao').first();
   await cartao.locator('button', { hasText: 'Responder' }).first().click();
   await cartao.locator('.val-responder textarea').fill('Feito.');
@@ -540,11 +550,10 @@ test('modo apresentação: F mostra só a planta; setas trocam a ER; F sai', asy
 test('ciclo em construção: o construtor monta na planta, o validador devolve e aprova', async (t) => {
   const p = await abrir(t);
   const entrar = async (papel, nome) => {
-    await menuConfig(p, 'btnValidacao');
+    await menuConfig(p, MENU[papel]);
     await p.waitForSelector('#dlgAcesso[open]');
-    await p.check('#dlgAcesso input[name="papel"][value="' + papel + '"]');
     await p.fill('#acessoNome', nome);
-    await p.fill('#acessoSenha', '1234');
+    await p.fill('#acessoSenha', SENHA[papel]);
     await p.click('#acessoEntrar');
     await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
     // O painel da validação ou, se o papel tem um ciclo em construção (que abre sozinho), o de construção.
@@ -714,11 +723,10 @@ test('ciclo em construção: fixos na planta mesmo comparando, meio dividido, et
   await escolherCiclo(p, 'Ciclo exemplo cheio');
   await p.selectOption('#selComparar', 'Ciclo exemplo');
   await abaPlanta(p, 'ER P').click();
-  await menuConfig(p, 'btnValidacao');
+  await menuConfig(p, 'btnConstrucao');
   await p.waitForSelector('#dlgAcesso[open]');
-  await p.check('#dlgAcesso input[name="papel"][value="CONSTRUTOR"]');
   await p.fill('#acessoNome', 'Bia');
-  await p.fill('#acessoSenha', '1234');
+  await p.fill('#acessoSenha', SENHA.CONSTRUTOR);
   await p.click('#acessoEntrar');
   await p.waitForSelector('.rs-secao');
   await p.locator('.rs-secao button', { hasText: 'Novo ciclo' }).click();
@@ -803,11 +811,10 @@ test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo');
   await abaPlanta(p, 'ER P').click();
-  await menuConfig(p, 'btnValidacao');
+  await menuConfig(p, 'btnConstrucao');
   await p.waitForSelector('#dlgAcesso[open]');
-  await p.check('#dlgAcesso input[name="papel"][value="CONSTRUTOR"]');
   await p.fill('#acessoNome', 'Bia');
-  await p.fill('#acessoSenha', '1234');
+  await p.fill('#acessoSenha', SENHA.CONSTRUTOR);
   await p.click('#acessoEntrar');
   await p.waitForSelector('#btnNovaAntecipacao');
 

@@ -109,7 +109,7 @@ test('visualizador/apps-script está atualizado com src/ (rode npm run build:vis
 
 test('visualizador: comentários da validação ficam na aba Comentários da planilha conectada', () => {
   const { run, falsos } = carregarVisualizador();
-  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
   const l = run(`salvarComentario(${V}, { acao: 'novo', ciclo: 'Ciclo exemplo', planta: '02', texto: 'Rever a ER M' })`);
   assert.equal(l.length, 1);
   assert.ok(falsos.planilha.getSheetByName('Comentários'), 'aba criada');
@@ -118,8 +118,8 @@ test('visualizador: comentários da validação ficam na aba Comentários da pla
 
 test('visualizador: ciclo montado no app entra nas abas da planilha quando aprovado', () => {
   const { run } = carregarVisualizador();
-  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   run(`salvarRascunho(${C}, { acao: 'criar', ciclo: 'C20' })`);
   run(`salvarRascunho(${C}, { acao: 'salvarTipos', ciclo: 'C20', linhas: [{ etiqueta: 'OUTLET', classificacao: 'outlet', gmv: '500 mil' }, { etiqueta: 'MOVIMENTO NOVO', classificacao: 'lancamento', gmv: '1,5 mi' }] })`);
   run(`salvarRascunho(${C}, { acao: 'salvarEspaco', ciclo: 'C20', planta: 'ER P', movel: 'PIRAMIDE 1', linha: { marca: 'EUD', etiquetas: [{ texto: 'OUTLET' }] } })`);
@@ -138,7 +138,7 @@ test('visualizador: ciclo montado no app entra nas abas da planilha quando aprov
 
 test('visualizador: antecipações ficam na aba Antecipações e chegam a todos no getDados', () => {
   const { run, falsos } = carregarVisualizador();
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   run(`salvarAntecipacao(${C}, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', movel: 'PIRAMIDE 1', etiqueta: 'NOVO ITEM', data: '2026-11-03' })`);
   assert.ok(falsos.planilha.getSheetByName('Antecipações'), 'aba criada');
   const a = run('getDados()').antecipacoes;

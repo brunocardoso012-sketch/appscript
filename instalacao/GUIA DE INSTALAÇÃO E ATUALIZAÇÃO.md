@@ -22,7 +22,7 @@ Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (pas
 
 - **Analytics** (no lugar do antigo *Espaço por marca*): um dashboard do ciclo que compara as ERs — números principais, insights rápidos, o mapa movimento × ER, as marcas e as classificações em cada ER e o GMV esperado × espaço. Clicar numa célula ou num insight mostra na planta daquela ER só onde o movimento aparece.
 - **Aba nova na planilha, "Tipos de movimento":** nela você informa a classificação (lançamento, promoção…) e o GMV esperado de cada movimento.
-- **Topo reorganizado:** *Comunicações ER* e *Analytics* ficam em destaque. *Validação*, *Ajustar etiquetas* e *Ver o tutorial* ficam na engrenagem. *Baixar PNG* fica no canto de baixo da planta.
+- **Topo reorganizado:** *Comunicações ER* e *Analytics* ficam em destaque. *Validação*, *Construção*, *Ajustar etiquetas* e *Ver o tutorial* ficam na engrenagem. *Baixar PNG* fica no canto de baixo da planta.
 - **Ajustar etiquetas:** cada pilha de etiquetas se move sozinha, e dá para mudar o tamanho das etiquetas.
 - **Baixar PNG:** escolha o conteúdo (planta, visão simplificada ou **estratégia**, que é o espaço da ER em gráficos) e o formato (PNG recortado ou slide completo).
 - **Tutorial guiado:** quem abre o app pela primeira vez recebe um convite para um tour curto (só o essencial).
@@ -30,7 +30,8 @@ Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (pas
 - **Tipos de movimento na aprovação:** todos os movimentos cadastrados em *Tipos de movimento* na construção do ciclo entram na aba *Tipos de movimento* quando o validador aprova, inclusive os que ainda não estão em nenhum espaço.
 - **Analytics:** aviso *Página em construção | pode conter erros nos dados e cálculos* no topo.
 - **Topo:** *Copiar link* fica no topo e *Abrir planilha* passa para a engrenagem.
-- **Montar um ciclo novo no app:** com o login da validação, o construtor da estratégia cria um ciclo (em branco, copiando outro ou só os espaços fixos 🔒 de outro) e monta em três passos, num painel na lateral: os Tipos de movimento com o GMV, depois os móveis (clicando na planta; ela pinta e mostra as etiquetas na hora, tudo é salvo sozinho e o painel mostra os números da ER), depois o envio para aprovação. O validador aprova (o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*) ou devolve com um comentário. Enquanto não é aprovado, o ciclo fica em quatro abas novas, criadas sozinhas na primeira vez: *Rascunhos*, *Rascunho Movimentos*, *Rascunho Painéis* e *Rascunho Tipos*. Não apague essas abas nem mexa nelas à mão.
+- **Validação e Construção separadas:** a engrenagem tem um item para cada módulo, cada um com a sua senha: *Validação* (`validacao_exposicao`) e *Construção* (`construcao_exposicao`). As senhas antigas (`1234`) deixam de funcionar: avise o validador e o construtor.
+- **Montar um ciclo novo no app:** com o login da *Construção* (engrenagem), o construtor da estratégia cria um ciclo (em branco, copiando outro ou só os espaços fixos 🔒 de outro) e monta em três passos, num painel na lateral: os Tipos de movimento com o GMV, depois os móveis (clicando na planta; ela pinta e mostra as etiquetas na hora, tudo é salvo sozinho e o painel mostra os números da ER), depois o envio para aprovação. O validador aprova (o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*) ou devolve com um comentário. Enquanto não é aprovado, o ciclo fica em quatro abas novas, criadas sozinhas na primeira vez: *Rascunhos*, *Rascunho Movimentos*, *Rascunho Painéis* e *Rascunho Tipos*. Não apague essas abas nem mexa nelas à mão.
 - **Construção do ciclo, novidades:** cada espaço começa com **uma etiqueta** e o botão **+ Adicionar etiqueta** põe outra (até 4); o **×** tira uma. Nos selects de marca, cada marca aparece com a **cor dela no fundo**. Na gôndola, cada meio tem **Dividir em 2** (e **Juntar metades**). Os espaços fixos (🔒) copiados de outro ciclo aparecem na planta mesmo com o *Comparar com* ligado: ao montar um ciclo, a comparação sai.
 - **Ordem das marcas:** em todas as listas do app (legenda, filtros, selects, Analytics, PNG), as marcas seguem a ordem **BOT | EUD | QDB | OUI | MM**.
 - **Visualizador sem a comparação de ciclos:** o seletor *Comparar com* fica só no app completo.
@@ -212,11 +213,11 @@ Abra o link do app e confira:
 
 - [ ] Aparece o convite **"Bem-vindo ao Plano de Varejo"**. Ele aparece uma vez por navegador. Faça o tour ou clique em *Agora não*.
 - [ ] O seletor de ciclo mostra os **seus** ciclos e a planta abre com as cores e as etiquetas.
-- [ ] O topo tem **Comunicações ER** e **Analytics** em destaque e a **engrenagem** com *Validação*, *Ajustar etiquetas* e *Ver o tutorial*.
+- [ ] O topo tem **Comunicações ER** e **Analytics** em destaque e a **engrenagem** com *Validação*, *Construção*, *Ajustar etiquetas* e *Ver o tutorial*.
 - [ ] O **Analytics** mostra os números, os insights, o mapa movimento × ER e as marcas e classificações em cada ER. A classificação e o GMV só aparecem para os movimentos que estão na aba *Tipos de movimento*.
 - [ ] **Baixar PNG** (canto de baixo da planta) baixa a planta, a visão simplificada e a estratégia.
 - [ ] As posições de etiquetas que você já tinha salvado continuam no lugar.
-- [ ] Entre na *Validação* como construtor: o painel mostra **Ciclos em construção** com o botão *Novo ciclo*. Se quiser testar, crie um ciclo de teste, mude um espaço e depois clique em *Excluir* na faixa do ciclo.
+- [ ] Entre na *Construção* (senha `construcao_exposicao`): o painel mostra **Ciclos em construção** com o botão *Novo ciclo*. Se quiser testar, crie um ciclo de teste, mude um espaço e depois clique em *Excluir* na faixa do ciclo.
 - [ ] Com um ciclo publicado na tela, a seção **Antecipações** aparece no mesmo painel. Se quiser testar, crie uma antecipação num espaço (o espaço ganha o ⏩) e depois clique em *Excluir*.
 
 Se tudo estiver certo, avise os usuários: o link é o mesmo.

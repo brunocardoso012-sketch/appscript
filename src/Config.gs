@@ -37,8 +37,8 @@ const CONFIG = {
  * Provisórias: no futuro virão da planilha (troque em senhasDeAcesso_, Validacao.gs).
  */
 const SENHAS_ACESSO = {
-  VALIDADOR: '1234',
-  CONSTRUTOR: '1234',
+  VALIDADOR: 'validacao_exposicao',
+  CONSTRUTOR: 'construcao_exposicao',
 };
 
 /**
