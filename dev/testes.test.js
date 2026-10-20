@@ -458,7 +458,7 @@ test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   assert.ok(d.ciclos.includes('C11') && d.ciclos.includes('Ciclo exemplo'));
   assert.deepEqual(d.paineis.C11['01'], [{ secao: 'TV', texto: 'GRADE NOVA', marca: 'MULTI', movel: '' }]);
   assert.equal(d.tiposMovimento.C11.BOTIPROMO.gmv, 1500000);
-  assert.ok(!d.tiposMovimento.C11['NÃO USADO']);
+  assert.equal(d.tiposMovimento.C11['NÃO USADO'].gmv, 5, 'os tipos ainda sem espaço também entram na aba');
   assert.ok(!d.avisos.some((a) => /C11/.test(a)), 'sem avisos do ciclo novo: ' + d.avisos.filter((a) => /C11/.test(a)).join(' | '));
   assert.deepEqual(d.tiposMovimento['Ciclo exemplo'], exemplo.tiposMovimento['Ciclo exemplo'], 'os tipos dos outros ciclos ficam como estavam');
   assert.deepEqual(d.paineis['Ciclo exemplo'], exemplo.paineis['Ciclo exemplo']);
@@ -516,7 +516,7 @@ test('tipos de movimento: classificação e GMV esperado por etiqueta do ciclo',
   assert.deepEqual([c1['MULTI PROMO'].classificacao, c1['MULTI PROMO'].gmv], ['PROMOCAO', 2000000]);
   assert.equal(c1['NÃO EXISTE'].gmv, null);
   assert.ok(d.avisos.some((a) => /linha 3: "multi promo" já aparece/.test(a)), d.avisos.join('|'));
-  assert.ok(d.avisos.some((a) => /"NÃO EXISTE" não aparece em nenhuma etiqueta/.test(a)));
+  assert.ok(!d.avisos.some((a) => /NÃO EXISTE/.test(a) && !/GMV/.test(a)), 'movimento cadastrado sem espaço é válido');
   assert.ok(d.avisos.some((a) => /GMV esperado "x"/.test(a)));
   assert.deepEqual(d.ciclos, ['C1'], 'a aba não cria ciclos sozinha');
   const ex = run('montarDados_(valoresLayoutPadrao_(), valoresMovimentosExemplo_(), valoresPaineisExemplo_(), valoresTiposExemplo_())');

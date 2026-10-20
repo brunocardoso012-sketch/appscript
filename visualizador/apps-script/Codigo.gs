@@ -1246,18 +1246,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     if (lido.faltando.length) {
       aviso('Aba "' + CONFIG.ABAS.TIPOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
     }
-    // Etiquetas de cada ciclo (para avisar de movimento que não aparece em nenhuma etiqueta).
-    const etiquetasDoCiclo = function (ciclo) {
-      const vistas = {};
-      const c = movimentos[ciclo] || {};
-      Object.keys(c).forEach(function (p) {
-        Object.keys(c[p]).forEach(function (id) {
-          c[p][id].etiquetas.forEach(function (e) { vistas[chaveEtiqueta_(e.texto)] = true; });
-        });
-      });
-      return vistas;
-    };
-    const etiquetasPorCiclo = {};
+    // Movimento cadastrado sem nenhum espaço no ciclo é válido (ex.: cadastrado na construção do ciclo).
     lido.linhas.forEach(function (l) {
       const ciclo = texto_(l.ciclo);
       const texto = texto_(l.etiqueta);
@@ -1275,10 +1264,6 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       }
       const gmv = numeroGmv_(l.gmv);
       if (gmv === null && texto_(l.gmv)) aviso(onde + ': GMV esperado "' + texto_(l.gmv) + '" não é um número — ignorado.');
-      if (movimentos[ciclo]) {
-        etiquetasPorCiclo[ciclo] = etiquetasPorCiclo[ciclo] || etiquetasDoCiclo(ciclo);
-        if (!etiquetasPorCiclo[ciclo][k]) aviso(onde + ': "' + texto + '" não aparece em nenhuma etiqueta do ciclo ' + ciclo + '.');
-      }
       tiposMovimento[ciclo][k] = {
         texto: movimentoDaEtiqueta_(texto),
         classificacao: normClassificacao_(l.classificacao),
@@ -2189,7 +2174,8 @@ function listaCurta_(itens) {
  *                    movimentos dos tipos) e trava a edição até o validador decidir;
  *  - excluir:        { acao, ciclo }                  construtor (antes da aprovação);
  *  - devolver:       { acao, ciclo, planta, motivo }   validador: volta para construção, com um comentário;
- *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas.
+ *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas (todos os
+ *                    tipos cadastrados vão para a aba Tipos de movimento, mesmo os que nenhum espaço usa).
  * @param {Object} abas  matrizes (com cabeçalho) de cada campo de abasRascunho_()
  * @param {{papel, autor}} quem  resultado de conferirAcesso_
  * @return {{abas: Object, gravar: string[]}} gravar: campos das abas que mudaram
@@ -2362,11 +2348,15 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigir('VALIDADOR', 'aprova o ciclo');
     exigirRascunho('ENVIADO');
     if (ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '" publicado. Peça para o construtor renomear (criar outro copiando este).');
-    // Tipos cadastrados que nenhum espaço usou não vão para a planilha (dariam aviso de "não aparece em nenhuma etiqueta").
-    const usados = {};
-    objs('rMovimentos').filter(doCiclo).forEach(function (o) { etiquetasDaLinha_(o).forEach(function (e) { usados[chaveEtiqueta_(e)] = true; }); });
+    // Todos os Tipos de movimento cadastrados no ciclo vão para a aba "Tipos de movimento", inclusive os movimentos
+    // novos que ainda não estão em nenhum espaço; o GMV vai como número.
+    const comoPublicada = function (campo, o) {
+      if (campo !== 'tipos') return o;
+      const gmv = typeof o.gmv === 'number' ? o.gmv : numeroGmv_(o.gmv);
+      return Object.assign({}, o, { gmv: gmv === null ? '' : gmv });
+    };
     [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
-      const linhas = objs(x[1]).filter(doCiclo).filter(function (o) { return x[0] !== 'tipos' || usados[chaveEtiqueta_(o.etiqueta)]; });
+      const linhas = objs(x[1]).filter(doCiclo).map(function (o) { return comoPublicada(x[0], o); });
       if (linhas.length) {
         novas[x[0]] = mesclarLinhas_(abas[x[0]] && abas[x[0]].length ? abas[x[0]] : [], linhas, defs[x[0]].colunas);
         gravar.push(x[0]);

@@ -177,6 +177,8 @@
     display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px;
     background: transparent; color: var(--texto); font: 600 13px var(--fonte); text-align: left; cursor: pointer;
   }
+  a.menu-item { color: inherit; text-decoration: none; }
+  a.menu-item[hidden] { display: none; }
   .menu-item:hover, .menu-item:focus-visible { background: #f0f1f3; outline: none; }
   .menu-item:disabled { opacity: .5; cursor: default; background: transparent; }
   .menu-item[aria-pressed="true"] { background: var(--destaque); }
@@ -248,6 +250,12 @@
   .an-topo h2 { margin: 0; font-size: 18px; }
   .an-topo span { color: var(--texto-2); font-size: 13px; }
   .an-topo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  /* Aviso fixo no topo do Analytics (a página ainda está em construção). */
+  .an-em-construcao {
+    margin: 0; padding: 8px clamp(16px, 2.5vw, 32px); font-size: 13px; color: #7A4A00;
+    background: #FFF4D6; border-bottom: 1px solid #F2D58A;
+  }
+  [data-tema="escuro"] .an-em-construcao { color: #FFD98A; background: #3A2E12; border-bottom-color: #5C4A1E; }
   #anInfo { display: inline-flex; align-items: center; gap: 6px; }
   .dialogo.an-info { width: min(1000px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; }
   .an-info-regras { margin: 0 0 18px; padding-left: 18px; font-size: 13px; line-height: 1.5; display: grid; gap: 6px; }
@@ -773,7 +781,11 @@
   .lj-extra-nome { font-size: 12px; font-style: italic; color: var(--texto-2); }
 
   /* Ciclos em construção (Rascunho.html). */
-  .barra-rascunho { background: #eef2ff; border-color: #c7d2fe; }
+  /* Faixa em destaque do ciclo em construção / aguardando aprovação (topo do app). */
+  .barra-rascunho { background: #FFF1D6; border: 1px solid #F0B44C; border-left: 5px solid #E8590C; padding: 8px 14px; }
+  .barra-rascunho #rascunhoInfo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 14px; color: #5C3300; }
+  .rs-faixa-icone { font-size: 18px; line-height: 1; }
+  .rs-faixa-msg { color: #7A4A00; font-size: 13px; }
   .rs-status { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
   .rs-status.em_construcao { background: #fde6d8; color: #9a3a06; }
   .rs-status.enviado { background: #e0e7ff; color: #27367a; }
@@ -849,7 +861,8 @@
     .rs-tipos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
     .rs-tipos-cab { display: none; }
   }
-  [data-tema="escuro"] .barra-rascunho { background: #1e2440; border-color: #3a4580; }
+  [data-tema="escuro"] .barra-rascunho { background: #3A2A10; border-color: #8A5A1A; border-left-color: #E8590C; }
+  [data-tema="escuro"] .barra-rascunho #rascunhoInfo, [data-tema="escuro"] .rs-faixa-msg { color: #FFD9A0; }
   [data-tema="escuro"] .rs-status.em_construcao { background: #4a2510; color: #ffb38a; }
   [data-tema="escuro"] .rs-status.enviado { background: #2a3260; color: #c5cef8; }
   [data-tema="escuro"] .an-data { background: #4a2510; color: #ffb38a; }

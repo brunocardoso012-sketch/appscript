@@ -168,6 +168,11 @@ const App = (() => {
 
   /* ------------------------------- carga ---------------------------------- */
 
+  let cicloEscolhido = false; // o ciclo inicial (o último aprovado) já foi escolhido na primeira carga
+
+  /** Último ciclo aprovado: o último da planilha (a aprovação acrescenta o ciclo no fim das abas). */
+  const ultimoAprovado = () => (estado.dados && estado.dados.ciclos.length ? estado.dados.ciclos[estado.dados.ciclos.length - 1] : '');
+
   async function carregar(preferencias) {
     carregando(true, 'Carregando dados da planilha…');
     try {
@@ -192,8 +197,12 @@ const App = (() => {
     $('telaConfig').hidden = true;
     svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden
 
-    // O app abre sem ciclo (planta limpa, sem cores nem etiquetas) até o usuário escolher um.
-    const cicloPref = 'ciclo' in pref ? pref.ciclo : estado.ciclo;
+    // Ao abrir, o app vai direto para o último ciclo aprovado (o último da planilha); o link pode pedir outro
+    // (ou a planta limpa). Depois, Atualizar mantém o ciclo da tela. Quem entrou na validação vai para o ciclo
+    // em construção do seu papel (Rascunho.html).
+    const primeiraCarga = !cicloEscolhido;
+    cicloEscolhido = true;
+    const cicloPref = 'ciclo' in pref ? pref.ciclo : primeiraCarga ? ultimoAprovado() : estado.ciclo;
     estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 || Rascunho.tem(cicloPref) ? cicloPref : '';
     const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
     // A planta pode vir pelo ID ou pelo nome ("ER M", do link).
@@ -2476,7 +2485,7 @@ const App = (() => {
     aoSair: () => Rascunho.limpar(),
   });
   Rascunho.iniciar({
-    estado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,
+    estado, ultimoAprovado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,
     acesso: () => Validacao.acesso(),
     recarregarComentarios: () => Validacao.recarregar(),
     abrirMovel, blocosDoMovel, corDaMarca, colorirSelectMarca, movimentoDe,

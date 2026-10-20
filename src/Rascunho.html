@@ -15,7 +15,7 @@
  */
 const Rascunho = (() => {
   const $ = (id) => document.getElementById(id);
-  let app = null; // { estado, chamar, toast, erro, desenhar, plantaAtual, acesso, montarCiclos, carregar, abrirMovel, movimentoDe, paineisDe, corDaMarca, nomeDaMarca }
+  let app = null; // { estado, ultimoAprovado, chamar, toast, erro, desenhar, plantaAtual, acesso, montarCiclos, carregar, abrirMovel, movimentoDe, paineisDe, corDaMarca, nomeDaMarca }
   let lista = []; // [{ ciclo, status, nomeStatus, origem, criadoPor, criadoEm, enviadoEm, decididoPor, decididoEm }]
   let dados = null; // { movimentos, paineis, tiposMovimento } dos ciclos em construção
   let mesclados = []; // ciclos que mesclar() pôs em estado.dados (para tirar na próxima vez)
@@ -23,6 +23,7 @@ const Rascunho = (() => {
   let selecao = ''; // ID do móvel selecionado ('' = nenhum)
   let formChave = ''; // ciclo|ER|móvel do formulário montado (só refaz quando muda, para não perder o foco)
   let verComentarios = false; // o construtor abriu os comentários da validação no lugar do painel
+  let abriuDoPapel = false; // já levou a tela ao ciclo em construção do papel neste login (abrirDoPapel)
   const pendentes = {}; // "ciclo|ER|espaço" → { ciclo, planta, chave, linha } ainda não gravados
   // Meios de gôndola divididos pelo construtor que ainda não têm nada nas metades (com uma metade preenchida,
   // a linha dela já divide o meio na planta): "ciclo|ER|móvel" → 'A' | 'B' | 'AB'.
@@ -192,6 +193,22 @@ const Rascunho = (() => {
     });
   }
 
+  /**
+   * Logo depois de entrar na validação (ou ao abrir o app já com o login), a tela vai para o ciclo em construção
+   * do papel: o construtor, o que está montando; o validador, o que aguarda aprovação. Só uma vez por login.
+   */
+  function abrirDoPapel() {
+    if (abriuDoPapel || !acesso()) return;
+    abriuDoPapel = true;
+    const status = papel() === 'CONSTRUTOR' ? 'EM_CONSTRUCAO' : papel() === 'VALIDADOR' ? 'ENVIADO' : '';
+    const r = lista.slice().reverse().find((x) => x.status === status);
+    if (!r || r.ciclo === app.estado.ciclo) return;
+    app.estado.ciclo = r.ciclo;
+    app.estado.comparar = '';
+    selecao = '';
+    verComentarios = false;
+  }
+
   function aplicar(r) {
     lista = (r && r.rascunhos) || [];
     dados = r || null;
@@ -199,8 +216,9 @@ const Rascunho = (() => {
     if (!e.dados) return;
     mesclar(e.dados);
     reaplicarPendentes();
+    abrirDoPapel();
     // O ciclo da tela era um rascunho que não existe mais (aprovado por outra pessoa, excluído…): volta à planta limpa.
-    if (e.ciclo && e.dados.ciclos.indexOf(e.ciclo) < 0 && !doCiclo(e.ciclo)) e.ciclo = '';
+    if (e.ciclo && e.dados.ciclos.indexOf(e.ciclo) < 0 && !doCiclo(e.ciclo)) e.ciclo = app.ultimoAprovado();
     app.montarCiclos();
     app.desenhar();
   }
@@ -217,9 +235,10 @@ const Rascunho = (() => {
   function limpar() {
     lista = [];
     dados = null;
+    abriuDoPapel = false; // no próximo login, abre de novo o ciclo do papel
     if (!app || !app.estado.dados) return;
     mesclar(app.estado.dados);
-    if (app.estado.ciclo && app.estado.dados.ciclos.indexOf(app.estado.ciclo) < 0) app.estado.ciclo = '';
+    if (app.estado.ciclo && app.estado.dados.ciclos.indexOf(app.estado.ciclo) < 0) app.estado.ciclo = app.ultimoAprovado();
     app.montarCiclos();
     app.desenhar();
   }
@@ -383,55 +402,38 @@ const Rascunho = (() => {
 
   /* --------------------------- faixa do rascunho ---------------------------- */
 
-  /** Faixa acima da planta com o status do ciclo em construção e as ações de cada papel. */
+  /**
+   * Faixa em destaque no topo (logo abaixo das marcas), sempre que o ciclo da tela é um ciclo em construção:
+   * avisa que ele ainda não foi aprovado, com a mensagem de cada papel, e traz as ações do validador. O
+   * construtor monta pelo painel da lateral (passos e ações); com os comentários abertos, as ações vêm aqui.
+   */
   function atualizarFaixa() {
     const faixa = $('barraRascunho');
     const r = atual();
-    // O construtor monta pelo painel da lateral (com os passos e as ações); a faixa é para os outros casos.
-    const mostrar = !!r && !(papel() === 'CONSTRUTOR' && r.status === 'EM_CONSTRUCAO' && !verComentarios);
+    const mostrar = !!r;
     faixa.hidden = !mostrar;
     document.body.classList.toggle('com-rascunho', mostrar);
     if (!mostrar) return;
+    const construtor = papel() === 'CONSTRUTOR';
+    const validador = papel() === 'VALIDADOR';
+    const enviado = r.status === 'ENVIADO';
     const info = $('rascunhoInfo');
     info.innerHTML = '';
-    n('strong', null, 'Ciclo em construção: ', info);
-    info.appendChild(document.createTextNode(r.ciclo + ' · '));
+    n('span', 'rs-faixa-icone', '🚧', info).setAttribute('aria-hidden', 'true');
+    n('strong', null, 'Ciclo ' + r.ciclo + ' (não publicado)', info);
     n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, info);
-    const construindo = papel() === 'CONSTRUTOR' && r.status === 'EM_CONSTRUCAO';
-    const dica = r.status === 'ENVIADO'
-      ? (papel() === 'VALIDADOR' ? ' Confira as ERs e aprove ou devolva.' : ' Aguardando o validador.')
-      : (construindo ? '' : ' O construtor ainda está montando.');
-    info.appendChild(document.createTextNode(dica));
+    const msg = construtor
+      ? (enviado ? 'Enviado para o validador. Você volta a editar se ele devolver.'
+        : 'Você está montando este ciclo. Ele só aparece para todos depois que o validador aprovar.')
+      : validador
+        ? (enviado ? 'Confira as ERs e aprove ou devolva para o construtor.' : 'O construtor ainda está montando este ciclo (não foi enviado para aprovação).')
+        : '';
+    if (msg) n('span', 'rs-faixa-msg', msg, info);
     const acoes = $('rascunhoAcoes');
     acoes.innerHTML = '';
-    if (construindo) {
-      // Os três passos: tipos (com GMV) → móveis (só com movimentos dos tipos) → enviar.
-      const p = passos();
-      const passo1 = p.tipos > 0 && !p.semGmv;
-      const passo2 = p.espacos > 0 && !p.fora.length;
-      const lista = n('ol', 'rs-passos', null, info);
-      const item = (ok, titulo, detalhe) => {
-        const li = n('li', ok ? 'ok' : '', null, lista);
-        n('strong', null, titulo, li);
-        if (detalhe) n('span', null, ' ' + detalhe, li);
-      };
-      item(passo1, 'Tipos de movimento', p.tipos ? p.tipos + (p.tipos === 1 ? ' movimento' : ' movimentos')
-        + (p.semGmv ? ', ' + p.semGmv + ' sem GMV' : ', todos com GMV') : 'cadastre os movimentos e o GMV');
-      item(passo2, 'Móveis', p.fora.length ? p.fora.length + ' movimento(s) fora dos tipos'
-        : p.espacos ? p.espacos + ' linhas · clique num móvel para editar' : 'clique num móvel para preencher');
-      item(false, 'Enviar para aprovação', '');
-      botao('1. Tipos de movimento', passo1 ? '' : 'primario', editarTipos, acoes);
-      botao('Excluir', 'perigo', () => {
-        if (window.confirm('Excluir o ciclo em construção ' + r.ciclo + '? Não dá para desfazer.')) {
-          salvar({ acao: 'excluir', ciclo: r.ciclo }, 'Ciclo excluído.');
-        }
-      }, acoes);
-      botao('3. Enviar para aprovação', passo1 && passo2 ? 'primario' : '', () => {
-        if (window.confirm('Enviar ' + r.ciclo + ' para aprovação? Você só volta a editar se o validador devolver.')) {
-          salvar({ acao: 'enviar', ciclo: r.ciclo }, 'Ciclo enviado para aprovação.');
-        }
-      }, acoes);
-    } else if (papel() === 'VALIDADOR' && r.status === 'ENVIADO') {
+    if (construtor && !enviado && verComentarios) {
+      botao('← Voltar à construção', 'primario', () => { verComentarios = false; app.desenhar(); }, acoes);
+    } else if (validador && enviado) {
       botao('Devolver', '', () => devolver(r), acoes);
       botao('Aprovar e publicar', 'primario', () => {
         if (window.confirm('Aprovar ' + r.ciclo + '? Ele entra na planilha, junto com os outros ciclos, e fica visível para todos.')) {

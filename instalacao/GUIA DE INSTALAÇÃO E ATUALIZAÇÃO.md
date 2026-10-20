@@ -25,7 +25,11 @@ Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (pas
 - **Topo reorganizado:** *Comunicações ER* e *Analytics* ficam em destaque. *Validação*, *Ajustar etiquetas* e *Ver o tutorial* ficam na engrenagem. *Baixar PNG* fica no canto de baixo da planta.
 - **Ajustar etiquetas:** cada pilha de etiquetas se move sozinha, e dá para mudar o tamanho das etiquetas.
 - **Baixar PNG:** escolha o conteúdo (planta, visão simplificada ou **estratégia**, que é o espaço da ER em gráficos) e o formato (PNG recortado ou slide completo).
-- **Tutorial guiado:** quem abre o app pela primeira vez recebe um convite para um tour de cerca de 2 minutos.
+- **Tutorial guiado:** quem abre o app pela primeira vez recebe um convite para um tour curto (só o essencial).
+- **Abre no último ciclo aprovado:** o app abre direto no último ciclo da planilha. Quem está logado na validação vai para o ciclo em construção (construtor) ou aguardando aprovação (validador), com uma faixa em destaque no topo.
+- **Tipos de movimento na aprovação:** todos os movimentos cadastrados em *Tipos de movimento* na construção do ciclo entram na aba *Tipos de movimento* quando o validador aprova, inclusive os que ainda não estão em nenhum espaço.
+- **Analytics:** aviso *Página em construção | pode conter erros nos dados e cálculos* no topo.
+- **Topo:** *Copiar link* fica no topo e *Abrir planilha* passa para a engrenagem.
 - **Montar um ciclo novo no app:** com o login da validação, o construtor da estratégia cria um ciclo (em branco, copiando outro ou só os espaços fixos 🔒 de outro) e monta em três passos, num painel na lateral: os Tipos de movimento com o GMV, depois os móveis (clicando na planta; ela pinta e mostra as etiquetas na hora, tudo é salvo sozinho e o painel mostra os números da ER), depois o envio para aprovação. O validador aprova (o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*) ou devolve com um comentário. Enquanto não é aprovado, o ciclo fica em quatro abas novas, criadas sozinhas na primeira vez: *Rascunhos*, *Rascunho Movimentos*, *Rascunho Painéis* e *Rascunho Tipos*. Não apague essas abas nem mexa nelas à mão.
 - **Construção do ciclo, novidades:** cada espaço começa com **uma etiqueta** e o botão **+ Adicionar etiqueta** põe outra (até 4); o **×** tira uma. Nos selects de marca, cada marca aparece com a **cor dela no fundo**. Na gôndola, cada meio tem **Dividir em 2** (e **Juntar metades**). Os espaços fixos (🔒) copiados de outro ciclo aparecem na planta mesmo com o *Comparar com* ligado: ao montar um ciclo, a comparação sai.
 - **Ordem das marcas:** em todas as listas do app (legenda, filtros, selects, Analytics, PNG), as marcas seguem a ordem **BOT | EUD | QDB | OUI | MM**.
@@ -121,7 +125,7 @@ Sem esta aba o app funciona normalmente, e os movimentos aparecem como *Sem clas
 
 Para um ciclo novo, copie as linhas do ciclo anterior (nesta aba e em *Movimentos* e *Painéis*), cole no fim e troque o nome do ciclo.
 
-Se o app mostrar o aviso *"X" não aparece em nenhuma etiqueta do ciclo*, o texto da etiqueta nesta aba está diferente do texto da aba *Movimentos*.
+Se um movimento aparecer como *Sem classificação* no Analytics, o texto da etiqueta nesta aba está diferente do texto da aba *Movimentos*.
 
 ### A7. Gôndola 3 da ER G nos seus ciclos
 

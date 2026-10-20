@@ -141,18 +141,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     if (lido.faltando.length) {
       aviso('Aba "' + CONFIG.ABAS.TIPOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
     }
-    // Etiquetas de cada ciclo (para avisar de movimento que não aparece em nenhuma etiqueta).
-    const etiquetasDoCiclo = function (ciclo) {
-      const vistas = {};
-      const c = movimentos[ciclo] || {};
-      Object.keys(c).forEach(function (p) {
-        Object.keys(c[p]).forEach(function (id) {
-          c[p][id].etiquetas.forEach(function (e) { vistas[chaveEtiqueta_(e.texto)] = true; });
-        });
-      });
-      return vistas;
-    };
-    const etiquetasPorCiclo = {};
+    // Movimento cadastrado sem nenhum espaço no ciclo é válido (ex.: cadastrado na construção do ciclo).
     lido.linhas.forEach(function (l) {
       const ciclo = texto_(l.ciclo);
       const texto = texto_(l.etiqueta);
@@ -170,10 +159,6 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       }
       const gmv = numeroGmv_(l.gmv);
       if (gmv === null && texto_(l.gmv)) aviso(onde + ': GMV esperado "' + texto_(l.gmv) + '" não é um número — ignorado.');
-      if (movimentos[ciclo]) {
-        etiquetasPorCiclo[ciclo] = etiquetasPorCiclo[ciclo] || etiquetasDoCiclo(ciclo);
-        if (!etiquetasPorCiclo[ciclo][k]) aviso(onde + ': "' + texto + '" não aparece em nenhuma etiqueta do ciclo ' + ciclo + '.');
-      }
       tiposMovimento[ciclo][k] = {
         texto: movimentoDaEtiqueta_(texto),
         classificacao: normClassificacao_(l.classificacao),

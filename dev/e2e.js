@@ -118,10 +118,19 @@ const ehZip = (b) => b.length > 1000 && b[0] === 0x50 && b[1] === 0x4b; // .xlsx
 
 /* ------------------------------------------------------------------------- */
 
-test('abre sem ciclo, com as 4 plantas, em modo local', async (t) => {
+test('abre no último ciclo aprovado, com as 4 plantas, em modo local', async (t) => {
   const p = await abrir(t);
   assert.deepStrictEqual(await p.locator('#abasPlanta .aba').allTextContents(), ['ER P', 'ER M', 'ER G', 'ER GG']);
-  assert.strictEqual(await p.inputValue('#selCiclo'), '');
+  assert.strictEqual(await p.inputValue('#selCiclo'), 'Ciclo exemplo cheio', 'o último ciclo da planilha');
+  assert.ok(await p.locator('#slide .grupo-etiquetas').count() > 0, 'a planta abre com as etiquetas do ciclo');
+  // Atualizar mantém o ciclo escolhido (inclusive a planta limpa).
+  await escolherCiclo(p, '');
+  await p.click('#btnAtualizar');
+  await p.waitForSelector('#carregando', { state: 'hidden' });
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), '');
+  // Copiar link fica no topo; Abrir planilha, na engrenagem (no modo local não há planilha).
+  assert.ok(await p.isVisible('#btnLink'));
+  assert.ok(await p.locator('#menuConfigLista #lnkPlanilha').count() === 1);
   const opcoes = await p.locator('#selCiclo option').allTextContents();
   assert.ok(opcoes.includes('Ciclo exemplo') && opcoes.includes('Ciclo exemplo cheio'), opcoes.join(', '));
   assert.ok(await p.isVisible('#avisoLocal'));
@@ -440,6 +449,7 @@ test('tutorial: boas-vindas na primeira visita e o tour inteiro', async (t) => {
 
 test('comparar ciclos: só o que mudou fica colorido, com a lista no painel', async (t) => {
   const p = await abrir(t);
+  await escolherCiclo(p, '');
   assert.ok(await p.isHidden('#campoComparar'), 'sem ciclo, não há comparação');
   await escolherCiclo(p, 'Ciclo exemplo cheio');
   const cinzas = () => p.locator('#slide .movel polygon[fill="#D2D2D2"]').count();
@@ -504,7 +514,7 @@ test('link: o #hash abre no ciclo, ER, visão e filtro, e acompanha a tela', asy
   await abaPlanta(p, 'ER M').click();
   assert.match(await p.evaluate(() => location.hash), /er=ER\+M/);
   // Copiar link (sem área de transferência no teste: cai no prompt, que o teste aceita).
-  await menuConfig(p, 'btnLink');
+  await p.click('#btnLink');
 });
 
 test('modo apresentação: F mostra só a planta; setas trocam a ER; F sai', async (t) => {
@@ -537,7 +547,8 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
     await p.fill('#acessoSenha', '1234');
     await p.click('#acessoEntrar');
     await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
-    await p.waitForSelector('.rs-secao');
+    // O painel da validação ou, se o papel tem um ciclo em construção (que abre sozinho), o de construção.
+    await p.locator('.rs-secao:visible, #painelConstrucao:visible').first().waitFor();
   };
   // Construindo, o painel da validação fica atrás do de construção: "Comentários" mostra o painel (com o Sair).
   const sair = async () => {
@@ -557,9 +568,12 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
   assert.strictEqual(await estado(p, () => App.estado.ciclo), 'C11/2026');
   assert.ok(await p.locator('#selCiclo optgroup[label="Em construção"] option').count() === 1);
-  // O construtor monta pelo painel da lateral (no lugar da faixa e do painel da validação).
+  // O construtor monta pelo painel da lateral (no lugar do painel da validação); a faixa do topo avisa que o ciclo
+  // está em construção, sem as ações (que ficam no painel).
   assert.ok(await p.isVisible('#painelConstrucao'));
-  assert.ok(await p.isHidden('#barraRascunho') && await p.isHidden('#painelValidacao'));
+  assert.ok(await p.isHidden('#painelValidacao'));
+  assert.match(await p.textContent('#barraRascunho'), /Ciclo C11\/2026 \(não publicado\).*Em construção.*Você está montando/);
+  assert.strictEqual(await p.locator('#rascunhoAcoes button').count(), 0);
 
   // O painel mostra os passos: o 1 (tipos com GMV) ainda não está pronto (o servidor recusa o envio; testes.test.js).
   assert.match(await p.textContent('#pcPassos .rs-passos li:first-child'), /Tipos de movimento.*sem GMV/);
@@ -648,9 +662,11 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
 
   // Validador: devolve (vira comentário).
   await sair();
-  assert.strictEqual(await estado(p, () => App.estado.ciclo), '', 'sem login, o rascunho some');
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), 'Ciclo exemplo cheio', 'sem login, o rascunho some (volta ao último aprovado)');
   await entrar('VALIDADOR', 'Ana');
-  await p.selectOption('#selCiclo', 'C11/2026');
+  // Ao entrar, o validador vai direto para o ciclo que aguarda aprovação, com o aviso em destaque.
+  await p.waitForFunction(() => App.estado.ciclo === 'C11/2026');
+  assert.match(await p.textContent('#barraRascunho'), /Ciclo C11\/2026 \(não publicado\).*Aguardando aprovação.*aprove ou devolva/);
   await acao('Devolver');
   await p.fill('#rascunhoCorpo textarea', 'Faltou o totem');
   await p.click('#rascunhoOk');
@@ -660,7 +676,8 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   // Construtor reenvia; validador aprova: o ciclo entra na planilha e aparece para todos.
   await sair();
   await entrar('CONSTRUTOR', 'Bia');
-  await p.selectOption('#selCiclo', 'C11/2026');
+  // Ao entrar, o construtor vai direto para o ciclo que está montando (devolvido, de novo em construção).
+  await p.waitForFunction(() => App.estado.ciclo === 'C11/2026');
   await passo('3. Enviar para aprovação');
   await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status') && document.querySelector('#rascunhoInfo .rs-status').textContent === 'Aguardando aprovação');
   await sair();

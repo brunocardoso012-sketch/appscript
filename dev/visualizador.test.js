@@ -121,7 +121,7 @@ test('visualizador: ciclo montado no app entra nas abas da planilha quando aprov
   const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
   const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
   run(`salvarRascunho(${C}, { acao: 'criar', ciclo: 'C20' })`);
-  run(`salvarRascunho(${C}, { acao: 'salvarTipos', ciclo: 'C20', linhas: [{ etiqueta: 'OUTLET', classificacao: 'outlet', gmv: '500 mil' }] })`);
+  run(`salvarRascunho(${C}, { acao: 'salvarTipos', ciclo: 'C20', linhas: [{ etiqueta: 'OUTLET', classificacao: 'outlet', gmv: '500 mil' }, { etiqueta: 'MOVIMENTO NOVO', classificacao: 'lancamento', gmv: '1,5 mi' }] })`);
   run(`salvarRascunho(${C}, { acao: 'salvarEspaco', ciclo: 'C20', planta: 'ER P', movel: 'PIRAMIDE 1', linha: { marca: 'EUD', etiquetas: [{ texto: 'OUTLET' }] } })`);
   assert.ok(!run('getDados()').ciclos.includes('C20'), 'em construção não aparece para todos');
   run(`salvarRascunho(${C}, { acao: 'enviar', ciclo: 'C20' })`);
@@ -131,7 +131,9 @@ test('visualizador: ciclo montado no app entra nas abas da planilha quando aprov
   assert.deepEqual(d.ciclos, ['Ciclo exemplo', 'Ciclo exemplo cheio', 'C20']);
   assert.deepEqual(d.movimentos.C20['01']['PIRAMIDE 1'].etiquetas.map((e) => e.texto), ['OUTLET']);
   assert.equal(d.tiposMovimento.C20.OUTLET.gmv, 500000);
-  assert.deepEqual(d.avisos, []);
+  // O movimento novo, cadastrado nos tipos mas ainda sem espaço, também entra na aba Tipos de movimento.
+  assert.equal(d.tiposMovimento.C20['MOVIMENTO NOVO'].gmv, 1500000);
+  assert.equal(d.tiposMovimento.C20['MOVIMENTO NOVO'].classificacao, 'LANCAMENTO');
 });
 
 test('visualizador: antecipações ficam na aba Antecipações e chegam a todos no getDados', () => {
