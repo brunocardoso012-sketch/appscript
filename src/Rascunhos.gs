@@ -81,7 +81,7 @@ function ciclosPublicados_(abas) {
 
 /**
  * Linha da aba Movimentos de um espaço, a partir do que a página manda.
- * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca}>}} l
+ * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca, simbolo?, data?}>}} l  data: da antecipação (⏩)
  * @return {Object|null} null quando o espaço fica vazio (a linha sai)
  */
 function linhaDeEspaco_(ciclo, planta, movel, l) {
@@ -97,6 +97,9 @@ function linhaDeEspaco_(ciclo, planta, movel, l) {
     const e = etiquetas[i - 1];
     o['etiqueta' + i] = e ? texto_(e.texto).slice(0, 200) : '';
     o['marcaEtiqueta' + i] = e ? normMarca_(e.marca) : '';
+    const simbolo = e ? normSimbolo_(e.simbolo, null, null, true) : '';
+    o['simboloEtiqueta' + i] = simbolo;
+    o['dataEtiqueta' + i] = simbolo === 'ANTECIPADO' ? dataAntecipacaoTexto_(dataAntecipacao_(e.data)) : '';
   }
   return o.marca || o.simbolo || o.observacao || etiquetas.length ? o : null;
 }

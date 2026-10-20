@@ -692,3 +692,43 @@ test('ciclo em construção: etiqueta com observação usa o movimento cadastrad
   assert.throws(() => salvar({ acao: 'salvarEspaco', ciclo: 'C30', planta: 'ER P', movel: 'PIRAMIDE 2', linha: { etiquetas: [{ texto: 'OUTRO | OUTLET' }] } }), /fora dos Tipos/);
   salvar({ acao: 'enviar', ciclo: 'C30' });
 });
+
+test('símbolo por etiqueta: colunas "Símbolo Etiqueta N" e, com a antecipação, "Data Etiqueta N"', () => {
+  const { run } = carregarGas();
+  const mov = [
+    ['Ciclo', 'Planta', 'ID Móvel', 'Etiqueta 1', 'Símbolo Etiqueta 1', 'Etiqueta 2', 'Símbolo Etiqueta 2', 'Data Etiqueta 2', 'Etiqueta 3', 'Símbolo Etiqueta 3', 'Data Etiqueta 3', 'Símbolo'],
+    ['C1', 'ER P', 'PIRAMIDE 1', 'BOTIPROMO', 'NEW', 'LÇTO EGEO', '⏩', '25/10/2026', 'OUTLET', 'ANTECIPADO', '31/02/2026', ''],
+    ['C1', 'ER P', 'PIRAMIDE 2', 'BOTIPROMO', '', '', '', '', '', '', '', 'ANTECIPADO'],
+  ];
+  const d = run(`montarDados_(valoresLayoutPadrao_(), ${JSON.stringify(mov)}, [], null)`);
+  const e = d.movimentos.C1['01']['PIRAMIDE 1'].etiquetas;
+  assert.deepEqual(e[0], { texto: 'BOTIPROMO', marca: '', posicao: 1, simbolo: 'NOVO' });
+  assert.deepEqual(e[1], { texto: 'LÇTO EGEO', marca: '', posicao: 2, simbolo: 'ANTECIPADO', data: '2026-10-25' });
+  assert.equal(e[2].simbolo, 'ANTECIPADO');
+  assert.ok(!e[2].data, 'data inválida fica de fora');
+  assert.ok(d.avisos.some((a) => /data da etiqueta 3 "31\/02\/2026" inválida/.test(a)), d.avisos.join(' | '));
+  // No espaço (coluna Símbolo), a antecipação continua vindo só da aba Antecipações.
+  assert.equal(d.movimentos.C1['01']['PIRAMIDE 2'].simbolo, '');
+  assert.ok(d.avisos.some((a) => /símbolo "ANTECIPADO" não reconhecido/.test(a)));
+});
+
+test('ciclo em construção: símbolo e data de antecipação por etiqueta vão para a aba e voltam', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  const salvar = (pedido) => run(`salvarRascunho(${C}, ${JSON.stringify(pedido)})`);
+  salvar({ acao: 'criar', ciclo: 'C31' });
+  salvar({ acao: 'salvarTipos', ciclo: 'C31', linhas: [{ etiqueta: 'OUTLET', gmv: '10 mil' }, { etiqueta: 'BOTIPROMO', gmv: '5 mil' }] });
+  const r = salvar({ acao: 'salvarEspaco', ciclo: 'C31', planta: 'ER P', movel: 'PIRAMIDE 1', linha: { marca: 'EUD', etiquetas: [
+    { texto: 'OUTLET', simbolo: 'FIXO' }, { texto: 'BOTIPROMO', simbolo: 'ANTECIPADO', data: '2026-11-05' },
+  ] } });
+  const e = r.movimentos.C31['01']['PIRAMIDE 1'].etiquetas;
+  assert.equal(e[0].simbolo, 'FIXO');
+  assert.ok(!e[0].data);
+  assert.deepEqual([e[1].simbolo, e[1].data], ['ANTECIPADO', '2026-11-05']);
+  const aba = f.planilha.getSheetByName('Rascunho Movimentos').getDataRange().getValues();
+  const cab = aba[0];
+  assert.equal(aba[1][cab.indexOf('Data Etiqueta 2')], '05/11/2026', 'na planilha, a data em dd/mm/aaaa');
+  assert.equal(aba[1][cab.indexOf('Símbolo Etiqueta 2')], 'ANTECIPADO');
+});

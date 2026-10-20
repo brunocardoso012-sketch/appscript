@@ -931,7 +931,7 @@ const App = (() => {
   function mudancasEntre(planta, ciclo, outro) {
     const assinatura = (i) => (linhaValida(i)
       // A etiqueta inteira (com a observação depois do "|"): mudar só a observação também é mudança.
-      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => String(e.texto).trim().replace(/\s+/g, ' ').toUpperCase() + '#' + (e.marca || ''))]) : '');
+      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => String(e.texto).trim().replace(/\s+/g, ' ').toUpperCase() + '#' + (e.marca || '') + '#' + (e.simbolo || '') + (e.data || ''))]) : '');
     return espacosDaPlanta(planta, ciclo).map((x) => {
       const id = x.espaco && x.espaco.id;
       const depois = linhaDoEspaco(ciclo, planta.id, x.movel, id);
@@ -1447,6 +1447,9 @@ const App = (() => {
   }).join(' + ');
 
   /** Bloco da tela com o que uma linha da planilha define (marca, símbolo, etiquetas, observação). */
+  /** Ícone de cada símbolo nos textos (tela do móvel, listas). */
+  const ICONES_SIMBOLO = { FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' };
+
   function blocoEstrategia(pai, titulo, i, opcoes) {
     const op = opcoes || {};
     const sec = novo('section', 'mv-bloco', null, pai);
@@ -1468,7 +1471,7 @@ const App = (() => {
       const sim = novo('div', 'mv-linha', null, sec);
       novo('span', 'mv-rotulo', 'Símbolo', sim);
       const d = estado.dados.simbolos[i.simbolo];
-      novo('span', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
+      novo('span', null, (ICONES_SIMBOLO[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
     }
     // Antecipação: quando entra, de onde vem e o que o espaço tinha antes.
     if (i.antecipacoes) Antecipacao.montarDetalhe(sec, i);
@@ -1484,6 +1487,12 @@ const App = (() => {
       const chip = novo('span', 'mv-etiqueta', e.texto, li);
       chip.style.background = corDaMarca(marcaEtq, 'etiqueta');
       if (e.marca && e.marca !== i.marca) novo('span', 'mv-marca-etq', nomeDaMarca(e.marca), li);
+      // Símbolo próprio da etiqueta; com a antecipação, a data em que entra.
+      if (e.simbolo) {
+        const d = estado.dados.simbolos[e.simbolo];
+        const data = e.data ? ' · entra em ' + e.data.split('-').reverse().join('/') : '';
+        novo('span', 'mv-simbolo-etq', (ICONES_SIMBOLO[e.simbolo] || '') + (d ? d.descricao : e.simbolo) + data, li);
+      }
     });
     if (i.observacao) {
       const obs = novo('div', 'mv-linha', null, sec);

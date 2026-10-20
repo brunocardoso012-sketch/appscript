@@ -611,11 +611,11 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.ok(await p.isHidden('#dlgMovel'));
   assert.strictEqual(await p.locator('#slide .movel.selecionado[data-movel="GONDOLA 1"]').count() > 0, true, 'contorno no móvel selecionado');
   const ponta = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-A"]');
-  const opcoes = await ponta.locator('.rs-etq select:not(.rs-marca)').first().locator('option').allTextContents();
+  const opcoes = await ponta.locator('.rs-etq select:not(.rs-marca):not(.rs-etq-simbolo)').first().locator('option').allTextContents();
   assert.ok(opcoes.includes('NOVO MOVIMENTO OUI') && !opcoes.some((o) => /fora dos tipos/.test(o)));
   await ponta.locator('select.rs-marca').first().selectOption('OUI');
   await ponta.locator('select').nth(1).selectOption('FIXO');
-  await ponta.locator('.rs-etq select:not(.rs-marca)').first().selectOption('NOVO MOVIMENTO OUI');
+  await ponta.locator('.rs-etq select:not(.rs-marca):not(.rs-etq-simbolo)').first().selectOption('NOVO MOVIMENTO OUI');
   assert.ok(await p.locator('#slide .grupo-etiquetas', { hasText: 'NOVO MOVIMENTO OUI' }).count() > 0, 'a etiqueta aparece na planta na hora');
   assert.notStrictEqual(await p.textContent('#pcGravacao'), 'Tudo salvo', 'ainda não gravou');
   await ponta.locator('.rs-etq select.rs-marca').first().selectOption('OUI');
@@ -757,9 +757,9 @@ test('ciclo em construção: fixos na planta mesmo comparando, meio dividido, et
   for (let k = 0; k < 3; k++) await add.click();
   assert.strictEqual(await ponta.locator('.rs-etq').count(), 4);
   assert.ok(await add.isHidden(), 'no limite, o botão some');
-  const tipos = await ponta.locator('.rs-etq').first().locator('select:not(.rs-marca) option').evaluateAll((os) => os.map((o) => o.value).filter(Boolean));
-  await ponta.locator('.rs-etq').nth(0).locator('select:not(.rs-marca)').selectOption(tipos[0]);
-  await ponta.locator('.rs-etq').nth(1).locator('select:not(.rs-marca)').selectOption(tipos[1] || tipos[0]);
+  const tipos = await ponta.locator('.rs-etq').first().locator('select:not(.rs-marca):not(.rs-etq-simbolo) option').evaluateAll((os) => os.map((o) => o.value).filter(Boolean));
+  await ponta.locator('.rs-etq').nth(0).locator('select:not(.rs-marca):not(.rs-etq-simbolo)').selectOption(tipos[0]);
+  await ponta.locator('.rs-etq').nth(1).locator('select:not(.rs-marca):not(.rs-etq-simbolo)').selectOption(tipos[1] || tipos[0]);
   await gravado();
   assert.strictEqual((await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']['GONDOLA 2/PONTA-A'])).etiquetas.length, 2);
   // "×" tira uma etiqueta.
@@ -777,17 +777,34 @@ test('ciclo em construção: fixos na planta mesmo comparando, meio dividido, et
   assert.deepStrictEqual(await p.locator('#legenda .chip').allTextContents().then((x) => x.map((s) => s.trim())), ['BOT', 'EUD', 'QDB', 'OUI', 'MM']);
   await gravado();
 
+  // Símbolo por etiqueta: a antecipação (⏩) pede a data logo em seguida; a planta mostra o símbolo e a data.
+  const etq1 = ponta.locator('.rs-etq').nth(0);
+  assert.ok(await etq1.locator('.rs-etq-data').isHidden(), 'sem antecipação, sem data');
+  await etq1.locator('.rs-etq-simbolo').selectOption('ANTECIPADO');
+  assert.ok(await etq1.locator('.rs-etq-data').isVisible(), 'com a antecipação, a data aparece em seguida');
+  await etq1.locator('.rs-etq-data').fill('2026-10-25');
+  await etq1.locator('.rs-etq-data').dispatchEvent('change');
+  await ponta.locator('.rs-etq').nth(1).locator('.rs-etq-simbolo').selectOption('NOVO');
+  await gravado();
+  const comSimbolos = (await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']['GONDOLA 2/PONTA-A'])).etiquetas;
+  assert.deepStrictEqual([comSimbolos[0].simbolo, comSimbolos[0].data, comSimbolos[1].simbolo], ['ANTECIPADO', '2026-10-25', 'NOVO']);
+  assert.ok(await p.locator('#slide text', { hasText: '25/10' }).count() > 0, 'a data aparece ao lado do símbolo, na planta');
+  assert.ok((await estado(p, () => App.estado.simbolos)).includes('ANTECIPADO'), 'a antecipação entra na legenda');
+  await p.click('#btnAtualizar');
+  await p.waitForSelector('#carregando', { state: 'hidden' });
+  assert.strictEqual((await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']['GONDOLA 2/PONTA-A'])).etiquetas[0].data, '2026-10-25', 'o servidor guardou a data');
+
   // Meio da gôndola em 2: o que estava no meio vai para a metade 1; a planta divide o meio na hora.
   const meio = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A"]');
-  await meio.locator('.rs-etq select:not(.rs-marca)').first().selectOption(tipos[0]);
+  await meio.locator('.rs-etq select:not(.rs-marca):not(.rs-etq-simbolo)').first().selectOption(tipos[0]);
   await gravado();
   await meio.locator('button', { hasText: 'Dividir em 2' }).click();
   await p.waitForSelector('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A-2"]');
   assert.ok(await p.locator('#slide .movel[data-movel="GONDOLA 2"][data-espaco="MEIO-A-2"]').count() > 0, 'a planta mostra as duas metades');
   const m1 = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A-1"]');
-  assert.strictEqual(await m1.locator('.rs-etq select:not(.rs-marca)').first().inputValue(), tipos[0]);
+  assert.strictEqual(await m1.locator('.rs-etq select:not(.rs-marca):not(.rs-etq-simbolo)').first().inputValue(), tipos[0]);
   const m2 = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A-2"]');
-  await m2.locator('.rs-etq select:not(.rs-marca)').first().selectOption(tipos[1] || tipos[0]);
+  await m2.locator('.rs-etq select:not(.rs-marca):not(.rs-etq-simbolo)').first().selectOption(tipos[1] || tipos[0]);
   await gravado();
   let er = await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']);
   assert.ok(!er['GONDOLA 2/MEIO-A'] && er['GONDOLA 2/MEIO-A-1'] && er['GONDOLA 2/MEIO-A-2']);

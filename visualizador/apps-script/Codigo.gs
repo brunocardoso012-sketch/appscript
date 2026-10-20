@@ -413,8 +413,9 @@ const SIMBOLOS = {
   FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', 'CADEADO', '🔒', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
-  // Não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
-  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: [], automatico: true },
+  // No espaço, não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
+  // Na etiqueta, pode vir da planilha (coluna "Símbolo Etiqueta N"), com a data em "Data Etiqueta N".
+  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: ['ANTECIPACAO', 'ANTECIPADA', '⏩'], automatico: true },
 };
 
 /**
@@ -547,6 +548,9 @@ function colunasMovimentos_() {
   for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
     cols.push({ chave: 'etiqueta' + i, titulo: 'Etiqueta ' + i, texto: true, apelidos: ['Texto ' + i] });
     cols.push({ chave: 'marcaEtiqueta' + i, titulo: 'Marca Etiqueta ' + i, apelidos: ['Cor Etiqueta ' + i] });
+    // Símbolo próprio da etiqueta (aparece ao lado dela); com a antecipação (⏩), a data em que entra.
+    cols.push({ chave: 'simboloEtiqueta' + i, titulo: 'Símbolo Etiqueta ' + i });
+    cols.push({ chave: 'dataEtiqueta' + i, titulo: 'Data Etiqueta ' + i, texto: true, apelidos: ['Data Antecipação ' + i] });
   }
   cols.push({ chave: 'simbolo', titulo: 'Símbolo' });
   cols.push({ chave: 'observacao', titulo: 'Observação', texto: true, apelidos: ['Obs'] });
@@ -1193,7 +1197,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
         const t = texto_(l['etiqueta' + i]);
         // posicao = número da coluna (na gôndola, cada uma vai para um bloco).
-        if (t) etiquetas.push({ texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i });
+        if (t) etiquetas.push(etiquetaDaLinha_(l, i, t, aviso, onde));
       }
       registrarCiclo(ciclo);
       movimentos[ciclo] = movimentos[ciclo] || {};
@@ -1673,13 +1677,29 @@ function normMarca_(v, aviso, onde) {
   return codigos.join('+');
 }
 
-function normSimbolo_(v, aviso, onde) {
+/**
+ * Etiqueta N de uma linha da aba Movimentos: texto, marca, posição e, se houver, o símbolo próprio dela e, com a
+ * antecipação (⏩), a data em que entra ("2026-10-25"). simbolo e data só aparecem quando preenchidos.
+ */
+function etiquetaDaLinha_(l, i, t, aviso, onde) {
+  const e = { texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i };
+  const simbolo = normSimbolo_(l['simboloEtiqueta' + i], aviso, onde, true);
+  if (simbolo) e.simbolo = simbolo;
+  if (simbolo === 'ANTECIPADO') {
+    const data = dataAntecipacao_(l['dataEtiqueta' + i]);
+    if (data) e.data = data;
+    else if (texto_(l['dataEtiqueta' + i]) && aviso) aviso(onde + ': data da etiqueta ' + i + ' "' + texto_(l['dataEtiqueta' + i]) + '" inválida (use dd/mm/aaaa).');
+  }
+  return e;
+}
+
+function normSimbolo_(v, aviso, onde, daEtiqueta) {
   const s = texto_(v);
   if (!s) return '';
   const bruto = s.toUpperCase();
   const k = chave_(s);
-  // O de antecipação (automatico) não vem da planilha: só da aba Antecipações.
-  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return !SIMBOLOS[c].automatico; });
+  // O de antecipação (automatico) não vem da coluna Símbolo do espaço (só da aba Antecipações); na etiqueta, vem.
+  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return daEtiqueta || !SIMBOLOS[c].automatico; });
   for (let i = 0; i < codigos.length; i++) {
     const nomes = [codigos[i]].concat(SIMBOLOS[codigos[i]].apelidos || []);
     for (let j = 0; j < nomes.length; j++) {
@@ -2106,7 +2126,7 @@ function ciclosPublicados_(abas) {
 
 /**
  * Linha da aba Movimentos de um espaço, a partir do que a página manda.
- * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca}>}} l
+ * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca, simbolo?, data?}>}} l  data: da antecipação (⏩)
  * @return {Object|null} null quando o espaço fica vazio (a linha sai)
  */
 function linhaDeEspaco_(ciclo, planta, movel, l) {
@@ -2122,6 +2142,9 @@ function linhaDeEspaco_(ciclo, planta, movel, l) {
     const e = etiquetas[i - 1];
     o['etiqueta' + i] = e ? texto_(e.texto).slice(0, 200) : '';
     o['marcaEtiqueta' + i] = e ? normMarca_(e.marca) : '';
+    const simbolo = e ? normSimbolo_(e.simbolo, null, null, true) : '';
+    o['simboloEtiqueta' + i] = simbolo;
+    o['dataEtiqueta' + i] = simbolo === 'ANTECIPADO' ? dataAntecipacaoTexto_(dataAntecipacao_(e.data)) : '';
   }
   return o.marca || o.simbolo || o.observacao || etiquetas.length ? o : null;
 }

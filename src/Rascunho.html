@@ -105,7 +105,12 @@ const Rascunho = (() => {
     }
     er[chave] = {
       marca: l.marca || '', simbolo: l.simbolo || '', observacao: obs,
-      etiquetas: l.etiquetas.map((e, k) => ({ texto: e.texto, marca: e.marca || '', posicao: k + 1 })),
+      etiquetas: l.etiquetas.map((e, k) => {
+        const x = { texto: e.texto, marca: e.marca || '', posicao: k + 1 };
+        if (e.simbolo) x.simbolo = e.simbolo;
+        if (e.simbolo === 'ANTECIPADO' && e.data) x.data = e.data;
+        return x;
+      }),
     };
   }
 
@@ -569,7 +574,7 @@ const Rascunho = (() => {
   const temConteudo = (i) => !!(i && (i.marca || i.simbolo || (i.observacao || '').trim() || i.etiquetas.length));
   const copiaDaLinha = (i) => ({
     marca: i.marca || '', simbolo: i.simbolo || '', observacao: i.observacao || '',
-    etiquetas: i.etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || '' })),
+    etiquetas: i.etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || '', simbolo: e.simbolo || '', data: e.data || '' })),
   });
 
   /** Muda um espaço na tela e agenda a gravação (linha vazia apaga a linha do espaço nesta ER). */
@@ -680,7 +685,10 @@ const Rascunho = (() => {
       marca: marca.value, simbolo: simbolo.value, observacao: obs.value,
       etiquetas: campos.filter((c) => c.t.value.trim()).map((c) => {
         const obsEtq = c.o.value.replace(/\|/g, '/').trim();
-        return { texto: c.t.value + (obsEtq ? ' | ' + obsEtq : ''), marca: c.m.value };
+        const e = { texto: c.t.value + (obsEtq ? ' | ' + obsEtq : ''), marca: c.m.value };
+        if (c.s.value) e.simbolo = c.s.value;
+        if (c.s.value === 'ANTECIPADO' && c.d.value) e.data = c.d.value; // "2026-10-25"
+        return e;
       }),
     });
     const mudou = (redesenhar) => {
@@ -697,7 +705,9 @@ const Rascunho = (() => {
         c.o.setAttribute('aria-label', 'Observação da etiqueta ' + (k + 1) + ' de ' + b.titulo);
         c.m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1) + ' de ' + b.titulo);
         c.x.setAttribute('aria-label', 'Tirar a etiqueta ' + (k + 1) + ' de ' + b.titulo);
-        c.x.hidden = campos.length === 1 && !c.t.value && !c.o.value && !c.m.value;
+        c.s.setAttribute('aria-label', 'Símbolo da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.d.setAttribute('aria-label', 'Data da antecipação da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.x.hidden = campos.length === 1 && !c.t.value && !c.o.value && !c.m.value && !c.s.value;
       });
       if (adicionar) adicionar.hidden = campos.length >= b.limite;
     };
@@ -723,19 +733,42 @@ const Rascunho = (() => {
       o.title = 'Aparece na planta depois de um "|" (ex.: ' + (movimento || 'LÇTO EGEO') + ' | só no kit). Não entra nas contas.';
       o.value = Render.obsDaEtiqueta(e.texto);
       const mc = selectMarca(row, e.marca, 'Cor da marca do espaço');
-      const c = { row, t, o, m: mc };
+      // Símbolo próprio da etiqueta (aparece ao lado dela); com a antecipação (⏩), a data em que entra.
+      const sl = n('div', 'pc-etq-simbolo', null, row);
+      const se = n('select', 'rs-etq-simbolo', null, sl);
+      n('option', null, 'Sem símbolo', se).value = '';
+      Object.keys(app.estado.dados.simbolos).forEach((x) => {
+        const d = app.estado.dados.simbolos[x];
+        n('option', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' }[x] || '') + (x === 'ANTECIPADO' ? 'Antecipação' : d.descricao || x), se).value = x;
+      });
+      se.value = e.simbolo || '';
+      const de = n('input', 'rs-etq-data', null, sl);
+      de.type = 'date';
+      de.value = e.data || '';
+      de.title = 'Data em que a antecipação entra';
+      const mostrarData = () => {
+        de.hidden = se.value !== 'ANTECIPADO';
+        de.required = !de.hidden;
+      };
+      mostrarData();
+      se.addEventListener('change', () => {
+        mostrarData();
+        if (!de.hidden && !de.value) de.focus(); // escolheu a antecipação: em seguida, a data
+      });
+      const c = { row, t, o, m: mc, s: se, d: de };
       c.x = botao('×', 'fantasma pc-tirar-etq', () => {
         if (campos.length > 1) {
           row.remove();
           campos.splice(campos.indexOf(c), 1);
         } else {
-          [t, o, mc].forEach((el) => { el.value = ''; });
+          [t, o, mc, se, de].forEach((el) => { el.value = ''; });
           mc.dispatchEvent(new Event('input')); // tira a cor do select
+          mostrarData();
         }
         renumerar();
         mudou(true);
       }, row);
-      [t, mc, o].forEach((el) => el.addEventListener('change', () => { renumerar(); mudou(true); }));
+      [t, mc, o, se, de].forEach((el) => el.addEventListener('change', () => { renumerar(); mudou(true); }));
       campos.push(c);
       renumerar();
       return c;
@@ -751,7 +784,11 @@ const Rascunho = (() => {
       [marca, simbolo, obs].forEach((el) => { el.value = ''; });
       marca.dispatchEvent(new Event('input'));
       campos.splice(1).forEach((c) => c.row.remove());
-      campos.forEach((c) => { [c.t, c.o, c.m].forEach((el) => { el.value = ''; }); c.m.dispatchEvent(new Event('input')); });
+      campos.forEach((c) => {
+        [c.t, c.o, c.m, c.s, c.d].forEach((el) => { el.value = ''; });
+        c.m.dispatchEvent(new Event('input'));
+        c.s.dispatchEvent(new Event('change'));
+      });
       renumerar();
       mudou(true);
     }, acoes);

@@ -651,6 +651,7 @@
   .pg-testeira.neutra .pg-sem { color: var(--texto-2); }
   .pg-nota { margin: 10px 0 0; font-size: 13px; color: var(--texto-2); }
   .mv-marca-etq { font-size: 14px; color: var(--texto-2); }
+  .mv-simbolo-etq { font-size: 12px; color: var(--texto-2); white-space: nowrap; }
   .mv-obs { white-space: pre-line; }
   .mv-vazio { color: var(--texto-2); font-style: italic; margin: 0; font-size: 16px; }
   @media (max-width: 760px) {
@@ -917,6 +918,11 @@
   /* Select de marca com a cor da marca escolhida no fundo (as opções também levam a cor). */
   select.com-cor-marca { font-weight: 600; border-color: transparent; }
   .pc-etiquetas .rs-etq .rs-etq-obs { grid-column: 1 / -1; order: 3; font-size: 12px; }
+  /* Símbolo da etiqueta e, com a antecipação, a data (embaixo da observação). */
+  .pc-etiquetas .rs-etq .pc-etq-simbolo { grid-column: 1 / -1; order: 4; display: flex; gap: 6px; }
+  .pc-etq-simbolo select { flex: 1 1 auto; min-width: 0; }
+  .pc-etq-simbolo input[type="date"] { flex: 0 0 150px; padding: 4px 6px; font: inherit; font-size: 13px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); }
+  .pc-etq-simbolo input[hidden] { display: none; }
   .pc-etiquetas select { padding: 5px 7px; font-size: 13px; }
   .pc-espaco .val-acoes { margin: 0; }
   .pc-bloco { margin: 0 0 16px; }
@@ -1269,8 +1275,9 @@ const SIMBOLOS = {
   FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', 'CADEADO', '🔒', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
-  // Não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
-  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: [], automatico: true },
+  // No espaço, não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
+  // Na etiqueta, pode vir da planilha (coluna "Símbolo Etiqueta N"), com a data em "Data Etiqueta N".
+  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: ['ANTECIPACAO', 'ANTECIPADA', '⏩'], automatico: true },
 };
 
 /**
@@ -1403,6 +1410,9 @@ function colunasMovimentos_() {
   for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
     cols.push({ chave: 'etiqueta' + i, titulo: 'Etiqueta ' + i, texto: true, apelidos: ['Texto ' + i] });
     cols.push({ chave: 'marcaEtiqueta' + i, titulo: 'Marca Etiqueta ' + i, apelidos: ['Cor Etiqueta ' + i] });
+    // Símbolo próprio da etiqueta (aparece ao lado dela); com a antecipação (⏩), a data em que entra.
+    cols.push({ chave: 'simboloEtiqueta' + i, titulo: 'Símbolo Etiqueta ' + i });
+    cols.push({ chave: 'dataEtiqueta' + i, titulo: 'Data Etiqueta ' + i, texto: true, apelidos: ['Data Antecipação ' + i] });
   }
   cols.push({ chave: 'simbolo', titulo: 'Símbolo' });
   cols.push({ chave: 'observacao', titulo: 'Observação', texto: true, apelidos: ['Obs'] });
@@ -1544,7 +1554,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
         const t = texto_(l['etiqueta' + i]);
         // posicao = número da coluna (na gôndola, cada uma vai para um bloco).
-        if (t) etiquetas.push({ texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i });
+        if (t) etiquetas.push(etiquetaDaLinha_(l, i, t, aviso, onde));
       }
       registrarCiclo(ciclo);
       movimentos[ciclo] = movimentos[ciclo] || {};
@@ -2024,13 +2034,29 @@ function normMarca_(v, aviso, onde) {
   return codigos.join('+');
 }
 
-function normSimbolo_(v, aviso, onde) {
+/**
+ * Etiqueta N de uma linha da aba Movimentos: texto, marca, posição e, se houver, o símbolo próprio dela e, com a
+ * antecipação (⏩), a data em que entra ("2026-10-25"). simbolo e data só aparecem quando preenchidos.
+ */
+function etiquetaDaLinha_(l, i, t, aviso, onde) {
+  const e = { texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i };
+  const simbolo = normSimbolo_(l['simboloEtiqueta' + i], aviso, onde, true);
+  if (simbolo) e.simbolo = simbolo;
+  if (simbolo === 'ANTECIPADO') {
+    const data = dataAntecipacao_(l['dataEtiqueta' + i]);
+    if (data) e.data = data;
+    else if (texto_(l['dataEtiqueta' + i]) && aviso) aviso(onde + ': data da etiqueta ' + i + ' "' + texto_(l['dataEtiqueta' + i]) + '" inválida (use dd/mm/aaaa).');
+  }
+  return e;
+}
+
+function normSimbolo_(v, aviso, onde, daEtiqueta) {
   const s = texto_(v);
   if (!s) return '';
   const bruto = s.toUpperCase();
   const k = chave_(s);
-  // O de antecipação (automatico) não vem da planilha: só da aba Antecipações.
-  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return !SIMBOLOS[c].automatico; });
+  // O de antecipação (automatico) não vem da coluna Símbolo do espaço (só da aba Antecipações); na etiqueta, vem.
+  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return daEtiqueta || !SIMBOLOS[c].automatico; });
   for (let i = 0; i < codigos.length; i++) {
     const nomes = [codigos[i]].concat(SIMBOLOS[codigos[i]].apelidos || []);
     for (let j = 0; j < nomes.length; j++) {
@@ -2754,9 +2780,11 @@ function formatarAba_(sh, colunas, cab, maxLinhas) {
             .build()
         );
       });
-    } else if (c.chave === 'simbolo') {
-      lista = Object.keys(SIMBOLOS);
-      ajuda = Object.keys(SIMBOLOS).map(function (k) { return k + ' = ' + SIMBOLOS[k].descricao; }).join(' | ');
+    } else if (c.chave === 'simbolo' || /^simboloEtiqueta/.test(c.chave)) {
+      // No espaço, o de antecipação vem só da aba Antecipações; na etiqueta, pode vir daqui (com a data ao lado).
+      lista = Object.keys(SIMBOLOS).filter(function (k) { return c.chave !== 'simbolo' || !SIMBOLOS[k].automatico; });
+      ajuda = lista.map(function (k) { return k + ' = ' + SIMBOLOS[k].descricao; }).join(' | ')
+        + (c.chave === 'simbolo' ? '' : '. Com ANTECIPADO, preencha a data na coluna ao lado (dd/mm/aaaa).');
     } else if (c.chave === 'secao') {
       lista = Object.keys(SECOES_PAINEL);
       ajuda = Object.keys(SECOES_PAINEL).map(function (k) { return k + ' = ' + SECOES_PAINEL[k].descricao; }).join(' | ');
@@ -3627,7 +3655,7 @@ function ciclosPublicados_(abas) {
 
 /**
  * Linha da aba Movimentos de um espaço, a partir do que a página manda.
- * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca}>}} l
+ * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca, simbolo?, data?}>}} l  data: da antecipação (⏩)
  * @return {Object|null} null quando o espaço fica vazio (a linha sai)
  */
 function linhaDeEspaco_(ciclo, planta, movel, l) {
@@ -3643,6 +3671,9 @@ function linhaDeEspaco_(ciclo, planta, movel, l) {
     const e = etiquetas[i - 1];
     o['etiqueta' + i] = e ? texto_(e.texto).slice(0, 200) : '';
     o['marcaEtiqueta' + i] = e ? normMarca_(e.marca) : '';
+    const simbolo = e ? normSimbolo_(e.simbolo, null, null, true) : '';
+    o['simboloEtiqueta' + i] = simbolo;
+    o['dataEtiqueta' + i] = simbolo === 'ANTECIPADO' ? dataAntecipacaoTexto_(dataAntecipacao_(e.data)) : '';
   }
   return o.marca || o.simbolo || o.observacao || etiquetas.length ? o : null;
 }
@@ -5382,7 +5413,7 @@ const Render = (() => {
    * lista: itens { info, etiquetas, simbolo, espacos } ou null (espaço sem etiqueta, que separa os vizinhos).
    */
   function juntarIguais(lista) {
-    const chave = (it) => it.etiquetas.map((e) => e.texto + '|' + (e.marca || it.info.marca || '')).join('||');
+    const chave = (it) => it.etiquetas.map((e) => e.texto + '|' + (e.marca || it.info.marca || '') + '|' + (e.simbolo || '') + (e.data || '')).join('||');
     const saida = [];
     let anterior = null;
     lista.forEach((it) => {
@@ -5711,9 +5742,41 @@ const Render = (() => {
 
   /* ------------------------------ etiquetas ------------------------------- */
 
+  /** "2026-10-25" → "25/10" (a data da antecipação, ao lado do símbolo ⏩). */
+  const dataCurta = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '');
+
+  /**
+   * O que vai ao lado de cada etiqueta: na 1ª, o símbolo do espaço; em cada uma, o símbolo próprio dela (coluna
+   * "Símbolo Etiqueta N") e, com a antecipação (⏩), a data em que entra.
+   * @return {Array<{simbolos: string[], data: string, w: number}>} w: largura que ocupam ao lado da etiqueta
+   */
+  function marcadoresDe(etiquetas, simbolo, passo) {
+    const p = passo || ETQ.simbolo;
+    return etiquetas.map((e, k) => {
+      const simbolos = [];
+      if (k === 0 && simbolo) simbolos.push(simbolo);
+      if (e.simbolo && simbolos.indexOf(e.simbolo) < 0) simbolos.push(e.simbolo);
+      const data = e.simbolo === 'ANTECIPADO' ? dataCurta(e.data) : '';
+      const wData = data ? largura(data, ETQ.fonte * 0.85, 800, 'normal', FONTE_ETQ) + 4 : 0;
+      return { simbolos, data, w: simbolos.length ? simbolos.length * (p + 4) + wData : 0 };
+    });
+  }
+
+  /** Desenha os símbolos (e a data da antecipação) de uma etiqueta, a partir de x, centrados em cy. */
+  function desenharMarcadores(pai, m, x, cy, escala, passo) {
+    const p = passo || ETQ.simbolo;
+    m.simbolos.forEach((s, j) => desenharSimbolo(pai, s, x + j * (p + 4) + p / 2, cy, escala));
+    if (m.data) {
+      texto(pai, x + m.simbolos.length * (p + 4), cy + ETQ.fonte * 0.3, m.data, {
+        'font-family': FONTE_ETQ, 'font-size': ETQ.fonte * 0.85, 'font-weight': 800, fill: COR.simbolo,
+      });
+    }
+  }
+
   /** Pilha de etiquetas: todas com a mesma largura (wEtq); maxTexto = largura máxima do texto. */
   function medirGrupo(etiquetas, simbolo, corPadrao, maxTexto) {
-    const itens = etiquetas.map((e) => {
+    const marcadores = marcadoresDe(etiquetas, simbolo);
+    const itens = etiquetas.map((e, k) => {
       const linhas = quebrar(e.texto, maxTexto || ETQ.maxTexto, ETQ.fonte, 800, FONTE_ETQ);
       const w = Math.max.apply(null, linhas.map((l) => largura(l, ETQ.fonte, 800, 'normal', FONTE_ETQ))) + ETQ.padX * 2;
       return {
@@ -5721,11 +5784,14 @@ const Render = (() => {
         w,
         h: linhas.length * ETQ.lh + ETQ.padY * 2,
         cores: coresDe(e.marca, 'etiqueta', true) || corPadrao,
+        marcadores: marcadores[k],
+        fixo: simbolo === 'FIXO' || e.simbolo === 'FIXO', // espaço ou etiqueta fixa: borda dupla
       };
     });
     const wEtq = Math.max.apply(null, itens.map((i) => i.w));
     const h = itens.reduce((s, i) => s + i.h, 0) + ETQ.gap * (itens.length - 1);
-    return { itens, wEtq, w: wEtq + (simbolo ? ETQ.simbolo + 4 : 0), h, simbolo };
+    const wMarcadores = Math.max.apply(null, [0].concat(marcadores.map((m) => m.w)));
+    return { itens, wEtq, w: wEtq + (wMarcadores ? wMarcadores + 4 : 0), h, simbolo };
   }
 
   /** Ordem dos símbolos na legenda (o de antecipação vem da aba Antecipações, não da planilha). */
@@ -5933,7 +5999,10 @@ const Render = (() => {
       // Móvel com espaços: o nome do espaço fica entre a miniatura e as etiquetas (que ficam mais estreitas).
       const comLegenda = linhas.some((ln) => ln.espacos);
       const xEtq = FICHA.pad + FICHA.mini + FICHA.vao + (comLegenda ? FICHA.legenda + FICHA.vao : 0);
-      const larguraEtq = FICHA.w - xEtq - FICHA.pad - FICHA.simbolo;
+      // À direita das etiquetas, o espaço dos símbolos (e da data da antecipação) da linha que mais precisa.
+      const wMarcadores = Math.max.apply(null, [FICHA.simbolo].concat(linhas.map((ln) => Math.max.apply(null,
+        [0].concat(marcadoresDe(ln.etiquetas, ln.simbolo, FICHA.simbolo - 4).map((x) => x.w))))));
+      const larguraEtq = FICHA.w - xEtq - FICHA.pad - wMarcadores;
       linhas.forEach((ln) => {
         const corMarca = !ehNeutro(ln.info.marca) && coresDe(ln.info.marca, 'etiqueta', true);
         ln.med = medirGrupo(ln.etiquetas, ln.simbolo, corMarca || corEtiquetaPadrao(true), larguraEtq - ETQ.padX * 2);
@@ -5984,14 +6053,14 @@ const Render = (() => {
       }));
       let ye = y + (ln.h - ln.med.h) / 2;
       ln.med.itens.forEach((it, i) => {
-        fundoEtiqueta(gl, xEtq, ye, ln.med.wEtq, it.h, it.cores, ln.simbolo === 'FIXO');
+        fundoEtiqueta(gl, xEtq, ye, ln.med.wEtq, it.h, it.cores, it.fixo);
         it.linhas.forEach((l, j) => {
           texto(gl, xEtq + ln.med.wEtq / 2, ye + ETQ.padY + ETQ.lh * (j + 1) - 3.6, l, {
             'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
             fill: '#FFFFFF', 'text-anchor': 'middle',
           });
         });
-        if (i === 0 && ln.simbolo) desenharSimbolo(gl, ln.simbolo, xEtq + ln.med.wEtq + FICHA.simbolo / 2 + 1, ye + it.h / 2);
+        desenharMarcadores(gl, it.marcadores, xEtq + ln.med.wEtq + 1, ye + it.h / 2, 1, FICHA.simbolo - 4);
         ye += it.h + ETQ.gap;
       });
       y += ln.h + FICHA.entre;
@@ -6428,14 +6497,14 @@ const Render = (() => {
       y += r.topo;
     }
     r.itens.forEach((it, i) => {
-      fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores, r.simbolo === 'FIXO');
+      fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores, it.fixo);
       it.linhas.forEach((l, k) => {
         texto(g, r.x + r.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6 * escalaEtq, l, {
           'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
           fill: '#FFFFFF', 'text-anchor': 'middle',
         });
       });
-      if (i === 0 && r.simbolo) desenharSimbolo(g, r.simbolo, r.x + r.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2, escalaEtq);
+      desenharMarcadores(g, it.marcadores, r.x + r.wEtq + 4, y + it.h / 2, escalaEtq);
       y += it.h + ETQ.gap;
     });
     return g;
@@ -6823,7 +6892,11 @@ const Render = (() => {
     // Situação de cada móvel (e de cada espaço de gôndola) no ciclo.
     const info = {};
     const infoEspaco = {}; // "GON-01/MEIO-A" → linha própria do espaço
-    const anotar = (i) => { if (i && i.simbolo) simbolosUsados.add(i.simbolo); return i; };
+    const anotar = (i) => {
+      if (i && i.simbolo) simbolosUsados.add(i.simbolo);
+      if (i) i.etiquetas.forEach((e) => { if (e.simbolo) simbolosUsados.add(e.simbolo); }); // símbolos das etiquetas
+      return i;
+    };
     moveis.concat(extras).forEach((m) => {
       // Móvel com espaços (gôndola, mesas, totem, móvel make) é preenchido só espaço por espaço:
       // não tem linha do móvel inteiro. Os demais têm uma linha só.
@@ -7400,6 +7473,8 @@ const Planilha = (() => {
           info.etiquetas.slice(0, m.limite).forEach((e, i) => {
             linha['etiqueta' + (i + 1)] = e.texto;
             linha['marcaEtiqueta' + (i + 1)] = e.marca;
+            if (e.simbolo) linha['simboloEtiqueta' + (i + 1)] = e.simbolo;
+            if (e.data) linha['dataEtiqueta' + (i + 1)] = e.data.split('-').reverse().join('/'); // dd/mm/aaaa
           });
           linha.simbolo = info.simbolo;
           linha.observacao = info.observacao;
@@ -7409,7 +7484,7 @@ const Planilha = (() => {
         row.getCell(4).font = { italic: true, color: { argb: 'FF666666' } };
         for (let n = m.limite + 1; n <= max; n++) {
           row.getCell('etiqueta' + n).fill = SEM_USO;
-          row.getCell('marcaEtiqueta' + n).fill = SEM_USO;
+          ['marcaEtiqueta', 'simboloEtiqueta', 'dataEtiqueta'].forEach((c) => { row.getCell(c + n).fill = SEM_USO; });
         }
       });
     });
@@ -7424,6 +7499,11 @@ const Planilha = (() => {
       } else if (c.chave === 'simbolo') {
         validarColuna(ws, i + 1, ultima, simbolosPlanilha, 'Símbolo',
           simbolosPlanilha.map((s) => s + ' = ' + dados.simbolos[s].descricao).join('; '));
+      } else if (/^simboloEtiqueta/.test(c.chave)) {
+        // Na etiqueta também vale a antecipação (ANTECIPADO), com a data na coluna ao lado.
+        const todos = Object.keys(dados.simbolos);
+        validarColuna(ws, i + 1, ultima, todos, c.titulo,
+          todos.map((s) => s + ' = ' + dados.simbolos[s].descricao).join('; ') + '. Com ANTECIPADO, a data vai na coluna ao lado (dd/mm/aaaa).');
       }
     });
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
@@ -8972,7 +9052,12 @@ const Rascunho = (() => {
     }
     er[chave] = {
       marca: l.marca || '', simbolo: l.simbolo || '', observacao: obs,
-      etiquetas: l.etiquetas.map((e, k) => ({ texto: e.texto, marca: e.marca || '', posicao: k + 1 })),
+      etiquetas: l.etiquetas.map((e, k) => {
+        const x = { texto: e.texto, marca: e.marca || '', posicao: k + 1 };
+        if (e.simbolo) x.simbolo = e.simbolo;
+        if (e.simbolo === 'ANTECIPADO' && e.data) x.data = e.data;
+        return x;
+      }),
     };
   }
 
@@ -9436,7 +9521,7 @@ const Rascunho = (() => {
   const temConteudo = (i) => !!(i && (i.marca || i.simbolo || (i.observacao || '').trim() || i.etiquetas.length));
   const copiaDaLinha = (i) => ({
     marca: i.marca || '', simbolo: i.simbolo || '', observacao: i.observacao || '',
-    etiquetas: i.etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || '' })),
+    etiquetas: i.etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || '', simbolo: e.simbolo || '', data: e.data || '' })),
   });
 
   /** Muda um espaço na tela e agenda a gravação (linha vazia apaga a linha do espaço nesta ER). */
@@ -9547,7 +9632,10 @@ const Rascunho = (() => {
       marca: marca.value, simbolo: simbolo.value, observacao: obs.value,
       etiquetas: campos.filter((c) => c.t.value.trim()).map((c) => {
         const obsEtq = c.o.value.replace(/\|/g, '/').trim();
-        return { texto: c.t.value + (obsEtq ? ' | ' + obsEtq : ''), marca: c.m.value };
+        const e = { texto: c.t.value + (obsEtq ? ' | ' + obsEtq : ''), marca: c.m.value };
+        if (c.s.value) e.simbolo = c.s.value;
+        if (c.s.value === 'ANTECIPADO' && c.d.value) e.data = c.d.value; // "2026-10-25"
+        return e;
       }),
     });
     const mudou = (redesenhar) => {
@@ -9564,7 +9652,9 @@ const Rascunho = (() => {
         c.o.setAttribute('aria-label', 'Observação da etiqueta ' + (k + 1) + ' de ' + b.titulo);
         c.m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1) + ' de ' + b.titulo);
         c.x.setAttribute('aria-label', 'Tirar a etiqueta ' + (k + 1) + ' de ' + b.titulo);
-        c.x.hidden = campos.length === 1 && !c.t.value && !c.o.value && !c.m.value;
+        c.s.setAttribute('aria-label', 'Símbolo da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.d.setAttribute('aria-label', 'Data da antecipação da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.x.hidden = campos.length === 1 && !c.t.value && !c.o.value && !c.m.value && !c.s.value;
       });
       if (adicionar) adicionar.hidden = campos.length >= b.limite;
     };
@@ -9590,19 +9680,42 @@ const Rascunho = (() => {
       o.title = 'Aparece na planta depois de um "|" (ex.: ' + (movimento || 'LÇTO EGEO') + ' | só no kit). Não entra nas contas.';
       o.value = Render.obsDaEtiqueta(e.texto);
       const mc = selectMarca(row, e.marca, 'Cor da marca do espaço');
-      const c = { row, t, o, m: mc };
+      // Símbolo próprio da etiqueta (aparece ao lado dela); com a antecipação (⏩), a data em que entra.
+      const sl = n('div', 'pc-etq-simbolo', null, row);
+      const se = n('select', 'rs-etq-simbolo', null, sl);
+      n('option', null, 'Sem símbolo', se).value = '';
+      Object.keys(app.estado.dados.simbolos).forEach((x) => {
+        const d = app.estado.dados.simbolos[x];
+        n('option', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' }[x] || '') + (x === 'ANTECIPADO' ? 'Antecipação' : d.descricao || x), se).value = x;
+      });
+      se.value = e.simbolo || '';
+      const de = n('input', 'rs-etq-data', null, sl);
+      de.type = 'date';
+      de.value = e.data || '';
+      de.title = 'Data em que a antecipação entra';
+      const mostrarData = () => {
+        de.hidden = se.value !== 'ANTECIPADO';
+        de.required = !de.hidden;
+      };
+      mostrarData();
+      se.addEventListener('change', () => {
+        mostrarData();
+        if (!de.hidden && !de.value) de.focus(); // escolheu a antecipação: em seguida, a data
+      });
+      const c = { row, t, o, m: mc, s: se, d: de };
       c.x = botao('×', 'fantasma pc-tirar-etq', () => {
         if (campos.length > 1) {
           row.remove();
           campos.splice(campos.indexOf(c), 1);
         } else {
-          [t, o, mc].forEach((el) => { el.value = ''; });
+          [t, o, mc, se, de].forEach((el) => { el.value = ''; });
           mc.dispatchEvent(new Event('input')); // tira a cor do select
+          mostrarData();
         }
         renumerar();
         mudou(true);
       }, row);
-      [t, mc, o].forEach((el) => el.addEventListener('change', () => { renumerar(); mudou(true); }));
+      [t, mc, o, se, de].forEach((el) => el.addEventListener('change', () => { renumerar(); mudou(true); }));
       campos.push(c);
       renumerar();
       return c;
@@ -9618,7 +9731,11 @@ const Rascunho = (() => {
       [marca, simbolo, obs].forEach((el) => { el.value = ''; });
       marca.dispatchEvent(new Event('input'));
       campos.splice(1).forEach((c) => c.row.remove());
-      campos.forEach((c) => { [c.t, c.o, c.m].forEach((el) => { el.value = ''; }); c.m.dispatchEvent(new Event('input')); });
+      campos.forEach((c) => {
+        [c.t, c.o, c.m, c.s, c.d].forEach((el) => { el.value = ''; });
+        c.m.dispatchEvent(new Event('input'));
+        c.s.dispatchEvent(new Event('change'));
+      });
       renumerar();
       mudou(true);
     }, acoes);
@@ -12541,7 +12658,7 @@ const App = (() => {
   function mudancasEntre(planta, ciclo, outro) {
     const assinatura = (i) => (linhaValida(i)
       // A etiqueta inteira (com a observação depois do "|"): mudar só a observação também é mudança.
-      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => String(e.texto).trim().replace(/\s+/g, ' ').toUpperCase() + '#' + (e.marca || ''))]) : '');
+      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => String(e.texto).trim().replace(/\s+/g, ' ').toUpperCase() + '#' + (e.marca || '') + '#' + (e.simbolo || '') + (e.data || ''))]) : '');
     return espacosDaPlanta(planta, ciclo).map((x) => {
       const id = x.espaco && x.espaco.id;
       const depois = linhaDoEspaco(ciclo, planta.id, x.movel, id);
@@ -13057,6 +13174,9 @@ const App = (() => {
   }).join(' + ');
 
   /** Bloco da tela com o que uma linha da planilha define (marca, símbolo, etiquetas, observação). */
+  /** Ícone de cada símbolo nos textos (tela do móvel, listas). */
+  const ICONES_SIMBOLO = { FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' };
+
   function blocoEstrategia(pai, titulo, i, opcoes) {
     const op = opcoes || {};
     const sec = novo('section', 'mv-bloco', null, pai);
@@ -13078,7 +13198,7 @@ const App = (() => {
       const sim = novo('div', 'mv-linha', null, sec);
       novo('span', 'mv-rotulo', 'Símbolo', sim);
       const d = estado.dados.simbolos[i.simbolo];
-      novo('span', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
+      novo('span', null, (ICONES_SIMBOLO[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
     }
     // Antecipação: quando entra, de onde vem e o que o espaço tinha antes.
     if (i.antecipacoes) Antecipacao.montarDetalhe(sec, i);
@@ -13094,6 +13214,12 @@ const App = (() => {
       const chip = novo('span', 'mv-etiqueta', e.texto, li);
       chip.style.background = corDaMarca(marcaEtq, 'etiqueta');
       if (e.marca && e.marca !== i.marca) novo('span', 'mv-marca-etq', nomeDaMarca(e.marca), li);
+      // Símbolo próprio da etiqueta; com a antecipação, a data em que entra.
+      if (e.simbolo) {
+        const d = estado.dados.simbolos[e.simbolo];
+        const data = e.data ? ' · entra em ' + e.data.split('-').reverse().join('/') : '';
+        novo('span', 'mv-simbolo-etq', (ICONES_SIMBOLO[e.simbolo] || '') + (d ? d.descricao : e.simbolo) + data, li);
+      }
     });
     if (i.observacao) {
       const obs = novo('div', 'mv-linha', null, sec);

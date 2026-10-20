@@ -641,6 +641,7 @@
   .pg-testeira.neutra .pg-sem { color: var(--texto-2); }
   .pg-nota { margin: 10px 0 0; font-size: 13px; color: var(--texto-2); }
   .mv-marca-etq { font-size: 14px; color: var(--texto-2); }
+  .mv-simbolo-etq { font-size: 12px; color: var(--texto-2); white-space: nowrap; }
   .mv-obs { white-space: pre-line; }
   .mv-vazio { color: var(--texto-2); font-style: italic; margin: 0; font-size: 16px; }
   @media (max-width: 760px) {
@@ -907,6 +908,11 @@
   /* Select de marca com a cor da marca escolhida no fundo (as opções também levam a cor). */
   select.com-cor-marca { font-weight: 600; border-color: transparent; }
   .pc-etiquetas .rs-etq .rs-etq-obs { grid-column: 1 / -1; order: 3; font-size: 12px; }
+  /* Símbolo da etiqueta e, com a antecipação, a data (embaixo da observação). */
+  .pc-etiquetas .rs-etq .pc-etq-simbolo { grid-column: 1 / -1; order: 4; display: flex; gap: 6px; }
+  .pc-etq-simbolo select { flex: 1 1 auto; min-width: 0; }
+  .pc-etq-simbolo input[type="date"] { flex: 0 0 150px; padding: 4px 6px; font: inherit; font-size: 13px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); }
+  .pc-etq-simbolo input[hidden] { display: none; }
   .pc-etiquetas select { padding: 5px 7px; font-size: 13px; }
   .pc-espaco .val-acoes { margin: 0; }
   .pc-bloco { margin: 0 0 16px; }

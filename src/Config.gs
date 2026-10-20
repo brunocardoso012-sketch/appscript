@@ -133,8 +133,9 @@ const SIMBOLOS = {
   FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', 'CADEADO', '🔒', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
-  // Não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
-  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: [], automatico: true },
+  // No espaço, não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
+  // Na etiqueta, pode vir da planilha (coluna "Símbolo Etiqueta N"), com a data em "Data Etiqueta N".
+  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: ['ANTECIPACAO', 'ANTECIPADA', '⏩'], automatico: true },
 };
 
 /**
@@ -267,6 +268,9 @@ function colunasMovimentos_() {
   for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
     cols.push({ chave: 'etiqueta' + i, titulo: 'Etiqueta ' + i, texto: true, apelidos: ['Texto ' + i] });
     cols.push({ chave: 'marcaEtiqueta' + i, titulo: 'Marca Etiqueta ' + i, apelidos: ['Cor Etiqueta ' + i] });
+    // Símbolo próprio da etiqueta (aparece ao lado dela); com a antecipação (⏩), a data em que entra.
+    cols.push({ chave: 'simboloEtiqueta' + i, titulo: 'Símbolo Etiqueta ' + i });
+    cols.push({ chave: 'dataEtiqueta' + i, titulo: 'Data Etiqueta ' + i, texto: true, apelidos: ['Data Antecipação ' + i] });
   }
   cols.push({ chave: 'simbolo', titulo: 'Símbolo' });
   cols.push({ chave: 'observacao', titulo: 'Observação', texto: true, apelidos: ['Obs'] });

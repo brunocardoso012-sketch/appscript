@@ -282,6 +282,8 @@ const Planilha = (() => {
           info.etiquetas.slice(0, m.limite).forEach((e, i) => {
             linha['etiqueta' + (i + 1)] = e.texto;
             linha['marcaEtiqueta' + (i + 1)] = e.marca;
+            if (e.simbolo) linha['simboloEtiqueta' + (i + 1)] = e.simbolo;
+            if (e.data) linha['dataEtiqueta' + (i + 1)] = e.data.split('-').reverse().join('/'); // dd/mm/aaaa
           });
           linha.simbolo = info.simbolo;
           linha.observacao = info.observacao;
@@ -291,7 +293,7 @@ const Planilha = (() => {
         row.getCell(4).font = { italic: true, color: { argb: 'FF666666' } };
         for (let n = m.limite + 1; n <= max; n++) {
           row.getCell('etiqueta' + n).fill = SEM_USO;
-          row.getCell('marcaEtiqueta' + n).fill = SEM_USO;
+          ['marcaEtiqueta', 'simboloEtiqueta', 'dataEtiqueta'].forEach((c) => { row.getCell(c + n).fill = SEM_USO; });
         }
       });
     });
@@ -306,6 +308,11 @@ const Planilha = (() => {
       } else if (c.chave === 'simbolo') {
         validarColuna(ws, i + 1, ultima, simbolosPlanilha, 'Símbolo',
           simbolosPlanilha.map((s) => s + ' = ' + dados.simbolos[s].descricao).join('; '));
+      } else if (/^simboloEtiqueta/.test(c.chave)) {
+        // Na etiqueta também vale a antecipação (ANTECIPADO), com a data na coluna ao lado.
+        const todos = Object.keys(dados.simbolos);
+        validarColuna(ws, i + 1, ultima, todos, c.titulo,
+          todos.map((s) => s + ' = ' + dados.simbolos[s].descricao).join('; ') + '. Com ANTECIPADO, a data vai na coluna ao lado (dd/mm/aaaa).');
       }
     });
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
