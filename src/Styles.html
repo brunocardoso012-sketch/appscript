@@ -885,7 +885,14 @@
   .pc-linha select, .pc-linha textarea { min-width: 0; width: 100%; padding: 5px 7px; font-size: 13px; }
   .pc-linha textarea { font: inherit; font-size: 13px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); resize: vertical; }
   .pc-etiquetas { max-width: none; gap: 4px; }
-  .pc-etiquetas .rs-etq { grid-template-columns: minmax(0, 1fr) 118px; }
+  .pc-etiquetas .rs-etq { grid-template-columns: minmax(0, 1fr) 118px auto; }
+  .pc-etiquetas .rs-etq .pc-tirar-etq { padding: 0 8px; }
+  .pc-etq-lista { display: grid; gap: 8px; }
+  .pc-etiquetas .pc-add-etq { justify-self: start; margin-top: 2px; }
+  .pc-espaco-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .pc-espaco-cab .pc-dividir { font-size: 12px; padding: 2px 8px; }
+  /* Select de marca com a cor da marca escolhida no fundo (as opções também levam a cor). */
+  select.com-cor-marca { font-weight: 600; border-color: transparent; }
   .pc-etiquetas .rs-etq .rs-etq-obs { grid-column: 1 / -1; order: 3; font-size: 12px; }
   .pc-etiquetas select { padding: 5px 7px; font-size: 13px; }
   .pc-espaco .val-acoes { margin: 0; }

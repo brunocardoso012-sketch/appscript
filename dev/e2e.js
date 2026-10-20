@@ -691,6 +691,97 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.ok(fixos.tipos.includes('NOVO MOVIMENTO OUI'), 'os tipos dos movimentos fixos vêm junto');
 });
 
+test('ciclo em construção: fixos na planta mesmo comparando, meio dividido, etiquetas e cores das marcas', async (t) => {
+  const p = await abrir(t);
+  // Comparando com o ciclo de origem: os fixos copiados são iguais aos dele, mas aparecem na planta em construção.
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  await p.selectOption('#selComparar', 'Ciclo exemplo');
+  await abaPlanta(p, 'ER P').click();
+  await menuConfig(p, 'btnValidacao');
+  await p.waitForSelector('#dlgAcesso[open]');
+  await p.check('#dlgAcesso input[name="papel"][value="CONSTRUTOR"]');
+  await p.fill('#acessoNome', 'Bia');
+  await p.fill('#acessoSenha', '1234');
+  await p.click('#acessoEntrar');
+  await p.waitForSelector('.rs-secao');
+  await p.locator('.rs-secao button', { hasText: 'Novo ciclo' }).click();
+  await p.fill('#rascunhoCorpo input', 'C20/2026');
+  await p.selectOption('#rascunhoCorpo select', 'Ciclo exemplo');
+  await p.check('input[name="rsCopiar"][value="fixos"]');
+  await p.click('#rascunhoOk');
+  await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
+  assert.strictEqual(await estado(p, () => App.estado.comparar), '', 'construindo, a comparação sai');
+  assert.ok(await p.isHidden('#campoComparar'));
+  const fixos = await estado(p, () => Object.keys(App.estado.dados.movimentos['C20/2026']['01']).length);
+  assert.ok(fixos > 0);
+  assert.strictEqual(await p.locator('#slide .grupo-etiquetas').count(), fixos, 'as etiquetas dos fixos aparecem na planta');
+  // Mesmo ligando a comparação pelo link, a planta em construção mostra o ciclo inteiro.
+  await p.evaluate(() => { App.estado.comparar = 'Ciclo exemplo'; });
+  await abaPlanta(p, 'ER M').click();
+  assert.strictEqual(await p.locator('#slide .grupo-etiquetas').count(), fixos, 'os fixos da ER P valem na ER M (cascata)');
+  await p.evaluate(() => { App.estado.comparar = ''; });
+  // O resto na ER M, que tem a gôndola 2.
+
+  // Etiquetas: começa com uma e "+ Adicionar etiqueta" põe outra, até 4.
+  const gravado = () => p.waitForFunction(() => document.getElementById('pcGravacao').textContent === 'Tudo salvo');
+  await p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 2"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  const ponta = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/PONTA-A"]');
+  await ponta.waitFor();
+  assert.strictEqual(await ponta.locator('.rs-etq').count(), 1);
+  const add = ponta.locator('button', { hasText: '+ Adicionar etiqueta' });
+  for (let k = 0; k < 3; k++) await add.click();
+  assert.strictEqual(await ponta.locator('.rs-etq').count(), 4);
+  assert.ok(await add.isHidden(), 'no limite, o botão some');
+  const tipos = await ponta.locator('.rs-etq').first().locator('select:not(.rs-marca) option').evaluateAll((os) => os.map((o) => o.value).filter(Boolean));
+  await ponta.locator('.rs-etq').nth(0).locator('select:not(.rs-marca)').selectOption(tipos[0]);
+  await ponta.locator('.rs-etq').nth(1).locator('select:not(.rs-marca)').selectOption(tipos[1] || tipos[0]);
+  await gravado();
+  assert.strictEqual((await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']['GONDOLA 2/PONTA-A'])).etiquetas.length, 2);
+  // "×" tira uma etiqueta.
+  await ponta.locator('.rs-etq').nth(3).locator('.pc-tirar-etq').click();
+  assert.strictEqual(await ponta.locator('.rs-etq').count(), 3);
+  assert.ok(await add.isVisible());
+
+  // Cores: a marca escolhida pinta o fundo do select, e as opções seguem a ordem BOT | EUD | QDB | OUI | MM.
+  const marca = ponta.locator('select.rs-marca').first();
+  assert.deepStrictEqual(await marca.locator('option').allTextContents(), ['Sem marca (branco)', 'BOT', 'EUD', 'QDB', 'OUI', 'MM']);
+  await marca.selectOption('EUD');
+  const fundo = await marca.evaluate((el) => getComputedStyle(el).backgroundColor);
+  assert.strictEqual(fundo, 'rgb(161, 31, 201)');
+  assert.strictEqual(await marca.locator('option[value="QDB"]').evaluate((el) => el.style.backgroundColor), 'rgb(226, 63, 180)');
+  assert.deepStrictEqual(await p.locator('#legenda .chip').allTextContents().then((x) => x.map((s) => s.trim())), ['BOT', 'EUD', 'QDB', 'OUI', 'MM']);
+  await gravado();
+
+  // Meio da gôndola em 2: o que estava no meio vai para a metade 1; a planta divide o meio na hora.
+  const meio = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A"]');
+  await meio.locator('.rs-etq select:not(.rs-marca)').first().selectOption(tipos[0]);
+  await gravado();
+  await meio.locator('button', { hasText: 'Dividir em 2' }).click();
+  await p.waitForSelector('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A-2"]');
+  assert.ok(await p.locator('#slide .movel[data-movel="GONDOLA 2"][data-espaco="MEIO-A-2"]').count() > 0, 'a planta mostra as duas metades');
+  const m1 = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A-1"]');
+  assert.strictEqual(await m1.locator('.rs-etq select:not(.rs-marca)').first().inputValue(), tipos[0]);
+  const m2 = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A-2"]');
+  await m2.locator('.rs-etq select:not(.rs-marca)').first().selectOption(tipos[1] || tipos[0]);
+  await gravado();
+  let er = await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']);
+  assert.ok(!er['GONDOLA 2/MEIO-A'] && er['GONDOLA 2/MEIO-A-1'] && er['GONDOLA 2/MEIO-A-2']);
+  // O servidor guardou as metades (Atualizar recarrega tudo).
+  await p.click('#btnAtualizar');
+  await p.waitForFunction(() => ((App.estado.dados.movimentos['C20/2026'] || {})['02'] || {})['GONDOLA 2/MEIO-A-2']);
+  // Juntar: volta a ser um meio só, com o que estava na metade 1.
+  await p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A-1"] button', { hasText: 'Juntar metades' }).click();
+  await p.waitForSelector('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A"]');
+  await gravado();
+  er = await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']);
+  assert.ok(er['GONDOLA 2/MEIO-A'] && !er['GONDOLA 2/MEIO-A-1'] && !er['GONDOLA 2/MEIO-A-2']);
+  assert.strictEqual(er['GONDOLA 2/MEIO-A'].etiquetas[0].texto, tipos[0]);
+  // Dividir um meio vazio também divide a planta (as metades ficam para preencher).
+  await p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-B"] button', { hasText: 'Dividir em 2' }).click();
+  await p.waitForSelector('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-B-2"]');
+  assert.ok(await p.locator('#slide .movel[data-movel="GONDOLA 2"][data-espaco="MEIO-B-1"]').count() > 0);
+});
+
 test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo ⏩', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo');

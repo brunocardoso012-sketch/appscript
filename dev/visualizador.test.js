@@ -89,9 +89,9 @@ test('ER GG: posições salvas antes das posições fixas não estragam as do c�
   assert.deepEqual([gg().moveis.find((m) => m.id === 'PIRAMIDE 1').ajusteX, gg().loja.slide], [2000, 3072]);
 });
 
-test('Index.html do visualizador não tem Construir loja nem Baixar / Importar planilha', () => {
+test('Index.html do visualizador não tem Construir loja, Baixar / Importar planilha nem a comparação de ciclos', () => {
   const html = gerarIndex();
-  ['btnModelo', 'btnImportar', 'btnConstruir', 'painelConstrutor', 'dlgModelo', 'dlgResultado', 'btnConfigurar']
+  ['btnModelo', 'btnImportar', 'btnConstruir', 'painelConstrutor', 'dlgModelo', 'dlgResultado', 'btnConfigurar', 'campoComparar', 'selComparar']
     .forEach((id) => assert.ok(!html.includes('id="' + id + '"'), id + ' deveria ficar de fora'));
   ['btnPng', 'btnEditar', 'btnAtualizar', 'selCiclo', 'legenda', 'slide'].forEach((id) => assert.ok(html.includes('id="' + id + '"'), id));
   assert.ok(!/<\?/.test(html), 'sem tags de template do Apps Script');

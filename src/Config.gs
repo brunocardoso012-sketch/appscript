@@ -96,17 +96,17 @@ const MARCAS = {
     movel: '#7CC9A0',
     apelidos: ['Boticário', 'BOTICARIO', 'OBOTICARIO', 'BOTI', 'VERDE'],
   },
-  QDB: {
-    nome: 'QDB',
-    etiqueta: '#E23FB4',
-    movel: '#F07ACD',
-    apelidos: ['Quem disse, berenice?', 'QUEMDISSEBERENICE', 'BERENICE', 'ROSA'],
-  },
   EUD: {
     nome: 'EUD',
     etiqueta: '#A11FC9',
     movel: '#B666D8',
     apelidos: ['Eudora', 'EUDORA', 'ROXO'],
+  },
+  QDB: {
+    nome: 'QDB',
+    etiqueta: '#E23FB4',
+    movel: '#F07ACD',
+    apelidos: ['Quem disse, berenice?', 'QUEMDISSEBERENICE', 'BERENICE', 'ROSA'],
   },
   OUI: {
     nome: 'OUI',

@@ -1961,7 +1961,8 @@ const Render = (() => {
     };
     const moveis = planta.moveis.filter((m) => m.tipo !== 'EXTRA').map((m) => {
       if (m.tipo !== 'GONDOLA') return m;
-      const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
+      const doRascunho = ctx.meiosDivididos ? ctx.meiosDivididos(m.id) : '';
+      const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0 || doRascunho.indexOf(l) >= 0
         || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
       return div === (m.dividido || '') ? m : Object.assign({}, m, { dividido: div });
     });

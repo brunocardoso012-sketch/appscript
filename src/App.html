@@ -202,7 +202,7 @@ const App = (() => {
     if ('visao' in pref) estado.visao = pref.visao === 'simplificada' ? 'simplificada' : 'planta';
     if ('marca' in pref) estado.filtro = dados.marcas[pref.marca] ? pref.marca : '';
     if ('etiqueta' in pref) estado.filtroEtiqueta = pref.etiqueta || '';
-    if ('comparar' in pref) estado.comparar = pref.comparar || '';
+    if ('comparar' in pref && $('selComparar')) estado.comparar = pref.comparar || '';
     estado.ajustes = {};
 
     $('avisoLocal').hidden = !dados.modoLocal;
@@ -268,9 +268,11 @@ const App = (() => {
   /** "Comparar com": os outros ciclos (só aparece com um ciclo escolhido e mais de um ciclo na planilha). */
   function montarComparar() {
     const sel = $('selComparar');
+    // A versão só de visualização não tem a comparação de ciclos.
+    if (!sel) { estado.comparar = ''; return; }
     if (estado.comparar === estado.ciclo || todosOsCiclos().indexOf(estado.comparar) < 0) estado.comparar = '';
     const outros = todosOsCiclos().filter((c) => c !== estado.ciclo);
-    $('campoComparar').hidden = !estado.ciclo || !outros.length;
+    $('campoComparar').hidden = !estado.ciclo || !outros.length || Rascunho.editavel(); // construindo, não compara
     sel.textContent = '';
     sel.appendChild(new Option('Não comparar', '', false, !estado.comparar));
     outros.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.comparar)));
@@ -406,7 +408,9 @@ const App = (() => {
       ciclo: estado.ciclo,
       filtro: estado.filtro,
       filtroEtiqueta: construcao ? '' : etiquetasDoFiltro(),
-      destaqueEspacos: !construcao && estado.ciclo && estado.comparar
+      // Montando um ciclo (Construir loja ou ciclo em construção), a comparação não vale: os espaços iguais aos
+      // do outro ciclo (ex.: os fixos copiados) ficariam cinza e sem etiqueta.
+      destaqueEspacos: !construcao && !Rascunho.editavel() && estado.ciclo && estado.comparar
         ? mudancasEntre(planta, estado.ciclo, estado.comparar).map((x) => x.chave) : null,
       ajustes: outra && outra.id !== estado.planta ? {} : estado.ajustes, // ajustes não salvos: só os da planta da tela
       escalaEtiquetas: construcao ? 1 : tamanhoEtiquetas() / 100,
@@ -422,6 +426,8 @@ const App = (() => {
         return p;
       },
       selecionado: construcao ? construcao.selecionado : Rascunho.selecionado(),
+      // Meios de gôndola que o construtor dividiu no ciclo em construção (as metades ainda vazias).
+      meiosDivididos: construcao ? null : (id) => Rascunho.meiosDivididos(estado.ciclo, planta.id, id),
       grade: construcao ? construcao.grade : false,
       referencia: construcao ? construcao.referencia : null,
       escuro: document.documentElement.dataset.tema === 'escuro',
@@ -877,12 +883,8 @@ const App = (() => {
     const valida = (x) => linhaValida(movimentoDe(ciclo, planta.id, x));
     const lista = [];
     planta.moveis.forEach((m) => {
-      let esp = Render.espacos(m); // frentes e verso das mesas, painéis do totem
-      if (m.tipo === 'GONDOLA') {
-        const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
-          || valida(m.id + '/MEIO-' + l + '-2') || valida(m.id + '/MEIO-' + l + '-1')).join('');
-        esp = Render.espacos(Object.assign({}, m, { dividido: div }));
-      }
+      // Frentes e verso das mesas, painéis do totem; na gôndola, os meios divididos.
+      const esp = Render.espacos(m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, valida, ciclo) }) : m);
       if (esp.length) esp.forEach((e) => lista.push({ movel: m, espaco: e, chave: m.id + '/' + e.id }));
       else lista.push({ movel: m, espaco: null, chave: m.id });
     });
@@ -1306,7 +1308,7 @@ const App = (() => {
       if (titulo) novo('span', null, titulo, h);
       return { sec, h };
     };
-    if (estado.comparar) secaoMudancas(secao('Mudou desde ' + estado.comparar).sec, planta);
+    if (estado.comparar && !Rascunho.editavel()) secaoMudancas(secao('Mudou desde ' + estado.comparar).sec, planta);
     // Antecipações do ciclo nesta ER (itens do próximo ciclo que entram antes).
     const antecipadas = Antecipacao.daEr(estado.ciclo, planta);
     if (antecipadas.length) Antecipacao.montarLista(secao('Antecipações').sec, antecipadas, planta, false);
@@ -1407,6 +1409,27 @@ const App = (() => {
     }).filter(Boolean).map((c) => Render.corDaTela(c, tipo)); // no modo noturno, a versão escura
     if (!cores.length) return estado.dados.marcas.NEUTRO ? estado.dados.marcas.NEUTRO[tipo] : '#4A4A4A';
     return cores.length === 1 ? cores[0] : 'linear-gradient(90deg, ' + cores.join(', ') + ')';
+  }
+
+  /**
+   * Select de marca com a cor de cada marca no fundo (nas opções e no próprio select, pela marca escolhida),
+   * para achar a marca pela cor. As opções sem marca ficam com o fundo normal.
+   */
+  function colorirSelectMarca(sel) {
+    const pintar = (el, valor) => {
+      const comCor = !!valor && valor !== 'NEUTRO';
+      el.style.background = comCor ? corDaMarca(valor, 'etiqueta') : '';
+      el.style.color = comCor ? '#FFFFFF' : '';
+    };
+    Array.from(sel.options).forEach((o) => pintar(o, o.value));
+    const atualizar = () => {
+      pintar(sel, sel.value);
+      sel.classList.toggle('com-cor-marca', !!sel.value && sel.value !== 'NEUTRO');
+    };
+    sel.addEventListener('change', atualizar);
+    sel.addEventListener('input', atualizar);
+    atualizar();
+    return atualizar;
   }
 
   const nomeDaMarca = (valor) => String(valor).split('+').map((p) => {
@@ -1617,6 +1640,16 @@ const App = (() => {
     return true;
   }
 
+  /**
+   * Meios divididos de uma gôndola ('', 'A', 'B' ou 'AB'): pelo layout, quando o ciclo tem linha para uma das
+   * metades ou quando o construtor dividiu o meio no ciclo em construção (ainda sem nada nas metades).
+   */
+  function meiosDivididos(planta, m, temLinha, ciclo) {
+    const doRascunho = Rascunho.meiosDivididos(ciclo === undefined ? estado.ciclo : ciclo, planta.id, m.id);
+    return ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0 || doRascunho.indexOf(l) >= 0
+      || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
+  }
+
   /** Clique no móvel: abre a tela com a estratégia do ciclo para ele (a linha do móvel ou a de cada espaço). */
   /**
    * O que um móvel tem no ciclo, numa ER: um bloco por espaço (gôndola — com o meio dividido quando o ciclo
@@ -1629,12 +1662,7 @@ const App = (() => {
     const linha = (x) => (ciclo ? movimentoDe(ciclo, planta.id, x) : null);
     const temLinha = (x) => { const i = linha(x); return !!(i && (i.marca || i.etiquetas.length || i.simbolo)); };
     const daEr = ((estado.dados.movimentos[ciclo] || {})[planta.id]) || {};
-    let mov = m;
-    if (m.tipo === 'GONDOLA') {
-      const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
-        || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
-      mov = Object.assign({}, m, { dividido: div });
-    }
+    const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
     const espacos = Render.espacos(mov);
     if (!espacos.length) {
       return [{
@@ -1675,12 +1703,7 @@ const App = (() => {
     } else {
       const config = estado.dados.config || {};
       // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
-      let mov = m;
-      if (m.tipo === 'GONDOLA') {
-        const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
-          || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
-        mov = Object.assign({}, m, { dividido: div });
-      }
+      const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
       const plano = planogramaDe(m, mov, linha, temLinha);
       if (plano) blocoPlanograma(corpo, plano);
       // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.
@@ -2456,13 +2479,13 @@ const App = (() => {
     estado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,
     acesso: () => Validacao.acesso(),
     recarregarComentarios: () => Validacao.recarregar(),
-    abrirMovel, blocosDoMovel, corDaMarca,
+    abrirMovel, blocosDoMovel, corDaMarca, colorirSelectMarca, movimentoDe,
     comentariosAbertos: () => Validacao.abertosNoCiclo(),
     abrirComentarios: () => Validacao.abrirPainel(),
     estatisticas: estatisticasConstrucao,
   });
   Antecipacao.iniciar({
-    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca,
+    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca, colorirSelectMarca,
     acesso: () => Validacao.acesso(),
     movimentoDaPlanilha,
   });
