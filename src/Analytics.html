@@ -124,6 +124,14 @@ const Analytics = (() => {
     const thead = novo('thead', null, null, tab);
     const trh = novo('tr', null, null, thead);
     novo('th', 'an-col-mov', 'Movimento', trh).scope = 'col';
+    // Presença na rede (aba Inventario): em quantas lojas da rede o movimento está (antes das ERs).
+    const comRede = !!d.inventario;
+    if (comRede) {
+      const thR = novo('th', 'an-col-rede', null, trh);
+      thR.scope = 'col';
+      novo('span', null, 'Na rede', thR);
+      novo('small', null, '% das ' + fmtNum(d.inventario.total) + ' lojas', thR);
+    }
     ers.forEach((e) => {
       const th = novo('th', 'an-col-er' + (e.id === d.erAtual ? ' atual' : ''), null, trh);
       th.scope = 'col';
@@ -135,14 +143,6 @@ const Analytics = (() => {
       novo('small', null, espacos(e.total), b);
       b.addEventListener('click', () => { vista.ordem = e.id; redesenhar(); });
     });
-    // Presença na rede (aba Inventario): em quantas lojas da rede o movimento está.
-    const comRede = !!d.inventario;
-    if (comRede) {
-      const thR = novo('th', 'an-col-rede', null, trh);
-      thR.scope = 'col';
-      novo('span', null, 'Na rede', thR);
-      novo('small', null, '% das ' + fmtNum(d.inventario.total) + ' lojas', thR);
-    }
     novo('th', 'an-col-marcas', 'Marcas', trh).scope = 'col';
 
     const tbody = novo('tbody', null, null, tab);
@@ -159,6 +159,19 @@ const Analytics = (() => {
       const info = novo('div', 'an-mov-info', null, th);
       novo('span', null, m.classe ? m.classe.nome : 'Sem classificação', info);
       if (m.gmv > 0) novo('span', 'an-gmv', 'GMV ' + gmvCurto.format(m.gmv), info);
+      if (comRede) {
+        const tdR = novo('td', 'an-col-rede', null, tr);
+        if (!m.rede) {
+          novo('span', 'an-cel-vazia', '—', tdR).title = m.texto + ': nenhum espaço dele está na aba "' + d.inventario.aba + '"';
+        } else {
+          tdR.title = m.texto + ': em cerca de ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas, ' + fmtPctNum(m.rede.pct) + ' da rede (aba "' + d.inventario.aba + '")';
+          const topo = novo('span', 'an-rede-num', null, tdR);
+          novo('strong', null, fmtPctNum(m.rede.pct), topo);
+          novo('small', null, '≈ ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas', topo);
+          const trilho = novo('span', 'an-rede-trilho', null, tdR);
+          novo('span', null, null, trilho).style.width = Math.min(100, m.rede.pct * 100) + '%';
+        }
+      }
       ers.forEach((e) => {
         const td = novo('td', 'an-celula' + (e.id === d.erAtual ? ' atual' : ''), null, tr);
         const n = m.porEr[e.id] || 0;
@@ -179,19 +192,6 @@ const Analytics = (() => {
         novo('small', null, vista.medida === 'pct' ? fmtNum(n) : fmtPct(n, e.total), b);
         b.addEventListener('click', () => acoes.verNaPlanta({ er: e.id, etiqueta: m.texto }));
       });
-      if (comRede) {
-        const tdR = novo('td', 'an-col-rede', null, tr);
-        if (!m.rede) {
-          novo('span', 'an-cel-vazia', '—', tdR).title = m.texto + ': nenhum espaço dele está na aba "' + d.inventario.aba + '"';
-        } else {
-          tdR.title = m.texto + ': em cerca de ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas, ' + fmtPctNum(m.rede.pct) + ' da rede (aba "' + d.inventario.aba + '")';
-          const topo = novo('span', 'an-rede-num', null, tdR);
-          novo('strong', null, fmtPctNum(m.rede.pct), topo);
-          novo('small', null, '≈ ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas', topo);
-          const trilho = novo('span', 'an-rede-trilho', null, tdR);
-          novo('span', null, null, trilho).style.width = Math.min(100, m.rede.pct * 100) + '%';
-        }
-      }
       const tdM = novo('td', 'an-col-marcas', null, tr);
       const pilha = novo('span', 'an-pilha', null, tdM);
       const somaM = m.marcas.reduce((s, x) => s + x.valor, 0);
@@ -207,13 +207,13 @@ const Analytics = (() => {
     const th = novo('th', 'an-col-mov', null, tr);
     th.scope = 'row';
     novo('div', 'an-mov-nome', 'Sem movimento', th);
+    if (comRede) novo('td', 'an-col-rede', null, tr);
     ers.forEach((e) => {
       const td = novo('td', 'an-celula' + (e.id === d.erAtual ? ' atual' : ''), null, tr);
       const sp = novo('span', 'an-cel-livre', null, td);
       novo('strong', null, vista.medida === 'pct' ? fmtPct(e.semMovimento, e.total) : fmtNum(e.semMovimento), sp);
       sp.title = e.nome + ': ' + espacos(e.semMovimento) + ' sem etiqueta';
     });
-    if (comRede) novo('td', 'an-col-rede', null, tr);
     novo('td', 'an-col-marcas', null, tr);
   }
 

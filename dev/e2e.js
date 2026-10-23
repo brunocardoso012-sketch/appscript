@@ -284,16 +284,32 @@ test('Inventario: o mouse no móvel mostra as lojas da rede; o Analytics, a pres
   await comInventario(p, { 'GONDOLA 1/PONTA-B': 900 });
   await abaPlanta(p, 'ER M').click();
   await abaPlanta(p, 'ER P').click(); // redesenha com o inventário
-  const dica = (sel) => p.locator(sel + ' > title').first().textContent();
-  assert.match(await dica('#slide .movel[data-movel="GONDOLA 1"][data-espaco="PONTA-B"]'), /Presente em 900 lojas · 90% da rede/);
-  assert.match(await dica('#slide .movel[data-movel="GONDOLA 1"][data-espaco="PONTA-A"]'), /Presente em 1\.000 lojas · 100% da rede/);
-  assert.doesNotMatch(await dica('#slide .movel[data-movel="GONDOLA 1"][data-espaco="PONTA-A"]'), /Marca:/, 'no lugar do que mostrava antes');
+  // Balão arredondado (no lugar da dica do navegador), em duas linhas.
+  const balao = async (sel) => {
+    // O mouse entra no desenho do espaço (no meio da caixa dele pode estar outro móvel, na vista isométrica).
+    await p.locator(sel).first().evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse', clientX: r.x + 4, clientY: r.y + 4 }));
+    });
+    await p.waitForSelector('.balao-rede:not([hidden])');
+    return p.locator('.balao-rede span').allTextContents();
+  };
+  assert.deepStrictEqual(await balao('#slide .movel[data-movel="GONDOLA 1"][data-espaco="PONTA-B"]'), ['Presente em 900 lojas', '90% da rede']);
+  assert.deepStrictEqual(await balao('#slide .movel[data-movel="GONDOLA 1"][data-espaco="PONTA-A"]'), ['Presente em 1.000 lojas', '100% da rede']);
+  assert.strictEqual(await p.locator('#slide .movel[data-movel="GONDOLA 1"] > title').count(), 0, 'sem a dica antiga');
+  assert.notStrictEqual(await p.$eval('.balao-rede', (b) => getComputedStyle(b).borderTopLeftRadius), '0px', 'balão arredondado');
   await abaPlanta(p, 'ER GG').click();
-  assert.match(await dica('#slide .movel[data-movel="GONDOLA 4"]'), /Presente em 130 lojas · 13% da rede/);
+  assert.deepStrictEqual(await balao('#slide .movel[data-movel="GONDOLA 4"]'), ['Presente em 130 lojas', '13% da rede']);
+  const caixa = await p.locator('#slide').boundingBox();
+  await p.mouse.move(caixa.x + caixa.width / 2, caixa.y + caixa.height / 2);
+  await p.mouse.move(2, 2);
+  assert.ok(await p.locator('.balao-rede').isHidden(), 'some ao sair da planta');
 
   // Analytics: coluna "Na rede" com a presença de cada movimento.
   await p.click('#btnAnalytics');
   assert.match(await p.textContent('#anCorpo th.an-col-rede'), /Na rede.*1\.000 lojas/);
+  assert.deepStrictEqual((await p.locator('#anCorpo .an-mapa').first().locator('thead th').allTextContents()).slice(0, 3).map((x) => x.split(/\d/)[0].trim()),
+    ['Movimento', 'Na rede% das', 'ER P'], 'Na rede antes das ERs');
   const pct = (texto) => p.locator('#anCorpo tbody tr', { has: p.locator('.an-mov-nome', { hasText: new RegExp('^' + texto + '$') }) })
     .first().locator('td.an-col-rede strong').textContent();
   assert.strictEqual(await pct('EXAUSTÃO OUI'), '13%', 'só na gôndola 4 (só ER GG)');
@@ -305,7 +321,7 @@ test('tela do móvel: aviso fixo de página em construção', async (t) => {
   await escolherCiclo(p, 'Ciclo exemplo');
   await p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
   await p.waitForSelector('#dlgMovel[open]');
-  assert.match(await p.textContent('#dlgMovel .mv-aviso'), /Página em construção/);
+  assert.strictEqual((await p.textContent('#dlgMovel .mv-aviso')).trim(), 'Página em construção');
   const antes = await p.locator('#dlgMovel .mv-aviso').boundingBox();
   await p.locator('#mvEstrategia').evaluate((el) => { el.closest('.mv-corpo').scrollTop = 400; el.scrollTop = 400; });
   assert.deepStrictEqual(await p.locator('#dlgMovel .mv-aviso').boundingBox(), antes, 'não rola com o conteúdo');

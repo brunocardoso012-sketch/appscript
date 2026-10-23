@@ -613,6 +613,7 @@ const App = (() => {
     svg.classList.toggle('construindo', !!Editor.contexto());
     // Marcadores dos comentários abertos (só na validação e fora da construção).
     if (!Editor.contexto()) ctx.comentarios = Validacao.marcadores();
+    esconderBalao();
     const r = Render.desenhar(svg, ctx);
     estado.tela = r.tela;
     estado.simbolos = r.simbolos;
@@ -785,18 +786,64 @@ const App = (() => {
     });
   }
 
-  /** Mouse sobre um móvel (ou uma etiqueta dele): destaca as etiquetas que estão nele. */
+  /** Esconde o balão das lojas da rede (ligarDestaque): ao redesenhar a planta ou trocar de tela. */
+  let esconderBalao = () => {};
+
+  /**
+   * Mouse sobre um móvel (ou uma etiqueta dele): destaca as etiquetas que estão nele. Com a aba Inventario,
+   * o mouse sobre o móvel (ou um espaço dele) mostra um balão com as lojas da rede que o têm.
+   */
   function ligarDestaque() {
+    const balao = document.createElement('div');
+    balao.className = 'balao-rede';
+    balao.hidden = true;
+    balao.setAttribute('role', 'tooltip');
+    document.body.appendChild(balao);
+    let doBalao = '';
+    const esconder = () => { balao.hidden = true; doBalao = ''; };
+    esconderBalao = esconder;
+    const mostrar = (ev) => {
+      const movel = estado.dados && estado.dados.inventario && ev.target.closest('.movel[data-movel]');
+      if (!movel) { esconder(); return; }
+      const id = movel.getAttribute('data-movel');
+      const espaco = movel.getAttribute('data-espaco') || null;
+      const chave = id + '/' + (espaco || '');
+      if (chave !== doBalao) {
+        doBalao = chave;
+        const rede = presencaNaRede(id, espaco);
+        balao.innerHTML = '';
+        const linha = (texto) => { const s = document.createElement('span'); s.textContent = texto; balao.appendChild(s); };
+        if (rede) {
+          linha('Presente em ' + Math.round(rede.lojas).toLocaleString('pt-BR') + (rede.lojas === 1 ? ' loja' : ' lojas'));
+          linha(Math.round(rede.pct * 100) + '% da rede');
+        } else {
+          linha('Sem dado no inventário');
+        }
+        balao.hidden = false;
+      }
+      // Perto do mouse; perto da borda da tela, do outro lado.
+      const w = balao.offsetWidth, h = balao.offsetHeight;
+      const x = ev.clientX + 14 + w > window.innerWidth - 8 ? ev.clientX - 14 - w : ev.clientX + 14;
+      const y = ev.clientY + 18 + h > window.innerHeight - 8 ? ev.clientY - 12 - h : ev.clientY + 18;
+      balao.style.left = Math.max(8, x) + 'px';
+      balao.style.top = Math.max(8, y) + 'px';
+    };
     svg.addEventListener('pointerover', (ev) => {
       // Fora do mouse (toque), no ajuste de etiquetas e na construção não há destaque.
       if (ev.pointerType !== 'mouse' || estado.edicao || Editor.contexto() || svg.classList.contains('arrastando')) {
         destacarMovel('');
+        esconder();
         return;
       }
       const alvo = ev.target.closest('.movel, .grupo-etiquetas');
       destacarMovel(alvo ? alvo.getAttribute('data-movel-base') || alvo.getAttribute('data-movel') : '');
     });
-    svg.addEventListener('pointerleave', () => destacarMovel(''));
+    svg.addEventListener('pointermove', (ev) => {
+      if (ev.pointerType !== 'mouse' || estado.edicao || Editor.contexto() || svg.classList.contains('arrastando')) return;
+      mostrar(ev);
+    });
+    svg.addEventListener('pointerleave', () => { destacarMovel(''); esconder(); });
+    svg.addEventListener('pointerdown', esconder); // clique abre a tela do móvel
   }
 
   /* --------------------------- ajuste de etiquetas ------------------------- */
@@ -1394,6 +1441,7 @@ const App = (() => {
 
   function alternarAnalytics(aberto) {
     estado.analytics = aberto === undefined ? !estado.analytics : !!aberto;
+    esconderBalao();
     atualizarAnalytics();
   }
 

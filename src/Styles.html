@@ -308,7 +308,7 @@
   .an-mapa td.an-col-total strong { display: block; font-size: 13px; }
   .an-mapa td.an-col-total small { color: var(--texto-2); font-size: 10.5px; }
   .an-mapa .an-col-marcas { width: 16%; min-width: 110px; padding-left: 8px; }
-  .an-mapa .an-col-rede { min-width: 96px; padding: 0 8px; border-left: 1px solid var(--borda); }
+  .an-mapa .an-col-rede { width: 11%; min-width: 120px; padding: 0 10px 0 8px; border-right: 1px solid var(--borda); }
   .an-mapa thead th.an-col-rede { color: var(--texto); font-weight: 600; }
   .an-mapa thead th.an-col-rede small { display: block; font-weight: 400; color: var(--texto-2); font-size: 11px; }
   .an-rede-num { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
@@ -571,11 +571,22 @@
   .mv-corpo { flex: 1 1 auto; min-height: 0; display: flex; }
   /* Aviso fixo no topo da tela do móvel (não rola com o conteúdo). */
   .mv-aviso {
-    flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 8px clamp(16px, 2.5vw, 32px);
-    background: #fff8e6; color: #7a4b00; border-bottom: 1px solid #f1d58a; font-size: 13px;
+    flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 11px 16px;
+    background: #ffd84d; color: #3d2a00; border-bottom: 2px solid #e0a800;
+    font-size: 16px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase;
   }
-  .mv-aviso svg { flex: 0 0 auto; }
-  [data-tema="escuro"] .mv-aviso { background: #2e2512; color: #f1c76b; border-color: #6b5520; }
+  .mv-aviso svg { flex: 0 0 auto; width: 20px; height: 20px; }
+  [data-tema="escuro"] .mv-aviso { background: #6b5000; color: #ffe9a3; border-color: #a77d00; }
+  /* Balão do mouse sobre o móvel (aba Inventario): lojas da rede. */
+  .balao-rede {
+    position: fixed; z-index: 50; display: flex; flex-direction: column; gap: 1px; padding: 8px 14px;
+    background: var(--superficie); color: var(--texto); border: 1px solid var(--borda); border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .16); font-size: 13px; line-height: 1.35; pointer-events: none; white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .balao-rede span:first-child { font-weight: 700; }
+  .balao-rede span + span { color: var(--texto-2); }
+  .balao-rede[hidden] { display: none; }
   .mv-desenho { flex: 0 0 42%; height: 100%; background: #f3efea; }
   .mv-estrategia {
     flex: 1 1 auto; min-width: 0; overflow: auto;

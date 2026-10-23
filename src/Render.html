@@ -2129,14 +2129,8 @@ const Render = (() => {
         const numero = --faltam[m.id] === 0 ? numeroDe(m) : '';
         if (numero) desenharNumero(g, P, m, numero, projecao.escala);
         const linhasDica = [m.id + (b.espaco ? '/' + b.espaco.id + ' (' + b.espaco.nome + ')' : '') + (m.descricao ? ' — ' + m.descricao : '')];
-        if (ctx.presencaNaRede) {
-          // Com a aba Inventario: em quantas lojas da rede o móvel (ou o espaço) está.
-          const rede = ctx.presencaNaRede(m.id, b.espaco ? b.espaco.id : null);
-          linhasDica.push(rede ? 'Presente em ' + rede.lojas.toLocaleString('pt-BR') + (rede.lojas === 1 ? ' loja' : ' lojas') + ' · '
-            + Math.round(rede.pct * 100) + '% da rede' : 'Sem dado na aba Inventario');
-          dica(g, linhasDica.join('\n'));
-          return;
-        }
+        // Com a aba Inventario, o mouse sobre o móvel mostra o balão das lojas da rede (App.html), sem a dica.
+        if (ctx.presencaNaRede) return;
         const nomeMarca = (x) => (x.marca ? x.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—');
         if (!b.espaco && espacos(m).length) {
           // Mesa, totem e corpo do móvel make: um desenho só, com o que cada espaço tem.
