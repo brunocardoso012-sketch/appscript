@@ -1,6 +1,6 @@
 # Atualização "Analytics" · Passo a passo no Apps Script
 
-Esta atualização troca o painel **Espaço por marca** pelo **Analytics**: um dashboard que compara as ERs e mostra como o espaço de cada uma se divide entre os movimentos, as marcas e as classificações, com insights rápidos.
+Esta atualização troca o painel **Espaço por marca** pelo **Analytics**: um dashboard que compara as ERs e mostra como o espaço de cada uma se divide entre os movimentos, as marcas e as classificações.
 
 **O que muda na sua planilha: nada.** Nenhuma aba é criada, apagada ou alterada, e as posições das etiquetas que você salvou continuam no lugar. Só o código muda. O link do app também continua o mesmo.
 
@@ -96,11 +96,9 @@ Abra o link do app (recarregue com <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>
 
 - [ ] O topo mostra **Comunicações ER** e **Analytics** em destaque (o botão *Espaço por marca* não existe mais).
 - [ ] Com um ciclo escolhido, **Analytics** abre o dashboard no lugar da planta, com:
-  - os números principais (espaços nas ERs, % com movimento, movimentos, GMV esperado, top 3);
-  - os **insights rápidos**;
   - o mapa **Espaço de cada movimento em cada ER** (dá para alternar *% da ER* / *Espaços* e ordenar clicando no nome de uma ER);
   - **Marcas em cada ER** e **Classificação em cada ER**;
-  - **GMV esperado × espaço** (só aparece se a aba *Tipos de movimento* tiver GMV).
+  - **GMV esperado × espaço**, em gráfico de dispersão (só aparece se a aba *Tipos de movimento* tiver GMV).
 - [ ] Clicar numa célula do mapa abre a planta daquela ER mostrando só onde o movimento aparece. A legenda mostra *Só a etiqueta: …*; clicar nela volta a mostrar tudo.
 - [ ] **Voltar à planta** (ou a tecla Esc) fecha o Analytics.
 - [ ] A planta, *Comunicações ER*, *Baixar PNG* e a *Validação* continuam funcionando como antes.

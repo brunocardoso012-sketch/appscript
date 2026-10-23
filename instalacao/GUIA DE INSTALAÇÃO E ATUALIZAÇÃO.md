@@ -20,7 +20,7 @@ Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (pas
 
 ## O que muda para quem usa o app
 
-- **Analytics** (no lugar do antigo *Espaço por marca*): um dashboard do ciclo que compara as ERs — números principais, insights rápidos, o mapa movimento × ER, as marcas e as classificações em cada ER e o GMV esperado × espaço. Clicar numa célula ou num insight mostra na planta daquela ER só onde o movimento aparece.
+- **Analytics** (no lugar do antigo *Espaço por marca*): um dashboard do ciclo que compara as ERs — o mapa movimento × ER, as marcas e as classificações em cada ER e o GMV esperado × espaço (gráfico de dispersão). Clicar numa célula ou num ponto mostra na planta daquela ER só onde o movimento aparece.
 - **Aba nova na planilha, "Tipos de movimento":** nela você informa a classificação (lançamento, promoção…) e o GMV esperado de cada movimento.
 - **Topo reorganizado:** *Comunicações ER* e *Analytics* ficam em destaque. *Validação*, *Ajustar etiquetas* e *Ver o tutorial* ficam na engrenagem. *Baixar PNG* fica no canto de baixo da planta.
 - **Ajustar etiquetas:** cada pilha de etiquetas se move sozinha, e dá para mudar o tamanho das etiquetas.
@@ -206,7 +206,7 @@ Abra o link do app e confira:
 - [ ] Aparece o convite **"Bem-vindo ao Plano de Varejo"**. Ele aparece uma vez por navegador. Faça o tour ou clique em *Agora não*.
 - [ ] O seletor de ciclo mostra os **seus** ciclos e a planta abre com as cores e as etiquetas.
 - [ ] O topo tem **Comunicações ER** e **Analytics** em destaque e a **engrenagem** com *Validação*, *Ajustar etiquetas* e *Ver o tutorial*.
-- [ ] O **Analytics** mostra os números, os insights, o mapa movimento × ER e as marcas e classificações em cada ER. A classificação e o GMV só aparecem para os movimentos que estão na aba *Tipos de movimento*.
+- [ ] O **Analytics** mostra o mapa movimento × ER e as marcas e classificações em cada ER. A classificação e o GMV só aparecem para os movimentos que estão na aba *Tipos de movimento*.
 - [ ] **Baixar PNG** (canto de baixo da planta) baixa a planta, a visão simplificada e a estratégia.
 - [ ] As posições de etiquetas que você já tinha salvado continuam no lugar.
 - [ ] Entre na *Validação* como construtor: o painel mostra **Ciclos em construção** com o botão *Novo ciclo*. Se quiser testar, crie um ciclo de teste, mude um espaço e depois clique em *Excluir* na faixa do ciclo.

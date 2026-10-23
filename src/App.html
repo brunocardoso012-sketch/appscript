@@ -1054,7 +1054,7 @@ const App = (() => {
 
   /**
    * Dados do Analytics (Analytics.desenhar): o ciclo inteiro, ER por ER — espaços, marcas, classificações,
-   * espaços sem movimento e a fatia da rede que cada ER representa. Cada ER é um tamanho médio da rede:
+   * e espaços sem movimento. Cada ER é um tamanho médio da rede:
    * nenhuma conta soma ERs. Também cada movimento com os espaços dele em cada ER. Não usa os filtros da tela.
    * O espaço de exposição e o de VM têm contas separadas (vm: a mesma estrutura, só com os espaços de VM).
    * Na classificação, cada espaço se divide entre os tipos dos movimentos dele (para as barras somarem 100%).
@@ -1114,11 +1114,7 @@ const App = (() => {
           })),
       };
     };
-    const rede = estado.dados.config.rede || { participacao: {} };
-    const enxuta = (e) => ({
-      id: e.id, nome: e.nome, total: e.total, semMovimento: e.semMovimento, porMarca: e.porMarca, porClasse: e.porClasse,
-      rede: rede.participacao[e.id] || 0,
-    });
+    const enxuta = (e) => ({ id: e.id, nome: e.nome, total: e.total, semMovimento: e.semMovimento, porMarca: e.porMarca, porClasse: e.porClasse });
     const expo = contas((pt) => !pt.vm);
     const vm = contas((pt) => pt.vm);
     const classes = ordemDasClassificacoes(expo.ers.reduce((acc, e) => acc.concat(Object.keys(e.porClasse)), [])
@@ -1128,7 +1124,6 @@ const App = (() => {
       erAtual: estado.planta,
       abaTipos: estado.dados.config.abas.TIPOS,
       filtroEtiqueta: chaveEtiqueta(estado.filtroEtiqueta),
-      rede: { lojas: rede.lojas || 0, ficticia: !!rede.ficticia },
       ers: expo.ers.map(enxuta),
       movimentos: expo.movimentos,
       marcas: ordemM.filter((c) => expo.ers.some((e) => e.porMarca[c])).map((c) => marca(c, 0)),
