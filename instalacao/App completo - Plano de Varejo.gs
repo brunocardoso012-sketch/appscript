@@ -180,7 +180,8 @@ const CLASSIFICACOES = {
   LANCAMENTO: { nome: 'Lançamento', cor: '#0E7490', apelidos: ['LANCAMENTOS', 'LANC', 'LCTO', 'NOVIDADE', 'NEW'] },
   PROMOCAO: { nome: 'Promoção', cor: '#C2410C', apelidos: ['PROMO', 'PROMOCIONAL', 'PROMOCOES', 'OFERTA'] },
   LIQUIDACAO: { nome: 'Liquidação / outlet', cor: '#A16207', apelidos: ['LIQUIDA', 'LIQUIDACAOOUTLET', 'OUTLET', 'EXAUSTAO', 'QUEIMA'] },
-  INSTITUCIONAL: { nome: 'Institucional / portfólio', cor: '#475569', apelidos: ['PORTFOLIO', 'INSTITUCIONALPORTFOLIO', 'PERMANENTE', 'REGULAR'] },
+  // Baseline (antes "Institucional / portfólio": o nome antigo continua aceito na planilha).
+  INSTITUCIONAL: { nome: 'Baseline', cor: '#475569', apelidos: ['INSTITUCIONALPORTFOLIO', 'PORTFOLIO', 'PERMANENTE', 'REGULAR'] },
   OUTRO: { nome: 'Outro', cor: '#6B7280', apelidos: ['OUTROS'] },
 };
 

@@ -117,7 +117,7 @@ Sem esta aba o app funciona normalmente, e os movimentos aparecem como *Sem clas
 3. Preencha uma linha por movimento do ciclo:
    - **Ciclo:** o mesmo nome usado na aba *Movimentos* (ex.: `C15/2026`).
    - **Movimento (etiqueta):** o texto da etiqueta, igual ao da aba *Movimentos* (ex.: `LÇTO EGEO`). Maiúsculas e espaços a mais não importam.
-   - **Classificação:** `Lançamento`, `Promoção`, `Liquidação / outlet`, `Institucional / portfólio` ou `Outro`. Também aceita outro texto, que vira uma classificação própria.
+   - **Classificação:** `Lançamento`, `Promoção`, `Liquidação / outlet`, `Baseline` (o antigo *Institucional / portfólio*) ou `Outro`. Também aceita outro texto, que vira uma classificação própria.
    - **GMV esperado (R$):** um número, como `1500000`, `R$ 1.500.000,00`, `1,5 mi` ou `250 mil`.
    - **Observação:** opcional. Aparece ao passar o mouse no painel.
 4. (Opcional) Crie uma lista suspensa na coluna C: selecione a coluna, vá em **Dados › Validação de dados › Adicionar regra › Menu suspenso** e cadastre as 5 classificações acima.

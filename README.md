@@ -290,7 +290,7 @@ Uma linha por movimento do ciclo. O movimento é ligado às etiquetas pelo texto
 |---|---|
 | **Ciclo** | Igual à aba Movimentos. |
 | **Movimento (etiqueta)** | O texto da etiqueta (ex.: `LÇTO EGEO`, `BOTIPROMO`). |
-| Classificação | `Lançamento`, `Promoção`, `Liquidação / outlet`, `Institucional / portfólio` ou `Outro` (lista suspensa). Outro texto vira uma classificação própria. As opções ficam em `CLASSIFICACOES` ([`src/Config.gs`](src/Config.gs)). |
+| Classificação | `Lançamento`, `Promoção`, `Liquidação / outlet`, `Baseline` ou `Outro` (lista suspensa; o nome antigo *Institucional / portfólio* continua aceito e aparece como Baseline). Outro texto vira uma classificação própria. As opções ficam em `CLASSIFICACOES` ([`src/Config.gs`](src/Config.gs)). |
 | GMV esperado (R$) | Número em reais. Aceita também `R$ 1.500.000,00`, `1,5 mi` ou `250 mil`. |
 | Observação | Aparece ao passar o mouse sobre a etiqueta no painel. |
 

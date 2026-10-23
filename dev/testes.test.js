@@ -25,6 +25,9 @@ test('normalizações', () => {
   assert.equal(run("normSimbolo_('e')"), 'EXPOSICAO');
   assert.equal(run("normSecao_('TV/Rádio')"), 'TV');
   assert.equal(run("numero_('1,5')"), 1.5);
+  assert.equal(run("normClassificacao_('Baseline')"), 'INSTITUCIONAL');
+  assert.equal(run("normClassificacao_('Institucional / portfólio')"), 'INSTITUCIONAL', 'o nome antigo continua aceito');
+  assert.equal(run('CLASSIFICACOES.INSTITUCIONAL.nome'), 'Baseline');
   assert.equal(run("numero_('2.25')"), 2.25);
 });
 

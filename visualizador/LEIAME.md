@@ -57,7 +57,7 @@ const VISUALIZADOR = {
 ## Como usar a planilha
 
 - **Um ciclo = um nome na coluna "Ciclo".** Todos os ciclos ficam na mesma planilha. Para criar um ciclo, copie as linhas de um ciclo existente (em **Movimentos**, **Painéis** e **Tipos de movimento**), cole no fim e troque o nome do ciclo.
-- **Tipos de movimento:** uma linha por movimento do ciclo (o texto da etiqueta), com a *Classificação* (lançamento, promoção, liquidação / outlet, institucional / portfólio ou outro) e o *GMV esperado (R$)*. Aparecem no *Analytics*. A aba é opcional: sem ela, as etiquetas ficam como *Sem classificação*.
+- **Tipos de movimento:** uma linha por movimento do ciclo (o texto da etiqueta), com a *Classificação* (lançamento, promoção, liquidação / outlet, baseline (antes institucional / portfólio) ou outro) e o *GMV esperado (R$)*. Aparecem no *Analytics*. A aba é opcional: sem ela, as etiquetas ficam como *Sem classificação*.
 - Depois de editar, clique em **Atualizar** no app.
 - Não renomeie as abas nem os títulos das colunas. As regras de preenchimento (cores, etiquetas por bloco, gôndola, cascata ER P → ER GG…) estão na aba **Instruções** da planilha.
 - Se algo estiver errado (marca desconhecida, ID de móvel que não existe…), o app mostra **avisos** com a aba e a linha a corrigir.
