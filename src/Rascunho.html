@@ -546,19 +546,46 @@ const Rascunho = (() => {
     if (m.descricao && m.descricao !== m.id) n('span', null, m.descricao, nome);
     botao('Ver detalhes', 'fantasma', () => app.abrirMovel(m.id), topo).title = 'Planograma e comentários deste móvel';
     botao('✕', 'fantasma', () => aoClicarMovel(''), topo).setAttribute('aria-label', 'Tirar a seleção');
-    app.blocosDoMovel(planta, m, app.estado.ciclo).forEach((b) => blocoEspaco(pai, planta, b));
+    app.blocosDoMovel(planta, m, app.estado.ciclo).forEach((b) => {
+      const porEr = app.espacoPorEr(b.chave);
+      if (!porEr) { blocoEspaco(pai, planta, b); return; }
+      // Espaço que muda conforme a ER (ex.: ponta B da gôndola 1): a parte fixa e a livre, separadas. Cada
+      // uma grava na ER dela (na ER aberta, quando é a parte dela; senão, na primeira ER da parte).
+      const nomeEr = (id) => (app.estado.dados.plantas.find((p) => p.id === id) || { nome: id }).nome;
+      // A parte que vale na ER aberta vem primeiro.
+      [porEr.parte(planta.id), porEr.parte(planta.id) === porEr.fixo ? porEr.livre : porEr.fixo].forEach((parte) => {
+        if (!parte.plantas.length) return;
+        const alvo = parte.plantas.indexOf(planta.id) >= 0 ? planta : app.estado.dados.plantas.find((p) => p.id === parte.plantas[0]);
+        const mAlvo = alvo && alvo.moveis.find((x) => x.id === m.id);
+        const bAlvo = mAlvo && app.blocosDoMovel(alvo, mAlvo, app.estado.ciclo).find((x) => x.chave === b.chave);
+        if (!bAlvo) return;
+        blocoEspaco(pai, alvo, bAlvo, { parte, ers: parte.plantas.map(nomeEr).join(', '), nestaEr: alvo === planta });
+      });
+    });
   }
 
   /**
    * Um espaço (ou o móvel inteiro) no painel: cada mudança pinta a planta na hora e é gravada sozinha.
    * @param {{titulo, chave, info, limite, propria}} b  de blocosDoMovel (App.html)
+   * @param {{parte, ers, nestaEr}} [porEr]  uma parte de um espaço que muda conforme a ER (fixa ou livre):
+   *   planta é a ER em que ela grava; ers, os nomes das ERs da parte; nestaEr: é a parte da ER aberta.
    */
-  function blocoEspaco(pai, planta, b) {
+  function blocoEspaco(pai, planta, b, porEr) {
     const ciclo = app.estado.ciclo;
     const i = b.info || { marca: '', etiquetas: [], simbolo: '', observacao: '' };
-    const f = n('div', 'rs-espaco pc-espaco', null, pai);
+    const fixa = porEr && porEr.parte.tipo === 'fixo' ? porEr.parte.marca : '';
+    const f = n('div', 'rs-espaco pc-espaco' + (porEr ? ' pc-parte ' + porEr.parte.tipo + (porEr.nestaEr ? ' atual' : '') : ''), null, pai);
     f.dataset.espaco = b.chave;
+    if (porEr) f.dataset.parte = porEr.parte.tipo;
     n('h4', null, b.titulo, f);
+    if (porEr) {
+      const sub = n('p', 'pc-parte-ers', null, f);
+      n('strong', null, (porEr.parte.tipo === 'fixo' ? 'Só na ' : 'Vale para ') + porEr.ers + '.', sub);
+      sub.appendChild(document.createTextNode(porEr.parte.tipo === 'fixo'
+        ? ' Espaço fixo de ' + app.nomeDaMarca(fixa) + ': só as etiquetas mudam.'
+        : ' É só o que aparece nessas ERs (a parte fixa não passa para elas).'));
+      if (!porEr.nestaEr) n('span', 'pc-parte-outra', 'Não aparece na ' + app.plantaAtual().nome, sub);
+    }
     const herdado = b.info && !b.propria
       ? n('p', 'rs-herdado', 'Vem de outra ER (cascata). Ao mudar, vira uma linha própria da ' + planta.nome + '.', f) : null;
     const linha = (rotulo) => {
@@ -566,8 +593,9 @@ const Rascunho = (() => {
       n('span', 'mv-rotulo', rotulo, d);
       return d;
     };
-    const marca = selectMarca(linha('Marca'), i.marca, 'Sem marca (branco)');
+    const marca = selectMarca(linha('Marca'), fixa || i.marca, 'Sem marca (branco)');
     marca.setAttribute('aria-label', 'Marca de ' + b.titulo);
+    marca.disabled = !!fixa; // espaço fixo de uma marca: a marca não muda
     const simbolo = n('select', null, null, linha('Símbolo'));
     simbolo.setAttribute('aria-label', 'Símbolo de ' + b.titulo);
     n('option', null, 'Nenhum', simbolo).value = '';
@@ -637,7 +665,7 @@ const Rascunho = (() => {
     obs.addEventListener('input', () => mudou(false));
     const acoes = n('div', 'val-acoes', null, f);
     botao('Limpar espaço', 'fantasma', () => {
-      [marca, simbolo, obs].concat(campos.reduce((a, c) => a.concat([c.t, c.o, c.m]), [])).forEach((el) => { el.value = ''; });
+      [fixa ? null : marca, simbolo, obs].filter(Boolean).concat(campos.reduce((a, c) => a.concat([c.t, c.o, c.m]), [])).forEach((el) => { el.value = ''; });
       mudou(true);
     }, acoes);
   }

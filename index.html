@@ -874,6 +874,15 @@
   .pc-etiquetas .rs-etq .rs-etq-obs { grid-column: 1 / -1; order: 3; font-size: 12px; }
   .pc-etiquetas select { padding: 5px 7px; font-size: 13px; }
   .pc-espaco .val-acoes { margin: 0; }
+  /* Espaço que muda conforme a ER (ponta B da gôndola 1): a parte fixa e a livre, separadas. */
+  .pc-parte.atual { border-color: var(--texto-2); box-shadow: inset 3px 0 0 var(--texto-2); }
+  .pc-parte:not(.atual) { border-style: dashed; }
+  .pc-parte-ers { margin: 0; font-size: 12px; line-height: 1.45; color: var(--texto-2); }
+  .pc-parte-ers strong { color: var(--texto); }
+  .pc-parte-outra {
+    display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--borda);
+    background: var(--superficie); font-size: 11px; font-weight: 600; white-space: nowrap;
+  }
   .pc-bloco { margin: 0 0 16px; }
   .pc-bloco h4 { margin: 0 0 6px; font-size: 13px; }
   .pc-sub { margin: -2px 0 8px; font-size: 11.5px; color: var(--texto-2); }
@@ -1135,6 +1144,17 @@ const SENHAS_ACESSO = {
  * aqui é chamada de "PLANTA <número>".
  */
 const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
+
+/**
+ * Espaços que mudam conforme o tamanho da ER: nas ERs de fixo.plantas, o espaço é fixo de uma marca
+ * (fixo.marca; o símbolo 🔒 entra sozinho quando a linha não tem símbolo); nas outras ERs, é livre.
+ * A cascata não passa de uma parte para a outra: nas ERs em que o espaço é livre, só vale o que foi
+ * definido como livre (a linha da ER M, que segue para a ER G e a ER GG), nunca a parte fixa.
+ * Ao montar o ciclo, o espaço mostra as duas partes, separadas.
+ */
+const ESPACOS_POR_ER = {
+  'GONDOLA 1/PONTA-B': { fixo: { plantas: ['01'], marca: 'OUI', nome: 'Fixo O.U.i' }, livre: { nome: 'Livre' } },
+};
 
 /**
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
@@ -1601,6 +1621,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
+      espacosPorEr: ESPACOS_POR_ER,
     },
   };
 }
@@ -2788,7 +2809,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 13, '02': 12, '03': 9, '04': 11 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 14;
+const VERSAO_EXEMPLO = 15;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
@@ -2954,7 +2975,8 @@ const EXEMPLO_MOVIMENTOS = {
     'GONDOLA 1/PONTA-A': ['QDB', [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']]],
     'GONDOLA 1/MEIO-A': ['BOT', [['BOTIK', 'BOT']], 'FIXO'],
     'GONDOLA 1/MEIO-B': ['BOT', [['UOMINI HERO', 'BOT']], 'FIXO'],
-    'GONDOLA 1/PONTA-B': ['BOT', [['BOTI PROMO', 'BOT']], 'FIXO'],
+    // Ponta B da gôndola 1: fixa de O.U.i na ER P e livre nas ERs maiores (ESPACOS_POR_ER, em Config.gs).
+    'GONDOLA 1/PONTA-B': ['OUI', [['MON AMIE + LOÇÃO', 'OUI']], 'FIXO'],
     'PIRAMIDE 1': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'PIRAMIDE 2': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT'], ['BOTIPROMO', 'BOT']]],
     'MESA DESTAQUE 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
@@ -2973,6 +2995,7 @@ const EXEMPLO_MOVIMENTOS = {
     'MOVEL MAKE 1/TESTEIRA-4': ['EUD'],
   },
   '02': {
+    'GONDOLA 1/PONTA-B': ['BOT', [['BOTI PROMO', 'BOT']]], // a parte livre (vale para a ER M, a ER G e a ER GG)
     'GONDOLA 2/PONTA-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']]],
     'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']]],
@@ -3145,7 +3168,13 @@ function movimentosExemploCheio_(planta) {
       const ids = ['PONTA-A'];
       ['A', 'B'].forEach(function (l) { if (div.indexOf(l) >= 0) ids.push('MEIO-' + l + '-1', 'MEIO-' + l + '-2'); else ids.push('MEIO-' + l); });
       ids.push('PONTA-B');
-      ids.forEach(function (e) { saida[id + '/' + e] = linha(par(), num === 1 && /^MEIO/.test(e) ? 'FIXO' : ''); });
+      ids.forEach(function (e) {
+        const etiquetas = par();
+        const porEr = ESPACOS_POR_ER[id + '/' + e];
+        // Espaço fixo de uma marca nesta ER (ex.: ponta B da gôndola 1, de O.U.i na ER P).
+        if (porEr && porEr.fixo.plantas.indexOf(planta) >= 0) saida[id + '/' + e] = [porEr.fixo.marca, [E.oui[0], E.oui[2]], 'FIXO'];
+        else saida[id + '/' + e] = linha(etiquetas, num === 1 && /^MEIO/.test(e) ? 'FIXO' : '');
+      });
     } else if (tipo === 'PIRAMIDE' || tipo === 'FILA' || tipo === 'CUBO') {
       saida[id] = linha(par(), tipo === 'PIRAMIDE' && num === 1 ? 'NOVO' : '');
     } else if (tipo === 'GONDOLA_PAREDE') {
@@ -7234,7 +7263,7 @@ const Planilha = (() => {
       '6.2 Gôndola: uma linha por espaço — GONDOLA 1/PONTA-A, MEIO-A, MEIO-B e PONTA-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas, junto dele na planta, com o nome do espaço (PONTA A, MEIO B…). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
       '6.3 Mesa destaque (FRENTE-1 e 2, e VERSO, atrás das lâminas), mesa 3 frentes (FRENTE-1 a 3 e VERSO), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente e o verso das mesas mostram até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só.',
       '6.4 Móveis de um espaço só (pirâmide, móvel de fila, móvel de parede, PDV, O.U.i…) têm uma linha. O balcão recepção também: um espaço só, com uma cor e até 3 etiquetas.',
-      '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',
+      '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas. Exceção: a ponta B da gôndola 1 é fixa de O.U.i na ER P e livre nas ERs maiores — a linha da ER P (Fixo O.U.i) não passa para elas; a da ER M (Livre) vale para a ER M, a ER G e a ER GG.',
     ].concat(op.visualizador ? [
       // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.
       '8. Todos os ciclos ficam nesta mesma planilha. Para criar um ciclo novo, copie as linhas de um ciclo existente (nas abas "' + abas.MOVIMENTOS + '", "' + abas.PAINEIS + '" e "' + abas.TIPOS + '"), cole no fim e troque o "Ciclo". Cada nome diferente de ciclo aparece no seletor do visualizador.',
@@ -7307,6 +7336,15 @@ const Planilha = (() => {
     plantas.forEach((p) => p.moveis.forEach((m) => { (ondeExiste[m.id] = ondeExiste[m.id] || []).push(p.id); }));
     const nomeDe = (id) => plantaNaPlanilha(dados, id);
     const jaListado = {}; // ID → conteúdo (JSON) que as plantas seguintes herdam
+    const parteDoEspaco = (id, planta) => {
+      const cfg = (dados.config.espacosPorEr || {})[id];
+      if (!cfg) return null;
+      const fixo = cfg.fixo.plantas.indexOf(planta) >= 0;
+      return {
+        tipo: fixo ? 'fixo' : 'livre', nome: fixo ? cfg.fixo.nome : cfg.livre.nome,
+        plantas: dados.plantas.map((x) => x.id).filter((x) => (cfg.fixo.plantas.indexOf(x) >= 0) === fixo),
+      };
+    };
     let faixa = 0;
     plantas.forEach((p) => {
       const fundo = { type: 'pattern', pattern: 'solid', fgColor: { argb: FAIXAS_PLANTA[faixa++ % FAIXAS_PLANTA.length] } };
@@ -7336,9 +7374,15 @@ const Planilha = (() => {
       p.moveis.filter((m) => !SEM_LINHA_NA_PLANILHA[m.tipo]).reduce((acc, m) => acc.concat(linhasDoMovel(m)), []).forEach((m) => {
         const info = op.origem ? resolver.movimento(op.origem, p.id, m.id) : null;
         const conteudo = JSON.stringify(info);
-        if (emCascata && m.id in jaListado && jaListado[m.id] === conteudo) return; // já vem da planta anterior
-        jaListado[m.id] = conteudo;
-        const linha = { ciclo: op.ciclo, planta: nomeDe(p.id), movel: m.id, descricao: m.descricao };
+        // Espaço que muda conforme a ER (ex.: ponta B da gôndola 1): a parte fixa e a livre têm cada uma a
+        // sua linha (a livre não herda a fixa), com a parte e as ERs dela na descrição.
+        const parte = parteDoEspaco(m.id, p.id);
+        const chave = m.id + (parte ? '|' + parte.tipo : '');
+        if (emCascata && chave in jaListado && jaListado[chave] === conteudo) return; // já vem da planta anterior
+        jaListado[chave] = conteudo;
+        const descricao = parte ? m.descricao + ' · ' + parte.nome + ' (' + (parte.tipo === 'fixo' ? 'só ' : 'vale para ')
+          + plantas.filter((x) => parte.plantas.indexOf(x.id) >= 0).map((x) => nomeDe(x.id)).join(', ') + ')' : m.descricao;
+        const linha = { ciclo: op.ciclo, planta: nomeDe(p.id), movel: m.id, descricao };
         if (info) {
           linha.marca = info.marca;
           // Só as etiquetas que aparecem na planta.
@@ -9329,19 +9373,46 @@ const Rascunho = (() => {
     if (m.descricao && m.descricao !== m.id) n('span', null, m.descricao, nome);
     botao('Ver detalhes', 'fantasma', () => app.abrirMovel(m.id), topo).title = 'Planograma e comentários deste móvel';
     botao('✕', 'fantasma', () => aoClicarMovel(''), topo).setAttribute('aria-label', 'Tirar a seleção');
-    app.blocosDoMovel(planta, m, app.estado.ciclo).forEach((b) => blocoEspaco(pai, planta, b));
+    app.blocosDoMovel(planta, m, app.estado.ciclo).forEach((b) => {
+      const porEr = app.espacoPorEr(b.chave);
+      if (!porEr) { blocoEspaco(pai, planta, b); return; }
+      // Espaço que muda conforme a ER (ex.: ponta B da gôndola 1): a parte fixa e a livre, separadas. Cada
+      // uma grava na ER dela (na ER aberta, quando é a parte dela; senão, na primeira ER da parte).
+      const nomeEr = (id) => (app.estado.dados.plantas.find((p) => p.id === id) || { nome: id }).nome;
+      // A parte que vale na ER aberta vem primeiro.
+      [porEr.parte(planta.id), porEr.parte(planta.id) === porEr.fixo ? porEr.livre : porEr.fixo].forEach((parte) => {
+        if (!parte.plantas.length) return;
+        const alvo = parte.plantas.indexOf(planta.id) >= 0 ? planta : app.estado.dados.plantas.find((p) => p.id === parte.plantas[0]);
+        const mAlvo = alvo && alvo.moveis.find((x) => x.id === m.id);
+        const bAlvo = mAlvo && app.blocosDoMovel(alvo, mAlvo, app.estado.ciclo).find((x) => x.chave === b.chave);
+        if (!bAlvo) return;
+        blocoEspaco(pai, alvo, bAlvo, { parte, ers: parte.plantas.map(nomeEr).join(', '), nestaEr: alvo === planta });
+      });
+    });
   }
 
   /**
    * Um espaço (ou o móvel inteiro) no painel: cada mudança pinta a planta na hora e é gravada sozinha.
    * @param {{titulo, chave, info, limite, propria}} b  de blocosDoMovel (App.html)
+   * @param {{parte, ers, nestaEr}} [porEr]  uma parte de um espaço que muda conforme a ER (fixa ou livre):
+   *   planta é a ER em que ela grava; ers, os nomes das ERs da parte; nestaEr: é a parte da ER aberta.
    */
-  function blocoEspaco(pai, planta, b) {
+  function blocoEspaco(pai, planta, b, porEr) {
     const ciclo = app.estado.ciclo;
     const i = b.info || { marca: '', etiquetas: [], simbolo: '', observacao: '' };
-    const f = n('div', 'rs-espaco pc-espaco', null, pai);
+    const fixa = porEr && porEr.parte.tipo === 'fixo' ? porEr.parte.marca : '';
+    const f = n('div', 'rs-espaco pc-espaco' + (porEr ? ' pc-parte ' + porEr.parte.tipo + (porEr.nestaEr ? ' atual' : '') : ''), null, pai);
     f.dataset.espaco = b.chave;
+    if (porEr) f.dataset.parte = porEr.parte.tipo;
     n('h4', null, b.titulo, f);
+    if (porEr) {
+      const sub = n('p', 'pc-parte-ers', null, f);
+      n('strong', null, (porEr.parte.tipo === 'fixo' ? 'Só na ' : 'Vale para ') + porEr.ers + '.', sub);
+      sub.appendChild(document.createTextNode(porEr.parte.tipo === 'fixo'
+        ? ' Espaço fixo de ' + app.nomeDaMarca(fixa) + ': só as etiquetas mudam.'
+        : ' É só o que aparece nessas ERs (a parte fixa não passa para elas).'));
+      if (!porEr.nestaEr) n('span', 'pc-parte-outra', 'Não aparece na ' + app.plantaAtual().nome, sub);
+    }
     const herdado = b.info && !b.propria
       ? n('p', 'rs-herdado', 'Vem de outra ER (cascata). Ao mudar, vira uma linha própria da ' + planta.nome + '.', f) : null;
     const linha = (rotulo) => {
@@ -9349,8 +9420,9 @@ const Rascunho = (() => {
       n('span', 'mv-rotulo', rotulo, d);
       return d;
     };
-    const marca = selectMarca(linha('Marca'), i.marca, 'Sem marca (branco)');
+    const marca = selectMarca(linha('Marca'), fixa || i.marca, 'Sem marca (branco)');
     marca.setAttribute('aria-label', 'Marca de ' + b.titulo);
+    marca.disabled = !!fixa; // espaço fixo de uma marca: a marca não muda
     const simbolo = n('select', null, null, linha('Símbolo'));
     simbolo.setAttribute('aria-label', 'Símbolo de ' + b.titulo);
     n('option', null, 'Nenhum', simbolo).value = '';
@@ -9420,7 +9492,7 @@ const Rascunho = (() => {
     obs.addEventListener('input', () => mudou(false));
     const acoes = n('div', 'val-acoes', null, f);
     botao('Limpar espaço', 'fantasma', () => {
-      [marca, simbolo, obs].concat(campos.reduce((a, c) => a.concat([c.t, c.o, c.m]), [])).forEach((el) => { el.value = ''; });
+      [fixa ? null : marca, simbolo, obs].filter(Boolean).concat(campos.reduce((a, c) => a.concat([c.t, c.o, c.m]), [])).forEach((el) => { el.value = ''; });
       mudou(true);
     }, acoes);
   }
@@ -11399,13 +11471,35 @@ const App = (() => {
   }
 
   /**
+   * Espaço que muda conforme a ER (ESPACOS_POR_ER, em Config.gs): fixo de uma marca em algumas ERs e livre
+   * nas outras. Devolve null para os demais espaços; senão, as duas partes, cada uma com as ERs dela:
+   * { fixo: { nome, marca, plantas }, livre: { nome, plantas }, parte(planta) → a parte da ER }.
+   */
+  function espacoPorEr(id) {
+    const cfg = ((estado.dados.config || {}).espacosPorEr || {})[id];
+    if (!cfg) return null;
+    const ids = estado.dados.plantas.map((p) => p.id);
+    const fixo = Object.assign({ tipo: 'fixo' }, cfg.fixo, { plantas: ids.filter((p) => cfg.fixo.plantas.indexOf(p) >= 0) });
+    const livre = Object.assign({ tipo: 'livre' }, cfg.livre, { plantas: ids.filter((p) => cfg.fixo.plantas.indexOf(p) < 0) });
+    return { fixo, livre, parte: (planta) => (fixo.plantas.indexOf(planta) >= 0 ? fixo : livre) };
+  }
+
+  /**
    * O que vale para um móvel (ou espaço) numa ER, com a cascata e as antecipações do ciclo (Antecipacao.html).
    * semAntecipacao: só a aba Movimentos (planilha base).
+   * Espaço que muda conforme a ER: a cascata fica dentro da parte da ER (a livre não herda a fixa); na parte
+   * fixa, o espaço é sempre da marca dela, com 🔒 quando a linha não tem símbolo, mesmo sem linha no ciclo.
    */
   function movimentoDe(ciclo, planta, id, semAntecipacao) {
     const c = estado.dados.movimentos[ciclo] || {};
-    const achada = cascata(planta).find((p) => c[p] && c[p][id]);
-    const linha = (achada && c[achada][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+    const porEr = espacoPorEr(id);
+    const parte = porEr && porEr.parte(planta);
+    const ers = cascata(planta).filter((p) => !parte || parte.plantas.indexOf(p) >= 0);
+    const achada = ers.find((p) => c[p] && c[p][id]);
+    let linha = (achada && c[achada][id]) || (parte && parte.tipo === 'fixo' ? null : c[TODAS()] && c[TODAS()][id]) || null;
+    if (parte && parte.tipo === 'fixo' && (linha || (ciclo && !semAntecipacao))) {
+      linha = Object.assign({ etiquetas: [], observacao: '' }, linha, { marca: parte.marca, simbolo: (linha && linha.simbolo) || 'FIXO' });
+    }
     return semAntecipacao ? linha : Antecipacao.aplicar(ciclo, planta, id, linha);
   }
   /** Só a aba Movimentos: a planilha base não leva as antecipações (elas ficam na aba Antecipações). */
@@ -12937,8 +13031,10 @@ const App = (() => {
     return espacos.map((e) => {
       const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
       const propria = [m.id + '/' + e.id, meio].filter(Boolean).find(temLinha);
+      // Espaço que muda conforme a ER: o título diz qual parte vale nesta ER (ex.: "Ponta B · Fixo O.U.i").
+      const porEr = espacoPorEr(m.id + '/' + e.id);
       return {
-        titulo: e.nome, chave: m.id + '/' + e.id, espaco: e, info: propria ? linha(propria) : null,
+        titulo: e.nome + (porEr ? ' · ' + porEr.parte(planta.id).nome : ''), chave: m.id + '/' + e.id, espaco: e, info: propria ? linha(propria) : null,
         propria: !!(propria && daEr[propria]), limite: (config.etiquetasPorBloco || {})[m.tipo] || 1,
       };
     });
@@ -13748,7 +13844,7 @@ const App = (() => {
     estado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,
     acesso: () => Validacao.acesso(),
     recarregarComentarios: () => Validacao.recarregar(),
-    abrirMovel, blocosDoMovel, corDaMarca,
+    abrirMovel, blocosDoMovel, espacoPorEr, corDaMarca,
     comentariosAbertos: () => Validacao.abertosNoCiclo(),
     abrirComentarios: () => Validacao.abrirPainel(),
     estatisticas: estatisticasConstrucao,

@@ -49,6 +49,17 @@ const SENHAS_ACESSO = {
 const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
 
 /**
+ * Espaços que mudam conforme o tamanho da ER: nas ERs de fixo.plantas, o espaço é fixo de uma marca
+ * (fixo.marca; o símbolo 🔒 entra sozinho quando a linha não tem símbolo); nas outras ERs, é livre.
+ * A cascata não passa de uma parte para a outra: nas ERs em que o espaço é livre, só vale o que foi
+ * definido como livre (a linha da ER M, que segue para a ER G e a ER GG), nunca a parte fixa.
+ * Ao montar o ciclo, o espaço mostra as duas partes, separadas.
+ */
+const ESPACOS_POR_ER = {
+  'GONDOLA 1/PONTA-B': { fixo: { plantas: ['01'], marca: 'OUI', nome: 'Fixo O.U.i' }, livre: { nome: 'Livre' } },
+};
+
+/**
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
  * "Etiqueta N" são ignoradas). Tipos que não aparecem aqui mostram até
  * CONFIG.MAX_ETIQUETAS (pirâmide: até 4, empilhadas).

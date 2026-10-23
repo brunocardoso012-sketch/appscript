@@ -329,6 +329,17 @@ const SENHAS_ACESSO = {
 const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
 
 /**
+ * Espaços que mudam conforme o tamanho da ER: nas ERs de fixo.plantas, o espaço é fixo de uma marca
+ * (fixo.marca; o símbolo 🔒 entra sozinho quando a linha não tem símbolo); nas outras ERs, é livre.
+ * A cascata não passa de uma parte para a outra: nas ERs em que o espaço é livre, só vale o que foi
+ * definido como livre (a linha da ER M, que segue para a ER G e a ER GG), nunca a parte fixa.
+ * Ao montar o ciclo, o espaço mostra as duas partes, separadas.
+ */
+const ESPACOS_POR_ER = {
+  'GONDOLA 1/PONTA-B': { fixo: { plantas: ['01'], marca: 'OUI', nome: 'Fixo O.U.i' }, livre: { nome: 'Livre' } },
+};
+
+/**
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
  * "Etiqueta N" são ignoradas). Tipos que não aparecem aqui mostram até
  * CONFIG.MAX_ETIQUETAS (pirâmide: até 4, empilhadas).
@@ -627,7 +638,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 13, '02': 12, '03': 9, '04': 11 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 14;
+const VERSAO_EXEMPLO = 15;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
@@ -793,7 +804,8 @@ const EXEMPLO_MOVIMENTOS = {
     'GONDOLA 1/PONTA-A': ['QDB', [['LIQUIDA QDB', 'QDB'], ['JUICY MOOD', 'QDB']]],
     'GONDOLA 1/MEIO-A': ['BOT', [['BOTIK', 'BOT']], 'FIXO'],
     'GONDOLA 1/MEIO-B': ['BOT', [['UOMINI HERO', 'BOT']], 'FIXO'],
-    'GONDOLA 1/PONTA-B': ['BOT', [['BOTI PROMO', 'BOT']], 'FIXO'],
+    // Ponta B da gôndola 1: fixa de O.U.i na ER P e livre nas ERs maiores (ESPACOS_POR_ER, em Config.gs).
+    'GONDOLA 1/PONTA-B': ['OUI', [['MON AMIE + LOÇÃO', 'OUI']], 'FIXO'],
     'PIRAMIDE 1': ['EUD', [['MULTI PROMO', 'MULTI']]],
     'PIRAMIDE 2': ['BOT', [['PRINCIPAIS OPORTUNIDADES', 'BOT'], ['BOTIPROMO', 'BOT']]],
     'MESA DESTAQUE 1/FRENTE-1': ['BOT', [['UOMINI GLORIFICADO', 'BOT']]],
@@ -812,6 +824,7 @@ const EXEMPLO_MOVIMENTOS = {
     'MOVEL MAKE 1/TESTEIRA-4': ['EUD'],
   },
   '02': {
+    'GONDOLA 1/PONTA-B': ['BOT', [['BOTI PROMO', 'BOT']]], // a parte livre (vale para a ER M, a ER G e a ER GG)
     'GONDOLA 2/PONTA-A': ['QDB', [['LIQUIDA QDB', 'QDB']]],
     'GONDOLA 2/MEIO-A': ['EUD', [['PERFUMARIA', 'EUD']]],
     'GONDOLA 2/MEIO-A-2': ['BOT', [['BOTI PROMO', 'BOT']]],
@@ -984,7 +997,13 @@ function movimentosExemploCheio_(planta) {
       const ids = ['PONTA-A'];
       ['A', 'B'].forEach(function (l) { if (div.indexOf(l) >= 0) ids.push('MEIO-' + l + '-1', 'MEIO-' + l + '-2'); else ids.push('MEIO-' + l); });
       ids.push('PONTA-B');
-      ids.forEach(function (e) { saida[id + '/' + e] = linha(par(), num === 1 && /^MEIO/.test(e) ? 'FIXO' : ''); });
+      ids.forEach(function (e) {
+        const etiquetas = par();
+        const porEr = ESPACOS_POR_ER[id + '/' + e];
+        // Espaço fixo de uma marca nesta ER (ex.: ponta B da gôndola 1, de O.U.i na ER P).
+        if (porEr && porEr.fixo.plantas.indexOf(planta) >= 0) saida[id + '/' + e] = [porEr.fixo.marca, [E.oui[0], E.oui[2]], 'FIXO'];
+        else saida[id + '/' + e] = linha(etiquetas, num === 1 && /^MEIO/.test(e) ? 'FIXO' : '');
+      });
     } else if (tipo === 'PIRAMIDE' || tipo === 'FILA' || tipo === 'CUBO') {
       saida[id] = linha(par(), tipo === 'PIRAMIDE' && num === 1 ? 'NOVO' : '');
     } else if (tipo === 'GONDOLA_PAREDE') {
@@ -1298,6 +1317,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
+      espacosPorEr: ESPACOS_POR_ER,
     },
   };
 }

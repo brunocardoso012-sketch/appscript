@@ -864,6 +864,15 @@
   .pc-etiquetas .rs-etq .rs-etq-obs { grid-column: 1 / -1; order: 3; font-size: 12px; }
   .pc-etiquetas select { padding: 5px 7px; font-size: 13px; }
   .pc-espaco .val-acoes { margin: 0; }
+  /* Espaço que muda conforme a ER (ponta B da gôndola 1): a parte fixa e a livre, separadas. */
+  .pc-parte.atual { border-color: var(--texto-2); box-shadow: inset 3px 0 0 var(--texto-2); }
+  .pc-parte:not(.atual) { border-style: dashed; }
+  .pc-parte-ers { margin: 0; font-size: 12px; line-height: 1.45; color: var(--texto-2); }
+  .pc-parte-ers strong { color: var(--texto); }
+  .pc-parte-outra {
+    display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--borda);
+    background: var(--superficie); font-size: 11px; font-weight: 600; white-space: nowrap;
+  }
   .pc-bloco { margin: 0 0 16px; }
   .pc-bloco h4 { margin: 0 0 6px; font-size: 13px; }
   .pc-sub { margin: -2px 0 8px; font-size: 11.5px; color: var(--texto-2); }

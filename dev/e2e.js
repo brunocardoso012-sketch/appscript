@@ -616,6 +616,29 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.ok(await p.locator('#pcStats .pc-gmv', { hasText: 'NOVO MOVIMENTO OUI' }).count() === 1, 'conta no mesmo movimento');
   assert.strictEqual(await p.locator('#pcStats .pc-alertas li.erro').count(), 0, 'não fica fora dos tipos');
   assert.strictEqual(await p.inputValue('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-A"] .rs-etq-obs'), 'só no kit');
+  // Ponta B da gôndola 1: fixa de O.U.i na ER P e livre nas ERs maiores, em duas partes separadas.
+  const fixa = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-B"][data-parte="fixo"]');
+  const livre = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-B"][data-parte="livre"]');
+  assert.ok(await fixa.isVisible() && await livre.isVisible(), 'a ponta B mostra a parte fixa e a livre');
+  assert.match(await fixa.textContent(), /Só na ER P/);
+  assert.match(await livre.textContent(), /Vale para ER M, ER G, ER GG/);
+  assert.ok(await fixa.locator('select.rs-marca').first().isDisabled(), 'a marca da parte fixa não muda');
+  assert.strictEqual(await fixa.locator('select.rs-marca').first().inputValue(), 'OUI');
+  await fixa.locator('.rs-etq select:not(.rs-marca)').first().selectOption('NOVO MOVIMENTO OUI');
+  const outro = (await livre.locator('.rs-etq select:not(.rs-marca)').first().locator('option').evaluateAll((os) => os.map((o) => o.value)))
+    .find((v) => v && v !== 'NOVO MOVIMENTO OUI');
+  await livre.locator('select.rs-marca').first().selectOption('BOT');
+  await livre.locator('.rs-etq select:not(.rs-marca)').first().selectOption(outro);
+  await gravado();
+  assert.strictEqual((await espacos())['01']['GONDOLA 1/PONTA-B'].marca, 'OUI');
+  assert.strictEqual((await espacos())['02']['GONDOLA 1/PONTA-B'].etiquetas[0].texto, outro, 'a parte livre grava na ER M');
+  const pontaB = (er) => p.evaluate((e) => App.resolver.movimento('C11/2026', e, 'GONDOLA 1/PONTA-B'), er);
+  assert.strictEqual((await pontaB('01')).etiquetas[0].texto, 'NOVO MOVIMENTO OUI');
+  for (const er of ['02', '03', '04']) assert.strictEqual((await pontaB(er)).etiquetas[0].texto, outro, 'ER ' + er + ': só a parte livre');
+  // Sem a parte livre, as ERs maiores ficam sem nada na ponta B (não herdam a parte fixa da ER P).
+  await livre.locator('button', { hasText: 'Limpar espaço' }).click();
+  await gravado();
+  for (const er of ['02', '03', '04']) assert.strictEqual(await pontaB(er), null, 'ER ' + er + ': a parte fixa não passa');
   // Limpar um espaço: some da planta e o espaço vazio aparece na lista; clicar nele seleciona o móvel.
   await p.evaluate(() => document.querySelector('#slide .movel[data-movel="PIRAMIDE 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
   await p.waitForSelector('#pcForm .pc-espaco[data-espaco="PIRAMIDE 1"]');

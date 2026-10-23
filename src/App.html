@@ -102,13 +102,35 @@ const App = (() => {
   }
 
   /**
+   * Espaço que muda conforme a ER (ESPACOS_POR_ER, em Config.gs): fixo de uma marca em algumas ERs e livre
+   * nas outras. Devolve null para os demais espaços; senão, as duas partes, cada uma com as ERs dela:
+   * { fixo: { nome, marca, plantas }, livre: { nome, plantas }, parte(planta) → a parte da ER }.
+   */
+  function espacoPorEr(id) {
+    const cfg = ((estado.dados.config || {}).espacosPorEr || {})[id];
+    if (!cfg) return null;
+    const ids = estado.dados.plantas.map((p) => p.id);
+    const fixo = Object.assign({ tipo: 'fixo' }, cfg.fixo, { plantas: ids.filter((p) => cfg.fixo.plantas.indexOf(p) >= 0) });
+    const livre = Object.assign({ tipo: 'livre' }, cfg.livre, { plantas: ids.filter((p) => cfg.fixo.plantas.indexOf(p) < 0) });
+    return { fixo, livre, parte: (planta) => (fixo.plantas.indexOf(planta) >= 0 ? fixo : livre) };
+  }
+
+  /**
    * O que vale para um móvel (ou espaço) numa ER, com a cascata e as antecipações do ciclo (Antecipacao.html).
    * semAntecipacao: só a aba Movimentos (planilha base).
+   * Espaço que muda conforme a ER: a cascata fica dentro da parte da ER (a livre não herda a fixa); na parte
+   * fixa, o espaço é sempre da marca dela, com 🔒 quando a linha não tem símbolo, mesmo sem linha no ciclo.
    */
   function movimentoDe(ciclo, planta, id, semAntecipacao) {
     const c = estado.dados.movimentos[ciclo] || {};
-    const achada = cascata(planta).find((p) => c[p] && c[p][id]);
-    const linha = (achada && c[achada][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+    const porEr = espacoPorEr(id);
+    const parte = porEr && porEr.parte(planta);
+    const ers = cascata(planta).filter((p) => !parte || parte.plantas.indexOf(p) >= 0);
+    const achada = ers.find((p) => c[p] && c[p][id]);
+    let linha = (achada && c[achada][id]) || (parte && parte.tipo === 'fixo' ? null : c[TODAS()] && c[TODAS()][id]) || null;
+    if (parte && parte.tipo === 'fixo' && (linha || (ciclo && !semAntecipacao))) {
+      linha = Object.assign({ etiquetas: [], observacao: '' }, linha, { marca: parte.marca, simbolo: (linha && linha.simbolo) || 'FIXO' });
+    }
     return semAntecipacao ? linha : Antecipacao.aplicar(ciclo, planta, id, linha);
   }
   /** Só a aba Movimentos: a planilha base não leva as antecipações (elas ficam na aba Antecipações). */
@@ -1640,8 +1662,10 @@ const App = (() => {
     return espacos.map((e) => {
       const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
       const propria = [m.id + '/' + e.id, meio].filter(Boolean).find(temLinha);
+      // Espaço que muda conforme a ER: o título diz qual parte vale nesta ER (ex.: "Ponta B · Fixo O.U.i").
+      const porEr = espacoPorEr(m.id + '/' + e.id);
       return {
-        titulo: e.nome, chave: m.id + '/' + e.id, espaco: e, info: propria ? linha(propria) : null,
+        titulo: e.nome + (porEr ? ' · ' + porEr.parte(planta.id).nome : ''), chave: m.id + '/' + e.id, espaco: e, info: propria ? linha(propria) : null,
         propria: !!(propria && daEr[propria]), limite: (config.etiquetasPorBloco || {})[m.tipo] || 1,
       };
     });
@@ -2451,7 +2475,7 @@ const App = (() => {
     estado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,
     acesso: () => Validacao.acesso(),
     recarregarComentarios: () => Validacao.recarregar(),
-    abrirMovel, blocosDoMovel, corDaMarca,
+    abrirMovel, blocosDoMovel, espacoPorEr, corDaMarca,
     comentariosAbertos: () => Validacao.abertosNoCiclo(),
     abrirComentarios: () => Validacao.abrirPainel(),
     estatisticas: estatisticasConstrucao,
