@@ -1197,11 +1197,11 @@ const ESPACOS_POR_ER = {
  */
 const HERANCA_ENTRE_ERS = [
   {
-    // Da ER M para a ER G: o lado B (ponta e meio) da gôndola 2 vira o lado A da gôndola 3; os lados B
-    // das gôndolas 1 e 2 são definidos de novo na ER G.
+    // Da ER M para a ER G: o lado B (ponta e meio) da gôndola 2 vira o lado A da gôndola 3, e o lado B da
+    // gôndola 2 é definido de novo na ER G. A gôndola 1 segue a cascata normal (ER M → ER G → ER GG).
     de: '02', para: '03',
     espacos: { 'GONDOLA 3/PONTA-A': 'GONDOLA 2/PONTA-B', 'GONDOLA 3/MEIO-A': 'GONDOLA 2/MEIO-B' },
-    semHeranca: ['GONDOLA 1/PONTA-B', 'GONDOLA 1/MEIO-B', 'GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'],
+    semHeranca: ['GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'],
   },
 ];
 
@@ -2908,7 +2908,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 13, '02': 12, '03': 9, '04': 11 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 16;
+const VERSAO_EXEMPLO = 17;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
@@ -3108,9 +3108,7 @@ const EXEMPLO_MOVIMENTOS = {
   },
   '03': {
     // Ponta A e meio A da gôndola 3: vêm da ponta B e do meio B da gôndola 2 da ER M (HERANCA_ENTRE_ERS,
-    // em Config.gs). Os lados B das gôndolas 1 e 2 são definidos de novo na ER G.
-    'GONDOLA 1/MEIO-B': ['BOT', [['UOMINI HERO', 'BOT']], 'FIXO'],
-    'GONDOLA 1/PONTA-B': ['BOT', [['BOTI PROMO', 'BOT']]],
+    // em Config.gs). O lado B da gôndola 2 é definido de novo na ER G.
     'GONDOLA 2/MEIO-B': ['EUD', [['PERFUMARIA', 'EUD']]],
     'GONDOLA 2/PONTA-B': ['QDB', [['JUICY MOOD', 'QDB']]],
     'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']]],
@@ -7417,7 +7415,7 @@ const Planilha = (() => {
       '6.2 Gôndola: uma linha por espaço — GONDOLA 1/PONTA-A, MEIO-A, MEIO-B e PONTA-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas, junto dele na planta, com o nome do espaço (PONTA A, MEIO B…). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
       '6.3 Mesa destaque (FRENTE-1 e 2, e VERSO, atrás das lâminas), mesa 3 frentes (FRENTE-1 a 3 e VERSO), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente e o verso das mesas mostram até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só.',
       '6.4 Móveis de um espaço só (pirâmide, móvel de fila, móvel de parede, PDV, O.U.i…) têm uma linha. O balcão recepção também: um espaço só, com uma cor e até 3 etiquetas.',
-      '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas. Exceção: a ponta B da gôndola 1 é fixa de O.U.i na ER P e livre nas ERs maiores — a linha da ER P (Fixo O.U.i) não passa para elas; a da ER M (Livre) vale para a ER M. Da ER M para a ER G: a ponta B e o meio B da gôndola 2 da ER M viram a ponta A e o meio A da gôndola 3 da ER G; a ponta B e o meio B das gôndolas 1 e 2 são definidos de novo na ER G (não vêm da ER M).',
+      '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas. Exceção: a ponta B da gôndola 1 é fixa de O.U.i na ER P e livre nas ERs maiores — a linha da ER P (Fixo O.U.i) não passa para elas; a da ER M (Livre) vale para a ER M, a ER G e a ER GG. Da ER M para a ER G: a ponta B e o meio B da gôndola 2 da ER M viram a ponta A e o meio A da gôndola 3 da ER G; a ponta B e o meio B da gôndola 2 são definidos de novo na ER G (não vêm da ER M). A gôndola 1 segue a cascata normal.',
     ].concat(op.visualizador ? [
       // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.
       '8. Todos os ciclos ficam nesta mesma planilha. Para criar um ciclo novo, copie as linhas de um ciclo existente (nas abas "' + abas.MOVIMENTOS + '", "' + abas.PAINEIS + '" e "' + abas.TIPOS + '"), cole no fim e troque o "Ciclo". Cada nome diferente de ciclo aparece no seletor do visualizador.',

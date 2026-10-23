@@ -364,11 +364,11 @@ const ESPACOS_POR_ER = {
  */
 const HERANCA_ENTRE_ERS = [
   {
-    // Da ER M para a ER G: o lado B (ponta e meio) da gôndola 2 vira o lado A da gôndola 3; os lados B
-    // das gôndolas 1 e 2 são definidos de novo na ER G.
+    // Da ER M para a ER G: o lado B (ponta e meio) da gôndola 2 vira o lado A da gôndola 3, e o lado B da
+    // gôndola 2 é definido de novo na ER G. A gôndola 1 segue a cascata normal (ER M → ER G → ER GG).
     de: '02', para: '03',
     espacos: { 'GONDOLA 3/PONTA-A': 'GONDOLA 2/PONTA-B', 'GONDOLA 3/MEIO-A': 'GONDOLA 2/MEIO-B' },
-    semHeranca: ['GONDOLA 1/PONTA-B', 'GONDOLA 1/MEIO-B', 'GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'],
+    semHeranca: ['GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'],
   },
 ];
 
@@ -676,7 +676,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 13, '02': 12, '03': 9, '04': 11 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 16;
+const VERSAO_EXEMPLO = 17;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
@@ -876,9 +876,7 @@ const EXEMPLO_MOVIMENTOS = {
   },
   '03': {
     // Ponta A e meio A da gôndola 3: vêm da ponta B e do meio B da gôndola 2 da ER M (HERANCA_ENTRE_ERS,
-    // em Config.gs). Os lados B das gôndolas 1 e 2 são definidos de novo na ER G.
-    'GONDOLA 1/MEIO-B': ['BOT', [['UOMINI HERO', 'BOT']], 'FIXO'],
-    'GONDOLA 1/PONTA-B': ['BOT', [['BOTI PROMO', 'BOT']]],
+    // em Config.gs). O lado B da gôndola 2 é definido de novo na ER G.
     'GONDOLA 2/MEIO-B': ['EUD', [['PERFUMARIA', 'EUD']]],
     'GONDOLA 2/PONTA-B': ['QDB', [['JUICY MOOD', 'QDB']]],
     'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']]],

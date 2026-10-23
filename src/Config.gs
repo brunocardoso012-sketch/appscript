@@ -71,11 +71,11 @@ const ESPACOS_POR_ER = {
  */
 const HERANCA_ENTRE_ERS = [
   {
-    // Da ER M para a ER G: o lado B (ponta e meio) da gôndola 2 vira o lado A da gôndola 3; os lados B
-    // das gôndolas 1 e 2 são definidos de novo na ER G.
+    // Da ER M para a ER G: o lado B (ponta e meio) da gôndola 2 vira o lado A da gôndola 3, e o lado B da
+    // gôndola 2 é definido de novo na ER G. A gôndola 1 segue a cascata normal (ER M → ER G → ER GG).
     de: '02', para: '03',
     espacos: { 'GONDOLA 3/PONTA-A': 'GONDOLA 2/PONTA-B', 'GONDOLA 3/MEIO-A': 'GONDOLA 2/MEIO-B' },
-    semHeranca: ['GONDOLA 1/PONTA-B', 'GONDOLA 1/MEIO-B', 'GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'],
+    semHeranca: ['GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'],
   },
 ];
 
