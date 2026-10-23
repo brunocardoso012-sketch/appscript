@@ -124,13 +124,15 @@ const Analytics = (() => {
     const thead = novo('thead', null, null, tab);
     const trh = novo('tr', null, null, thead);
     novo('th', 'an-col-mov', 'Movimento', trh).scope = 'col';
+    novo('th', 'an-col-moveis', 'Móveis', trh).scope = 'col';
     // Presença na rede (aba Inventario): em quantas lojas da rede o movimento está (antes das ERs).
     const comRede = !!d.inventario;
     if (comRede) {
       const thR = novo('th', 'an-col-rede', null, trh);
       thR.scope = 'col';
       novo('span', null, 'Na rede', thR);
-      novo('small', null, '% das ' + fmtNum(d.inventario.total) + ' lojas', thR);
+      novo('small', null, '% das lojas · espaços', thR);
+      thR.title = '% das ' + fmtNum(d.inventario.total) + ' lojas da rede com o movimento e os espaços dele na rede (todos os espaços, em todas as lojas)';
     }
     ers.forEach((e) => {
       const th = novo('th', 'an-col-er' + (e.id === d.erAtual ? ' atual' : ''), null, trh);
@@ -159,15 +161,29 @@ const Analytics = (() => {
       const info = novo('div', 'an-mov-info', null, th);
       novo('span', null, m.classe ? m.classe.nome : 'Sem classificação', info);
       if (m.gmv > 0) novo('span', 'an-gmv', 'GMV ' + gmvCurto.format(m.gmv), info);
+      // Tipos de móvel em que o movimento está: a miniatura de cada um.
+      const tdMv = novo('td', 'an-col-moveis', null, tr);
+      (m.moveis || []).forEach((x) => {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'an-movel-icone');
+        svg.setAttribute('role', 'img');
+        svg.setAttribute('aria-label', x.nome);
+        const t = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        t.textContent = x.nome;
+        tdMv.appendChild(svg);
+        if (acoes.miniatura) acoes.miniatura(svg, x.movel, null, 34, 26);
+        svg.insertBefore(t, svg.firstChild);
+      });
       if (comRede) {
         const tdR = novo('td', 'an-col-rede', null, tr);
         if (!m.rede) {
           novo('span', 'an-cel-vazia', '—', tdR).title = m.texto + ': nenhum espaço dele está na aba "' + d.inventario.aba + '"';
         } else {
-          tdR.title = m.texto + ': em cerca de ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas, ' + fmtPctNum(m.rede.pct) + ' da rede (aba "' + d.inventario.aba + '")';
+          tdR.title = m.texto + ': em cerca de ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas (' + fmtPctNum(m.rede.pct) + ' da rede), em '
+            + fmtNum(Math.round(m.rede.espacos)) + ' espaços na rede, somando todos os espaços dele em todas as lojas (aba "' + d.inventario.aba + '")';
           const topo = novo('span', 'an-rede-num', null, tdR);
           novo('strong', null, fmtPctNum(m.rede.pct), topo);
-          novo('small', null, '≈ ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas', topo);
+          novo('small', null, '≈ ' + fmtNum(Math.round(m.rede.espacos)) + ' espaços', topo);
           const trilho = novo('span', 'an-rede-trilho', null, tdR);
           novo('span', null, null, trilho).style.width = Math.min(100, m.rede.pct * 100) + '%';
         }
@@ -207,6 +223,7 @@ const Analytics = (() => {
     const th = novo('th', 'an-col-mov', null, tr);
     th.scope = 'row';
     novo('div', 'an-mov-nome', 'Sem movimento', th);
+    novo('td', 'an-col-moveis', null, tr);
     if (comRede) novo('td', 'an-col-rede', null, tr);
     ers.forEach((e) => {
       const td = novo('td', 'an-celula' + (e.id === d.erAtual ? ' atual' : ''), null, tr);
@@ -502,7 +519,9 @@ const Analytics = (() => {
       regra(['A coluna ', ['Na rede'], ' usa a aba "' + d.inventario.aba + '" (em quantas lojas cada móvel ou espaço existe; o total da rede é '
         + fmtNum(d.inventario.total) + ' lojas). As lojas de cada ER são estimadas pelos móveis que só algumas ERs têm; as lojas de um espaço '
         + 'se dividem entre as ERs que têm o móvel, pelo tamanho de cada uma. Em cada ER, o movimento está nas lojas do espaço dele que está em mais lojas; '
-        + 'as ERs são lojas diferentes, então aqui elas se somam. É uma estimativa.']);
+        + 'as ERs são lojas diferentes, então aqui elas se somam: é o % das lojas. Os ', ['espaços'], ' somam todos os espaços em que o movimento está, '
+        + 'em todas as ERs, cada um com as lojas que o têm (uma loja com o movimento em dois espaços conta dois). É uma estimativa.']);
+    regra(['A coluna ', ['Móveis'], ' mostra os tipos de móvel em que o movimento está, em qualquer ER (passe o mouse para ver o nome).']);
     }
     regra(['O ', ['GMV esperado'], ' é o do movimento no ciclo (aba "' + d.abaTipos + '"), comparado com o espaço dentro de cada ER.']);
     const leg = novo('section', 'an-info-legenda', null, corpo);

@@ -204,7 +204,6 @@
   }
   /* A planta e o botão de baixar PNG, no canto de baixo dela. */
   .area-planta { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
-  .btn-png { position: absolute; right: 14px; bottom: 14px; z-index: 5; box-shadow: 0 4px 14px rgba(0, 0, 0, .12); }
   #slide {
     flex: 1 1 auto;
     min-width: 0;
@@ -316,6 +315,9 @@
   .an-mapa td.an-col-total strong { display: block; font-size: 13px; }
   .an-mapa td.an-col-total small { color: var(--texto-2); font-size: 10.5px; }
   .an-mapa .an-col-marcas { width: 16%; min-width: 110px; padding-left: 8px; }
+  .an-mapa .an-col-moveis { width: 1%; padding: 0 8px; white-space: nowrap; }
+  .an-mapa thead th.an-col-moveis { text-align: left; font-weight: 600; }
+  .an-movel-icone { width: 34px; height: 26px; vertical-align: middle; margin-right: 2px; }
   .an-mapa .an-col-rede { width: 11%; min-width: 120px; padding: 0 10px 0 8px; border-right: 1px solid var(--borda); }
   .an-mapa thead th.an-col-rede { color: var(--texto); font-weight: 600; }
   .an-mapa thead th.an-col-rede small { display: block; font-weight: 400; color: var(--texto-2); font-size: 11px; }
@@ -587,7 +589,7 @@
   [data-tema="escuro"] .mv-aviso { background: #6b5000; color: #ffe9a3; border-color: #a77d00; }
   /* Balão do mouse sobre o móvel (aba Inventario): lojas da rede. */
   .balao-rede {
-    position: fixed; z-index: 50; display: flex; flex-direction: column; gap: 1px; padding: 8px 14px;
+    position: absolute; top: 14px; right: 14px; z-index: 5; display: flex; flex-direction: column; gap: 1px; padding: 8px 14px;
     background: var(--superficie); color: var(--texto); border: 1px solid var(--borda); border-radius: 14px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, .16); font-size: 13px; line-height: 1.35; pointer-events: none; white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -960,7 +962,7 @@
 
   /* Modo apresentação: só a planta, na tela toda. */
   body.apresentando .topo, body.apresentando .faixa, body.apresentando .barra-edicao, body.apresentando .barra-rascunho,
-  body.apresentando .painel-espaco, body.apresentando .btn-png, body.apresentando .analytics { display: none !important; }
+  body.apresentando .painel-espaco, body.apresentando .balao-rede, body.apresentando .analytics { display: none !important; }
   body.apresentando .palco { padding: 0; }
   body.apresentando #slide { min-height: 0; }
   .apres-rotulo {

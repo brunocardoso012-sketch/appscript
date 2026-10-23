@@ -319,9 +319,16 @@ test('Inventario: o mouse no móvel mostra as lojas da rede; o Analytics, a pres
 
   // Analytics: coluna "Na rede" com a presença de cada movimento.
   await p.click('#btnAnalytics');
-  assert.match(await p.textContent('#anCorpo th.an-col-rede'), /Na rede.*1\.000 lojas/);
-  assert.deepStrictEqual((await p.locator('#anCorpo .an-mapa').first().locator('thead th').allTextContents()).slice(0, 3).map((x) => x.split(/\d/)[0].trim()),
-    ['Movimento', 'Na rede% das', 'ER P'], 'Na rede antes das ERs');
+  assert.match(await p.textContent('#anCorpo th.an-col-rede'), /Na rede.*% das lojas · espaços/);
+  assert.match(await p.getAttribute('#anCorpo th.an-col-rede', 'title'), /1\.000 lojas/);
+  assert.deepStrictEqual((await p.locator('#anCorpo .an-mapa').first().locator('thead th').allTextContents()).slice(0, 4).map((x) => x.split(/\d/)[0].trim()),
+    ['Movimento', 'Móveis', 'Na rede% das lojas · espaços', 'ER P'], 'Móveis e Na rede antes das ERs');
+  const linha = (texto) => p.locator('#anCorpo tbody tr', { has: p.locator('.an-mov-nome', { hasText: new RegExp('^' + texto + '$') }) }).first();
+  // Móveis: um ícone por tipo de móvel em que o movimento está.
+  assert.deepStrictEqual(await linha('EXAUSTÃO OUI').locator('.an-movel-icone').evaluateAll((s) => s.map((x) => x.getAttribute('aria-label'))), ['Gôndola']);
+  assert.ok(await linha('BOTIPROMO').locator('.an-movel-icone').count() >= 2, 'BOTIPROMO está em mais de um tipo de móvel');
+  // Espaços na rede: soma todos os espaços do movimento (EXAUSTÃO OUI: ponta A da gôndola 4, nas 130 lojas da ER GG).
+  assert.match(await linha('EXAUSTÃO OUI').locator('td.an-col-rede small').textContent(), /≈ 130 espaços/);
   const pct = (texto) => p.locator('#anCorpo tbody tr', { has: p.locator('.an-mov-nome', { hasText: new RegExp('^' + texto + '$') }) })
     .first().locator('td.an-col-rede strong').textContent();
   assert.strictEqual(await pct('EXAUSTÃO OUI'), '13%', 'só na gôndola 4 (só ER GG)');

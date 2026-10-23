@@ -792,7 +792,7 @@ const App = (() => {
     balao.className = 'balao-rede';
     balao.hidden = true;
     balao.setAttribute('role', 'tooltip');
-    document.body.appendChild(balao);
+    $('areaPlanta').appendChild(balao); // fixo no canto de cima à direita da planta
     let doBalao = '';
     const esconder = () => { balao.hidden = true; doBalao = ''; };
     esconderBalao = esconder;
@@ -815,12 +815,6 @@ const App = (() => {
         }
         balao.hidden = false;
       }
-      // Perto do mouse; perto da borda da tela, do outro lado.
-      const w = balao.offsetWidth, h = balao.offsetHeight;
-      const x = ev.clientX + 14 + w > window.innerWidth - 8 ? ev.clientX - 14 - w : ev.clientX + 14;
-      const y = ev.clientY + 18 + h > window.innerHeight - 8 ? ev.clientY - 12 - h : ev.clientY + 18;
-      balao.style.left = Math.max(8, x) + 'px';
-      balao.style.top = Math.max(8, y) + 'px';
     };
     svg.addEventListener('pointerover', (ev) => {
       // Fora do mouse (toque), no ajuste de etiquetas e na construção não há destaque.
@@ -1281,13 +1275,22 @@ const App = (() => {
             porClasse[c] = (porClasse[c] || 0) + (pt.peso * g.valor) / soma;
           });
         });
-        // Lojas desta ER com cada movimento (aba Inventario): o espaço dele que está em mais lojas da ER.
+        // Aba Inventario, nesta ER: lojas com cada movimento (o espaço dele que está em mais lojas da ER) e
+        // espaços dele na rede (a soma das lojas de cada espaço em que ele está). E os tipos de móvel dele.
         const lojasMov = {};
+        const espacosMov = {};
+        const moveisMov = {};
         partes.forEach((pt) => movimentosDaParte(pt).forEach((g) => {
+          (moveisMov[g.chave] = moveisMov[g.chave] || {})[pt.movel.tipo] = pt.movel;
           const n = lojasNaEr(p.id, pt.movel.id, pt.espaco && pt.espaco.id);
-          if (n !== null) lojasMov[g.chave] = Math.max(lojasMov[g.chave] || 0, n);
+          if (n === null) return;
+          lojasMov[g.chave] = Math.max(lojasMov[g.chave] || 0, n);
+          espacosMov[g.chave] = (espacosMov[g.chave] || 0) + n;
         }));
-        return { id: p.id, nome: p.nome, total: r.total, semMovimento, porMarca: r.porMarca, porClasse, porEtiqueta: r.porEtiqueta, lojasMov };
+        return {
+          id: p.id, nome: p.nome, total: r.total, semMovimento, porMarca: r.porMarca, porClasse, porEtiqueta: r.porEtiqueta,
+          lojasMov, espacosMov, moveisMov,
+        };
       });
       const movs = {};
       ers.forEach((e) => Object.keys(e.porEtiqueta).forEach((k) => {
@@ -1302,13 +1305,23 @@ const App = (() => {
       // divisão dele em cada ER onde aparece; a ordem é pela maior fatia que ele tem em alguma ER.
       const fatiaMax = (m) => Math.max.apply(null, ers.map((e) => (e.total ? (m.porEr[e.id] || 0) / e.total : 0)));
       // Presença na rede (aba Inventario): as lojas de cada ER com o movimento, somadas (as ERs são lojas
-      // diferentes da rede). null quando nenhum espaço do movimento está no inventário.
+      // diferentes da rede), e os espaços dele na rede: todos os espaços em que ele está, em todas as ERs,
+      // cada um com as lojas que o têm. null quando nenhum espaço do movimento está no inventário.
       const inv = estado.dados.inventario;
       const naRede = (k) => {
-        const porEr = ers.filter((e) => k in e.lojasMov).map((e) => e.lojasMov[k]);
-        if (!inv || !porEr.length) return null;
-        const lojas = Math.min(inv.total, porEr.reduce((s, x) => s + x, 0));
-        return { lojas, pct: inv.total ? lojas / inv.total : 0 };
+        const comDado = ers.filter((e) => k in e.lojasMov);
+        if (!inv || !comDado.length) return null;
+        const lojas = Math.min(inv.total, comDado.reduce((s, e) => s + e.lojasMov[k], 0));
+        const espacos = comDado.reduce((s, e) => s + e.espacosMov[k], 0);
+        return { lojas, pct: inv.total ? lojas / inv.total : 0, espacos };
+      };
+      // Tipos de móvel em que o movimento está (em qualquer ER), na ordem dos tipos: um exemplo de cada.
+      const ordemTipos = Object.keys(estado.dados.tipos || {});
+      const moveisDe = (k) => {
+        const porTipo = {};
+        ers.forEach((e) => Object.assign(porTipo, e.moveisMov[k] || {}));
+        return Object.keys(porTipo).sort((a, b) => ordemTipos.indexOf(a) - ordemTipos.indexOf(b))
+          .map((t) => ({ tipo: t, nome: String((estado.dados.tipos || {})[t] || t).split(':')[0], movel: porTipo[t] }));
       };
       return {
         ers,
@@ -1323,6 +1336,7 @@ const App = (() => {
               : { cod: m.classificacao, nome: nomeClassificacao(m.classificacao), cor: corClassificacao(m.classificacao) },
             marcas: ordemM.filter((c) => m.marcas[c]).map((c) => marca(c, m.marcas[c])),
             rede: naRede(m.chave),
+            moveis: moveisDe(m.chave),
           })),
       };
     };
@@ -1406,7 +1420,7 @@ const App = (() => {
       novo('p', 'an-vazio', 'Escolha um ciclo no seletor para ver como o espaço está dividido.', corpo);
       return;
     }
-    Analytics.desenhar(corpo, dadosAnalytics(estado.ciclo), { verNaPlanta });
+    Analytics.desenhar(corpo, dadosAnalytics(estado.ciclo), { verNaPlanta, miniatura: Render.miniatura });
   }
 
   function alternarAnalytics(aberto) {
