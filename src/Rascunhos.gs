@@ -81,7 +81,7 @@ function ciclosPublicados_(abas) {
 
 /**
  * Linha da aba Movimentos de um espaço, a partir do que a página manda.
- * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca}>}} l
+ * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca, simbolo?, data?}>}} l  data: da antecipação (⏩)
  * @return {Object|null} null quando o espaço fica vazio (a linha sai)
  */
 function linhaDeEspaco_(ciclo, planta, movel, l) {
@@ -97,6 +97,9 @@ function linhaDeEspaco_(ciclo, planta, movel, l) {
     const e = etiquetas[i - 1];
     o['etiqueta' + i] = e ? texto_(e.texto).slice(0, 200) : '';
     o['marcaEtiqueta' + i] = e ? normMarca_(e.marca) : '';
+    const simbolo = e ? normSimbolo_(e.simbolo, null, null, true) : '';
+    o['simboloEtiqueta' + i] = simbolo;
+    o['dataEtiqueta' + i] = simbolo === 'ANTECIPADO' ? dataAntecipacaoTexto_(dataAntecipacao_(e.data)) : '';
   }
   return o.marca || o.simbolo || o.observacao || etiquetas.length ? o : null;
 }
@@ -149,7 +152,8 @@ function listaCurta_(itens) {
  *                    movimentos dos tipos) e trava a edição até o validador decidir;
  *  - excluir:        { acao, ciclo }                  construtor (antes da aprovação);
  *  - devolver:       { acao, ciclo, planta, motivo }   validador: volta para construção, com um comentário;
- *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas.
+ *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas (todos os
+ *                    tipos cadastrados vão para a aba Tipos de movimento, mesmo os que nenhum espaço usa).
  * @param {Object} abas  matrizes (com cabeçalho) de cada campo de abasRascunho_()
  * @param {{papel, autor}} quem  resultado de conferirAcesso_
  * @return {{abas: Object, gravar: string[]}} gravar: campos das abas que mudaram
@@ -322,11 +326,15 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigir('VALIDADOR', 'aprova o ciclo');
     exigirRascunho('ENVIADO');
     if (ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '" publicado. Peça para o construtor renomear (criar outro copiando este).');
-    // Tipos cadastrados que nenhum espaço usou não vão para a planilha (dariam aviso de "não aparece em nenhuma etiqueta").
-    const usados = {};
-    objs('rMovimentos').filter(doCiclo).forEach(function (o) { etiquetasDaLinha_(o).forEach(function (e) { usados[chaveEtiqueta_(e)] = true; }); });
+    // Todos os Tipos de movimento cadastrados no ciclo vão para a aba "Tipos de movimento", inclusive os movimentos
+    // novos que ainda não estão em nenhum espaço; o GMV vai como número.
+    const comoPublicada = function (campo, o) {
+      if (campo !== 'tipos') return o;
+      const gmv = typeof o.gmv === 'number' ? o.gmv : numeroGmv_(o.gmv);
+      return Object.assign({}, o, { gmv: gmv === null ? '' : gmv });
+    };
     [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
-      const linhas = objs(x[1]).filter(doCiclo).filter(function (o) { return x[0] !== 'tipos' || usados[chaveEtiqueta_(o.etiqueta)]; });
+      const linhas = objs(x[1]).filter(doCiclo).map(function (o) { return comoPublicada(x[0], o); });
       if (linhas.length) {
         novas[x[0]] = mesclarLinhas_(abas[x[0]] && abas[x[0]].length ? abas[x[0]] : [], linhas, defs[x[0]].colunas);
         gravar.push(x[0]);

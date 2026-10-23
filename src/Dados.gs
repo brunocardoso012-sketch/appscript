@@ -88,7 +88,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
         const t = texto_(l['etiqueta' + i]);
         // posicao = número da coluna (na gôndola, cada uma vai para um bloco).
-        if (t) etiquetas.push({ texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i });
+        if (t) etiquetas.push(etiquetaDaLinha_(l, i, t, aviso, onde));
       }
       registrarCiclo(ciclo);
       movimentos[ciclo] = movimentos[ciclo] || {};
@@ -141,18 +141,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     if (lido.faltando.length) {
       aviso('Aba "' + CONFIG.ABAS.TIPOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
     }
-    // Etiquetas de cada ciclo (para avisar de movimento que não aparece em nenhuma etiqueta).
-    const etiquetasDoCiclo = function (ciclo) {
-      const vistas = {};
-      const c = movimentos[ciclo] || {};
-      Object.keys(c).forEach(function (p) {
-        Object.keys(c[p]).forEach(function (id) {
-          c[p][id].etiquetas.forEach(function (e) { vistas[chaveEtiqueta_(e.texto)] = true; });
-        });
-      });
-      return vistas;
-    };
-    const etiquetasPorCiclo = {};
+    // Movimento cadastrado sem nenhum espaço no ciclo é válido (ex.: cadastrado na construção do ciclo).
     lido.linhas.forEach(function (l) {
       const ciclo = texto_(l.ciclo);
       const texto = texto_(l.etiqueta);
@@ -170,10 +159,6 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       }
       const gmv = numeroGmv_(l.gmv);
       if (gmv === null && texto_(l.gmv)) aviso(onde + ': GMV esperado "' + texto_(l.gmv) + '" não é um número — ignorado.');
-      if (movimentos[ciclo]) {
-        etiquetasPorCiclo[ciclo] = etiquetasPorCiclo[ciclo] || etiquetasDoCiclo(ciclo);
-        if (!etiquetasPorCiclo[ciclo][k]) aviso(onde + ': "' + texto + '" não aparece em nenhuma etiqueta do ciclo ' + ciclo + '.');
-      }
       tiposMovimento[ciclo][k] = {
         texto: movimentoDaEtiqueta_(texto),
         classificacao: normClassificacao_(l.classificacao),
@@ -618,13 +603,29 @@ function normMarca_(v, aviso, onde) {
   return codigos.join('+');
 }
 
-function normSimbolo_(v, aviso, onde) {
+/**
+ * Etiqueta N de uma linha da aba Movimentos: texto, marca, posição e, se houver, o símbolo próprio dela e, com a
+ * antecipação (⏩), a data em que entra ("2026-10-25"). simbolo e data só aparecem quando preenchidos.
+ */
+function etiquetaDaLinha_(l, i, t, aviso, onde) {
+  const e = { texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i };
+  const simbolo = normSimbolo_(l['simboloEtiqueta' + i], aviso, onde, true);
+  if (simbolo) e.simbolo = simbolo;
+  if (simbolo === 'ANTECIPADO') {
+    const data = dataAntecipacao_(l['dataEtiqueta' + i]);
+    if (data) e.data = data;
+    else if (texto_(l['dataEtiqueta' + i]) && aviso) aviso(onde + ': data da etiqueta ' + i + ' "' + texto_(l['dataEtiqueta' + i]) + '" inválida (use dd/mm/aaaa).');
+  }
+  return e;
+}
+
+function normSimbolo_(v, aviso, onde, daEtiqueta) {
   const s = texto_(v);
   if (!s) return '';
   const bruto = s.toUpperCase();
   const k = chave_(s);
-  // O de antecipação (automatico) não vem da planilha: só da aba Antecipações.
-  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return !SIMBOLOS[c].automatico; });
+  // O de antecipação (automatico) não vem da coluna Símbolo do espaço (só da aba Antecipações); na etiqueta, vem.
+  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return daEtiqueta || !SIMBOLOS[c].automatico; });
   for (let i = 0; i < codigos.length; i++) {
     const nomes = [codigos[i]].concat(SIMBOLOS[codigos[i]].apelidos || []);
     for (let j = 0; j < nomes.length; j++) {

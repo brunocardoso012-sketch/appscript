@@ -89,9 +89,9 @@ test('ER GG: posições salvas antes das posições fixas não estragam as do c�
   assert.deepEqual([gg().moveis.find((m) => m.id === 'PIRAMIDE 1').ajusteX, gg().loja.slide], [2000, 3072]);
 });
 
-test('Index.html do visualizador não tem Construir loja nem Baixar / Importar planilha', () => {
+test('Index.html do visualizador não tem Construir loja, Baixar / Importar planilha nem a comparação de ciclos', () => {
   const html = gerarIndex();
-  ['btnModelo', 'btnImportar', 'btnConstruir', 'painelConstrutor', 'dlgModelo', 'dlgResultado', 'btnConfigurar']
+  ['btnModelo', 'btnImportar', 'btnConstruir', 'painelConstrutor', 'dlgModelo', 'dlgResultado', 'btnConfigurar', 'campoComparar', 'selComparar']
     .forEach((id) => assert.ok(!html.includes('id="' + id + '"'), id + ' deveria ficar de fora'));
   ['btnPng', 'btnEditar', 'btnAtualizar', 'selCiclo', 'legenda', 'slide'].forEach((id) => assert.ok(html.includes('id="' + id + '"'), id));
   assert.ok(!/<\?/.test(html), 'sem tags de template do Apps Script');
@@ -109,7 +109,7 @@ test('visualizador/apps-script está atualizado com src/ (rode npm run build:vis
 
 test('visualizador: comentários da validação ficam na aba Comentários da planilha conectada', () => {
   const { run, falsos } = carregarVisualizador();
-  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
   const l = run(`salvarComentario(${V}, { acao: 'novo', ciclo: 'Ciclo exemplo', planta: '02', texto: 'Rever a ER M' })`);
   assert.equal(l.length, 1);
   assert.ok(falsos.planilha.getSheetByName('Comentários'), 'aba criada');
@@ -118,10 +118,10 @@ test('visualizador: comentários da validação ficam na aba Comentários da pla
 
 test('visualizador: ciclo montado no app entra nas abas da planilha quando aprovado', () => {
   const { run } = carregarVisualizador();
-  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   run(`salvarRascunho(${C}, { acao: 'criar', ciclo: 'C20' })`);
-  run(`salvarRascunho(${C}, { acao: 'salvarTipos', ciclo: 'C20', linhas: [{ etiqueta: 'OUTLET', classificacao: 'outlet', gmv: '500 mil' }] })`);
+  run(`salvarRascunho(${C}, { acao: 'salvarTipos', ciclo: 'C20', linhas: [{ etiqueta: 'OUTLET', classificacao: 'outlet', gmv: '500 mil' }, { etiqueta: 'MOVIMENTO NOVO', classificacao: 'lancamento', gmv: '1,5 mi' }] })`);
   run(`salvarRascunho(${C}, { acao: 'salvarEspaco', ciclo: 'C20', planta: 'ER P', movel: 'PIRAMIDE 1', linha: { marca: 'EUD', etiquetas: [{ texto: 'OUTLET' }] } })`);
   assert.ok(!run('getDados()').ciclos.includes('C20'), 'em construção não aparece para todos');
   run(`salvarRascunho(${C}, { acao: 'enviar', ciclo: 'C20' })`);
@@ -131,12 +131,14 @@ test('visualizador: ciclo montado no app entra nas abas da planilha quando aprov
   assert.deepEqual(d.ciclos, ['Ciclo exemplo', 'Ciclo exemplo cheio', 'C20']);
   assert.deepEqual(d.movimentos.C20['01']['PIRAMIDE 1'].etiquetas.map((e) => e.texto), ['OUTLET']);
   assert.equal(d.tiposMovimento.C20.OUTLET.gmv, 500000);
-  assert.deepEqual(d.avisos, []);
+  // O movimento novo, cadastrado nos tipos mas ainda sem espaço, também entra na aba Tipos de movimento.
+  assert.equal(d.tiposMovimento.C20['MOVIMENTO NOVO'].gmv, 1500000);
+  assert.equal(d.tiposMovimento.C20['MOVIMENTO NOVO'].classificacao, 'LANCAMENTO');
 });
 
 test('visualizador: antecipações ficam na aba Antecipações e chegam a todos no getDados', () => {
   const { run, falsos } = carregarVisualizador();
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   run(`salvarAntecipacao(${C}, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', movel: 'PIRAMIDE 1', etiqueta: 'NOVO ITEM', data: '2026-11-03' })`);
   assert.ok(falsos.planilha.getSheetByName('Antecipações'), 'aba criada');
   const a = run('getDados()').antecipacoes;

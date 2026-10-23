@@ -531,7 +531,7 @@ const Render = (() => {
    * lista: itens { info, etiquetas, simbolo, espacos } ou null (espaço sem etiqueta, que separa os vizinhos).
    */
   function juntarIguais(lista) {
-    const chave = (it) => it.etiquetas.map((e) => e.texto + '|' + (e.marca || it.info.marca || '')).join('||');
+    const chave = (it) => it.etiquetas.map((e) => e.texto + '|' + (e.marca || it.info.marca || '') + '|' + (e.simbolo || '') + (e.data || '')).join('||');
     const saida = [];
     let anterior = null;
     lista.forEach((it) => {
@@ -860,9 +860,41 @@ const Render = (() => {
 
   /* ------------------------------ etiquetas ------------------------------- */
 
+  /** "2026-10-25" → "25/10" (a data da antecipação, ao lado do símbolo ⏩). */
+  const dataCurta = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '');
+
+  /**
+   * O que vai ao lado de cada etiqueta: na 1ª, o símbolo do espaço; em cada uma, o símbolo próprio dela (coluna
+   * "Símbolo Etiqueta N") e, com a antecipação (⏩), a data em que entra.
+   * @return {Array<{simbolos: string[], data: string, w: number}>} w: largura que ocupam ao lado da etiqueta
+   */
+  function marcadoresDe(etiquetas, simbolo, passo) {
+    const p = passo || ETQ.simbolo;
+    return etiquetas.map((e, k) => {
+      const simbolos = [];
+      if (k === 0 && simbolo) simbolos.push(simbolo);
+      if (e.simbolo && simbolos.indexOf(e.simbolo) < 0) simbolos.push(e.simbolo);
+      const data = e.simbolo === 'ANTECIPADO' ? dataCurta(e.data) : '';
+      const wData = data ? largura(data, ETQ.fonte * 0.85, 800, 'normal', FONTE_ETQ) + 4 : 0;
+      return { simbolos, data, w: simbolos.length ? simbolos.length * (p + 4) + wData : 0 };
+    });
+  }
+
+  /** Desenha os símbolos (e a data da antecipação) de uma etiqueta, a partir de x, centrados em cy. */
+  function desenharMarcadores(pai, m, x, cy, escala, passo) {
+    const p = passo || ETQ.simbolo;
+    m.simbolos.forEach((s, j) => desenharSimbolo(pai, s, x + j * (p + 4) + p / 2, cy, escala));
+    if (m.data) {
+      texto(pai, x + m.simbolos.length * (p + 4), cy + ETQ.fonte * 0.3, m.data, {
+        'font-family': FONTE_ETQ, 'font-size': ETQ.fonte * 0.85, 'font-weight': 800, fill: COR.simbolo,
+      });
+    }
+  }
+
   /** Pilha de etiquetas: todas com a mesma largura (wEtq); maxTexto = largura máxima do texto. */
   function medirGrupo(etiquetas, simbolo, corPadrao, maxTexto) {
-    const itens = etiquetas.map((e) => {
+    const marcadores = marcadoresDe(etiquetas, simbolo);
+    const itens = etiquetas.map((e, k) => {
       const linhas = quebrar(e.texto, maxTexto || ETQ.maxTexto, ETQ.fonte, 800, FONTE_ETQ);
       const w = Math.max.apply(null, linhas.map((l) => largura(l, ETQ.fonte, 800, 'normal', FONTE_ETQ))) + ETQ.padX * 2;
       return {
@@ -870,11 +902,14 @@ const Render = (() => {
         w,
         h: linhas.length * ETQ.lh + ETQ.padY * 2,
         cores: coresDe(e.marca, 'etiqueta', true) || corPadrao,
+        marcadores: marcadores[k],
+        fixo: simbolo === 'FIXO' || e.simbolo === 'FIXO', // espaço ou etiqueta fixa: borda dupla
       };
     });
     const wEtq = Math.max.apply(null, itens.map((i) => i.w));
     const h = itens.reduce((s, i) => s + i.h, 0) + ETQ.gap * (itens.length - 1);
-    return { itens, wEtq, w: wEtq + (simbolo ? ETQ.simbolo + 4 : 0), h, simbolo };
+    const wMarcadores = Math.max.apply(null, [0].concat(marcadores.map((m) => m.w)));
+    return { itens, wEtq, w: wEtq + (wMarcadores ? wMarcadores + 4 : 0), h, simbolo };
   }
 
   /** Ordem dos símbolos na legenda (o de antecipação vem da aba Antecipações, não da planilha). */
@@ -1082,7 +1117,10 @@ const Render = (() => {
       // Móvel com espaços: o nome do espaço fica entre a miniatura e as etiquetas (que ficam mais estreitas).
       const comLegenda = linhas.some((ln) => ln.espacos);
       const xEtq = FICHA.pad + FICHA.mini + FICHA.vao + (comLegenda ? FICHA.legenda + FICHA.vao : 0);
-      const larguraEtq = FICHA.w - xEtq - FICHA.pad - FICHA.simbolo;
+      // À direita das etiquetas, o espaço dos símbolos (e da data da antecipação) da linha que mais precisa.
+      const wMarcadores = Math.max.apply(null, [FICHA.simbolo].concat(linhas.map((ln) => Math.max.apply(null,
+        [0].concat(marcadoresDe(ln.etiquetas, ln.simbolo, FICHA.simbolo - 4).map((x) => x.w))))));
+      const larguraEtq = FICHA.w - xEtq - FICHA.pad - wMarcadores;
       linhas.forEach((ln) => {
         const corMarca = !ehNeutro(ln.info.marca) && coresDe(ln.info.marca, 'etiqueta', true);
         ln.med = medirGrupo(ln.etiquetas, ln.simbolo, corMarca || corEtiquetaPadrao(true), larguraEtq - ETQ.padX * 2);
@@ -1133,14 +1171,14 @@ const Render = (() => {
       }));
       let ye = y + (ln.h - ln.med.h) / 2;
       ln.med.itens.forEach((it, i) => {
-        fundoEtiqueta(gl, xEtq, ye, ln.med.wEtq, it.h, it.cores, ln.simbolo === 'FIXO');
+        fundoEtiqueta(gl, xEtq, ye, ln.med.wEtq, it.h, it.cores, it.fixo);
         it.linhas.forEach((l, j) => {
           texto(gl, xEtq + ln.med.wEtq / 2, ye + ETQ.padY + ETQ.lh * (j + 1) - 3.6, l, {
             'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
             fill: '#FFFFFF', 'text-anchor': 'middle',
           });
         });
-        if (i === 0 && ln.simbolo) desenharSimbolo(gl, ln.simbolo, xEtq + ln.med.wEtq + FICHA.simbolo / 2 + 1, ye + it.h / 2);
+        desenharMarcadores(gl, it.marcadores, xEtq + ln.med.wEtq + 1, ye + it.h / 2, 1, FICHA.simbolo - 4);
         ye += it.h + ETQ.gap;
       });
       y += ln.h + FICHA.entre;
@@ -1577,14 +1615,14 @@ const Render = (() => {
       y += r.topo;
     }
     r.itens.forEach((it, i) => {
-      fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores, r.simbolo === 'FIXO');
+      fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores, it.fixo);
       it.linhas.forEach((l, k) => {
         texto(g, r.x + r.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6 * escalaEtq, l, {
           'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
           fill: '#FFFFFF', 'text-anchor': 'middle',
         });
       });
-      if (i === 0 && r.simbolo) desenharSimbolo(g, r.simbolo, r.x + r.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2, escalaEtq);
+      desenharMarcadores(g, it.marcadores, r.x + r.wEtq + 4, y + it.h / 2, escalaEtq);
       y += it.h + ETQ.gap;
     });
     return g;
@@ -1960,7 +1998,8 @@ const Render = (() => {
     };
     const moveis = planta.moveis.filter((m) => m.tipo !== 'EXTRA').map((m) => {
       if (m.tipo !== 'GONDOLA') return m;
-      const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
+      const doRascunho = ctx.meiosDivididos ? ctx.meiosDivididos(m.id) : '';
+      const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0 || doRascunho.indexOf(l) >= 0
         || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
       return div === (m.dividido || '') ? m : Object.assign({}, m, { dividido: div });
     });
@@ -1970,7 +2009,11 @@ const Render = (() => {
     // Situação de cada móvel (e de cada espaço de gôndola) no ciclo.
     const info = {};
     const infoEspaco = {}; // "GON-01/MEIO-A" → linha própria do espaço
-    const anotar = (i) => { if (i && i.simbolo) simbolosUsados.add(i.simbolo); return i; };
+    const anotar = (i) => {
+      if (i && i.simbolo) simbolosUsados.add(i.simbolo);
+      if (i) i.etiquetas.forEach((e) => { if (e.simbolo) simbolosUsados.add(e.simbolo); }); // símbolos das etiquetas
+      return i;
+    };
     moveis.concat(extras).forEach((m) => {
       // Móvel com espaços (gôndola, mesas, totem, móvel make) é preenchido só espaço por espaço:
       // não tem linha do móvel inteiro. Os demais têm uma linha só.

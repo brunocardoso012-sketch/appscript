@@ -96,6 +96,9 @@ async function abrir(t, opcoes) {
 }
 
 const estado = (p, expr) => p.evaluate(expr);
+// Validação e Construção: um item na engrenagem e uma senha para cada papel (SENHAS_ACESSO, em Config.gs).
+const MENU = { VALIDADOR: 'btnValidacao', CONSTRUTOR: 'btnConstrucao' };
+const SENHA = { VALIDADOR: 'validacao_exposicao', CONSTRUTOR: 'construcao_exposicao' };
 const escolherCiclo = (p, ciclo) => p.selectOption('#selCiclo', ciclo);
 const abaPlanta = (p, nome) => p.locator('#abasPlanta .aba', { hasText: new RegExp('^' + nome + '$') });
 
@@ -118,10 +121,19 @@ const ehZip = (b) => b.length > 1000 && b[0] === 0x50 && b[1] === 0x4b; // .xlsx
 
 /* ------------------------------------------------------------------------- */
 
-test('abre sem ciclo, com as 4 plantas, em modo local', async (t) => {
+test('abre no último ciclo aprovado, com as 4 plantas, em modo local', async (t) => {
   const p = await abrir(t);
   assert.deepStrictEqual(await p.locator('#abasPlanta .aba').allTextContents(), ['ER P', 'ER M', 'ER G', 'ER GG']);
-  assert.strictEqual(await p.inputValue('#selCiclo'), '');
+  assert.strictEqual(await p.inputValue('#selCiclo'), 'Ciclo exemplo cheio', 'o último ciclo da planilha');
+  assert.ok(await p.locator('#slide .grupo-etiquetas').count() > 0, 'a planta abre com as etiquetas do ciclo');
+  // Atualizar mantém o ciclo escolhido (inclusive a planta limpa).
+  await escolherCiclo(p, '');
+  await p.click('#btnAtualizar');
+  await p.waitForSelector('#carregando', { state: 'hidden' });
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), '');
+  // Copiar link fica no topo; Abrir planilha, na engrenagem (no modo local não há planilha).
+  assert.ok(await p.isVisible('#btnLink'));
+  assert.ok(await p.locator('#menuConfigLista #lnkPlanilha').count() === 1);
   const opcoes = await p.locator('#selCiclo option').allTextContents();
   assert.ok(opcoes.includes('Ciclo exemplo') && opcoes.includes('Ciclo exemplo cheio'), opcoes.join(', '));
   assert.ok(await p.isVisible('#avisoLocal'));
@@ -469,9 +481,8 @@ test('validação: senha errada, comentário, resposta e resolução', async (t)
   await escolherCiclo(p, 'Ciclo exemplo');
 
   const entrar = async (papel, nome, senha) => {
-    await menuConfig(p, 'btnValidacao');
+    await menuConfig(p, MENU[papel]);
     await p.waitForSelector('#dlgAcesso[open]');
-    await p.check('#dlgAcesso input[name="papel"][value="' + papel + '"]');
     await p.fill('#acessoNome', nome);
     await p.fill('#acessoSenha', senha);
     await p.click('#acessoEntrar');
@@ -479,9 +490,14 @@ test('validação: senha errada, comentário, resposta e resolução', async (t)
 
   await entrar('VALIDADOR', 'Teste E2E', 'errada');
   await p.waitForSelector('#acessoErro:not([hidden])');
+  assert.strictEqual(await p.textContent('#acessoTitulo'), 'Validação');
+  await p.click('#acessoCancelar');
+  // A senha da construção não entra na validação.
+  await entrar('VALIDADOR', 'Teste E2E', SENHA.CONSTRUTOR);
+  await p.waitForSelector('#acessoErro:not([hidden])');
   await p.click('#acessoCancelar');
 
-  await entrar('VALIDADOR', 'Teste E2E', '1234');
+  await entrar('VALIDADOR', 'Teste E2E', SENHA.VALIDADOR);
   await p.waitForSelector('#painelValidacao:not([hidden])');
   await p.fill('#valCorpo .val-novo textarea', 'Trocar a cor da gôndola 1');
   await p.click('#valCorpo .val-novo button[type="submit"]');
@@ -489,8 +505,11 @@ test('validação: senha errada, comentário, resposta e resolução', async (t)
   assert.match(await p.textContent('#valBadge'), /1/);
   await p.click('#valCorpo button:has-text("Sair")');
 
-  await entrar('CONSTRUTOR', 'Construtor E2E', '1234');
+  await entrar('CONSTRUTOR', 'Construtor E2E', SENHA.CONSTRUTOR);
   await p.waitForSelector('#valCorpo .val-cartao');
+  assert.strictEqual(await p.textContent('#valTitulo'), 'Construção', 'o painel mostra o módulo de construção');
+  assert.strictEqual(await p.getAttribute('#btnConstrucao', 'aria-pressed'), 'true');
+  assert.strictEqual(await p.getAttribute('#btnValidacao', 'aria-pressed'), 'false');
   const cartao = p.locator('#valCorpo .val-cartao').first();
   await cartao.locator('button', { hasText: 'Responder' }).first().click();
   await cartao.locator('.val-responder textarea').fill('Feito.');
@@ -567,7 +586,7 @@ test('link: o #hash abre no ciclo, ER, visão e filtro, e acompanha a tela', asy
   await abaPlanta(p, 'ER M').click();
   assert.match(await p.evaluate(() => location.hash), /er=ER\+M/);
   // Copiar link (sem área de transferência no teste: cai no prompt, que o teste aceita).
-  await menuConfig(p, 'btnLink');
+  await p.click('#btnLink');
 });
 
 test('modo apresentação: F mostra só a planta; setas trocam a ER; F sai', async (t) => {
@@ -593,14 +612,14 @@ test('modo apresentação: F mostra só a planta; setas trocam a ER; F sai', asy
 test('ciclo em construção: o construtor monta na planta, o validador devolve e aprova', async (t) => {
   const p = await abrir(t);
   const entrar = async (papel, nome) => {
-    await menuConfig(p, 'btnValidacao');
+    await menuConfig(p, MENU[papel]);
     await p.waitForSelector('#dlgAcesso[open]');
-    await p.check('#dlgAcesso input[name="papel"][value="' + papel + '"]');
     await p.fill('#acessoNome', nome);
-    await p.fill('#acessoSenha', '1234');
+    await p.fill('#acessoSenha', SENHA[papel]);
     await p.click('#acessoEntrar');
     await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
-    await p.waitForSelector('.rs-secao');
+    // O painel da validação ou, se o papel tem um ciclo em construção (que abre sozinho), o de construção.
+    await p.locator('.rs-secao:visible, #painelConstrucao:visible').first().waitFor();
   };
   // Construindo, o painel da validação fica atrás do de construção: "Comentários" mostra o painel (com o Sair).
   const sair = async () => {
@@ -620,9 +639,12 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
   assert.strictEqual(await estado(p, () => App.estado.ciclo), 'C11/2026');
   assert.ok(await p.locator('#selCiclo optgroup[label="Em construção"] option').count() === 1);
-  // O construtor monta pelo painel da lateral (no lugar da faixa e do painel da validação).
+  // O construtor monta pelo painel da lateral (no lugar do painel da validação); a faixa do topo avisa que o ciclo
+  // está em construção, sem as ações (que ficam no painel).
   assert.ok(await p.isVisible('#painelConstrucao'));
-  assert.ok(await p.isHidden('#barraRascunho') && await p.isHidden('#painelValidacao'));
+  assert.ok(await p.isHidden('#painelValidacao'));
+  assert.match(await p.textContent('#barraRascunho'), /Ciclo C11\/2026 \(não publicado\).*Em construção.*Você está montando/);
+  assert.strictEqual(await p.locator('#rascunhoAcoes button').count(), 0);
 
   // O painel mostra os passos: o 1 (tipos com GMV) ainda não está pronto (o servidor recusa o envio; testes.test.js).
   assert.match(await p.textContent('#pcPassos .rs-passos li:first-child'), /Tipos de movimento.*sem GMV/);
@@ -651,11 +673,11 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.ok(await p.isHidden('#dlgMovel'));
   assert.strictEqual(await p.locator('#slide .movel.selecionado[data-movel="GONDOLA 1"]').count() > 0, true, 'contorno no móvel selecionado');
   const ponta = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-A"]');
-  const opcoes = await ponta.locator('.rs-etq select:not(.rs-marca)').first().locator('option').allTextContents();
+  const opcoes = await ponta.locator('.rs-etq select:not(.rs-marca):not(.rs-etq-simbolo)').first().locator('option').allTextContents();
   assert.ok(opcoes.includes('NOVO MOVIMENTO OUI') && !opcoes.some((o) => /fora dos tipos/.test(o)));
   await ponta.locator('select.rs-marca').first().selectOption('OUI');
   await ponta.locator('select').nth(1).selectOption('FIXO');
-  await ponta.locator('.rs-etq select:not(.rs-marca)').first().selectOption('NOVO MOVIMENTO OUI');
+  await ponta.locator('.rs-etq select:not(.rs-marca):not(.rs-etq-simbolo)').first().selectOption('NOVO MOVIMENTO OUI');
   assert.ok(await p.locator('#slide .grupo-etiquetas', { hasText: 'NOVO MOVIMENTO OUI' }).count() > 0, 'a etiqueta aparece na planta na hora');
   assert.notStrictEqual(await p.textContent('#pcGravacao'), 'Tudo salvo', 'ainda não gravou');
   await ponta.locator('.rs-etq select.rs-marca').first().selectOption('OUI');
@@ -736,9 +758,11 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
 
   // Validador: devolve (vira comentário).
   await sair();
-  assert.strictEqual(await estado(p, () => App.estado.ciclo), '', 'sem login, o rascunho some');
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), 'Ciclo exemplo cheio', 'sem login, o rascunho some (volta ao último aprovado)');
   await entrar('VALIDADOR', 'Ana');
-  await p.selectOption('#selCiclo', 'C11/2026');
+  // Ao entrar, o validador vai direto para o ciclo que aguarda aprovação, com o aviso em destaque.
+  await p.waitForFunction(() => App.estado.ciclo === 'C11/2026');
+  assert.match(await p.textContent('#barraRascunho'), /Ciclo C11\/2026 \(não publicado\).*Aguardando aprovação.*aprove ou devolva/);
   await acao('Devolver');
   await p.fill('#rascunhoCorpo textarea', 'Faltou o totem');
   await p.click('#rascunhoOk');
@@ -748,7 +772,8 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   // Construtor reenvia; validador aprova: o ciclo entra na planilha e aparece para todos.
   await sair();
   await entrar('CONSTRUTOR', 'Bia');
-  await p.selectOption('#selCiclo', 'C11/2026');
+  // Ao entrar, o construtor vai direto para o ciclo que está montando (devolvido, de novo em construção).
+  await p.waitForFunction(() => App.estado.ciclo === 'C11/2026');
   await passo('3. Enviar para aprovação');
   await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status') && document.querySelector('#rascunhoInfo .rs-status').textContent === 'Aguardando aprovação');
   await sair();
@@ -779,15 +804,115 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.ok(fixos.tipos.includes('NOVO MOVIMENTO OUI'), 'os tipos dos movimentos fixos vêm junto');
 });
 
+test('ciclo em construção: fixos na planta, meio dividido, etiquetas e cores das marcas', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  await abaPlanta(p, 'ER P').click();
+  await menuConfig(p, 'btnConstrucao');
+  await p.waitForSelector('#dlgAcesso[open]');
+  await p.fill('#acessoNome', 'Bia');
+  await p.fill('#acessoSenha', SENHA.CONSTRUTOR);
+  await p.click('#acessoEntrar');
+  await p.waitForSelector('.rs-secao');
+  await p.locator('.rs-secao button', { hasText: 'Novo ciclo' }).click();
+  await p.fill('#rascunhoCorpo input', 'C20/2026');
+  await p.selectOption('#rascunhoCorpo select', 'Ciclo exemplo');
+  await p.check('input[name="rsCopiar"][value="fixos"]');
+  await p.click('#rascunhoOk');
+  await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
+  const fixos = await estado(p, () => Object.keys(App.estado.dados.movimentos['C20/2026']['01']).length);
+  assert.ok(fixos > 0);
+  assert.strictEqual(await p.locator('#slide .grupo-etiquetas').count(), fixos, 'as etiquetas dos fixos aparecem na planta');
+  // Na ER M valem os fixos da ER P (cascata), menos a ponta B da gôndola 1: fixa de O.U.i só na ER P.
+  await abaPlanta(p, 'ER M').click();
+  assert.strictEqual(await p.locator('#slide .grupo-etiquetas').count(), fixos - 1, 'os fixos da ER P valem na ER M (cascata)');
+  // O resto na ER M, que tem a gôndola 2.
+
+  // Etiquetas: começa com uma e "+ Adicionar etiqueta" põe outra, até 4.
+  const gravado = () => p.waitForFunction(() => document.getElementById('pcGravacao').textContent === 'Tudo salvo');
+  await p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 2"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  const ponta = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/PONTA-A"]');
+  await ponta.waitFor();
+  assert.strictEqual(await ponta.locator('.rs-etq').count(), 1);
+  const add = ponta.locator('button', { hasText: '+ Adicionar etiqueta' });
+  for (let k = 0; k < 3; k++) await add.click();
+  assert.strictEqual(await ponta.locator('.rs-etq').count(), 4);
+  assert.ok(await add.isHidden(), 'no limite, o botão some');
+  const tipos = await ponta.locator('.rs-etq').first().locator('select:not(.rs-marca):not(.rs-etq-simbolo) option').evaluateAll((os) => os.map((o) => o.value).filter(Boolean));
+  await ponta.locator('.rs-etq').nth(0).locator('select:not(.rs-marca):not(.rs-etq-simbolo)').selectOption(tipos[0]);
+  await ponta.locator('.rs-etq').nth(1).locator('select:not(.rs-marca):not(.rs-etq-simbolo)').selectOption(tipos[1] || tipos[0]);
+  await gravado();
+  assert.strictEqual((await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']['GONDOLA 2/PONTA-A'])).etiquetas.length, 2);
+  // "×" tira uma etiqueta.
+  await ponta.locator('.rs-etq').nth(3).locator('.pc-tirar-etq').click();
+  assert.strictEqual(await ponta.locator('.rs-etq').count(), 3);
+  assert.ok(await add.isVisible());
+
+  // Cores: a marca escolhida pinta o fundo do select, e as opções seguem a ordem BOT | EUD | QDB | OUI | MM.
+  const marca = ponta.locator('select.rs-marca').first();
+  assert.deepStrictEqual(await marca.locator('option').allTextContents(), ['Sem marca (branco)', 'BOT', 'EUD', 'QDB', 'OUI', 'MM']);
+  await marca.selectOption('EUD');
+  const fundo = await marca.evaluate((el) => getComputedStyle(el).backgroundColor);
+  assert.strictEqual(fundo, 'rgb(161, 31, 201)');
+  assert.strictEqual(await marca.locator('option[value="QDB"]').evaluate((el) => el.style.backgroundColor), 'rgb(226, 63, 180)');
+  assert.deepStrictEqual(await p.locator('#legenda .chip').allTextContents().then((x) => x.map((s) => s.trim())), ['BOT', 'EUD', 'QDB', 'OUI', 'MM']);
+  await gravado();
+
+  // Símbolo por etiqueta: a antecipação (⏩) pede a data logo em seguida; a planta mostra o símbolo e a data.
+  const etq1 = ponta.locator('.rs-etq').nth(0);
+  assert.ok(await etq1.locator('.rs-etq-data').isHidden(), 'sem antecipação, sem data');
+  await etq1.locator('.rs-etq-simbolo').selectOption('ANTECIPADO');
+  assert.ok(await etq1.locator('.rs-etq-data').isVisible(), 'com a antecipação, a data aparece em seguida');
+  await etq1.locator('.rs-etq-data').fill('2026-10-25');
+  await etq1.locator('.rs-etq-data').dispatchEvent('change');
+  await ponta.locator('.rs-etq').nth(1).locator('.rs-etq-simbolo').selectOption('NOVO');
+  await gravado();
+  const comSimbolos = (await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']['GONDOLA 2/PONTA-A'])).etiquetas;
+  assert.deepStrictEqual([comSimbolos[0].simbolo, comSimbolos[0].data, comSimbolos[1].simbolo], ['ANTECIPADO', '2026-10-25', 'NOVO']);
+  assert.ok(await p.locator('#slide text', { hasText: '25/10' }).count() > 0, 'a data aparece ao lado do símbolo, na planta');
+  assert.ok((await estado(p, () => App.estado.simbolos)).includes('ANTECIPADO'), 'a antecipação entra na legenda');
+  await p.click('#btnAtualizar');
+  await p.waitForSelector('#carregando', { state: 'hidden' });
+  assert.strictEqual((await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']['GONDOLA 2/PONTA-A'])).etiquetas[0].data, '2026-10-25', 'o servidor guardou a data');
+
+  // Meio da gôndola em 2: o que estava no meio vai para a metade 1; a planta divide o meio na hora.
+  const meio = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A"]');
+  await meio.locator('.rs-etq select:not(.rs-marca):not(.rs-etq-simbolo)').first().selectOption(tipos[0]);
+  await gravado();
+  await meio.locator('button', { hasText: 'Dividir em 2' }).click();
+  await p.waitForSelector('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A-2"]');
+  assert.ok(await p.locator('#slide .movel[data-movel="GONDOLA 2"][data-espaco="MEIO-A-2"]').count() > 0, 'a planta mostra as duas metades');
+  const m1 = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A-1"]');
+  assert.strictEqual(await m1.locator('.rs-etq select:not(.rs-marca):not(.rs-etq-simbolo)').first().inputValue(), tipos[0]);
+  const m2 = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A-2"]');
+  await m2.locator('.rs-etq select:not(.rs-marca):not(.rs-etq-simbolo)').first().selectOption(tipos[1] || tipos[0]);
+  await gravado();
+  let er = await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']);
+  assert.ok(!er['GONDOLA 2/MEIO-A'] && er['GONDOLA 2/MEIO-A-1'] && er['GONDOLA 2/MEIO-A-2']);
+  // O servidor guardou as metades (Atualizar recarrega tudo).
+  await p.click('#btnAtualizar');
+  await p.waitForFunction(() => ((App.estado.dados.movimentos['C20/2026'] || {})['02'] || {})['GONDOLA 2/MEIO-A-2']);
+  // Juntar: volta a ser um meio só, com o que estava na metade 1.
+  await p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A-1"] button', { hasText: 'Juntar metades' }).click();
+  await p.waitForSelector('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-A"]');
+  await gravado();
+  er = await estado(p, () => App.estado.dados.movimentos['C20/2026']['02']);
+  assert.ok(er['GONDOLA 2/MEIO-A'] && !er['GONDOLA 2/MEIO-A-1'] && !er['GONDOLA 2/MEIO-A-2']);
+  assert.strictEqual(er['GONDOLA 2/MEIO-A'].etiquetas[0].texto, tipos[0]);
+  // Dividir um meio vazio também divide a planta (as metades ficam para preencher).
+  await p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-B"] button', { hasText: 'Dividir em 2' }).click();
+  await p.waitForSelector('#pcForm .pc-espaco[data-espaco="GONDOLA 2/MEIO-B-2"]');
+  assert.ok(await p.locator('#slide .movel[data-movel="GONDOLA 2"][data-espaco="MEIO-B-1"]').count() > 0);
+});
+
 test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo ⏩', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo');
   await abaPlanta(p, 'ER P').click();
-  await menuConfig(p, 'btnValidacao');
+  await menuConfig(p, 'btnConstrucao');
   await p.waitForSelector('#dlgAcesso[open]');
-  await p.check('#dlgAcesso input[name="papel"][value="CONSTRUTOR"]');
   await p.fill('#acessoNome', 'Bia');
-  await p.fill('#acessoSenha', '1234');
+  await p.fill('#acessoSenha', SENHA.CONSTRUTOR);
   await p.click('#acessoEntrar');
   await p.waitForSelector('#btnNovaAntecipacao');
 

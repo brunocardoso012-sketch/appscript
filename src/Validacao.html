@@ -3,8 +3,8 @@
  * ============================================================================
  *  VALIDAÇÃO DA ESTRATÉGIA (página)
  * ============================================================================
- *  Botão "Validação": entra como validador ou construtor da estratégia (nome +
- *  senha). O validador comenta a planta ou um móvel no ciclo escolhido; o
+ *  Dois itens na engrenagem, cada um com a sua senha: "Validação" entra como
+ *  validador e "Construção" como construtor da estratégia (nome + senha). O validador comenta a planta ou um móvel no ciclo escolhido; o
  *  construtor vê, responde e marca como resolvido. Painel ao lado da planta com
  *  os comentários do ciclo e da planta, marcadores nos móveis com comentários
  *  abertos e a seção "Comentários da validação" na tela do móvel.
@@ -59,7 +59,24 @@ const Validacao = (() => {
 
   /* ------------------------------- acesso --------------------------------- */
 
-  function abrirAcesso() {
+  /** Texto do diálogo de acesso e do painel de cada papel (o item da engrenagem escolhe o papel). */
+  const MODULOS = {
+    VALIDADOR: {
+      titulo: 'Validação',
+      sub: 'Para o validador: comente a estratégia do ciclo e aprove (ou devolva) os ciclos novos.',
+    },
+    CONSTRUTOR: {
+      titulo: 'Construção',
+      sub: 'Para o construtor da estratégia: monte os ciclos novos na planta, responda aos comentários do validador e marque como resolvido.',
+    },
+  };
+
+  /** Diálogo de acesso ao módulo de um papel ('VALIDADOR' ou 'CONSTRUTOR'), com a senha dele. */
+  function abrirAcesso(papel) {
+    const m = MODULOS[papel] || MODULOS.VALIDADOR;
+    $('acessoPapel').value = MODULOS[papel] ? papel : 'VALIDADOR';
+    $('acessoTitulo').textContent = m.titulo;
+    $('acessoSub').textContent = m.sub;
     const dlg = $('dlgAcesso');
     $('acessoErro').hidden = true;
     $('acessoSenha').value = '';
@@ -72,13 +89,15 @@ const Validacao = (() => {
   async function entrar(ev) {
     ev.preventDefault();
     const dlg = $('dlgAcesso');
-    const papel = (dlg.querySelector('input[name="papel"]:checked') || {}).value || '';
+    const papel = $('acessoPapel').value;
     const pedido = { papel, nome: $('acessoNome').value.trim(), senha: $('acessoSenha').value };
     const botaoEntrar = $('acessoEntrar');
     botaoEntrar.disabled = true;
     try {
       const r = await app.chamar('entrarValidacao', pedido);
+      const trocou = !!acesso; // já estava no outro módulo: sai dele antes (ciclos em construção, painel)
       acesso = Object.assign(pedido, { papel: r.papel, nome: r.autor, nomePapel: r.nomePapel });
+      if (trocou && app.aoSair) app.aoSair();
       sessao.gravar(acesso);
       dlg.close();
       app.toast('Você entrou como ' + r.nomePapel.toLowerCase() + '.');
@@ -135,7 +154,7 @@ const Validacao = (() => {
   /* ------------------------------- painel ---------------------------------- */
 
   function abrirPainel() {
-    if (!acesso) { abrirAcesso(); return; }
+    if (!acesso) { abrirAcesso('VALIDADOR'); return; }
     painelAberto = true;
     if (app.fecharAnalytics) app.fecharAnalytics();
     atualizar();
@@ -153,17 +172,21 @@ const Validacao = (() => {
     const e = app.estado;
     const planta = app.plantaAtual();
     const abertos = ativo() && e.ciclo ? doCiclo().filter((c) => c.status === 'ABERTO').length : 0;
-    const btn = $('btnValidacao');
-    if (btn) {
-      btn.setAttribute('aria-pressed', String(painelAberto && ativo()));
-      $('valBadge').textContent = abertos ? String(abertos) : '';
-      $('valBadge').hidden = !abertos;
-      // O botão fica no menu de configurações: o ícone dele mostra o mesmo número.
-      if ($('cfgBadge')) {
-        $('cfgBadge').textContent = abertos ? String(abertos) : '';
-        $('cfgBadge').hidden = !abertos;
-      }
-      btn.title = ativo() ? 'Validação: ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : 'Validação da estratégia (pede senha)';
+    // Um item por módulo na engrenagem: o do papel que entrou fica marcado e mostra os comentários abertos.
+    [['btnValidacao', 'valBadge', 'VALIDADOR', 'Validação da estratégia e aprovação dos ciclos novos (pede senha)'],
+      ['btnConstrucao', 'consBadge', 'CONSTRUTOR', 'Construção dos ciclos novos (pede senha)']].forEach(([id, badge, papel, dica]) => {
+      const btn = $(id);
+      if (!btn) return;
+      const meu = ativo() && acesso.papel === papel;
+      btn.setAttribute('aria-pressed', String(painelAberto && meu));
+      $(badge).textContent = meu && abertos ? String(abertos) : '';
+      $(badge).hidden = !(meu && abertos);
+      btn.title = meu ? MODULOS[papel].titulo + ': ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : dica;
+    });
+    // Os itens ficam no menu de configurações: o ícone dele mostra o mesmo número.
+    if ($('cfgBadge')) {
+      $('cfgBadge').textContent = abertos ? String(abertos) : '';
+      $('cfgBadge').hidden = !abertos;
     }
     const painel = $('painelValidacao');
     // Construindo um ciclo, o painel de construção (Rascunho.html) fica no lugar deste.
@@ -177,6 +200,7 @@ const Validacao = (() => {
 
   function montarPainel(planta) {
     const e = app.estado;
+    $('valTitulo').textContent = MODULOS[acesso.papel] ? MODULOS[acesso.papel].titulo : 'Validação';
     $('valSub').textContent = planta.nome + (e.ciclo ? ' · ' + e.ciclo : '');
     const corpo = $('valCorpo');
     corpo.innerHTML = '';
@@ -381,10 +405,15 @@ const Validacao = (() => {
 
   function iniciar(contexto) {
     app = contexto;
-    $('btnValidacao').addEventListener('click', () => {
-      if (painelAberto && ativo()) fecharPainel();
+    // Validação e Construção: já dentro do módulo, o item abre / fecha o painel; senão, pede a senha do módulo
+    // (entrar num módulo sai do outro).
+    const alternar = (papel) => {
+      if (!ativo() || acesso.papel !== papel) { abrirAcesso(papel); return; }
+      if (painelAberto) fecharPainel();
       else abrirPainel();
-    });
+    };
+    $('btnValidacao').addEventListener('click', () => alternar('VALIDADOR'));
+    if ($('btnConstrucao')) $('btnConstrucao').addEventListener('click', () => alternar('CONSTRUTOR'));
     $('valFechar').addEventListener('click', fecharPainel);
     $('formAcesso').addEventListener('submit', entrar);
     $('acessoCancelar').addEventListener('click', () => $('dlgAcesso').close());

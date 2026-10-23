@@ -15,7 +15,7 @@
  */
 const Rascunho = (() => {
   const $ = (id) => document.getElementById(id);
-  let app = null; // { estado, chamar, toast, erro, desenhar, plantaAtual, acesso, montarCiclos, carregar, abrirMovel, movimentoDe, paineisDe, corDaMarca, nomeDaMarca }
+  let app = null; // { estado, ultimoAprovado, chamar, toast, erro, desenhar, plantaAtual, acesso, montarCiclos, carregar, abrirMovel, movimentoDe, paineisDe, corDaMarca, nomeDaMarca }
   let lista = []; // [{ ciclo, status, nomeStatus, origem, criadoPor, criadoEm, enviadoEm, decididoPor, decididoEm }]
   let dados = null; // { movimentos, paineis, tiposMovimento } dos ciclos em construção
   let mesclados = []; // ciclos que mesclar() pôs em estado.dados (para tirar na próxima vez)
@@ -23,7 +23,11 @@ const Rascunho = (() => {
   let selecao = ''; // ID do móvel selecionado ('' = nenhum)
   let formChave = ''; // ciclo|ER|móvel do formulário montado (só refaz quando muda, para não perder o foco)
   let verComentarios = false; // o construtor abriu os comentários da validação no lugar do painel
+  let abriuDoPapel = false; // já levou a tela ao ciclo em construção do papel neste login (abrirDoPapel)
   const pendentes = {}; // "ciclo|ER|espaço" → { ciclo, planta, chave, linha } ainda não gravados
+  // Meios de gôndola divididos pelo construtor que ainda não têm nada nas metades (com uma metade preenchida,
+  // a linha dela já divide o meio na planta): "ciclo|ER|móvel" → 'A' | 'B' | 'AB'.
+  const divididos = {};
   let timer = null;
   let gravando = false;
   let gravacao = 'salvo'; // salvo | pendente | salvando | erro
@@ -101,7 +105,12 @@ const Rascunho = (() => {
     }
     er[chave] = {
       marca: l.marca || '', simbolo: l.simbolo || '', observacao: obs,
-      etiquetas: l.etiquetas.map((e, k) => ({ texto: e.texto, marca: e.marca || '', posicao: k + 1 })),
+      etiquetas: l.etiquetas.map((e, k) => {
+        const x = { texto: e.texto, marca: e.marca || '', posicao: k + 1 };
+        if (e.simbolo) x.simbolo = e.simbolo;
+        if (e.simbolo === 'ANTECIPADO' && e.data) x.data = e.data;
+        return x;
+      }),
     };
   }
 
@@ -189,6 +198,21 @@ const Rascunho = (() => {
     });
   }
 
+  /**
+   * Logo depois de entrar na validação (ou ao abrir o app já com o login), a tela vai para o ciclo em construção
+   * do papel: o construtor, o que está montando; o validador, o que aguarda aprovação. Só uma vez por login.
+   */
+  function abrirDoPapel() {
+    if (abriuDoPapel || !acesso()) return;
+    abriuDoPapel = true;
+    const status = papel() === 'CONSTRUTOR' ? 'EM_CONSTRUCAO' : papel() === 'VALIDADOR' ? 'ENVIADO' : '';
+    const r = lista.slice().reverse().find((x) => x.status === status);
+    if (!r || r.ciclo === app.estado.ciclo) return;
+    app.estado.ciclo = r.ciclo;
+    selecao = '';
+    verComentarios = false;
+  }
+
   function aplicar(r) {
     lista = (r && r.rascunhos) || [];
     dados = r || null;
@@ -196,8 +220,9 @@ const Rascunho = (() => {
     if (!e.dados) return;
     mesclar(e.dados);
     reaplicarPendentes();
+    abrirDoPapel();
     // O ciclo da tela era um rascunho que não existe mais (aprovado por outra pessoa, excluído…): volta à planta limpa.
-    if (e.ciclo && e.dados.ciclos.indexOf(e.ciclo) < 0 && !doCiclo(e.ciclo)) e.ciclo = '';
+    if (e.ciclo && e.dados.ciclos.indexOf(e.ciclo) < 0 && !doCiclo(e.ciclo)) e.ciclo = app.ultimoAprovado();
     app.montarCiclos();
     app.desenhar();
   }
@@ -214,9 +239,10 @@ const Rascunho = (() => {
   function limpar() {
     lista = [];
     dados = null;
+    abriuDoPapel = false; // no próximo login, abre de novo o ciclo do papel
     if (!app || !app.estado.dados) return;
     mesclar(app.estado.dados);
-    if (app.estado.ciclo && app.estado.dados.ciclos.indexOf(app.estado.ciclo) < 0) app.estado.ciclo = '';
+    if (app.estado.ciclo && app.estado.dados.ciclos.indexOf(app.estado.ciclo) < 0) app.estado.ciclo = app.ultimoAprovado();
     app.montarCiclos();
     app.desenhar();
   }
@@ -285,6 +311,7 @@ const Rascunho = (() => {
     Object.keys(marcas).filter((c) => c !== 'NEUTRO').forEach((c) => { n('option', null, marcas[c].nome, sel).value = c; });
     if (valor && valor !== 'NEUTRO' && !marcas[valor]) n('option', null, app.nomeDaMarca(valor), sel).value = valor;
     sel.value = valor && valor !== 'NEUTRO' ? valor : '';
+    app.colorirSelectMarca(sel);
     return sel;
   }
 
@@ -378,55 +405,38 @@ const Rascunho = (() => {
 
   /* --------------------------- faixa do rascunho ---------------------------- */
 
-  /** Faixa acima da planta com o status do ciclo em construção e as ações de cada papel. */
+  /**
+   * Faixa em destaque no topo (logo abaixo das marcas), sempre que o ciclo da tela é um ciclo em construção:
+   * avisa que ele ainda não foi aprovado, com a mensagem de cada papel, e traz as ações do validador. O
+   * construtor monta pelo painel da lateral (passos e ações); com os comentários abertos, as ações vêm aqui.
+   */
   function atualizarFaixa() {
     const faixa = $('barraRascunho');
     const r = atual();
-    // O construtor monta pelo painel da lateral (com os passos e as ações); a faixa é para os outros casos.
-    const mostrar = !!r && !(papel() === 'CONSTRUTOR' && r.status === 'EM_CONSTRUCAO' && !verComentarios);
+    const mostrar = !!r;
     faixa.hidden = !mostrar;
     document.body.classList.toggle('com-rascunho', mostrar);
     if (!mostrar) return;
+    const construtor = papel() === 'CONSTRUTOR';
+    const validador = papel() === 'VALIDADOR';
+    const enviado = r.status === 'ENVIADO';
     const info = $('rascunhoInfo');
     info.innerHTML = '';
-    n('strong', null, 'Ciclo em construção: ', info);
-    info.appendChild(document.createTextNode(r.ciclo + ' · '));
+    n('span', 'rs-faixa-icone', '🚧', info).setAttribute('aria-hidden', 'true');
+    n('strong', null, 'Ciclo ' + r.ciclo + ' (não publicado)', info);
     n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, info);
-    const construindo = papel() === 'CONSTRUTOR' && r.status === 'EM_CONSTRUCAO';
-    const dica = r.status === 'ENVIADO'
-      ? (papel() === 'VALIDADOR' ? ' Confira as ERs e aprove ou devolva.' : ' Aguardando o validador.')
-      : (construindo ? '' : ' O construtor ainda está montando.');
-    info.appendChild(document.createTextNode(dica));
+    const msg = construtor
+      ? (enviado ? 'Enviado para o validador. Você volta a editar se ele devolver.'
+        : 'Você está montando este ciclo. Ele só aparece para todos depois que o validador aprovar.')
+      : validador
+        ? (enviado ? 'Confira as ERs e aprove ou devolva para o construtor.' : 'O construtor ainda está montando este ciclo (não foi enviado para aprovação).')
+        : '';
+    if (msg) n('span', 'rs-faixa-msg', msg, info);
     const acoes = $('rascunhoAcoes');
     acoes.innerHTML = '';
-    if (construindo) {
-      // Os três passos: tipos (com GMV) → móveis (só com movimentos dos tipos) → enviar.
-      const p = passos();
-      const passo1 = p.tipos > 0 && !p.semGmv;
-      const passo2 = p.espacos > 0 && !p.fora.length;
-      const lista = n('ol', 'rs-passos', null, info);
-      const item = (ok, titulo, detalhe) => {
-        const li = n('li', ok ? 'ok' : '', null, lista);
-        n('strong', null, titulo, li);
-        if (detalhe) n('span', null, ' ' + detalhe, li);
-      };
-      item(passo1, 'Tipos de movimento', p.tipos ? p.tipos + (p.tipos === 1 ? ' movimento' : ' movimentos')
-        + (p.semGmv ? ', ' + p.semGmv + ' sem GMV' : ', todos com GMV') : 'cadastre os movimentos e o GMV');
-      item(passo2, 'Móveis', p.fora.length ? p.fora.length + ' movimento(s) fora dos tipos'
-        : p.espacos ? p.espacos + ' linhas · clique num móvel para editar' : 'clique num móvel para preencher');
-      item(false, 'Enviar para aprovação', '');
-      botao('1. Tipos de movimento', passo1 ? '' : 'primario', editarTipos, acoes);
-      botao('Excluir', 'perigo', () => {
-        if (window.confirm('Excluir o ciclo em construção ' + r.ciclo + '? Não dá para desfazer.')) {
-          salvar({ acao: 'excluir', ciclo: r.ciclo }, 'Ciclo excluído.');
-        }
-      }, acoes);
-      botao('3. Enviar para aprovação', passo1 && passo2 ? 'primario' : '', () => {
-        if (window.confirm('Enviar ' + r.ciclo + ' para aprovação? Você só volta a editar se o validador devolver.')) {
-          salvar({ acao: 'enviar', ciclo: r.ciclo }, 'Ciclo enviado para aprovação.');
-        }
-      }, acoes);
-    } else if (papel() === 'VALIDADOR' && r.status === 'ENVIADO') {
+    if (construtor && !enviado && verComentarios) {
+      botao('← Voltar à construção', 'primario', () => { verComentarios = false; app.desenhar(); }, acoes);
+    } else if (validador && enviado) {
       botao('Devolver', '', () => devolver(r), acoes);
       botao('Aprovar e publicar', 'primario', () => {
         if (window.confirm('Aprovar ' + r.ciclo + '? Ele entra na planilha, junto com os outros ciclos, e fica visível para todos.')) {
@@ -547,7 +557,7 @@ const Rascunho = (() => {
     botao('✕', 'fantasma', () => aoClicarMovel(''), topo).setAttribute('aria-label', 'Tirar a seleção');
     app.blocosDoMovel(planta, m, app.estado.ciclo).forEach((b) => {
       const porEr = app.espacoPorEr(b.chave);
-      if (!porEr) { blocoEspaco(pai, planta, b); return; }
+      if (!porEr) { blocoEspaco(pai, planta, m, b); return; }
       // Espaço que muda conforme a ER (ex.: ponta B da gôndola 1): a parte fixa e a livre, separadas. Cada
       // uma grava na ER dela (na ER aberta, quando é a parte dela; senão, na primeira ER da parte).
       const nomeEr = (id) => (app.estado.dados.plantas.find((p) => p.id === id) || { nome: id }).nome;
@@ -560,25 +570,99 @@ const Rascunho = (() => {
         if (!bAlvo) return;
         // ERs em que esta linha vale (a cascata pode parar antes, ex.: a ER G define o espaço de novo).
         const ers = app.ersDaLinha(alvo.id, b.chave).map((x) => nomeEr(x.planta)).join(', ');
-        blocoEspaco(pai, alvo, bAlvo, { parte, ers, nestaEr: alvo === planta });
+        blocoEspaco(pai, alvo, mAlvo, bAlvo, { parte, ers, nestaEr: alvo === planta });
       });
     });
   }
 
+  /* ------------------------- meio de gôndola em 2 -------------------------- */
+
+  const chaveDivisao = (ciclo, plantaId, movelId) => ciclo + '|' + plantaId + '|' + movelId;
+
+  /** Meios que o construtor dividiu nesta gôndola ('', 'A', 'B' ou 'AB'), só no ciclo em construção da tela. */
+  function meiosDivididos(ciclo, plantaId, movelId) {
+    if (!editavel() || ciclo !== app.estado.ciclo) return '';
+    return divididos[chaveDivisao(ciclo, plantaId, movelId)] || '';
+  }
+
+  const linhaVazia = () => ({ marca: '', simbolo: '', observacao: '', etiquetas: [] });
+  const temConteudo = (i) => !!(i && (i.marca || i.simbolo || (i.observacao || '').trim() || i.etiquetas.length));
+  const copiaDaLinha = (i) => ({
+    marca: i.marca || '', simbolo: i.simbolo || '', observacao: i.observacao || '',
+    etiquetas: i.etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || '', simbolo: e.simbolo || '', data: e.data || '' })),
+  });
+
+  /** Muda um espaço na tela e agenda a gravação (linha vazia apaga a linha do espaço nesta ER). */
+  function gravarEspaco(planta, chave, l) {
+    aplicarLocal(app.estado.ciclo, planta.id, chave, l);
+    agendar(app.estado.ciclo, planta.id, chave, l);
+  }
+
+  /**
+   * Divide o meio (lado A ou B) em duas metades: o que estava no meio passa para a metade 1 e a metade 2
+   * começa vazia, para outro movimento. A linha do meio inteiro (desta ER) sai.
+   */
+  function dividirMeio(planta, m, lado) {
+    const ciclo = app.estado.ciclo;
+    const daEr = (app.estado.dados.movimentos[ciclo] || {})[planta.id] || {};
+    const meio = m.id + '/MEIO-' + lado;
+    if (daEr[meio]) {
+      const atual = copiaDaLinha(daEr[meio]);
+      gravarEspaco(planta, meio + '-1', atual);
+      gravarEspaco(planta, meio, linhaVazia());
+    }
+    const k = chaveDivisao(ciclo, planta.id, m.id);
+    if ((divididos[k] || '').indexOf(lado) < 0) divididos[k] = ['A', 'B'].filter((l) => l === lado || (divididos[k] || '').indexOf(l) >= 0).join('');
+    formChave = '';
+    app.desenhar();
+  }
+
+  /** Junta as duas metades do meio de novo: fica o que está na metade 1 (ou, se ela estiver vazia, na 2). */
+  function juntarMeio(planta, m, lado) {
+    const ciclo = app.estado.ciclo;
+    const daEr = (app.estado.dados.movimentos[ciclo] || {})[planta.id] || {};
+    const meio = m.id + '/MEIO-' + lado;
+    const blocos = app.blocosDoMovel(planta, m, ciclo);
+    const metade = (n2) => (blocos.find((b) => b.chave === meio + '-' + n2) || {}).info || null;
+    const m1 = metade(1);
+    const m2 = metade(2);
+    if (temConteudo(m1) && temConteudo(m2) && JSON.stringify(copiaDaLinha(m1)) !== JSON.stringify(copiaDaLinha(m2))
+      && !window.confirm('Juntar as metades do Meio ' + lado + '? Fica o que está na metade 1; o da metade 2 sai.')) return;
+    const fica = temConteudo(m1) ? m1 : temConteudo(m2) ? m2 : null;
+    [meio + '-1', meio + '-2'].forEach((c) => { if (daEr[c]) gravarEspaco(planta, c, linhaVazia()); });
+    if (fica) gravarEspaco(planta, meio, copiaDaLinha(fica));
+    const k = chaveDivisao(ciclo, planta.id, m.id);
+    divididos[k] = (divididos[k] || '').replace(lado, '');
+    if (!divididos[k]) delete divididos[k];
+    formChave = '';
+    app.desenhar();
+  }
+
   /**
    * Um espaço (ou o móvel inteiro) no painel: cada mudança pinta a planta na hora e é gravada sozinha.
-   * @param {{titulo, chave, info, limite, propria}} b  de blocosDoMovel (App.html)
+   * As etiquetas começam com uma (ou as que o espaço já tem) e "+ Adicionar etiqueta" põe outra, até o limite.
+   * @param {{titulo, chave, info, limite, propria, espaco}} b  de blocosDoMovel (App.html)
    * @param {{parte, ers, nestaEr}} [porEr]  uma parte de um espaço que muda conforme a ER (fixa ou livre):
    *   planta é a ER em que ela grava; ers, os nomes das ERs da parte; nestaEr: é a parte da ER aberta.
    */
-  function blocoEspaco(pai, planta, b, porEr) {
+  function blocoEspaco(pai, planta, m, b, porEr) {
     const ciclo = app.estado.ciclo;
     const i = b.info || { marca: '', etiquetas: [], simbolo: '', observacao: '' };
     const fixa = porEr && porEr.parte.tipo === 'fixo' ? porEr.parte.marca : '';
     const f = n('div', 'rs-espaco pc-espaco' + (porEr ? ' pc-parte ' + porEr.parte.tipo + (porEr.nestaEr ? ' atual' : '') : ''), null, pai);
     f.dataset.espaco = b.chave;
     if (porEr) f.dataset.parte = porEr.parte.tipo;
-    n('h4', null, b.titulo, f);
+    const cab = n('div', 'pc-espaco-cab', null, f);
+    n('h4', null, b.titulo, cab);
+    // Gôndola: o meio pode ser dividido em duas metades (dois movimentos) e as metades, juntadas de novo.
+    const idEsp = b.espaco ? b.espaco.id : '';
+    if (m.tipo === 'GONDOLA' && /^MEIO-[AB]$/.test(idEsp)) {
+      botao('Dividir em 2', 'fantasma pc-dividir', () => dividirMeio(planta, m, idEsp.slice(-1)), cab)
+        .title = 'Divide este meio em duas metades, cada uma com o seu movimento';
+    } else if (m.tipo === 'GONDOLA' && /^MEIO-[AB]-1$/.test(idEsp)) {
+      botao('Juntar metades', 'fantasma pc-dividir', () => juntarMeio(planta, m, idEsp.slice(5, 6)), cab)
+        .title = 'Volta a ser um meio só (fica o que está na metade 1)';
+    }
     if (porEr) {
       const sub = n('p', 'pc-parte-ers', null, f);
       n('strong', null, (porEr.parte.tipo === 'fixo' ? 'Só na ' : 'Vale para ') + porEr.ers + '.', sub);
@@ -613,15 +697,55 @@ const Rascunho = (() => {
     // Etiquetas: só os movimentos cadastrados nos Tipos de movimento do ciclo (passo 1).
     const tipos = tiposDoCiclo();
     const etqs = n('div', 'rs-etiquetas pc-etiquetas', null, f);
-    n('span', 'mv-rotulo', 'Etiquetas', etqs);
+    n('span', 'mv-rotulo', 'Etiquetas' + (b.limite > 1 ? ' (até ' + b.limite + ')' : ''), etqs);
+    const listaEtq = n('div', 'pc-etq-lista', null, etqs);
     const campos = [];
+    let adicionar = null;
     if (!tipos.length) {
       n('p', 'rs-herdado', 'Cadastre primeiro os movimentos do ciclo em Tipos de movimento (passo 1): as etiquetas são escolhidas entre eles.', etqs);
       botao('1. Tipos de movimento', 'primario', editarTipos, etqs);
+    } else if (b.limite > 1) {
+      adicionar = botao('+ Adicionar etiqueta', 'fantasma rs-add pc-add-etq', () => {
+        const c = novaEtiqueta({});
+        c.t.focus();
+      }, etqs);
     }
-    for (let k = 0; tipos.length && k < b.limite; k++) {
-      const e = i.etiquetas[k] || {};
-      const row = n('div', 'rs-etq', null, etqs);
+    const obs = n('textarea', null, null, linha('Observação'));
+    obs.rows = 2;
+    obs.value = i.observacao || '';
+    obs.setAttribute('aria-label', 'Observação de ' + b.titulo);
+    const ler = () => ({
+      marca: marca.value, simbolo: simbolo.value, observacao: obs.value,
+      etiquetas: campos.filter((c) => c.t.value.trim()).map((c) => {
+        const obsEtq = c.o.value.replace(/\|/g, '/').trim();
+        const e = { texto: c.t.value + (obsEtq ? ' | ' + obsEtq : ''), marca: c.m.value };
+        if (c.s.value) e.simbolo = c.s.value;
+        if (c.s.value === 'ANTECIPADO' && c.d.value) e.data = c.d.value; // "2026-10-25"
+        return e;
+      }),
+    });
+    const mudou = (redesenhar) => {
+      campos.forEach((c) => c.t.classList.toggle('fora', !!c.t.value && !tipos.some((x) => x.texto === c.t.value)));
+      if (herdado) herdado.hidden = true;
+      gravarEspaco(planta, b.chave, ler());
+      if (redesenhar) app.desenhar();
+      else montarStats();
+    };
+    /** Numera as etiquetas, mostra o "×" de cada uma e o "+ Adicionar etiqueta" enquanto couber outra. */
+    const renumerar = () => {
+      campos.forEach((c, k) => {
+        c.t.setAttribute('aria-label', 'Etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.o.setAttribute('aria-label', 'Observação da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.x.setAttribute('aria-label', 'Tirar a etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.s.setAttribute('aria-label', 'Símbolo da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.d.setAttribute('aria-label', 'Data da antecipação da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.x.hidden = campos.length === 1 && !c.t.value && !c.o.value && !c.m.value && !c.s.value;
+      });
+      if (adicionar) adicionar.hidden = campos.length >= b.limite;
+    };
+    function novaEtiqueta(e) {
+      const row = n('div', 'rs-etq', null, listaEtq);
       const t = n('select', null, null, row);
       n('option', null, '— sem etiqueta —', t).value = '';
       tipos.forEach((x) => { n('option', null, x.texto + (typeof x.gmv === 'number' ? '' : ' (sem GMV)'), t).value = x.texto; });
@@ -634,7 +758,6 @@ const Rascunho = (() => {
         t.classList.add('fora');
       }
       t.value = atualT ? atualT.texto : movimento;
-      t.setAttribute('aria-label', 'Etiqueta ' + (k + 1) + ' de ' + b.titulo);
       // Observação da etiqueta: aparece na planta depois de um "|", mas não muda o movimento nem as contas.
       const o = n('input', 'rs-etq-obs', null, row);
       o.type = 'text';
@@ -642,36 +765,64 @@ const Rascunho = (() => {
       o.placeholder = '| observação (opcional)';
       o.title = 'Aparece na planta depois de um "|" (ex.: ' + (movimento || 'LÇTO EGEO') + ' | só no kit). Não entra nas contas.';
       o.value = Render.obsDaEtiqueta(e.texto);
-      o.setAttribute('aria-label', 'Observação da etiqueta ' + (k + 1) + ' de ' + b.titulo);
-      const m = selectMarca(row, e.marca, 'Cor da marca do espaço');
-      m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1) + ' de ' + b.titulo);
-      campos.push({ t, o, m });
+      const mc = selectMarca(row, e.marca, 'Cor da marca do espaço');
+      // Símbolo próprio da etiqueta (aparece ao lado dela); com a antecipação (⏩), a data em que entra.
+      const sl = n('div', 'pc-etq-simbolo', null, row);
+      const se = n('select', 'rs-etq-simbolo', null, sl);
+      n('option', null, 'Sem símbolo', se).value = '';
+      Object.keys(app.estado.dados.simbolos).forEach((x) => {
+        const d = app.estado.dados.simbolos[x];
+        n('option', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' }[x] || '') + (x === 'ANTECIPADO' ? 'Antecipação' : d.descricao || x), se).value = x;
+      });
+      se.value = e.simbolo || '';
+      const de = n('input', 'rs-etq-data', null, sl);
+      de.type = 'date';
+      de.value = e.data || '';
+      de.title = 'Data em que a antecipação entra';
+      const mostrarData = () => {
+        de.hidden = se.value !== 'ANTECIPADO';
+        de.required = !de.hidden;
+      };
+      mostrarData();
+      se.addEventListener('change', () => {
+        mostrarData();
+        if (!de.hidden && !de.value) de.focus(); // escolheu a antecipação: em seguida, a data
+      });
+      const c = { row, t, o, m: mc, s: se, d: de };
+      c.x = botao('×', 'fantasma pc-tirar-etq', () => {
+        if (campos.length > 1) {
+          row.remove();
+          campos.splice(campos.indexOf(c), 1);
+        } else {
+          [t, o, mc, se, de].forEach((el) => { el.value = ''; });
+          mc.dispatchEvent(new Event('input')); // tira a cor do select
+          mostrarData();
+        }
+        renumerar();
+        mudou(true);
+      }, row);
+      [t, mc, o, se, de].forEach((el) => el.addEventListener('change', () => { renumerar(); mudou(true); }));
+      campos.push(c);
+      renumerar();
+      return c;
     }
-    const obs = n('textarea', null, null, linha('Observação'));
-    obs.rows = 2;
-    obs.value = i.observacao || '';
-    obs.setAttribute('aria-label', 'Observação de ' + b.titulo);
-    const ler = () => ({
-      marca: marca.value, simbolo: simbolo.value, observacao: obs.value,
-      etiquetas: campos.filter((c) => c.t.value.trim()).map((c) => {
-        const obsEtq = c.o.value.replace(/\|/g, '/').trim();
-        return { texto: c.t.value + (obsEtq ? ' | ' + obsEtq : ''), marca: c.m.value };
-      }),
-    });
-    const mudou = (redesenhar) => {
-      campos.forEach((c) => c.t.classList.toggle('fora', !!c.t.value && !tipos.some((x) => x.texto === c.t.value)));
-      if (herdado) herdado.hidden = true;
-      const l = ler();
-      aplicarLocal(ciclo, planta.id, b.chave, l);
-      agendar(ciclo, planta.id, b.chave, l);
-      if (redesenhar) app.desenhar();
-      else montarStats();
-    };
-    [marca, simbolo].concat(campos.reduce((a, c) => a.concat([c.t, c.m, c.o]), [])).forEach((el) => el.addEventListener('change', () => mudou(true)));
+    if (tipos.length) {
+      const atuais = i.etiquetas.slice(0, b.limite);
+      (atuais.length ? atuais : [{}]).forEach((e) => novaEtiqueta(e));
+    }
+    [marca, simbolo].forEach((el) => el.addEventListener('change', () => mudou(true)));
     obs.addEventListener('input', () => mudou(false));
     const acoes = n('div', 'val-acoes', null, f);
     botao('Limpar espaço', 'fantasma', () => {
-      [fixa ? null : marca, simbolo, obs].filter(Boolean).concat(campos.reduce((a, c) => a.concat([c.t, c.o, c.m]), [])).forEach((el) => { el.value = ''; });
+      [fixa ? null : marca, simbolo, obs].filter(Boolean).forEach((el) => { el.value = ''; }); // a marca fixa fica
+      marca.dispatchEvent(new Event('input'));
+      campos.splice(1).forEach((c) => c.row.remove());
+      campos.forEach((c) => {
+        [c.t, c.o, c.m, c.s, c.d].forEach((el) => { el.value = ''; });
+        c.m.dispatchEvent(new Event('input'));
+        c.s.dispatchEvent(new Event('change'));
+      });
+      renumerar();
       mudou(true);
     }, acoes);
   }
@@ -933,7 +1084,7 @@ const Rascunho = (() => {
 
   return {
     iniciar, atualizar, recarregar, limpar, mesclar, montarSecao, editarPaineis, editavel, painelVisivel,
-    selecionado, aoClicarMovel, esvaziarTudo, lista: () => lista, tem: (ciclo) => !!doCiclo(ciclo),
+    selecionado, aoClicarMovel, esvaziarTudo, lista: () => lista, tem: (ciclo) => !!doCiclo(ciclo), meiosDivididos,
   };
 })();
 </script>

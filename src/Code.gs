@@ -631,9 +631,11 @@ function formatarAba_(sh, colunas, cab, maxLinhas) {
             .build()
         );
       });
-    } else if (c.chave === 'simbolo') {
-      lista = Object.keys(SIMBOLOS);
-      ajuda = Object.keys(SIMBOLOS).map(function (k) { return k + ' = ' + SIMBOLOS[k].descricao; }).join(' | ');
+    } else if (c.chave === 'simbolo' || /^simboloEtiqueta/.test(c.chave)) {
+      // No espaço, o de antecipação vem só da aba Antecipações; na etiqueta, pode vir daqui (com a data ao lado).
+      lista = Object.keys(SIMBOLOS).filter(function (k) { return c.chave !== 'simbolo' || !SIMBOLOS[k].automatico; });
+      ajuda = lista.map(function (k) { return k + ' = ' + SIMBOLOS[k].descricao; }).join(' | ')
+        + (c.chave === 'simbolo' ? '' : '. Com ANTECIPADO, preencha a data na coluna ao lado (dd/mm/aaaa).');
     } else if (c.chave === 'secao') {
       lista = Object.keys(SECOES_PAINEL);
       ajuda = Object.keys(SECOES_PAINEL).map(function (k) { return k + ' = ' + SECOES_PAINEL[k].descricao; }).join(' | ');

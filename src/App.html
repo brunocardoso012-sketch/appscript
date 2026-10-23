@@ -344,6 +344,11 @@ const App = (() => {
 
   /* ------------------------------- carga ---------------------------------- */
 
+  let cicloEscolhido = false; // o ciclo inicial (o último aprovado) já foi escolhido na primeira carga
+
+  /** Último ciclo aprovado: o último da planilha (a aprovação acrescenta o ciclo no fim das abas). */
+  const ultimoAprovado = () => (estado.dados && estado.dados.ciclos.length ? estado.dados.ciclos[estado.dados.ciclos.length - 1] : '');
+
   async function carregar(preferencias) {
     carregando(true, 'Carregando dados da planilha…');
     try {
@@ -368,8 +373,12 @@ const App = (() => {
     $('telaConfig').hidden = true;
     svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden
 
-    // O app abre sem ciclo (planta limpa, sem cores nem etiquetas) até o usuário escolher um.
-    const cicloPref = 'ciclo' in pref ? pref.ciclo : estado.ciclo;
+    // Ao abrir, o app vai direto para o último ciclo aprovado (o último da planilha); o link pode pedir outro
+    // (ou a planta limpa). Depois, Atualizar mantém o ciclo da tela. Quem entrou na validação vai para o ciclo
+    // em construção do seu papel (Rascunho.html).
+    const primeiraCarga = !cicloEscolhido;
+    cicloEscolhido = true;
+    const cicloPref = 'ciclo' in pref ? pref.ciclo : primeiraCarga ? ultimoAprovado() : estado.ciclo;
     estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 || Rascunho.tem(cicloPref) ? cicloPref : '';
     const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
     // A planta pode vir pelo ID ou pelo nome ("ER M", do link).
@@ -582,6 +591,8 @@ const App = (() => {
         return p;
       },
       selecionado: construcao ? construcao.selecionado : Rascunho.selecionado(),
+      // Meios de gôndola que o construtor dividiu no ciclo em construção (as metades ainda vazias).
+      meiosDivididos: construcao ? null : (id) => Rascunho.meiosDivididos(estado.ciclo, planta.id, id),
       grade: construcao ? construcao.grade : false,
       referencia: construcao ? construcao.referencia : null,
       escuro: document.documentElement.dataset.tema === 'escuro',
@@ -1086,12 +1097,8 @@ const App = (() => {
     const valida = (x) => linhaValida(movimentoDe(ciclo, planta.id, x));
     const lista = [];
     planta.moveis.forEach((m) => {
-      let esp = Render.espacos(m); // frentes e verso das mesas, painéis do totem
-      if (m.tipo === 'GONDOLA') {
-        const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
-          || valida(m.id + '/MEIO-' + l + '-2') || valida(m.id + '/MEIO-' + l + '-1')).join('');
-        esp = Render.espacos(Object.assign({}, m, { dividido: div }));
-      }
+      // Frentes e verso das mesas, painéis do totem; na gôndola, os meios divididos.
+      const esp = Render.espacos(m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, valida, ciclo) }) : m);
       if (esp.length) esp.forEach((e) => lista.push({ movel: m, espaco: e, chave: m.id + '/' + e.id }));
       else lista.push({ movel: m, espaco: null, chave: m.id });
     });
@@ -1576,12 +1583,36 @@ const App = (() => {
     return cores.length === 1 ? cores[0] : 'linear-gradient(90deg, ' + cores.join(', ') + ')';
   }
 
+  /**
+   * Select de marca com a cor de cada marca no fundo (nas opções e no próprio select, pela marca escolhida),
+   * para achar a marca pela cor. As opções sem marca ficam com o fundo normal.
+   */
+  function colorirSelectMarca(sel) {
+    const pintar = (el, valor) => {
+      const comCor = !!valor && valor !== 'NEUTRO';
+      el.style.background = comCor ? corDaMarca(valor, 'etiqueta') : '';
+      el.style.color = comCor ? '#FFFFFF' : '';
+    };
+    Array.from(sel.options).forEach((o) => pintar(o, o.value));
+    const atualizar = () => {
+      pintar(sel, sel.value);
+      sel.classList.toggle('com-cor-marca', !!sel.value && sel.value !== 'NEUTRO');
+    };
+    sel.addEventListener('change', atualizar);
+    sel.addEventListener('input', atualizar);
+    atualizar();
+    return atualizar;
+  }
+
   const nomeDaMarca = (valor) => String(valor).split('+').map((p) => {
     const m = estado.dados.marcas[p.trim()];
     return m ? m.nome : p.trim();
   }).join(' + ');
 
   /** Bloco da tela com o que uma linha da planilha define (marca, símbolo, etiquetas, observação). */
+  /** Ícone de cada símbolo nos textos (tela do móvel, listas). */
+  const ICONES_SIMBOLO = { FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' };
+
   function blocoEstrategia(pai, titulo, i, opcoes) {
     const op = opcoes || {};
     const sec = novo('section', 'mv-bloco', null, pai);
@@ -1603,7 +1634,7 @@ const App = (() => {
       const sim = novo('div', 'mv-linha', null, sec);
       novo('span', 'mv-rotulo', 'Símbolo', sim);
       const d = estado.dados.simbolos[i.simbolo];
-      novo('span', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
+      novo('span', null, (ICONES_SIMBOLO[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
     }
     // Antecipação: quando entra, de onde vem e o que o espaço tinha antes.
     if (i.antecipacoes) Antecipacao.montarDetalhe(sec, i);
@@ -1619,6 +1650,12 @@ const App = (() => {
       const chip = novo('span', 'mv-etiqueta', e.texto, li);
       chip.style.background = corDaMarca(marcaEtq, 'etiqueta');
       if (e.marca && e.marca !== i.marca) novo('span', 'mv-marca-etq', nomeDaMarca(e.marca), li);
+      // Símbolo próprio da etiqueta; com a antecipação, a data em que entra.
+      if (e.simbolo) {
+        const d = estado.dados.simbolos[e.simbolo];
+        const data = e.data ? ' · entra em ' + e.data.split('-').reverse().join('/') : '';
+        novo('span', 'mv-simbolo-etq', (ICONES_SIMBOLO[e.simbolo] || '') + (d ? d.descricao : e.simbolo) + data, li);
+      }
     });
     if (i.observacao) {
       const obs = novo('div', 'mv-linha', null, sec);
@@ -1784,6 +1821,16 @@ const App = (() => {
     return true;
   }
 
+  /**
+   * Meios divididos de uma gôndola ('', 'A', 'B' ou 'AB'): pelo layout, quando o ciclo tem linha para uma das
+   * metades ou quando o construtor dividiu o meio no ciclo em construção (ainda sem nada nas metades).
+   */
+  function meiosDivididos(planta, m, temLinha, ciclo) {
+    const doRascunho = Rascunho.meiosDivididos(ciclo === undefined ? estado.ciclo : ciclo, planta.id, m.id);
+    return ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0 || doRascunho.indexOf(l) >= 0
+      || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
+  }
+
   /** Clique no móvel: abre a tela com a estratégia do ciclo para ele (a linha do móvel ou a de cada espaço). */
   /**
    * O que um móvel tem no ciclo, numa ER: um bloco por espaço (gôndola — com o meio dividido quando o ciclo
@@ -1796,12 +1843,7 @@ const App = (() => {
     const linha = (x) => (ciclo ? movimentoDe(ciclo, planta.id, x) : null);
     const temLinha = (x) => { const i = linha(x); return !!(i && (i.marca || i.etiquetas.length || i.simbolo)); };
     const daEr = ((estado.dados.movimentos[ciclo] || {})[planta.id]) || {};
-    let mov = m;
-    if (m.tipo === 'GONDOLA') {
-      const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
-        || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
-      mov = Object.assign({}, m, { dividido: div });
-    }
+    const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
     const espacos = Render.espacos(mov);
     if (!espacos.length) {
       return [{
@@ -1849,12 +1891,7 @@ const App = (() => {
     } else {
       const config = estado.dados.config || {};
       // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
-      let mov = m;
-      if (m.tipo === 'GONDOLA') {
-        const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
-          || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
-        mov = Object.assign({}, m, { dividido: div });
-      }
+      const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
       const plano = planogramaDe(m, mov, linha, temLinha);
       if (plano) blocoPlanograma(corpo, plano);
       // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.
@@ -2614,16 +2651,16 @@ const App = (() => {
     aoSair: () => Rascunho.limpar(),
   });
   Rascunho.iniciar({
-    estado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,
+    estado, ultimoAprovado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,
     acesso: () => Validacao.acesso(),
     recarregarComentarios: () => Validacao.recarregar(),
-    abrirMovel, blocosDoMovel, espacoPorEr, ersDaLinha, corDaMarca,
+    abrirMovel, blocosDoMovel, espacoPorEr, ersDaLinha, corDaMarca, colorirSelectMarca, movimentoDe,
     comentariosAbertos: () => Validacao.abertosNoCiclo(),
     abrirComentarios: () => Validacao.abrirPainel(),
     estatisticas: estatisticasConstrucao,
   });
   Antecipacao.iniciar({
-    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca,
+    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca, colorirSelectMarca,
     acesso: () => Validacao.acesso(),
     movimentoDaPlanilha,
   });

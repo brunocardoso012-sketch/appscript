@@ -76,27 +76,32 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
           Atualizar
         </button>
-        <a id="lnkPlanilha" class="btn fantasma" target="_blank" rel="noopener" hidden>
-          Abrir planilha
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
-        </a>
+        <button id="btnLink" class="btn fantasma" type="button" title="Copia o link que abre o app neste ciclo, ER, visão e filtro">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+          Copiar link
+        </button>
         <button id="btnBusca" class="btn fantasma icone" type="button" aria-label="Buscar" title="Buscar etiqueta, móvel ou marca (Ctrl+K)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
         </button>
         <button id="btnApresentar" class="btn fantasma icone" type="button" aria-label="Apresentar" title="Apresentar: só a planta, em tela cheia (F)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8.2v4.6l4-2.3z"/></svg>
         </button>
-        <!-- Configurações: só o ícone; abre o menu com a validação, o ajuste das etiquetas e o modo noturno. -->
+        <!-- Configurações: só o ícone; abre o menu com a validação, a construção, o ajuste das etiquetas, o modo noturno e a planilha. -->
         <div class="menu-config" id="menuConfig">
           <button id="btnConfig" class="btn fantasma icone" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menuConfigLista" aria-label="Configurações" title="Configurações">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
             <span class="badge" id="cfgBadge" hidden></span>
           </button>
           <div class="menu-lista" id="menuConfigLista" role="menu" hidden>
-            <button id="btnValidacao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Validação da estratégia (pede senha)">
+            <button id="btnValidacao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Validação da estratégia e aprovação dos ciclos novos (pede senha)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z"/><path d="m8.5 12 2.3 2.3L15.5 9.5"/></svg>
               Validação
               <span class="badge" id="valBadge" hidden></span>
+            </button>
+            <button id="btnConstrucao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Construção dos ciclos novos (pede senha)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V10l7-6 7 6v11"/><path d="M9 21v-5h6v5"/></svg>
+              Construção
+              <span class="badge" id="consBadge" hidden></span>
             </button>
             <button id="btnEditar" class="menu-item" type="button" role="menuitem" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
@@ -106,10 +111,10 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
               Modo noturno
             </button>
-            <button id="btnLink" class="menu-item" type="button" role="menuitem" title="Link que abre o app neste ciclo, ER, visão e filtro">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
-              Copiar link
-            </button>
+            <a id="lnkPlanilha" class="menu-item" role="menuitem" target="_blank" rel="noopener" hidden title="Abre a planilha com os ciclos (numa aba nova)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+              Abrir planilha
+            </a>
             <button id="btnTutorial" class="menu-item" type="button" role="menuitem">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.7-.8 1.2V14M12 17.2v.1"/></svg>
               Ver o tutorial
@@ -193,12 +198,15 @@
             <button id="anFechar" class="btn" type="button" title="Voltar à planta (Esc)">Voltar à planta ✕</button>
           </div>
         </header>
+        <p class="an-em-construcao" id="anEmConstrucao" role="note">
+          <strong>Página em construção</strong> | pode conter erros nos dados e cálculos
+        </p>
         <div id="anCorpo" class="an-corpo"></div>
       </section>
       <aside class="painel-espaco painel-validacao" id="painelValidacao" hidden aria-label="Validação da estratégia">
         <header class="esp-topo">
           <div>
-            <h2>Validação</h2>
+            <h2 id="valTitulo">Validação</h2>
             <span id="valSub"></span>
           </div>
           <button id="valFechar" class="btn fantasma pequeno" type="button" title="Fechar o painel">✕</button>
@@ -458,13 +466,10 @@
 
     <dialog id="dlgAcesso" class="dialogo">
       <form id="formAcesso">
-        <h2>Validação da estratégia</h2>
-        <p class="sub">O validador comenta a estratégia do ciclo e aprova os ciclos novos; o construtor da estratégia monta os ciclos novos na planta, vê os comentários, responde e marca como resolvido.</p>
-        <fieldset class="acesso-papeis">
-          <legend>Entrar como</legend>
-          <label class="opcao"><input type="radio" name="papel" value="VALIDADOR" checked> Validador</label>
-          <label class="opcao"><input type="radio" name="papel" value="CONSTRUTOR"> Construtor da estratégia</label>
-        </fieldset>
+        <!-- O papel vem do item escolhido na engrenagem: Validação (validador) ou Construção (construtor). -->
+        <h2 id="acessoTitulo">Validação</h2>
+        <p class="sub" id="acessoSub"></p>
+        <input type="hidden" id="acessoPapel" value="VALIDADOR">
         <label class="acesso-campo">Seu nome <input type="text" id="acessoNome" autocomplete="name" maxlength="60" required></label>
         <label class="acesso-campo">Senha <input type="password" id="acessoSenha" autocomplete="current-password" required></label>
         <p class="acesso-erro" id="acessoErro" role="alert" hidden></p>
