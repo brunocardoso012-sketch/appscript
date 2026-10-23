@@ -525,29 +525,6 @@ test('tutorial: boas-vindas na primeira visita e o tour inteiro', async (t) => {
   await p.waitForSelector('.tut-balao', { state: 'detached' });
 });
 
-test('comparar ciclos: só o que mudou fica colorido, com a lista no painel', async (t) => {
-  const p = await abrir(t);
-  assert.ok(await p.isHidden('#campoComparar'), 'sem ciclo, não há comparação');
-  await escolherCiclo(p, 'Ciclo exemplo cheio');
-  const cinzas = () => p.locator('#slide .movel polygon[fill="#D2D2D2"]').count();
-  assert.strictEqual(await cinzas(), 0);
-  await p.selectOption('#selComparar', 'Ciclo exemplo');
-  assert.ok(await p.isVisible('#painelLoja'), 'o painel abre com a lista');
-  const mudancas = await p.locator('.lj-mudanca').count();
-  assert.ok(mudancas > 0, 'nenhuma mudança listada');
-  assert.ok(await cinzas() > 0, 'nada ficou em cinza');
-  // Clicar numa mudança abre o móvel.
-  await p.locator('.lj-mudanca').first().click();
-  await p.waitForSelector('#dlgMovel[open]');
-  await p.keyboard.press('Escape');
-  // O mesmo ciclo some da lista; voltar a "Não comparar" deixa tudo colorido.
-  const opcoes = await p.locator('#selComparar option').allTextContents();
-  assert.ok(opcoes.indexOf('Ciclo exemplo cheio') < 0);
-  await p.selectOption('#selComparar', '');
-  assert.strictEqual(await p.locator('.lj-mudanca').count(), 0);
-  assert.strictEqual(await cinzas(), 0);
-});
-
 test('busca (Ctrl+K): etiqueta, marca e móvel', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo cheio');
@@ -579,14 +556,13 @@ test('busca (Ctrl+K): etiqueta, marca e móvel', async (t) => {
 });
 
 test('link: o #hash abre no ciclo, ER, visão e filtro, e acompanha a tela', async (t) => {
-  const p = await abrir(t, { hash: '#ciclo=Ciclo+exemplo+cheio&er=ER+G&visao=simplificada&marca=BOT&comparar=Ciclo+exemplo' });
+  const p = await abrir(t, { hash: '#ciclo=Ciclo+exemplo+cheio&er=ER+G&visao=simplificada&marca=BOT' });
   const e = await estado(p, () => {
     const s = App.estado;
-    return { ciclo: s.ciclo, er: s.dados.plantas.find((x) => x.id === s.planta).nome, visao: s.visao, filtro: s.filtro, comparar: s.comparar };
+    return { ciclo: s.ciclo, er: s.dados.plantas.find((x) => x.id === s.planta).nome, visao: s.visao, filtro: s.filtro };
   });
-  assert.deepStrictEqual(e, { ciclo: 'Ciclo exemplo cheio', er: 'ER G', visao: 'simplificada', filtro: 'BOT', comparar: 'Ciclo exemplo' });
+  assert.deepStrictEqual(e, { ciclo: 'Ciclo exemplo cheio', er: 'ER G', visao: 'simplificada', filtro: 'BOT' });
   assert.strictEqual(await p.inputValue('#selCiclo'), 'Ciclo exemplo cheio');
-  assert.strictEqual(await p.inputValue('#selComparar'), 'Ciclo exemplo');
   // Trocar de ER atualiza o hash.
   await abaPlanta(p, 'ER M').click();
   assert.match(await p.evaluate(() => location.hash), /er=ER\+M/);

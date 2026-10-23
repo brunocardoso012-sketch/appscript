@@ -1936,7 +1936,6 @@ const Render = (() => {
    * @param {{dados, planta, ciclo, filtro, filtroEtiqueta, ajustes, obterMovimento, obterPaineis, edicao, somentePlanta, visao, paineis}} ctx
    *   escalaEtiquetas: tamanho das etiquetas na visão na planta (1 = padrão).
    *   filtroEtiqueta: texto de uma etiqueta (ou lista de textos); só os espaços com ela ficam coloridos e com etiqueta.
-   *   destaqueEspacos: chaves ("MOVEL" ou "MOVEL/ESPACO") dos espaços que ficam coloridos (comparação de ciclos).
    *   somentePlanta: só a loja, os móveis e as etiquetas, sem fundo nem painéis (PNG recortado).
    *   paineis: false = sem o painel lateral, notas, legenda e itens extras (na tela eles ficam no menu
    *   da esquerda) e a planta na largura toda; true (padrão) = slide completo, como no PNG.
@@ -1997,15 +1996,10 @@ const Render = (() => {
       const iguais = i.etiquetas.filter((e) => filtroEtq.indexOf(chaveEtiqueta(e.texto)) >= 0);
       return iguais.length ? Object.assign({}, i, { etiquetas: iguais }) : { marca: '', etiquetas: [], simbolo: '', apagado: true };
     };
-    // Comparação de ciclos: só os espaços que mudaram (chaves "MOVEL" ou "MOVEL/ESPACO") ficam
-    // coloridos; os outros com movimento ficam em cinza e sem etiquetas, como no filtro por etiqueta.
-    const destaque = ctx.destaqueEspacos ? new Set(ctx.destaqueEspacos) : null;
-    const visivel = (k, i) => (destaque && i && !destaque.has(k)
-      ? { marca: '', etiquetas: [], simbolo: '', apagado: true } : soEtiqueta(i));
     const infoVis = {};
     const infoEspacoVis = {};
-    Object.keys(info).forEach((k) => { infoVis[k] = visivel(k, info[k]); });
-    Object.keys(infoEspaco).forEach((k) => { infoEspacoVis[k] = visivel(k, infoEspaco[k]); });
+    Object.keys(info).forEach((k) => { infoVis[k] = soEtiqueta(info[k]); });
+    Object.keys(infoEspaco).forEach((k) => { infoEspacoVis[k] = soEtiqueta(infoEspaco[k]); });
     const infoVisDe = (b) => (b.espaco ? infoEspacoVis[b.movel.id + '/' + b.espaco.id] : infoVis[b.movel.id]);
 
     // Caixas de destaque: não vão mais na planta nem nas fichas (ficam em "Comunicações ER" e, no PNG do

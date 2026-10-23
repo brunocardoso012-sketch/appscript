@@ -965,28 +965,6 @@
   .busca-vazio { padding: 10px; color: var(--texto-2); font-style: italic; }
   .busca-dica { margin: 0; padding: 8px 16px; border-top: 1px solid var(--borda); font-size: 11.5px; color: var(--texto-2); }
 
-  /* Comparação de ciclos: o que mudou na ER (no topo do menu da esquerda). */
-  body.comparando #selComparar { border-color: #E8590C; box-shadow: inset 0 0 0 1px #E8590C; }
-  .lj-mud-resumo { margin: 0 0 8px; font-size: 12px; color: var(--texto-2); }
-  .lj-mudanca {
-    display: grid; gap: 5px; width: 100%; padding: 8px 10px; margin: 0 0 6px; text-align: left;
-    border: 1px solid var(--borda); border-radius: 8px; background: var(--superficie); color: var(--texto); font: inherit; cursor: pointer;
-  }
-  .lj-mudanca:hover { border-color: var(--borda-forte); }
-  .lj-mud-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
-  .lj-mud-tipo { flex: 0 0 auto; padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
-  .lj-mud-tipo.nova { background: #dcf3e8; color: #1d6b47; }
-  .lj-mud-tipo.removida { background: #fde6d8; color: #9a3a06; }
-  .lj-mud-tipo.mudou { background: #e0e7ff; color: #27367a; }
-  .lj-mud-linha { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: start; gap: 6px; }
-  .lj-mud-linha.antes { opacity: .6; }
-  .lj-mud-linha > .lj-chips, .lj-mud-linha > .mv-vazio, .lj-mud-linha > .lj-mud-fixo { grid-column: 2; }
-  .lj-mud-rot { grid-row: 1 / span 3; font-size: 11px; font-weight: 600; color: var(--texto-2); padding-top: 4px; }
-  .lj-mud-fixo { font-size: 11px; color: var(--texto-2); }
-  .lj-mudanca .mv-vazio { font-size: 12px; margin: 3px 0 0; }
-  .lj-mudanca .lj-chips { gap: 3px; }
-  .lj-mudanca .lj-chip { padding: 3px 8px; font-size: 10.5px; }
-
   /* Telas estreitas: os painéis vão para baixo da planta. */
   @media (max-width: 900px) {
     body.com-painel-validacao .palco, body.com-painel-loja .palco, body.com-painel-construcao .palco { flex-direction: column; }
@@ -1092,9 +1070,6 @@
   [data-tema="escuro"] .an-mapa tbody td.atual > * { outline-color: #8fa0f0; }
   [data-tema="escuro"] .an-mapa tbody tr.ativo th { box-shadow: inset 3px 0 0 #8fa0f0; }
   [data-tema="escuro"] .an-cel-livre { background: repeating-linear-gradient(135deg, #23272c 0 6px, #1c1f23 6px 12px); }
-  [data-tema="escuro"] .lj-mud-tipo.nova { background: #173a28; color: #7fd6a4; }
-  [data-tema="escuro"] .lj-mud-tipo.removida { background: #4a2510; color: #ffb38a; }
-  [data-tema="escuro"] .lj-mud-tipo.mudou { background: #2a3260; color: #c5cef8; }
   [data-tema="escuro"] .an-indice.alto, [data-tema="escuro"] .an-disp-idx.alto { color: #6fcf9a; }
   [data-tema="escuro"] .an-indice.baixo, [data-tema="escuro"] .an-disp-idx.baixo { color: #f0a868; }
   [data-tema="escuro"] .an-disp-zona { opacity: .1; }

@@ -12,7 +12,6 @@ const App = (() => {
     filtro: '',
     filtroEtiqueta: '', // etiqueta escolhida em "Por movimentos" (só os espaços com ela ficam coloridos)
     filtroClassificacao: '', // classificação escolhida em "Por classificação" (lançamento, promoção…)
-    comparar: '', // ciclo com que o atual é comparado (só os espaços que mudaram ficam coloridos)
     edicao: false,
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}; LOJA → {escala} (tamanho, em %)
     grupos: [],
@@ -379,7 +378,6 @@ const App = (() => {
     if ('visao' in pref) estado.visao = pref.visao === 'simplificada' ? 'simplificada' : 'planta';
     if ('marca' in pref) estado.filtro = dados.marcas[pref.marca] ? pref.marca : '';
     if ('etiqueta' in pref) estado.filtroEtiqueta = pref.etiqueta || '';
-    if ('comparar' in pref) estado.comparar = pref.comparar || '';
     estado.ajustes = {};
 
     $('avisoLocal').hidden = !dados.modoLocal;
@@ -436,23 +434,10 @@ const App = (() => {
       sel.appendChild(grupo);
     }
     sel.value = estado.ciclo;
-    montarComparar();
   }
 
   /** Ciclos publicados e, para quem entrou na validação, os em construção. */
   const todosOsCiclos = () => estado.dados.ciclos.concat(Rascunho.lista().map((r) => r.ciclo).filter((c) => estado.dados.ciclos.indexOf(c) < 0));
-
-  /** "Comparar com": os outros ciclos (só aparece com um ciclo escolhido e mais de um ciclo na planilha). */
-  function montarComparar() {
-    const sel = $('selComparar');
-    if (estado.comparar === estado.ciclo || todosOsCiclos().indexOf(estado.comparar) < 0) estado.comparar = '';
-    const outros = todosOsCiclos().filter((c) => c !== estado.ciclo);
-    $('campoComparar').hidden = !estado.ciclo || !outros.length;
-    sel.textContent = '';
-    sel.appendChild(new Option('Não comparar', '', false, !estado.comparar));
-    outros.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.comparar)));
-    document.body.classList.toggle('comparando', !!(estado.ciclo && estado.comparar));
-  }
 
   function montarAbas() {
     const box = $('abasPlanta');
@@ -583,8 +568,6 @@ const App = (() => {
       ciclo: estado.ciclo,
       filtro: estado.filtro,
       filtroEtiqueta: construcao ? '' : etiquetasDoFiltro(),
-      destaqueEspacos: !construcao && estado.ciclo && estado.comparar
-        ? mudancasEntre(planta, estado.ciclo, estado.comparar).map((x) => x.chave) : null,
       ajustes: outra && outra.id !== estado.planta ? {} : estado.ajustes, // ajustes não salvos: só os da planta da tela
       escalaEtiquetas: construcao ? 1 : tamanhoEtiquetas() / 100,
       edicao: estado.edicao,
@@ -1138,26 +1121,6 @@ const App = (() => {
     return partes;
   }
 
-  /**
-   * Comparação de ciclos: os espaços da planta (como o ciclo atual os desenha) cuja linha mudou de um
-   * ciclo para o outro — marca, símbolo ou etiquetas (texto e marca de cada uma).
-   * @return {Array<{movel, espaco, chave, tipo: 'nova'|'removida'|'mudou', antes, depois}>}
-   */
-  function mudancasEntre(planta, ciclo, outro) {
-    const assinatura = (i) => (linhaValida(i)
-      // A etiqueta inteira (com a observação depois do "|"): mudar só a observação também é mudança.
-      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => String(e.texto).trim().replace(/\s+/g, ' ').toUpperCase() + '#' + (e.marca || ''))]) : '');
-    return espacosDaPlanta(planta, ciclo).map((x) => {
-      const id = x.espaco && x.espaco.id;
-      const depois = linhaDoEspaco(ciclo, planta.id, x.movel, id);
-      const antes = linhaDoEspaco(outro, planta.id, x.movel, id);
-      const a = assinatura(antes);
-      const d = assinatura(depois);
-      if (a === d) return null;
-      return Object.assign({}, x, { antes: a ? antes : null, depois: d ? depois : null, tipo: !a ? 'nova' : !d ? 'removida' : 'mudou' });
-    }).filter(Boolean);
-  }
-
   /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços. */
   const chaveEtiqueta = Render.chaveEtiqueta;
 
@@ -1545,7 +1508,6 @@ const App = (() => {
       if (titulo) novo('span', null, titulo, h);
       return { sec, h };
     };
-    if (estado.comparar) secaoMudancas(secao('Mudou desde ' + estado.comparar).sec, planta);
     // Antecipações do ciclo nesta ER (itens do próximo ciclo que entram antes).
     const antecipadas = Antecipacao.daEr(estado.ciclo, planta);
     if (antecipadas.length) Antecipacao.montarLista(secao('Antecipações').sec, antecipadas, planta, false);
@@ -1591,40 +1553,6 @@ const App = (() => {
         else chipsLoja(bloco, etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || (info.marca !== 'NEUTRO' ? info.marca : '') })));
       });
     }
-  }
-
-  /** Lista do que mudou na ER desde o ciclo comparado: antes e agora de cada espaço (clique abre o móvel). */
-  function secaoMudancas(sec, planta) {
-    const lista = mudancasEntre(planta, estado.ciclo, estado.comparar);
-    if (!lista.length) {
-      novo('p', 'mv-vazio', 'Nada mudou nesta ER.', sec);
-      return;
-    }
-    novo('p', 'lj-mud-resumo', lista.length + (lista.length === 1 ? ' espaço mudou' : ' espaços mudaram')
-      + ' (os outros ficam em cinza na planta).', sec);
-    const chips = (pai, i) => {
-      if (!i) { novo('span', 'mv-vazio', 'sem movimento', pai); return; }
-      const marca = i.marca && i.marca !== 'NEUTRO' ? i.marca : '';
-      const itens = i.etiquetas.length ? i.etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || marca }))
-        : [{ texto: marca ? nomeDaMarca(marca) : 'sem etiqueta', marca }];
-      chipsLoja(pai, itens);
-      if (i.simbolo === 'FIXO') novo('span', 'lj-mud-fixo', '🔒 fixo', pai);
-    };
-    lista.forEach((x) => {
-      const bloco = novo('button', 'lj-mudanca', null, sec);
-      bloco.type = 'button';
-      bloco.dataset.movel = x.movel.id;
-      bloco.addEventListener('click', () => abrirMovel(x.movel.id));
-      const topo = novo('div', 'lj-mud-topo', null, bloco);
-      novo('strong', null, (x.movel.descricao || x.movel.id) + (x.espaco ? ' · ' + x.espaco.nome : ''), topo);
-      novo('span', 'lj-mud-tipo ' + x.tipo, x.tipo === 'nova' ? 'novo' : x.tipo === 'removida' ? 'saiu' : 'mudou', topo);
-      const antes = novo('div', 'lj-mud-linha antes', null, bloco);
-      novo('span', 'lj-mud-rot', 'Antes', antes);
-      chips(antes, x.antes);
-      const agora = novo('div', 'lj-mud-linha', null, bloco);
-      novo('span', 'lj-mud-rot', 'Agora', agora);
-      chips(agora, x.depois);
-    });
   }
 
   /* ------------------------- estratégia do móvel -------------------------- */
@@ -2048,10 +1976,6 @@ const App = (() => {
     $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.'
       : estado.filtroEtiqueta ? 'Só os espaços com a etiqueta ' + estado.filtroEtiqueta + ' ficam coloridos, como na tela.'
         : estado.filtroClassificacao ? 'Só os espaços com movimentos de ' + nomeClassificacao(estado.filtroClassificacao) + ' ficam coloridos, como na tela.' : '';
-    if (estado.ciclo && estado.comparar) {
-      $('pngFiltroTexto').textContent = ($('pngFiltroTexto').textContent + ' Comparando com ' + estado.comparar
-        + ': só os espaços que mudaram ficam coloridos, como na tela.').trim();
-    }
     $('pngFiltroTexto').hidden = !$('pngFiltroTexto').textContent;
     dlg.returnValue = '';
     dlg.showModal();
@@ -2326,12 +2250,12 @@ const App = (() => {
 
   const noAppsScript = () => !!(window.google && google.script && google.script.url && google.script.history);
 
-  /** Preferências do link (as que existirem): ciclo, planta (nome da ER), visão, marca, etiqueta, comparar. */
+  /** Preferências do link (as que existirem): ciclo, planta (nome da ER), visão, marca, etiqueta. */
   function lerLink() {
     const converter = (hash) => {
       const q = new URLSearchParams(String(hash || '').replace(/^#/, ''));
       const pref = {};
-      [['ciclo', 'ciclo'], ['er', 'planta'], ['visao', 'visao'], ['marca', 'marca'], ['etiqueta', 'etiqueta'], ['comparar', 'comparar']]
+      [['ciclo', 'ciclo'], ['er', 'planta'], ['visao', 'visao'], ['marca', 'marca'], ['etiqueta', 'etiqueta']]
         .forEach(([k, campo]) => { if (q.has(k)) pref[campo] = q.get(k); });
       return pref;
     };
@@ -2349,7 +2273,6 @@ const App = (() => {
     if (estado.visao === 'simplificada') q.set('visao', 'simplificada');
     if (estado.filtro) q.set('marca', estado.filtro);
     if (estado.filtroEtiqueta) q.set('etiqueta', estado.filtroEtiqueta);
-    if (estado.ciclo && estado.comparar) q.set('comparar', estado.comparar);
     return q.toString();
   }
 
@@ -2554,14 +2477,6 @@ const App = (() => {
     const ao = (id, evento, fn) => { if ($(id)) $(id).addEventListener(evento, fn); };
     ao('selCiclo', 'change', (e) => {
       estado.ciclo = e.target.value;
-      montarComparar();
-      desenhar();
-    });
-    ao('selComparar', 'change', (e) => {
-      estado.comparar = e.target.value;
-      // Ao ligar a comparação, abre o menu da esquerda com a lista do que mudou.
-      if (estado.comparar && !estado.painelLoja) estado.painelLoja = true;
-      montarComparar();
       desenhar();
     });
     ao('btnModelo', 'click', () => estado.dados && abrirDialogoModelo());
@@ -2719,7 +2634,6 @@ const App = (() => {
     marcarVisao();
     montarCiclos();
     montarLegenda();
-    if (estado.comparar && !estado.painelLoja) { estado.painelLoja = true; desenhar(); }
     Tutorial.oferecer();
   });
 
