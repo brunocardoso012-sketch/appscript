@@ -72,6 +72,9 @@ function getDados() {
     lerAbaTexto_(ss, CONFIG.ABAS.TIPOS));
   aplicarAjustesSalvos_(dados.plantas);
   dados.antecipacoes = antecipacoesDeValores_(lerAbaTexto_(ss, CONFIG.ABAS.ANTECIPACOES));
+  // Aba "Inventario" (opcional): em quantas lojas da rede cada móvel ou espaço existe.
+  const inventario = ss.getSheets().filter(function (s) { return chave_(s.getName()) === chave_(CONFIG.ABAS.INVENTARIO); })[0];
+  dados.inventario = inventarioDeValores_(inventario && inventario.getLastRow() >= 1 ? inventario.getDataRange().getValues() : null);
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = false;
@@ -301,6 +304,8 @@ const CONFIG = {
     R_TIPOS: 'Rascunho Tipos',
     // Itens do ciclo seguinte adiantados para o ciclo atual (Antecipacoes.gs).
     ANTECIPACOES: 'Antecipações',
+    // Opcional, criada à mão: em quantas lojas da rede cada móvel ou espaço existe (inventarioDeValores_).
+    INVENTARIO: 'Inventario',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -1456,6 +1461,40 @@ function acharColuna_(cabecalhoNormalizado, coluna) {
     if (i >= 0) return i;
   }
   return -1;
+}
+
+/* ------------------------------ Inventário -------------------------------- */
+
+/**
+ * Aba "Inventario" (opcional, criada à mão): em quantas lojas da rede cada móvel ou espaço existe.
+ * Colunas: ID Móvel (o móvel, "GONDOLA 1", ou um espaço dele, "GONDOLA 1/PONTA-B") e Lojas. Uma linha
+ * TOTAL (ou REDE) informa o total de lojas da rede; sem ela, o total é o maior número da aba (o móvel
+ * que toda loja tem). Sem as colunas pelo nome, usa as duas primeiras.
+ * @return {{lojas: Object<string, number>, total: number}|null} null sem a aba (ou sem nenhum número)
+ */
+function inventarioDeValores_(valores) {
+  if (!valores || valores.length < 2) return null;
+  const cab = valores[0].map(chave_);
+  const coluna = function (re) { for (let i = 0; i < cab.length; i++) if (re.test(cab[i])) return i; return -1; };
+  let cId = coluna(/MOVEL|ESPACO|^ID/);
+  let cLojas = coluna(/LOJA|QUANT|QTD|PRESEN/);
+  if (cId < 0) cId = cLojas === 0 ? 1 : 0;
+  if (cLojas < 0) cLojas = cId === 0 ? 1 : 0;
+  const lojas = {};
+  let total = 0;
+  let maior = 0;
+  valores.slice(1).forEach(function (l) {
+    const id = normIdEspaco_(l[cId]);
+    // Contagem de lojas: "1.000" é mil (ponto de milhar), não 1.
+    const bruto = texto_(l[cLojas]).replace(/\s/g, '');
+    const n = /^\d{1,3}(\.\d{3})+$/.test(bruto) ? Number(bruto.replace(/\./g, '')) : numero_(l[cLojas], NaN);
+    if (!id || !(n >= 0)) return;
+    if (['TOTAL', 'REDE', 'TOTALDELOJAS', 'TOTALDAREDE'].indexOf(chave_(id)) >= 0) { total = n; return; }
+    lojas[id] = Math.max(lojas[id] || 0, n);
+    maior = Math.max(maior, n);
+  });
+  if (!Object.keys(lojas).length) return null;
+  return { lojas: lojas, total: total || maior };
 }
 
 /* ---------------------------- Normalização -------------------------------- */

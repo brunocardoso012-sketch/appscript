@@ -39,6 +39,30 @@ test('layout padrão + ciclo de exemplo são lidos sem avisos', () => {
   assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1/PONTA-A']);
 });
 
+test('aba Inventario: lojas por móvel ou espaço, total da rede e leitura sem acento', () => {
+  const { run } = carregarGas();
+  const inv = run(`inventarioDeValores_([
+    ['ID Móvel', 'Lojas'],
+    ['Gôndola 1', 1000],
+    ['gondola 1 / ponta b', '900'],
+    ['PIRAMIDE 1', '1.000'],
+    ['', 5],
+    ['GONDOLA 3', 'x'],
+  ])`);
+  assert.deepEqual(inv.lojas, { 'GONDOLA 1': 1000, 'GONDOLA 1/PONTA-B': 900, 'PIRAMIDE 1': 1000 });
+  assert.equal(inv.total, 1000, 'sem linha TOTAL: o maior número da aba');
+  assert.equal(run("inventarioDeValores_([['Lojas', 'Móvel'], [350, 'GONDOLA 2'], [1200, 'Total']]).total"), 1200, 'linha TOTAL e colunas pelo nome');
+  assert.equal(run('inventarioDeValores_(null)'), null);
+  assert.equal(run("inventarioDeValores_([['ID Móvel', 'Lojas']])"), null);
+
+  const f = servicosFalsos({ vinculada: true });
+  const { run: run2 } = carregarGas(f.globais);
+  run2('configurarPlanilha()');
+  assert.equal(run2('getDados()').inventario, null, 'sem a aba, sem inventário');
+  f.planilha.insertSheet('Inventário').getRange(1, 1, 3, 2).setValues([['ID Móvel', 'Lojas'], ['GONDOLA 1', 1000], ['GONDOLA 2', 650]]);
+  assert.deepEqual(run2('getDados()').inventario, { lojas: { 'GONDOLA 1': 1000, 'GONDOLA 2': 650 }, total: 1000 });
+});
+
 test('avisos para marca desconhecida e móvel inexistente', () => {
   const { run } = carregarGas();
   const d = run(`montarDados_(valoresLayoutPadrao_(), [

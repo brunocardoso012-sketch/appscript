@@ -82,6 +82,9 @@ function getDados() {
     lerAbaTexto_(ss, CONFIG.ABAS.TIPOS));
   aplicarAjustesSalvos_(dados.plantas);
   dados.antecipacoes = antecipacoesDeValores_(lerAbaTexto_(ss, CONFIG.ABAS.ANTECIPACOES));
+  // Aba "Inventario" (opcional): em quantas lojas da rede cada móvel ou espaço existe.
+  const inventario = ss.getSheets().filter(function (s) { return chave_(s.getName()) === chave_(CONFIG.ABAS.INVENTARIO); })[0];
+  dados.inventario = inventarioDeValores_(inventario && inventario.getLastRow() >= 1 ? inventario.getDataRange().getValues() : null);
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = false;
@@ -311,6 +314,8 @@ const CONFIG = {
     R_TIPOS: 'Rascunho Tipos',
     // Itens do ciclo seguinte adiantados para o ciclo atual (Antecipacoes.gs).
     ANTECIPACOES: 'Antecipações',
+    // Opcional, criada à mão: em quantas lojas da rede cada móvel ou espaço existe (inventarioDeValores_).
+    INVENTARIO: 'Inventario',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -1466,6 +1471,40 @@ function acharColuna_(cabecalhoNormalizado, coluna) {
     if (i >= 0) return i;
   }
   return -1;
+}
+
+/* ------------------------------ Inventário -------------------------------- */
+
+/**
+ * Aba "Inventario" (opcional, criada à mão): em quantas lojas da rede cada móvel ou espaço existe.
+ * Colunas: ID Móvel (o móvel, "GONDOLA 1", ou um espaço dele, "GONDOLA 1/PONTA-B") e Lojas. Uma linha
+ * TOTAL (ou REDE) informa o total de lojas da rede; sem ela, o total é o maior número da aba (o móvel
+ * que toda loja tem). Sem as colunas pelo nome, usa as duas primeiras.
+ * @return {{lojas: Object<string, number>, total: number}|null} null sem a aba (ou sem nenhum número)
+ */
+function inventarioDeValores_(valores) {
+  if (!valores || valores.length < 2) return null;
+  const cab = valores[0].map(chave_);
+  const coluna = function (re) { for (let i = 0; i < cab.length; i++) if (re.test(cab[i])) return i; return -1; };
+  let cId = coluna(/MOVEL|ESPACO|^ID/);
+  let cLojas = coluna(/LOJA|QUANT|QTD|PRESEN/);
+  if (cId < 0) cId = cLojas === 0 ? 1 : 0;
+  if (cLojas < 0) cLojas = cId === 0 ? 1 : 0;
+  const lojas = {};
+  let total = 0;
+  let maior = 0;
+  valores.slice(1).forEach(function (l) {
+    const id = normIdEspaco_(l[cId]);
+    // Contagem de lojas: "1.000" é mil (ponto de milhar), não 1.
+    const bruto = texto_(l[cLojas]).replace(/\s/g, '');
+    const n = /^\d{1,3}(\.\d{3})+$/.test(bruto) ? Number(bruto.replace(/\./g, '')) : numero_(l[cLojas], NaN);
+    if (!id || !(n >= 0)) return;
+    if (['TOTAL', 'REDE', 'TOTALDELOJAS', 'TOTALDAREDE'].indexOf(chave_(id)) >= 0) { total = n; return; }
+    lojas[id] = Math.max(lojas[id] || 0, n);
+    maior = Math.max(maior, n);
+  });
+  if (!Object.keys(lojas).length) return null;
+  return { lojas: lojas, total: total || maior };
 }
 
 /* ---------------------------- Normalização -------------------------------- */
@@ -2993,6 +3032,14 @@ const PAGINA_ = [
   "  .an-mapa td.an-col-total strong { display: block; font-size: 13px; }",
   "  .an-mapa td.an-col-total small { color: var(--texto-2); font-size: 10.5px; }",
   "  .an-mapa .an-col-marcas { width: 16%; min-width: 110px; padding-left: 8px; }",
+  "  .an-mapa .an-col-rede { min-width: 96px; padding: 0 8px; border-left: 1px solid var(--borda); }",
+  "  .an-mapa thead th.an-col-rede { color: var(--texto); font-weight: 600; }",
+  "  .an-mapa thead th.an-col-rede small { display: block; font-weight: 400; color: var(--texto-2); font-size: 11px; }",
+  "  .an-rede-num { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }",
+  "  .an-rede-num strong { font-size: 13px; }",
+  "  .an-rede-num small { font-size: 10.5px; color: var(--texto-2); white-space: nowrap; }",
+  "  .an-rede-trilho { display: block; height: 4px; margin-top: 3px; border-radius: 2px; background: var(--fundo); }",
+  "  .an-rede-trilho span { display: block; height: 100%; border-radius: 2px; background: #3346B8; }",
   "  .an-pilha { display: flex; gap: 2px; height: 10px; }",
   "  .an-pilha span { display: block; min-width: 2px; height: 100%; }",
   "  .an-pilha span:first-child { border-radius: 4px 0 0 4px; }",
@@ -3246,6 +3293,13 @@ const PAGINA_ = [
   "  .mv-topo h2 { margin: 0; font-size: clamp(22px, 2.4vw, 32px); }",
   "  .mv-topo p { margin: 2px 0 0; color: var(--texto-2); font-size: 15px; }",
   "  .mv-corpo { flex: 1 1 auto; min-height: 0; display: flex; }",
+  "  /* Aviso fixo no topo da tela do móvel (não rola com o conteúdo). */",
+  "  .mv-aviso {",
+  "    flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 8px clamp(16px, 2.5vw, 32px);",
+  "    background: #fff8e6; color: #7a4b00; border-bottom: 1px solid #f1d58a; font-size: 13px;",
+  "  }",
+  "  .mv-aviso svg { flex: 0 0 auto; }",
+  "  [data-tema=\"escuro\"] .mv-aviso { background: #2e2512; color: #f1c76b; border-color: #6b5520; }",
   "  .mv-desenho { flex: 0 0 42%; height: 100%; background: #f3efea; }",
   "  .mv-estrategia {",
   "    flex: 1 1 auto; min-width: 0; overflow: auto;",
@@ -3987,6 +4041,10 @@ const PAGINA_ = [
   "",
   "    <dialog id=\"dlgMovel\" class=\"tela-movel\">",
   "      <form method=\"dialog\">",
+  "        <div class=\"mv-aviso\" role=\"note\">",
+  "          <svg viewBox=\"0 0 20 20\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"M10 2.5 18.5 17h-17z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/><path d=\"M10 8v4.2\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><circle cx=\"10\" cy=\"14.6\" r=\"1\" fill=\"currentColor\"/></svg>",
+  "          <span><strong>Página em construção.</strong> O planograma e a divisão das prateleiras ainda podem mudar.</span>",
+  "        </div>",
   "        <header class=\"mv-topo\">",
   "          <div>",
   "            <h2 id=\"mvTitulo\"></h2>",
@@ -6210,6 +6268,14 @@ const PAGINA_ = [
   "        const numero = --faltam[m.id] === 0 ? numeroDe(m) : '';",
   "        if (numero) desenharNumero(g, P, m, numero, projecao.escala);",
   "        const linhasDica = [m.id + (b.espaco ? '/' + b.espaco.id + ' (' + b.espaco.nome + ')' : '') + (m.descricao ? ' — ' + m.descricao : '')];",
+  "        if (ctx.presencaNaRede) {",
+  "          // Com a aba Inventario: em quantas lojas da rede o móvel (ou o espaço) está.",
+  "          const rede = ctx.presencaNaRede(m.id, b.espaco ? b.espaco.id : null);",
+  "          linhasDica.push(rede ? 'Presente em ' + rede.lojas.toLocaleString('pt-BR') + (rede.lojas === 1 ? ' loja' : ' lojas') + ' · '",
+  "            + Math.round(rede.pct * 100) + '% da rede' : 'Sem dado na aba Inventario');",
+  "          dica(g, linhasDica.join('\\n'));",
+  "          return;",
+  "        }",
   "        const nomeMarca = (x) => (x.marca ? x.marca.split('+').map((c) => (marcas[c] ? marcas[c].nome : c)).join(' + ') : '—');",
   "        if (!b.espaco && espacos(m).length) {",
   "          // Mesa, totem e corpo do móvel make: um desenho só, com o que cada espaço tem.",
@@ -8587,6 +8653,14 @@ const PAGINA_ = [
   "      novo('small', null, espacos(e.total), b);",
   "      b.addEventListener('click', () => { vista.ordem = e.id; redesenhar(); });",
   "    });",
+  "    // Presença na rede (aba Inventario): em quantas lojas da rede o movimento está.",
+  "    const comRede = !!d.inventario;",
+  "    if (comRede) {",
+  "      const thR = novo('th', 'an-col-rede', null, trh);",
+  "      thR.scope = 'col';",
+  "      novo('span', null, 'Na rede', thR);",
+  "      novo('small', null, '% das ' + fmtNum(d.inventario.total) + ' lojas', thR);",
+  "    }",
   "    novo('th', 'an-col-marcas', 'Marcas', trh).scope = 'col';",
   "",
   "    const tbody = novo('tbody', null, null, tab);",
@@ -8623,6 +8697,19 @@ const PAGINA_ = [
   "        novo('small', null, vista.medida === 'pct' ? fmtNum(n) : fmtPct(n, e.total), b);",
   "        b.addEventListener('click', () => acoes.verNaPlanta({ er: e.id, etiqueta: m.texto }));",
   "      });",
+  "      if (comRede) {",
+  "        const tdR = novo('td', 'an-col-rede', null, tr);",
+  "        if (!m.rede) {",
+  "          novo('span', 'an-cel-vazia', '—', tdR).title = m.texto + ': nenhum espaço dele está na aba \"' + d.inventario.aba + '\"';",
+  "        } else {",
+  "          tdR.title = m.texto + ': em cerca de ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas, ' + fmtPctNum(m.rede.pct) + ' da rede (aba \"' + d.inventario.aba + '\")';",
+  "          const topo = novo('span', 'an-rede-num', null, tdR);",
+  "          novo('strong', null, fmtPctNum(m.rede.pct), topo);",
+  "          novo('small', null, '≈ ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas', topo);",
+  "          const trilho = novo('span', 'an-rede-trilho', null, tdR);",
+  "          novo('span', null, null, trilho).style.width = Math.min(100, m.rede.pct * 100) + '%';",
+  "        }",
+  "      }",
   "      const tdM = novo('td', 'an-col-marcas', null, tr);",
   "      const pilha = novo('span', 'an-pilha', null, tdM);",
   "      const somaM = m.marcas.reduce((s, x) => s + x.valor, 0);",
@@ -8644,6 +8731,7 @@ const PAGINA_ = [
   "      novo('strong', null, vista.medida === 'pct' ? fmtPct(e.semMovimento, e.total) : fmtNum(e.semMovimento), sp);",
   "      sp.title = e.nome + ': ' + espacos(e.semMovimento) + ' sem etiqueta';",
   "    });",
+  "    if (comRede) novo('td', 'an-col-rede', null, tr);",
   "    novo('td', 'an-col-marcas', null, tr);",
   "  }",
   "",
@@ -8928,6 +9016,12 @@ const PAGINA_ = [
   "    regra(['A conta é em ', ['quantidade de espaços'], ', não em metros. Na gôndola, cada ponta e cada meio é um espaço; meio dividido vale ½ espaço para cada metade. Na mesa destaque, cada frente é um espaço. Na pirâmide, as etiquetas dividem o espaço (duas etiquetas: ½ para cada). Os demais móveis contam como um espaço.']);",
   "    regra([['Espaço de VM'], ' (PDV móvel, verso da mesa destaque, cada painel do totem e balcão recepção) é comunicação visual: fica fora das contas do espaço de exposição e aparece à parte, na seção \"Espaços de VM\".']);",
   "    regra(['Um espaço com dois movimentos conta nos dois no mapa de calor e se divide entre as classificações deles nas barras. Combinações de marcas dividem o espaço igualmente. Etiquetas com o mesmo texto somam juntas.']);",
+  "    if (d.inventario) {",
+  "      regra(['A coluna ', ['Na rede'], ' usa a aba \"' + d.inventario.aba + '\" (em quantas lojas cada móvel ou espaço existe; o total da rede é '",
+  "        + fmtNum(d.inventario.total) + ' lojas). As lojas de cada ER são estimadas pelos móveis que só algumas ERs têm; as lojas de um espaço '",
+  "        + 'se dividem entre as ERs que têm o móvel, pelo tamanho de cada uma. Em cada ER, o movimento está nas lojas do espaço dele que está em mais lojas; '",
+  "        + 'as ERs são lojas diferentes, então aqui elas se somam. É uma estimativa.']);",
+  "    }",
   "    regra(['O ', ['GMV esperado'], ' é o do movimento no ciclo (aba \"' + d.abaTipos + '\"), comparado com o espaço dentro de cada ER.']);",
   "    const leg = novo('section', 'an-info-legenda', null, corpo);",
   "    novo('h3', null, 'O que conta como espaço', leg);",
@@ -9522,6 +9616,78 @@ const PAGINA_ = [
   "  /** Só a aba Movimentos: a planilha base não leva as antecipações (elas ficam na aba Antecipações). */",
   "  const movimentoDaPlanilha = (ciclo, planta, id) => movimentoDe(ciclo, planta, id, true);",
   "",
+  "  /* ------------------------------ inventário ------------------------------ */",
+  "",
+  "  /**",
+  "   * Lojas da rede que têm o espaço (aba Inventario): a linha do espaço, senão a do móvel; para o móvel",
+  "   * inteiro, a linha dele, senão a do espaço que está em mais lojas. null sem o dado.",
+  "   */",
+  "  function lojasDoEspaco(movelId, espacoId) {",
+  "    const inv = estado.dados.inventario;",
+  "    if (!inv) return null;",
+  "    const l = inv.lojas;",
+  "    if (espacoId && typeof l[movelId + '/' + espacoId] === 'number') return l[movelId + '/' + espacoId];",
+  "    if (typeof l[movelId] === 'number') return l[movelId];",
+  "    if (espacoId) {",
+  "      // Metade do meio dividido (MEIO-B-2) sem linha própria: a do meio inteiro (MEIO-B).",
+  "      const meio = /^(MEIO-[AB])-\\d$/.exec(espacoId);",
+  "      return meio && typeof l[movelId + '/' + meio[1]] === 'number' ? l[movelId + '/' + meio[1]] : null;",
+  "    }",
+  "    const dosEspacos = Object.keys(l).filter((k) => k.indexOf(movelId + '/') === 0).map((k) => l[k]);",
+  "    return dosEspacos.length ? Math.max.apply(null, dosEspacos) : null;",
+  "  }",
+  "",
+  "  /** \"Presente em 900 lojas · 90% da rede\" (texto do mouse sobre o móvel); null sem o dado do inventário. */",
+  "  function presencaNaRede(movelId, espacoId) {",
+  "    const n = lojasDoEspaco(movelId, espacoId);",
+  "    const total = (estado.dados.inventario || {}).total;",
+  "    if (n === null) return null;",
+  "    return { lojas: n, pct: total ? n / total : 0 };",
+  "  }",
+  "",
+  "  /**",
+  "   * Lojas de cada ER na rede, estimadas pelo inventário: cada móvel está nas lojas das ERs que o têm na",
+  "   * planta, então lojas do móvel ≈ soma das lojas dessas ERs (mínimos quadrados, sem número negativo);",
+  "   * a soma das ERs fecha com o total da rede. { '01': 350, … }; null sem o inventário.",
+  "   */",
+  "  let lojasPorErCache = null;",
+  "  function lojasPorEr() {",
+  "    const inv = estado.dados.inventario;",
+  "    if (!inv) return null;",
+  "    if (lojasPorErCache && lojasPorErCache.dados === estado.dados) return lojasPorErCache.valor;",
+  "    const ids = estado.dados.plantas.map((p) => p.id);",
+  "    const moveis = {};",
+  "    estado.dados.plantas.forEach((p, k) => p.moveis.forEach((m) => { (moveis[m.id] = moveis[m.id] || []).push(k); }));",
+  "    const eqs = Object.keys(moveis).map((id) => ({ ers: moveis[id], L: lojasDoEspaco(id, null) })).filter((q) => q.L !== null);",
+  "    const n = ids.map(() => inv.total / ids.length);",
+  "    for (let it = 0; it < 300; it++) {",
+  "      ids.forEach((_, k) => {",
+  "        const daEr = eqs.filter((q) => q.ers.indexOf(k) >= 0);",
+  "        if (!daEr.length) return;",
+  "        const resto = daEr.reduce((s, q) => s + q.L - q.ers.reduce((t, j) => t + (j === k ? 0 : n[j]), 0), 0);",
+  "        n[k] = Math.max(0, resto / daEr.length);",
+  "      });",
+  "    }",
+  "    const soma = n.reduce((s, x) => s + x, 0);",
+  "    const valor = {};",
+  "    ids.forEach((id, k) => { valor[id] = soma ? (n[k] * inv.total) / soma : inv.total / ids.length; });",
+  "    lojasPorErCache = { dados: estado.dados, valor };",
+  "    return valor;",
+  "  }",
+  "",
+  "  /**",
+  "   * Lojas da ER que têm o espaço: as lojas do espaço (inventário) divididas entre as ERs que têm o móvel,",
+  "   * pelo tamanho de cada uma (no máximo, todas as lojas da ER). null sem o dado.",
+  "   */",
+  "  function lojasNaEr(planta, movelId, espacoId) {",
+  "    const total = lojasDoEspaco(movelId, espacoId);",
+  "    const ers = lojasPorEr();",
+  "    if (total === null || !ers) return null;",
+  "    const comMovel = estado.dados.plantas.filter((p) => p.moveis.some((m) => m.id === movelId)).map((p) => p.id);",
+  "    const base = comMovel.reduce((s, id) => s + (ers[id] || 0), 0);",
+  "    return base ? Math.min(ers[planta] || 0, (total * (ers[planta] || 0)) / base) : null;",
+  "  }",
+  "",
   "  /** Painéis de uma planta: por seção, vale a planta mais próxima na cascata que tiver a seção; senão \"TODAS\". */",
   "  function paineisDe(ciclo, planta) {",
   "    const c = estado.dados.paineis[ciclo] || {};",
@@ -9833,6 +9999,8 @@ const PAGINA_ = [
   "      grade: construcao ? construcao.grade : false,",
   "      referencia: construcao ? construcao.referencia : null,",
   "      escuro: document.documentElement.dataset.tema === 'escuro',",
+  "      // Ao passar o mouse num móvel: em quantas lojas da rede ele está (aba Inventario).",
+  "      presencaNaRede: estado.dados.inventario ? presencaNaRede : null,",
   "    };",
   "  }",
   "",
@@ -10493,7 +10661,13 @@ const PAGINA_ = [
   "            porClasse[c] = (porClasse[c] || 0) + (pt.peso * g.valor) / soma;",
   "          });",
   "        });",
-  "        return { id: p.id, nome: p.nome, total: r.total, semMovimento, porMarca: r.porMarca, porClasse, porEtiqueta: r.porEtiqueta };",
+  "        // Lojas desta ER com cada movimento (aba Inventario): o espaço dele que está em mais lojas da ER.",
+  "        const lojasMov = {};",
+  "        partes.forEach((pt) => movimentosDaParte(pt).forEach((g) => {",
+  "          const n = lojasNaEr(p.id, pt.movel.id, pt.espaco && pt.espaco.id);",
+  "          if (n !== null) lojasMov[g.chave] = Math.max(lojasMov[g.chave] || 0, n);",
+  "        }));",
+  "        return { id: p.id, nome: p.nome, total: r.total, semMovimento, porMarca: r.porMarca, porClasse, porEtiqueta: r.porEtiqueta, lojasMov };",
   "      });",
   "      const movs = {};",
   "      ers.forEach((e) => Object.keys(e.porEtiqueta).forEach((k) => {",
@@ -10507,6 +10681,15 @@ const PAGINA_ = [
   "      // Cada ER é um tamanho médio da rede: nada soma ERs. As marcas de cada movimento são a média da",
   "      // divisão dele em cada ER onde aparece; a ordem é pela maior fatia que ele tem em alguma ER.",
   "      const fatiaMax = (m) => Math.max.apply(null, ers.map((e) => (e.total ? (m.porEr[e.id] || 0) / e.total : 0)));",
+  "      // Presença na rede (aba Inventario): as lojas de cada ER com o movimento, somadas (as ERs são lojas",
+  "      // diferentes da rede). null quando nenhum espaço do movimento está no inventário.",
+  "      const inv = estado.dados.inventario;",
+  "      const naRede = (k) => {",
+  "        const porEr = ers.filter((e) => k in e.lojasMov).map((e) => e.lojasMov[k]);",
+  "        if (!inv || !porEr.length) return null;",
+  "        const lojas = Math.min(inv.total, porEr.reduce((s, x) => s + x, 0));",
+  "        return { lojas, pct: inv.total ? lojas / inv.total : 0 };",
+  "      };",
   "      return {",
   "        ers,",
   "        movimentos: Object.values(movs)",
@@ -10519,6 +10702,7 @@ const PAGINA_ = [
   "            classe: m.classificacao === SEM_CLASSIFICACAO ? null",
   "              : { cod: m.classificacao, nome: nomeClassificacao(m.classificacao), cor: corClassificacao(m.classificacao) },",
   "            marcas: ordemM.filter((c) => m.marcas[c]).map((c) => marca(c, m.marcas[c])),",
+  "            rede: naRede(m.chave),",
   "          })),",
   "      };",
   "    };",
@@ -10532,6 +10716,7 @@ const PAGINA_ = [
   "      erAtual: estado.planta,",
   "      abaTipos: estado.dados.config.abas.TIPOS,",
   "      filtroEtiqueta: chaveEtiqueta(estado.filtroEtiqueta),",
+  "      inventario: estado.dados.inventario ? { total: estado.dados.inventario.total, aba: estado.dados.config.abas.INVENTARIO } : null,",
   "      ers: expo.ers.map(enxuta),",
   "      movimentos: expo.movimentos,",
   "      marcas: ordemM.filter((c) => expo.ers.some((e) => e.porMarca[c])).map((c) => marca(c, 0)),",

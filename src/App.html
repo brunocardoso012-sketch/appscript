@@ -219,6 +219,78 @@ const App = (() => {
   /** Só a aba Movimentos: a planilha base não leva as antecipações (elas ficam na aba Antecipações). */
   const movimentoDaPlanilha = (ciclo, planta, id) => movimentoDe(ciclo, planta, id, true);
 
+  /* ------------------------------ inventário ------------------------------ */
+
+  /**
+   * Lojas da rede que têm o espaço (aba Inventario): a linha do espaço, senão a do móvel; para o móvel
+   * inteiro, a linha dele, senão a do espaço que está em mais lojas. null sem o dado.
+   */
+  function lojasDoEspaco(movelId, espacoId) {
+    const inv = estado.dados.inventario;
+    if (!inv) return null;
+    const l = inv.lojas;
+    if (espacoId && typeof l[movelId + '/' + espacoId] === 'number') return l[movelId + '/' + espacoId];
+    if (typeof l[movelId] === 'number') return l[movelId];
+    if (espacoId) {
+      // Metade do meio dividido (MEIO-B-2) sem linha própria: a do meio inteiro (MEIO-B).
+      const meio = /^(MEIO-[AB])-\d$/.exec(espacoId);
+      return meio && typeof l[movelId + '/' + meio[1]] === 'number' ? l[movelId + '/' + meio[1]] : null;
+    }
+    const dosEspacos = Object.keys(l).filter((k) => k.indexOf(movelId + '/') === 0).map((k) => l[k]);
+    return dosEspacos.length ? Math.max.apply(null, dosEspacos) : null;
+  }
+
+  /** "Presente em 900 lojas · 90% da rede" (texto do mouse sobre o móvel); null sem o dado do inventário. */
+  function presencaNaRede(movelId, espacoId) {
+    const n = lojasDoEspaco(movelId, espacoId);
+    const total = (estado.dados.inventario || {}).total;
+    if (n === null) return null;
+    return { lojas: n, pct: total ? n / total : 0 };
+  }
+
+  /**
+   * Lojas de cada ER na rede, estimadas pelo inventário: cada móvel está nas lojas das ERs que o têm na
+   * planta, então lojas do móvel ≈ soma das lojas dessas ERs (mínimos quadrados, sem número negativo);
+   * a soma das ERs fecha com o total da rede. { '01': 350, … }; null sem o inventário.
+   */
+  let lojasPorErCache = null;
+  function lojasPorEr() {
+    const inv = estado.dados.inventario;
+    if (!inv) return null;
+    if (lojasPorErCache && lojasPorErCache.dados === estado.dados) return lojasPorErCache.valor;
+    const ids = estado.dados.plantas.map((p) => p.id);
+    const moveis = {};
+    estado.dados.plantas.forEach((p, k) => p.moveis.forEach((m) => { (moveis[m.id] = moveis[m.id] || []).push(k); }));
+    const eqs = Object.keys(moveis).map((id) => ({ ers: moveis[id], L: lojasDoEspaco(id, null) })).filter((q) => q.L !== null);
+    const n = ids.map(() => inv.total / ids.length);
+    for (let it = 0; it < 300; it++) {
+      ids.forEach((_, k) => {
+        const daEr = eqs.filter((q) => q.ers.indexOf(k) >= 0);
+        if (!daEr.length) return;
+        const resto = daEr.reduce((s, q) => s + q.L - q.ers.reduce((t, j) => t + (j === k ? 0 : n[j]), 0), 0);
+        n[k] = Math.max(0, resto / daEr.length);
+      });
+    }
+    const soma = n.reduce((s, x) => s + x, 0);
+    const valor = {};
+    ids.forEach((id, k) => { valor[id] = soma ? (n[k] * inv.total) / soma : inv.total / ids.length; });
+    lojasPorErCache = { dados: estado.dados, valor };
+    return valor;
+  }
+
+  /**
+   * Lojas da ER que têm o espaço: as lojas do espaço (inventário) divididas entre as ERs que têm o móvel,
+   * pelo tamanho de cada uma (no máximo, todas as lojas da ER). null sem o dado.
+   */
+  function lojasNaEr(planta, movelId, espacoId) {
+    const total = lojasDoEspaco(movelId, espacoId);
+    const ers = lojasPorEr();
+    if (total === null || !ers) return null;
+    const comMovel = estado.dados.plantas.filter((p) => p.moveis.some((m) => m.id === movelId)).map((p) => p.id);
+    const base = comMovel.reduce((s, id) => s + (ers[id] || 0), 0);
+    return base ? Math.min(ers[planta] || 0, (total * (ers[planta] || 0)) / base) : null;
+  }
+
   /** Painéis de uma planta: por seção, vale a planta mais próxima na cascata que tiver a seção; senão "TODAS". */
   function paineisDe(ciclo, planta) {
     const c = estado.dados.paineis[ciclo] || {};
@@ -530,6 +602,8 @@ const App = (() => {
       grade: construcao ? construcao.grade : false,
       referencia: construcao ? construcao.referencia : null,
       escuro: document.documentElement.dataset.tema === 'escuro',
+      // Ao passar o mouse num móvel: em quantas lojas da rede ele está (aba Inventario).
+      presencaNaRede: estado.dados.inventario ? presencaNaRede : null,
     };
   }
 
@@ -1190,7 +1264,13 @@ const App = (() => {
             porClasse[c] = (porClasse[c] || 0) + (pt.peso * g.valor) / soma;
           });
         });
-        return { id: p.id, nome: p.nome, total: r.total, semMovimento, porMarca: r.porMarca, porClasse, porEtiqueta: r.porEtiqueta };
+        // Lojas desta ER com cada movimento (aba Inventario): o espaço dele que está em mais lojas da ER.
+        const lojasMov = {};
+        partes.forEach((pt) => movimentosDaParte(pt).forEach((g) => {
+          const n = lojasNaEr(p.id, pt.movel.id, pt.espaco && pt.espaco.id);
+          if (n !== null) lojasMov[g.chave] = Math.max(lojasMov[g.chave] || 0, n);
+        }));
+        return { id: p.id, nome: p.nome, total: r.total, semMovimento, porMarca: r.porMarca, porClasse, porEtiqueta: r.porEtiqueta, lojasMov };
       });
       const movs = {};
       ers.forEach((e) => Object.keys(e.porEtiqueta).forEach((k) => {
@@ -1204,6 +1284,15 @@ const App = (() => {
       // Cada ER é um tamanho médio da rede: nada soma ERs. As marcas de cada movimento são a média da
       // divisão dele em cada ER onde aparece; a ordem é pela maior fatia que ele tem em alguma ER.
       const fatiaMax = (m) => Math.max.apply(null, ers.map((e) => (e.total ? (m.porEr[e.id] || 0) / e.total : 0)));
+      // Presença na rede (aba Inventario): as lojas de cada ER com o movimento, somadas (as ERs são lojas
+      // diferentes da rede). null quando nenhum espaço do movimento está no inventário.
+      const inv = estado.dados.inventario;
+      const naRede = (k) => {
+        const porEr = ers.filter((e) => k in e.lojasMov).map((e) => e.lojasMov[k]);
+        if (!inv || !porEr.length) return null;
+        const lojas = Math.min(inv.total, porEr.reduce((s, x) => s + x, 0));
+        return { lojas, pct: inv.total ? lojas / inv.total : 0 };
+      };
       return {
         ers,
         movimentos: Object.values(movs)
@@ -1216,6 +1305,7 @@ const App = (() => {
             classe: m.classificacao === SEM_CLASSIFICACAO ? null
               : { cod: m.classificacao, nome: nomeClassificacao(m.classificacao), cor: corClassificacao(m.classificacao) },
             marcas: ordemM.filter((c) => m.marcas[c]).map((c) => marca(c, m.marcas[c])),
+            rede: naRede(m.chave),
           })),
       };
     };
@@ -1229,6 +1319,7 @@ const App = (() => {
       erAtual: estado.planta,
       abaTipos: estado.dados.config.abas.TIPOS,
       filtroEtiqueta: chaveEtiqueta(estado.filtroEtiqueta),
+      inventario: estado.dados.inventario ? { total: estado.dados.inventario.total, aba: estado.dados.config.abas.INVENTARIO } : null,
       ers: expo.ers.map(enxuta),
       movimentos: expo.movimentos,
       marcas: ordemM.filter((c) => expo.ers.some((e) => e.porMarca[c])).map((c) => marca(c, 0)),

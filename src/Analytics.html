@@ -135,6 +135,14 @@ const Analytics = (() => {
       novo('small', null, espacos(e.total), b);
       b.addEventListener('click', () => { vista.ordem = e.id; redesenhar(); });
     });
+    // Presença na rede (aba Inventario): em quantas lojas da rede o movimento está.
+    const comRede = !!d.inventario;
+    if (comRede) {
+      const thR = novo('th', 'an-col-rede', null, trh);
+      thR.scope = 'col';
+      novo('span', null, 'Na rede', thR);
+      novo('small', null, '% das ' + fmtNum(d.inventario.total) + ' lojas', thR);
+    }
     novo('th', 'an-col-marcas', 'Marcas', trh).scope = 'col';
 
     const tbody = novo('tbody', null, null, tab);
@@ -171,6 +179,19 @@ const Analytics = (() => {
         novo('small', null, vista.medida === 'pct' ? fmtNum(n) : fmtPct(n, e.total), b);
         b.addEventListener('click', () => acoes.verNaPlanta({ er: e.id, etiqueta: m.texto }));
       });
+      if (comRede) {
+        const tdR = novo('td', 'an-col-rede', null, tr);
+        if (!m.rede) {
+          novo('span', 'an-cel-vazia', '—', tdR).title = m.texto + ': nenhum espaço dele está na aba "' + d.inventario.aba + '"';
+        } else {
+          tdR.title = m.texto + ': em cerca de ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas, ' + fmtPctNum(m.rede.pct) + ' da rede (aba "' + d.inventario.aba + '")';
+          const topo = novo('span', 'an-rede-num', null, tdR);
+          novo('strong', null, fmtPctNum(m.rede.pct), topo);
+          novo('small', null, '≈ ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas', topo);
+          const trilho = novo('span', 'an-rede-trilho', null, tdR);
+          novo('span', null, null, trilho).style.width = Math.min(100, m.rede.pct * 100) + '%';
+        }
+      }
       const tdM = novo('td', 'an-col-marcas', null, tr);
       const pilha = novo('span', 'an-pilha', null, tdM);
       const somaM = m.marcas.reduce((s, x) => s + x.valor, 0);
@@ -192,6 +213,7 @@ const Analytics = (() => {
       novo('strong', null, vista.medida === 'pct' ? fmtPct(e.semMovimento, e.total) : fmtNum(e.semMovimento), sp);
       sp.title = e.nome + ': ' + espacos(e.semMovimento) + ' sem etiqueta';
     });
+    if (comRede) novo('td', 'an-col-rede', null, tr);
     novo('td', 'an-col-marcas', null, tr);
   }
 
@@ -476,6 +498,12 @@ const Analytics = (() => {
     regra(['A conta é em ', ['quantidade de espaços'], ', não em metros. Na gôndola, cada ponta e cada meio é um espaço; meio dividido vale ½ espaço para cada metade. Na mesa destaque, cada frente é um espaço. Na pirâmide, as etiquetas dividem o espaço (duas etiquetas: ½ para cada). Os demais móveis contam como um espaço.']);
     regra([['Espaço de VM'], ' (PDV móvel, verso da mesa destaque, cada painel do totem e balcão recepção) é comunicação visual: fica fora das contas do espaço de exposição e aparece à parte, na seção "Espaços de VM".']);
     regra(['Um espaço com dois movimentos conta nos dois no mapa de calor e se divide entre as classificações deles nas barras. Combinações de marcas dividem o espaço igualmente. Etiquetas com o mesmo texto somam juntas.']);
+    if (d.inventario) {
+      regra(['A coluna ', ['Na rede'], ' usa a aba "' + d.inventario.aba + '" (em quantas lojas cada móvel ou espaço existe; o total da rede é '
+        + fmtNum(d.inventario.total) + ' lojas). As lojas de cada ER são estimadas pelos móveis que só algumas ERs têm; as lojas de um espaço '
+        + 'se dividem entre as ERs que têm o móvel, pelo tamanho de cada uma. Em cada ER, o movimento está nas lojas do espaço dele que está em mais lojas; '
+        + 'as ERs são lojas diferentes, então aqui elas se somam. É uma estimativa.']);
+    }
     regra(['O ', ['GMV esperado'], ' é o do movimento no ciclo (aba "' + d.abaTipos + '"), comparado com o espaço dentro de cada ER.']);
     const leg = novo('section', 'an-info-legenda', null, corpo);
     novo('h3', null, 'O que conta como espaço', leg);

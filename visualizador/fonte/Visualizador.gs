@@ -71,6 +71,9 @@ function getDados() {
     lerAbaTexto_(ss, CONFIG.ABAS.TIPOS));
   aplicarAjustesSalvos_(dados.plantas);
   dados.antecipacoes = antecipacoesDeValores_(lerAbaTexto_(ss, CONFIG.ABAS.ANTECIPACOES));
+  // Aba "Inventario" (opcional): em quantas lojas da rede cada móvel ou espaço existe.
+  const inventario = ss.getSheets().filter(function (s) { return chave_(s.getName()) === chave_(CONFIG.ABAS.INVENTARIO); })[0];
+  dados.inventario = inventarioDeValores_(inventario && inventario.getLastRow() >= 1 ? inventario.getDataRange().getValues() : null);
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = false;

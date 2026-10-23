@@ -268,6 +268,49 @@ test('cascata ER M → ER G: o lado B da gôndola 2 vira o lado A da gôndola 3;
   assert.strictEqual(await mov('03', 'GONDOLA 1/MEIO-A'), 'BOTIK');
 });
 
+/** Inventário de teste: cada móvel nas lojas das ERs que o têm (ER P 350, M 300, G 220, GG 130 = 1000 lojas). */
+async function comInventario(p, extra) {
+  await p.evaluate((extra) => {
+    const tam = { '01': 350, '02': 300, '03': 220, '04': 130 };
+    const lojas = {};
+    App.estado.dados.plantas.forEach((pl) => pl.moveis.forEach((m) => { lojas[m.id] = (lojas[m.id] || 0) + tam[pl.id]; }));
+    App.estado.dados.inventario = { lojas: Object.assign(lojas, extra), total: 1000 };
+  }, extra || {});
+}
+
+test('Inventario: o mouse no móvel mostra as lojas da rede; o Analytics, a presença de cada movimento', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo');
+  await comInventario(p, { 'GONDOLA 1/PONTA-B': 900 });
+  await abaPlanta(p, 'ER M').click();
+  await abaPlanta(p, 'ER P').click(); // redesenha com o inventário
+  const dica = (sel) => p.locator(sel + ' > title').first().textContent();
+  assert.match(await dica('#slide .movel[data-movel="GONDOLA 1"][data-espaco="PONTA-B"]'), /Presente em 900 lojas · 90% da rede/);
+  assert.match(await dica('#slide .movel[data-movel="GONDOLA 1"][data-espaco="PONTA-A"]'), /Presente em 1\.000 lojas · 100% da rede/);
+  assert.doesNotMatch(await dica('#slide .movel[data-movel="GONDOLA 1"][data-espaco="PONTA-A"]'), /Marca:/, 'no lugar do que mostrava antes');
+  await abaPlanta(p, 'ER GG').click();
+  assert.match(await dica('#slide .movel[data-movel="GONDOLA 4"]'), /Presente em 130 lojas · 13% da rede/);
+
+  // Analytics: coluna "Na rede" com a presença de cada movimento.
+  await p.click('#btnAnalytics');
+  assert.match(await p.textContent('#anCorpo th.an-col-rede'), /Na rede.*1\.000 lojas/);
+  const pct = (texto) => p.locator('#anCorpo tbody tr', { has: p.locator('.an-mov-nome', { hasText: new RegExp('^' + texto + '$') }) })
+    .first().locator('td.an-col-rede strong').textContent();
+  assert.strictEqual(await pct('EXAUSTÃO OUI'), '13%', 'só na gôndola 4 (só ER GG)');
+  assert.strictEqual(await pct('LIQUIDA QDB'), '100%', 'na ponta A da gôndola 1, de todas as ERs');
+});
+
+test('tela do móvel: aviso fixo de página em construção', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo');
+  await p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await p.waitForSelector('#dlgMovel[open]');
+  assert.match(await p.textContent('#dlgMovel .mv-aviso'), /Página em construção/);
+  const antes = await p.locator('#dlgMovel .mv-aviso').boundingBox();
+  await p.locator('#mvEstrategia').evaluate((el) => { el.closest('.mv-corpo').scrollTop = 400; el.scrollTop = 400; });
+  assert.deepStrictEqual(await p.locator('#dlgMovel .mv-aviso').boundingBox(), antes, 'não rola com o conteúdo');
+});
+
 test('Analytics sem ciclo não quebra', async (t) => {
   const p = await abrir(t);
   await p.click('#btnAnalytics');
