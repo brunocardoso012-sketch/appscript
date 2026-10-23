@@ -340,6 +340,24 @@ const ESPACOS_POR_ER = {
 };
 
 /**
+ * Mudanças na cascata ao passar de uma ER para a seguinte (de → para), quando os móveis mudam de lugar:
+ *  - espacos: { espaço na ER "para": espaço na ER "de" } — o espaço herda o que vem de outro espaço da ER
+ *    anterior (e, dali para trás, a cascata segue com o nome antigo);
+ *  - semHeranca: espaços que não herdam nada da ER "de" (nem das menores): têm de ser definidos de novo na
+ *    ER "para" (as ERs seguintes herdam dela, como sempre).
+ * Os nomes valem também para as metades do meio dividido (MEIO-B vale para MEIO-B-1 e MEIO-B-2).
+ */
+const HERANCA_ENTRE_ERS = [
+  {
+    // Da ER M para a ER G: o lado B (ponta e meio) da gôndola 2 vira o lado A da gôndola 3; os lados B
+    // das gôndolas 1 e 2 são definidos de novo na ER G.
+    de: '02', para: '03',
+    espacos: { 'GONDOLA 3/PONTA-A': 'GONDOLA 2/PONTA-B', 'GONDOLA 3/MEIO-A': 'GONDOLA 2/MEIO-B' },
+    semHeranca: ['GONDOLA 1/PONTA-B', 'GONDOLA 1/MEIO-B', 'GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'],
+  },
+];
+
+/**
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
  * "Etiqueta N" são ignoradas). Tipos que não aparecem aqui mostram até
  * CONFIG.MAX_ETIQUETAS (pirâmide: até 4, empilhadas).
@@ -638,7 +656,7 @@ const VERSAO_MODELO_PLANTAS = { '01': 13, '02': 12, '03': 9, '04': 11 };
  * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
  * abertura (os outros ciclos não mudam).
  */
-const VERSAO_EXEMPLO = 15;
+const VERSAO_EXEMPLO = 16;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
@@ -837,9 +855,12 @@ const EXEMPLO_MOVIMENTOS = {
     'TOTEM OUI 1': ['OUI', [['Hôtel de Ville 193', 'OUI']], 'EXPOSICAO'],
   },
   '03': {
-    // Ponta A e meio A iguais à ponta B e ao meio B da gôndola 2 da ER M.
-    'GONDOLA 3/PONTA-A': ['EUD', [['OUTLET EUD', 'EUD']]],
-    'GONDOLA 3/MEIO-A': ['EUD', [['CUIDADOS', 'EUD']]],
+    // Ponta A e meio A da gôndola 3: vêm da ponta B e do meio B da gôndola 2 da ER M (HERANCA_ENTRE_ERS,
+    // em Config.gs). Os lados B das gôndolas 1 e 2 são definidos de novo na ER G.
+    'GONDOLA 1/MEIO-B': ['BOT', [['UOMINI HERO', 'BOT']], 'FIXO'],
+    'GONDOLA 1/PONTA-B': ['BOT', [['BOTI PROMO', 'BOT']]],
+    'GONDOLA 2/MEIO-B': ['EUD', [['PERFUMARIA', 'EUD']]],
+    'GONDOLA 2/PONTA-B': ['QDB', [['JUICY MOOD', 'QDB']]],
     'GONDOLA 3/MEIO-B': ['MULTI', [['+PEC REGIONAL', 'MULTI']]],
     'GONDOLA 3/PONTA-B': ['MULTI', []],
     'MOVEL DE FILA 6': ['BOT', [['BOTIPROMO', 'BOT']]],
@@ -1318,6 +1339,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
       espacosPorEr: ESPACOS_POR_ER,
+      herancaEntreErs: HERANCA_ENTRE_ERS,
     },
   };
 }

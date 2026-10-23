@@ -240,6 +240,34 @@ test('Analytics: cartões, mapa, "Sobre a análise" e "ver na planta"', async (t
   assert.strictEqual(await p.isVisible('#painelAnalytics'), false);
 });
 
+test('cascata ER M → ER G: o lado B da gôndola 2 vira o lado A da gôndola 3; os lados B são definidos de novo', async (t) => {
+  const p = await abrir(t);
+  const mov = (er, id) => p.evaluate(([e, i]) => {
+    const l = App.resolver.movimento('Ciclo exemplo', e, i);
+    return l && l.etiquetas.map((x) => x.texto).join(',');
+  }, [er, id]);
+  // A gôndola 3 (ER G e ER GG) herda o lado B da gôndola 2 da ER M.
+  assert.strictEqual(await mov('02', 'GONDOLA 2/PONTA-B'), 'OUTLET EUD');
+  assert.strictEqual(await mov('02', 'GONDOLA 2/MEIO-B'), 'CUIDADOS');
+  for (const er of ['03', '04']) {
+    assert.strictEqual(await mov(er, 'GONDOLA 3/PONTA-A'), 'OUTLET EUD', er);
+    assert.strictEqual(await mov(er, 'GONDOLA 3/MEIO-A'), 'CUIDADOS', er);
+  }
+  // Os lados B das gôndolas 1 e 2 na ER G são os da própria ER G; sem a linha dela, ficam vazios (não vêm da ER M).
+  assert.strictEqual(await mov('03', 'GONDOLA 2/PONTA-B'), 'JUICY MOOD');
+  assert.strictEqual(await mov('04', 'GONDOLA 2/PONTA-B'), 'JUICY MOOD', 'a ER GG herda da ER G');
+  await p.evaluate(() => {
+    const g = App.estado.dados.movimentos['Ciclo exemplo']['03'];
+    ['GONDOLA 1/PONTA-B', 'GONDOLA 1/MEIO-B', 'GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'].forEach((k) => delete g[k]);
+  });
+  for (const id of ['GONDOLA 1/PONTA-B', 'GONDOLA 1/MEIO-B', 'GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B']) {
+    assert.strictEqual(await mov('03', id), null, 'ER G ' + id);
+    assert.strictEqual(await mov('04', id), null, 'ER GG ' + id);
+  }
+  // O lado A das gôndolas 1 e 2 continua vindo das ERs menores.
+  assert.strictEqual(await mov('03', 'GONDOLA 1/MEIO-A'), 'BOTIK');
+});
+
 test('Analytics sem ciclo não quebra', async (t) => {
   const p = await abrir(t);
   await p.click('#btnAnalytics');
@@ -621,7 +649,7 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   const livre = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-B"][data-parte="livre"]');
   assert.ok(await fixa.isVisible() && await livre.isVisible(), 'a ponta B mostra a parte fixa e a livre');
   assert.match(await fixa.textContent(), /Só na ER P/);
-  assert.match(await livre.textContent(), /Vale para ER M, ER G, ER GG/);
+  assert.match(await livre.textContent(), /Vale para ER M\./, 'a ER G define o lado B da gôndola 1 de novo');
   assert.ok(await fixa.locator('select.rs-marca').first().isDisabled(), 'a marca da parte fixa não muda');
   assert.strictEqual(await fixa.locator('select.rs-marca').first().inputValue(), 'OUI');
   await fixa.locator('.rs-etq select:not(.rs-marca)').first().selectOption('NOVO MOVIMENTO OUI');
@@ -634,11 +662,13 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.strictEqual((await espacos())['02']['GONDOLA 1/PONTA-B'].etiquetas[0].texto, outro, 'a parte livre grava na ER M');
   const pontaB = (er) => p.evaluate((e) => App.resolver.movimento('C11/2026', e, 'GONDOLA 1/PONTA-B'), er);
   assert.strictEqual((await pontaB('01')).etiquetas[0].texto, 'NOVO MOVIMENTO OUI');
-  for (const er of ['02', '03', '04']) assert.strictEqual((await pontaB(er)).etiquetas[0].texto, outro, 'ER ' + er + ': só a parte livre');
-  // Sem a parte livre, as ERs maiores ficam sem nada na ponta B (não herdam a parte fixa da ER P).
+  assert.strictEqual((await pontaB('02')).etiquetas[0].texto, outro, 'ER M: só a parte livre');
+  // Na ER G, o lado B da gôndola 1 é definido de novo (não vem da ER M); o "Ciclo exemplo" tem a linha da ER G.
+  assert.strictEqual((await pontaB('03')).etiquetas[0].texto, 'BOTI PROMO', 'ER G: a linha da própria ER G');
+  // Sem a parte livre, a ER M fica sem nada na ponta B (não herda a parte fixa da ER P).
   await livre.locator('button', { hasText: 'Limpar espaço' }).click();
   await gravado();
-  for (const er of ['02', '03', '04']) assert.strictEqual(await pontaB(er), null, 'ER ' + er + ': a parte fixa não passa');
+  assert.strictEqual(await pontaB('02'), null, 'ER M: a parte fixa não passa');
   // Limpar um espaço: some da planta e o espaço vazio aparece na lista; clicar nele seleciona o móvel.
   await p.evaluate(() => document.querySelector('#slide .movel[data-movel="PIRAMIDE 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
   await p.waitForSelector('#pcForm .pc-espaco[data-espaco="PIRAMIDE 1"]');

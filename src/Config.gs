@@ -60,6 +60,24 @@ const ESPACOS_POR_ER = {
 };
 
 /**
+ * Mudanças na cascata ao passar de uma ER para a seguinte (de → para), quando os móveis mudam de lugar:
+ *  - espacos: { espaço na ER "para": espaço na ER "de" } — o espaço herda o que vem de outro espaço da ER
+ *    anterior (e, dali para trás, a cascata segue com o nome antigo);
+ *  - semHeranca: espaços que não herdam nada da ER "de" (nem das menores): têm de ser definidos de novo na
+ *    ER "para" (as ERs seguintes herdam dela, como sempre).
+ * Os nomes valem também para as metades do meio dividido (MEIO-B vale para MEIO-B-1 e MEIO-B-2).
+ */
+const HERANCA_ENTRE_ERS = [
+  {
+    // Da ER M para a ER G: o lado B (ponta e meio) da gôndola 2 vira o lado A da gôndola 3; os lados B
+    // das gôndolas 1 e 2 são definidos de novo na ER G.
+    de: '02', para: '03',
+    espacos: { 'GONDOLA 3/PONTA-A': 'GONDOLA 2/PONTA-B', 'GONDOLA 3/MEIO-A': 'GONDOLA 2/MEIO-B' },
+    semHeranca: ['GONDOLA 1/PONTA-B', 'GONDOLA 1/MEIO-B', 'GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'],
+  },
+];
+
+/**
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
  * "Etiqueta N" são ignoradas). Tipos que não aparecem aqui mostram até
  * CONFIG.MAX_ETIQUETAS (pirâmide: até 4, empilhadas).

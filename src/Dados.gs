@@ -202,6 +202,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
       espacosPorEr: ESPACOS_POR_ER,
+      herancaEntreErs: HERANCA_ENTRE_ERS,
     },
   };
 }

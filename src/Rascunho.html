@@ -559,7 +559,9 @@ const Rascunho = (() => {
         const mAlvo = alvo && alvo.moveis.find((x) => x.id === m.id);
         const bAlvo = mAlvo && app.blocosDoMovel(alvo, mAlvo, app.estado.ciclo).find((x) => x.chave === b.chave);
         if (!bAlvo) return;
-        blocoEspaco(pai, alvo, bAlvo, { parte, ers: parte.plantas.map(nomeEr).join(', '), nestaEr: alvo === planta });
+        // ERs em que esta linha vale (a cascata pode parar antes, ex.: a ER G define o espaço de novo).
+        const ers = app.ersDaLinha(alvo.id, b.chave).map((x) => nomeEr(x.planta)).join(', ');
+        blocoEspaco(pai, alvo, bAlvo, { parte, ers, nestaEr: alvo === planta });
       });
     });
   }
@@ -586,8 +588,13 @@ const Rascunho = (() => {
         : ' É só o que aparece nessas ERs (a parte fixa não passa para elas).'));
       if (!porEr.nestaEr) n('span', 'pc-parte-outra', 'Não aparece na ' + app.plantaAtual().nome, sub);
     }
+    // Vem de outra ER (às vezes de outro espaço: o lado B da gôndola 2 da ER M é o lado A da gôndola 3 da ER G).
+    const de = b.origem ? 'Vem ' + (b.origem.outro ? 'de ' + b.origem.espaco + ', na ' : 'da ') + b.origem.er : 'Vem de outra ER';
     const herdado = b.info && !b.propria
-      ? n('p', 'rs-herdado', 'Vem de outra ER (cascata). Ao mudar, vira uma linha própria da ' + planta.nome + '.', f) : null;
+      ? n('p', 'rs-herdado', de + ' (cascata). Ao mudar, vira uma linha própria da ' + planta.nome + '.', f)
+      // Espaço que a ER define de novo (não herda da ER anterior: os móveis mudaram de lugar).
+      : !b.info && !b.propria && b.redefinir
+        ? n('p', 'rs-herdado pc-redefinir', 'Defina de novo na ' + planta.nome + ': este espaço não vem da ' + b.redefinir + '.', f) : null;
     const linha = (rotulo) => {
       const d = n('label', 'pc-linha', null, f);
       n('span', 'mv-rotulo', rotulo, d);

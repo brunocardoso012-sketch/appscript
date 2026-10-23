@@ -115,19 +115,102 @@ const App = (() => {
     return { fixo, livre, parte: (planta) => (fixo.plantas.indexOf(planta) >= 0 ? fixo : livre) };
   }
 
+  /** O espaço (ou a metade do meio dividido) está na lista? 'GONDOLA 2/MEIO-B' vale também para '…/MEIO-B-2'. */
+  const casaEspaco = (base, id) => id === base || id.indexOf(base + '-') === 0;
+
+  /**
+   * Regra da cascata que a ER aplica ao passar para a ER anterior (HERANCA_ENTRE_ERS, em Config.gs) para
+   * este espaço: { tipo: 'troca', id: o espaço na ER anterior } ou { tipo: 'corta' }; null = segue igual.
+   */
+  function regraDaHeranca(planta, id) {
+    const regra = ((estado.dados.config || {}).herancaEntreErs || []).find((h) => h.para === planta);
+    if (!regra) return null;
+    if ((regra.semHeranca || []).some((b) => casaEspaco(b, id))) return { tipo: 'corta', regra };
+    const base = Object.keys(regra.espacos || {}).find((b) => casaEspaco(b, id));
+    return base ? { tipo: 'troca', id: regra.espacos[base] + id.slice(base.length), regra } : null;
+  }
+
+  /**
+   * Onde a cascata procura um espaço numa ER: [{ planta, id }], da ER para as menores. O nome do espaço
+   * pode mudar de uma ER para a anterior (o lado B da gôndola 2 da ER M é o lado A da gôndola 3 da ER G),
+   * e a busca para quando o espaço é definido de novo na ER (HERANCA_ENTRE_ERS). No espaço que muda
+   * conforme a ER (ESPACOS_POR_ER), fica dentro da parte da ER (a livre não herda a fixa).
+   */
+  function cadeiaDaCascata(planta, id) {
+    const porEr = espacoPorEr(id);
+    const parte = porEr && porEr.parte(planta);
+    const out = [];
+    let atual = id;
+    for (const p of cascata(planta)) {
+      if (!parte || parte.plantas.indexOf(p) >= 0) out.push({ planta: p, id: atual });
+      const r = regraDaHeranca(p, atual);
+      if (r && r.tipo === 'corta') break;
+      if (r) atual = r.id;
+    }
+    return out;
+  }
+
+  /** De onde vem o que vale para o espaço na ER: { planta, id } (null = de nenhuma ER: TODAS ou nada). */
+  function origemDe(ciclo, planta, id) {
+    const c = estado.dados.movimentos[ciclo] || {};
+    return cadeiaDaCascata(planta, id).find((x) => c[x.planta] && c[x.planta][x.id]) || null;
+  }
+
+  /**
+   * ERs em que a linha do espaço nesta ER vale quando elas não têm linha própria: a ER e as seguintes, até
+   * a cascata parar (ou o espaço mudar de parte). [{ planta, id }]: o nome do espaço em cada uma (o lado B
+   * da gôndola 2 da ER M vale como lado A da gôndola 3 na ER G). Só as ERs que têm o móvel.
+   */
+  function ersDaLinha(planta, id) {
+    const plantas = estado.dados.plantas;
+    const i = plantas.findIndex((p) => p.id === planta);
+    const porEr = espacoPorEr(id);
+    const parte = porEr && porEr.parte(planta);
+    const out = [];
+    let atual = id;
+    for (let k = i; k >= 0 && k < plantas.length; k++) {
+      const q = plantas[k];
+      if (k > i) {
+        const regra = ((estado.dados.config || {}).herancaEntreErs || []).find((h) => h.para === q.id);
+        if (regra) {
+          if ((regra.semHeranca || []).some((b) => casaEspaco(b, atual))) break;
+          const nova = Object.keys(regra.espacos || {}).find((n) => casaEspaco(regra.espacos[n], atual));
+          if (nova) atual = nova + atual.slice(regra.espacos[nova].length);
+          else if (Object.keys(regra.espacos || {}).some((n) => casaEspaco(n, atual))) break; // o espaço vem de outro
+        }
+        const pq = espacoPorEr(atual);
+        if (parte && pq && pq.parte(q.id).tipo !== parte.tipo) break;
+      }
+      if (q.moveis.some((m) => m.id === atual.split('/')[0])) out.push({ planta: q.id, id: atual });
+    }
+    return out;
+  }
+
+  /** "Gôndola 2 · Ponta B" (o móvel e o espaço, como na tela), a partir do ID ("GONDOLA 2/PONTA-B"). */
+  function nomeDoEspaco(planta, id) {
+    const [mid, eid] = id.split('/');
+    const p = estado.dados.plantas.find((x) => x.id === planta);
+    const m = p && p.moveis.find((x) => x.id === mid);
+    if (!m) return id;
+    // O meio inteiro (MEIO-B) e as metades (MEIO-B-1, MEIO-B-2) só aparecem com o meio dividido ou não.
+    const e = eid && Render.espacos(Object.assign({}, m, { dividido: '' })).concat(Render.espacos(Object.assign({}, m, { dividido: 'AB' })))
+      .find((x) => x.id === eid);
+    return (m.descricao || m.id) + (eid ? ' · ' + (e ? e.nome : eid) : '');
+  }
+  const nomeDaEr = (id) => (estado.dados.plantas.find((p) => p.id === id) || { nome: id }).nome;
+
   /**
    * O que vale para um móvel (ou espaço) numa ER, com a cascata e as antecipações do ciclo (Antecipacao.html).
    * semAntecipacao: só a aba Movimentos (planilha base).
-   * Espaço que muda conforme a ER: a cascata fica dentro da parte da ER (a livre não herda a fixa); na parte
-   * fixa, o espaço é sempre da marca dela, com 🔒 quando a linha não tem símbolo, mesmo sem linha no ciclo.
+   * Espaço que muda conforme a ER: na parte fixa, o espaço é sempre da marca dela, com 🔒 quando a linha
+   * não tem símbolo, mesmo sem linha no ciclo.
    */
   function movimentoDe(ciclo, planta, id, semAntecipacao) {
     const c = estado.dados.movimentos[ciclo] || {};
     const porEr = espacoPorEr(id);
     const parte = porEr && porEr.parte(planta);
-    const ers = cascata(planta).filter((p) => !parte || parte.plantas.indexOf(p) >= 0);
-    const achada = ers.find((p) => c[p] && c[p][id]);
-    let linha = (achada && c[achada][id]) || (parte && parte.tipo === 'fixo' ? null : c[TODAS()] && c[TODAS()][id]) || null;
+    const achada = origemDe(ciclo, planta, id);
+    let linha = (achada && c[achada.planta][achada.id]) || (parte && parte.tipo === 'fixo' ? null : c[TODAS()] && c[TODAS()][id]) || null;
     if (parte && parte.tipo === 'fixo' && (linha || (ciclo && !semAntecipacao))) {
       linha = Object.assign({ etiquetas: [], observacao: '' }, linha, { marca: parte.marca, simbolo: (linha && linha.simbolo) || 'FIXO' });
     }
@@ -1664,9 +1747,14 @@ const App = (() => {
       const propria = [m.id + '/' + e.id, meio].filter(Boolean).find(temLinha);
       // Espaço que muda conforme a ER: o título diz qual parte vale nesta ER (ex.: "Ponta B · Fixo O.U.i").
       const porEr = espacoPorEr(m.id + '/' + e.id);
+      // De onde vem o que vale aqui (outra ER, talvez outro espaço) e se o espaço é definido de novo nesta ER.
+      const de = propria && !daEr[propria] && ciclo ? origemDe(ciclo, planta.id, propria) : null;
+      const corte = regraDaHeranca(planta.id, m.id + '/' + e.id);
       return {
         titulo: e.nome + (porEr ? ' · ' + porEr.parte(planta.id).nome : ''), chave: m.id + '/' + e.id, espaco: e, info: propria ? linha(propria) : null,
         propria: !!(propria && daEr[propria]), limite: (config.etiquetasPorBloco || {})[m.tipo] || 1,
+        origem: de ? { er: nomeDaEr(de.planta), espaco: nomeDoEspaco(de.planta, de.id), outro: de.id !== propria } : null,
+        redefinir: corte && corte.tipo === 'corta' ? nomeDaEr(corte.regra.de) : '',
       };
     });
   }
@@ -2475,7 +2563,7 @@ const App = (() => {
     estado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,
     acesso: () => Validacao.acesso(),
     recarregarComentarios: () => Validacao.recarregar(),
-    abrirMovel, blocosDoMovel, espacoPorEr, corDaMarca,
+    abrirMovel, blocosDoMovel, espacoPorEr, ersDaLinha, corDaMarca,
     comentariosAbertos: () => Validacao.abertosNoCiclo(),
     abrirComentarios: () => Validacao.abrirPainel(),
     estatisticas: estatisticasConstrucao,

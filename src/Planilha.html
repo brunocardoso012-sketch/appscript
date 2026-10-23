@@ -171,7 +171,7 @@ const Planilha = (() => {
       '6.2 Gôndola: uma linha por espaço — GONDOLA 1/PONTA-A, MEIO-A, MEIO-B e PONTA-B ("A" é sempre o lado virado para quem olha a planta). Cada espaço mostra até 4 etiquetas, junto dele na planta, com o nome do espaço (PONTA A, MEIO B…). Para dividir um meio em dois movimentos, preencha também a linha da metade 2 (ex.: GONDOLA 1/MEIO-A-2): a linha do meio passa a valer para a metade 1 e a planta mostra o meio dividido.',
       '6.3 Mesa destaque (FRENTE-1 e 2, e VERSO, atrás das lâminas), mesa 3 frentes (FRENTE-1 a 3 e VERSO), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente e o verso das mesas mostram até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só.',
       '6.4 Móveis de um espaço só (pirâmide, móvel de fila, móvel de parede, PDV, O.U.i…) têm uma linha. O balcão recepção também: um espaço só, com uma cor e até 3 etiquetas.',
-      '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas. Exceção: a ponta B da gôndola 1 é fixa de O.U.i na ER P e livre nas ERs maiores — a linha da ER P (Fixo O.U.i) não passa para elas; a da ER M (Livre) vale para a ER M, a ER G e a ER GG.',
+      '7. Na coluna "Planta" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem ("vale para…" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas. Exceção: a ponta B da gôndola 1 é fixa de O.U.i na ER P e livre nas ERs maiores — a linha da ER P (Fixo O.U.i) não passa para elas; a da ER M (Livre) vale para a ER M. Da ER M para a ER G: a ponta B e o meio B da gôndola 2 da ER M viram a ponta A e o meio A da gôndola 3 da ER G; a ponta B e o meio B das gôndolas 1 e 2 são definidos de novo na ER G (não vêm da ER M).',
     ].concat(op.visualizador ? [
       // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.
       '8. Todos os ciclos ficam nesta mesma planilha. Para criar um ciclo novo, copie as linhas de um ciclo existente (nas abas "' + abas.MOVIMENTOS + '", "' + abas.PAINEIS + '" e "' + abas.TIPOS + '"), cole no fim e troque o "Ciclo". Cada nome diferente de ciclo aparece no seletor do visualizador.',
@@ -244,6 +244,14 @@ const Planilha = (() => {
     plantas.forEach((p) => p.moveis.forEach((m) => { (ondeExiste[m.id] = ondeExiste[m.id] || []).push(p.id); }));
     const nomeDe = (id) => plantaNaPlanilha(dados, id);
     const jaListado = {}; // ID → conteúdo (JSON) que as plantas seguintes herdam
+    const casaEspaco = (base, id) => id === base || id.indexOf(base + '-') === 0;
+    const herancaNaPlanta = (id, planta) => {
+      const h = (dados.config.herancaEntreErs || []).find((x) => x.para === planta);
+      if (!h || !emCascata) return null;
+      if ((h.semHeranca || []).some((b) => casaEspaco(b, id))) return { corta: true, de: h.de };
+      const base = Object.keys(h.espacos || {}).find((b) => casaEspaco(b, id));
+      return base ? { de: h.de, id: h.espacos[base] + id.slice(base.length) } : null;
+    };
     const parteDoEspaco = (id, planta) => {
       const cfg = (dados.config.espacosPorEr || {})[id];
       if (!cfg) return null;
@@ -286,10 +294,14 @@ const Planilha = (() => {
         // sua linha (a livre não herda a fixa), com a parte e as ERs dela na descrição.
         const parte = parteDoEspaco(m.id, p.id);
         const chave = m.id + (parte ? '|' + parte.tipo : '');
-        if (emCascata && chave in jaListado && jaListado[chave] === conteudo) return; // já vem da planta anterior
+        // Espaço que esta planta define de novo ou que vem de outro espaço da planta anterior (HERANCA_ENTRE_ERS):
+        // sempre ganha a sua linha, com o aviso na descrição.
+        const heranca = herancaNaPlanta(m.id, p.id);
+        if (emCascata && !heranca && chave in jaListado && jaListado[chave] === conteudo) return; // já vem da planta anterior
         jaListado[chave] = conteudo;
-        const descricao = parte ? m.descricao + ' · ' + parte.nome + ' (' + (parte.tipo === 'fixo' ? 'só ' : 'vale para ')
+        let descricao = parte ? m.descricao + ' · ' + parte.nome + ' (' + (parte.tipo === 'fixo' ? 'só ' : 'vale para ')
           + plantas.filter((x) => parte.plantas.indexOf(x.id) >= 0).map((x) => nomeDe(x.id)).join(', ') + ')' : m.descricao;
+        if (heranca) descricao += heranca.corta ? ' · defina de novo (não vem da ' + nomeDe(heranca.de) + ')' : ' · vem de ' + heranca.id + ' da ' + nomeDe(heranca.de);
         const linha = { ciclo: op.ciclo, planta: nomeDe(p.id), movel: m.id, descricao };
         if (info) {
           linha.marca = info.marca;
