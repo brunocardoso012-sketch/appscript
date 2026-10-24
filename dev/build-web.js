@@ -15,7 +15,7 @@ const RAIZ = path.join(__dirname, '..');
 const SRC = path.join(RAIZ, 'src');
 const ler = (...p) => fs.readFileSync(path.join(...p), 'utf8');
 
-const gs = ['Config.gs', 'Dados.gs', 'Code.gs', 'Layouts.gs', 'Validacao.gs', 'Rascunhos.gs', 'Antecipacoes.gs']
+const gs = ['Config.gs', 'Dados.gs', 'Code.gs', 'Layouts.gs', 'Validacao.gs', 'Rascunhos.gs', 'Antecipacoes.gs', 'Prateleiras.gs']
   .map((f) => '/* ===== src/' + f + ' ===== */\n' + ler(SRC, f))
   .join('\n');
 const backend = ler(RAIZ, 'web', 'backend-local.js');

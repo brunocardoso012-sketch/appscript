@@ -1,0 +1,395 @@
+<script>
+/**
+ * ============================================================================
+ *  PRATELEIRAS (página): os produtos de cada prateleira, na tela do móvel
+ * ============================================================================
+ *  Depois da estratégia dos movimentos, o construtor detalha cada prateleira de
+ *  cada espaço: o movimento dela (entre as etiquetas do espaço) e os produtos,
+ *  da esquerda para a direita, com as frentes de cada um. A seção
+ *  "Prateleiras · produtos" da tela do móvel mostra isso para todo mundo (cada
+ *  produto ocupa a largura das suas frentes) e, para o construtor, tem o botão
+ *  "Detalhar" de cada espaço, que abre a edição ali mesmo. Cada ER tem as suas
+ *  prateleiras; "Vale em todas as ERs" grava as mesmas em cada ER que tem o
+ *  espaço. As regras ficam em Prateleiras.gs (conferidas no servidor).
+ */
+const Prateleira = (() => {
+  const $ = (id) => document.getElementById(id);
+  // { estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento, acesso, rascunhos }
+  let app = null;
+  let editando = null; // { chave: "ciclo|planta|espaço", sujo } do espaço aberto na edição
+
+  function n(tag, classe, texto, pai) {
+    const e = document.createElement(tag);
+    if (classe) e.className = classe;
+    if (texto !== undefined && texto !== null) e.textContent = texto;
+    if (pai) pai.appendChild(e);
+    return e;
+  }
+
+  function botao(texto, classe, fn, pai) {
+    const b = n('button', 'btn pequeno ' + (classe || ''), texto, pai);
+    b.type = 'button';
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  const dados = () => app.estado.dados;
+  const todas = () => (dados() && dados().prateleiras) || [];
+  const limites = () => (dados().config && dados().config.limitesPrateleira) || { produtos: 40, frentes: 99 };
+  const nomeEr = (id) => (dados().plantas.find((p) => p.id === id) || {}).nome || id;
+
+  /** Prateleiras detalhadas de um espaço numa ER (ou null). */
+  function doEspaco(ciclo, planta, id) {
+    return todas().find((g) => g.ciclo === ciclo && g.planta === planta && g.espaco === id) || null;
+  }
+
+  /** O construtor edita num ciclo publicado ou num ciclo em construção que ainda não foi enviado. */
+  function podeEditar(ciclo) {
+    const a = app.acesso();
+    if (!a || a.papel !== 'CONSTRUTOR' || !ciclo) return false;
+    if (dados().ciclos.indexOf(ciclo) >= 0) return true;
+    const r = app.rascunhos().find((x) => x.ciclo === ciclo);
+    return !!r && r.status === 'EM_CONSTRUCAO';
+  }
+
+  /** Cor de fundo de um movimento: a da marca da etiqueta do espaço com esse texto (ou neutra). */
+  function marcaDoMovimento(col, mov) {
+    const k = app.chaveMovimento(mov);
+    const e = col.etiquetas.find((x) => app.chaveMovimento(x.texto) === k);
+    return e ? e.marca : '';
+  }
+
+  /** "Prateleira 2" (ou o nome do nível, como o nicho da mesa). */
+  const rotulo = (plano, k) => (/^\d+$/.test(plano.rotulos[k]) ? 'Prateleira ' + (k + 1) : plano.rotulos[k]);
+  const somaFrentes = (lista) => lista.reduce((s, x) => s + (Number(x.frentes) || 0), 0);
+
+  /* ------------------------------ leitura -------------------------------- */
+
+  /**
+   * Seção "Prateleiras · produtos" da tela do móvel: um cartão por espaço que leva produtos (as colunas do
+   * planograma com id), com cada prateleira e os produtos dela.
+   * @param {{ciclo, planta, movel, plano}} ctx  plano: o de planogramaDe (App.html)
+   */
+  function montarSecao(corpo, ctx) {
+    const colunas = ctx.plano.colunas.filter((c) => c.id);
+    if (!colunas.length) return;
+    const sec = n('section', 'mv-bloco pr-secao', null, corpo);
+    n('h3', null, 'Prateleiras · produtos', sec);
+    const pode = podeEditar(ctx.ciclo);
+    const algum = colunas.some((c) => doEspaco(ctx.ciclo, ctx.planta.id, c.id));
+    if (!algum) {
+      n('p', 'pr-dica', pode
+        ? 'Nenhuma prateleira detalhada nesta ER. Clique em Detalhar no espaço para escolher o movimento de cada prateleira e os produtos, da esquerda para a direita.'
+        : 'As prateleiras deste móvel ainda não foram detalhadas nesta ER.', sec);
+    }
+    colunas.forEach((col) => {
+      const card = n('div', 'pr-espaco', null, sec);
+      card.dataset.espaco = col.id;
+      const chave = ctx.ciclo + '|' + ctx.planta.id + '|' + col.id;
+      if (pode && editando && editando.chave === chave) montarEdicao(card, ctx, col);
+      else montarLeitura(card, ctx, col, pode);
+    });
+  }
+
+  function cabecalho(card, ctx, col, det) {
+    const topo = n('div', 'pr-topo', null, card);
+    const titulo = n('div', 'pr-titulo', null, topo);
+    n('strong', null, colunasIguais(ctx) ? 'Prateleiras' : col.nome, titulo);
+    col.etiquetas.forEach((e) => {
+      const chip = n('span', 'pr-chip', e.texto, titulo);
+      chip.style.background = app.corDaMarca(e.marca, 'etiqueta');
+    });
+    if (det) {
+      const produtos = [].concat(...det.prateleiras.map((p) => p.produtos));
+      n('span', 'pr-resumo', produtos.length + (produtos.length === 1 ? ' produto' : ' produtos') + ' · ' + somaFrentes(produtos) + ' frentes', topo);
+    }
+    return topo;
+  }
+
+  /** Móvel de um espaço só: o cartão não repete o nome "Móvel". */
+  const colunasIguais = (ctx) => ctx.plano.colunas.filter((c) => c.id).length === 1 && !/\//.test(ctx.plano.colunas.filter((c) => c.id)[0].id);
+
+  function montarLeitura(card, ctx, col, pode) {
+    const det = doEspaco(ctx.ciclo, ctx.planta.id, col.id);
+    const topo = cabecalho(card, ctx, col, det);
+    if (pode) {
+      const b = botao(det ? 'Editar' : 'Detalhar', det ? '' : 'primario', () => {
+        editando = { chave: ctx.ciclo + '|' + ctx.planta.id + '|' + col.id, sujo: false };
+        app.abrirMovel(ctx.movel.id);
+      }, topo);
+      b.dataset.acao = 'editar-prateleiras';
+    }
+    if (!det) {
+      n('p', 'pr-vazio', 'Sem detalhe nesta ER.', card);
+      return;
+    }
+    const porNumero = {};
+    det.prateleiras.forEach((p) => { porNumero[p.numero] = p; });
+    const estante = n('div', 'pr-estante', null, card);
+    for (let k = 0; k < ctx.plano.n; k++) {
+      const p = porNumero[k + 1] || { movimento: '', observacao: '', produtos: [] };
+      const linha = n('div', 'pr-prateleira', null, estante);
+      n('span', 'pr-num', ctx.plano.rotulos[k], linha);
+      const meio = n('div', 'pr-meio', null, linha);
+      const cab = n('div', 'pr-cab', null, meio);
+      const marca = p.movimento ? marcaDoMovimento(col, p.movimento) : '';
+      if (p.movimento) {
+        const chip = n('span', 'pr-chip', p.movimento, cab);
+        chip.style.background = app.corDaMarca(marca, 'etiqueta');
+      } else {
+        n('span', 'pr-sem', 'sem movimento', cab);
+      }
+      if (p.observacao) n('span', 'pr-obs', p.observacao, cab);
+      if (p.produtos.length) n('span', 'pr-frentes', somaFrentes(p.produtos) + ' frentes', cab);
+      const fila = n('div', 'pr-fila', null, meio);
+      fila.style.setProperty('--cor', marca ? app.corDaMarca(marca, 'etiqueta') : '#9aa0a6');
+      if (!p.produtos.length) n('span', 'pr-vazia', 'prateleira sem produtos', fila);
+      p.produtos.forEach((x) => {
+        const prod = n('div', 'pr-produto', null, fila);
+        prod.style.flexGrow = String(x.frentes);
+        prod.title = x.nome + (x.sku ? ' · SKU ' + x.sku : '') + ' · ' + x.frentes + (x.frentes === 1 ? ' frente' : ' frentes');
+        n('span', 'pr-nome', x.nome, prod);
+        n('span', 'pr-qtd', '×' + x.frentes + (x.sku ? ' · ' + x.sku : ''), prod);
+      });
+    }
+    if (det.autor) n('p', 'pr-meta', 'Atualizado por ' + det.autor + (det.data ? ' em ' + det.data : ''), card);
+  }
+
+  /* ------------------------------- edição -------------------------------- */
+
+  /** Produtos já usados no ciclo (para sugerir no campo do produto, com o SKU). */
+  function produtosDoCiclo(ciclo) {
+    const vistos = {};
+    todas().filter((g) => g.ciclo === ciclo).forEach((g) => g.prateleiras.forEach((p) => p.produtos.forEach((x) => {
+      if (!vistos[x.nome]) vistos[x.nome] = x.sku;
+    })));
+    return vistos;
+  }
+
+  /**
+   * Linhas coladas de uma planilha (Excel / Sheets): uma por produto, com as colunas Produto, SKU e Frentes
+   * separadas por tabulação (ou ponto e vírgula). @return {Array<{nome, sku, frentes}>}
+   */
+  function lerColagem(txt) {
+    return String(txt || '').split(/\r?\n/).map((l) => l.split(/\t|;/).map((c) => c.trim())).filter((c) => c[0])
+      .map((c) => ({ nome: c[0], sku: c[1] || '', frentes: Math.max(1, parseInt(c[2], 10) || 1) }));
+  }
+
+  function montarEdicao(card, ctx, col) {
+    card.classList.add('editando');
+    const det = doEspaco(ctx.ciclo, ctx.planta.id, col.id);
+    cabecalho(card, ctx, col, null);
+    const sujo = () => { editando.sujo = true; };
+    const lista = 'prProdutos-' + Math.random().toString(36).slice(2, 8);
+    const conhecidos = produtosDoCiclo(ctx.ciclo);
+    const dl = n('datalist', null, null, card);
+    dl.id = lista;
+    Object.keys(conhecidos).sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach((nome) => dl.appendChild(new Option(conhecidos[nome] ? 'SKU ' + conhecidos[nome] : '', nome)));
+
+    // Opções: onde vale e de onde começar.
+    const opcoes = n('div', 'pr-opcoes', null, card);
+    const lVale = n('label', 'pr-campo', 'Vale em', opcoes);
+    const vale = n('select', null, null, lVale);
+    vale.appendChild(new Option('Só na ' + ctx.planta.nome, ctx.planta.id));
+    vale.appendChild(new Option('Todas as ERs que têm este espaço', dados().config.plantaTodas));
+    vale.dataset.campo = 'vale';
+    const outras = todas().filter((g) => g.ciclo === ctx.ciclo && g.espaco === col.id && g.planta !== ctx.planta.id);
+    const acoes = n('div', 'pr-acoes-topo', null, opcoes);
+    if (outras.length) {
+      const lCopiar = n('label', 'pr-campo', 'Copiar de', acoes);
+      const copiar = n('select', null, null, lCopiar);
+      copiar.appendChild(new Option('—', ''));
+      outras.forEach((g) => copiar.appendChild(new Option(nomeEr(g.planta), g.planta)));
+      copiar.addEventListener('change', () => {
+        const g = outras.find((x) => x.planta === copiar.value);
+        if (g) { preencher(g.prateleiras); sujo(); }
+      });
+    }
+    const sugerir = botao('Movimentos pela divisão do planograma', 'fantasma', () => {
+      app.dividirPrateleiras(ctx.plano.n, col.etiquetas).forEach((c) => {
+        for (let k = c.de; k < c.ate; k++) if (c.etiquetas[0]) blocos[k].mov.value = c.etiquetas[0].texto;
+      });
+      blocos.forEach((b) => b.pintar());
+      sujo();
+    }, acoes);
+    sugerir.title = 'Escolhe o movimento de cada prateleira como o planograma divide as etiquetas do espaço (Etiqueta 1 em cima)';
+    sugerir.disabled = !col.etiquetas.length;
+
+    n('p', 'pr-ed-dica', 'Os produtos de cada prateleira vão da esquerda para a direita, com as frentes de cada um. Dá para colar várias linhas de uma planilha (Produto, SKU, Frentes) no campo do produto.', card);
+
+    // Uma caixa por prateleira: movimento, observação e os produtos.
+    const estante = n('div', 'pr-edicao', null, card);
+    const blocos = [];
+    for (let k = 0; k < ctx.plano.n; k++) {
+      const caixa = n('div', 'pr-ed-prateleira', null, estante);
+      caixa.dataset.numero = String(k + 1);
+      const cab = n('div', 'pr-ed-cab', null, caixa);
+      n('strong', null, rotulo(ctx.plano, k), cab);
+      const mov = n('select', 'pr-ed-mov', null, cab);
+      mov.setAttribute('aria-label', 'Movimento da ' + rotulo(ctx.plano, k).toLowerCase());
+      mov.appendChild(new Option('— sem movimento', ''));
+      col.etiquetas.forEach((e) => mov.appendChild(new Option(e.texto, e.texto)));
+      const obs = n('input', 'pr-ed-obs', null, cab);
+      obs.type = 'text';
+      obs.placeholder = 'observação (opcional)';
+      obs.maxLength = 500;
+      const tabela = n('div', 'pr-ed-produtos', null, caixa);
+      const rodape = n('div', 'pr-ed-rodape', null, caixa);
+      const bloco = { numero: k + 1, mov, obs, tabela, linhas: [] };
+      bloco.pintar = () => {
+        // Movimento que saiu das etiquetas do espaço: continua na lista, marcado, para trocar.
+        const valor = mov.value;
+        if (valor && !col.etiquetas.some((e) => e.texto === valor)) mov.classList.add('fora');
+        else mov.classList.remove('fora');
+        const marca = valor ? marcaDoMovimento(col, valor) : '';
+        caixa.style.setProperty('--cor', marca ? app.corDaMarca(marca, 'etiqueta') : 'transparent');
+      };
+      bloco.adicionar = (x, antes) => {
+        if (bloco.linhas.length >= limites().produtos) { app.toast('Até ' + limites().produtos + ' produtos por prateleira.', true); return null; }
+        const l = n('div', 'pr-ed-linha', null, null);
+        tabela.insertBefore(l, antes || null);
+        const nome = n('input', 'pr-ed-nome', null, l);
+        nome.type = 'text';
+        nome.placeholder = 'Produto';
+        nome.maxLength = 200;
+        nome.setAttribute('list', lista);
+        nome.value = x ? x.nome : '';
+        const sku = n('input', 'pr-ed-sku', null, l);
+        sku.type = 'text';
+        sku.placeholder = 'SKU';
+        sku.maxLength = 60;
+        sku.value = x ? x.sku || '' : '';
+        const fr = n('input', 'pr-ed-frentes', null, l);
+        fr.type = 'number';
+        fr.min = '1';
+        fr.max = String(limites().frentes);
+        fr.value = x ? String(x.frentes || 1) : '1';
+        fr.title = 'Frentes (quantas unidades lado a lado)';
+        const item = { l, nome, sku, fr };
+        // O SKU de um produto já usado no ciclo vem junto.
+        nome.addEventListener('change', () => { if (!sku.value && conhecidos[nome.value]) sku.value = conhecidos[nome.value]; });
+        // Colar várias linhas de uma planilha (Produto, SKU, Frentes) cria um produto por linha.
+        nome.addEventListener('paste', (ev) => {
+          const txt = (ev.clipboardData || window.clipboardData).getData('text');
+          if (!/[\n\t]/.test(txt.trim())) return;
+          ev.preventDefault();
+          const lidos = lerColagem(txt);
+          if (!lidos.length) return;
+          nome.value = lidos[0].nome;
+          sku.value = lidos[0].sku;
+          fr.value = String(lidos[0].frentes);
+          // As outras entram logo depois desta, na ordem colada.
+          const depois = l.nextSibling;
+          lidos.slice(1).forEach((y) => bloco.adicionar(y, depois));
+          sujo();
+        });
+        const mover = (d) => {
+          const i = bloco.linhas.indexOf(item);
+          const j = i + d;
+          if (j < 0 || j >= bloco.linhas.length) return;
+          bloco.linhas.splice(i, 1);
+          bloco.linhas.splice(j, 0, item);
+          bloco.linhas.forEach((x) => tabela.appendChild(x.l));
+          sujo();
+        };
+        botao('↑', 'fantasma', () => mover(-1), l).title = 'Mais para a esquerda';
+        botao('↓', 'fantasma', () => mover(1), l).title = 'Mais para a direita';
+        botao('×', 'fantasma', () => {
+          bloco.linhas.splice(bloco.linhas.indexOf(item), 1);
+          l.remove();
+          sujo();
+        }, l).title = 'Tirar o produto';
+        const pos = antes ? bloco.linhas.findIndex((x) => x.l === antes) : -1;
+        if (pos >= 0) bloco.linhas.splice(pos, 0, item);
+        else bloco.linhas.push(item);
+        return item;
+      };
+      botao('+ Produto', '', () => { const it = bloco.adicionar(null); if (it) it.nome.focus(); sujo(); }, rodape).dataset.acao = 'adicionar-produto';
+      mov.addEventListener('change', () => { bloco.pintar(); sujo(); });
+      [obs].forEach((x) => x.addEventListener('input', sujo));
+      tabela.addEventListener('input', sujo);
+      blocos.push(bloco);
+    }
+
+    /** Põe as prateleiras dadas nos campos (as que não vierem ficam vazias). */
+    function preencher(prateleiras) {
+      blocos.forEach((b) => {
+        const p = prateleiras.find((x) => x.numero === b.numero) || { movimento: '', observacao: '', produtos: [] };
+        if (p.movimento && !Array.from(b.mov.options).some((o) => o.value === p.movimento)) {
+          b.mov.appendChild(new Option(p.movimento + ' (fora das etiquetas do espaço)', p.movimento));
+        }
+        b.mov.value = p.movimento;
+        b.obs.value = p.observacao || '';
+        b.linhas.slice().forEach((x) => x.l.remove());
+        b.linhas = [];
+        p.produtos.forEach((x) => b.adicionar(x));
+        b.pintar();
+      });
+    }
+    preencher(det ? det.prateleiras : []);
+
+    /** Prateleiras para o servidor (as vazias ficam de fora). */
+    const ler = () => blocos.map((b) => ({
+      numero: b.numero, movimento: b.mov.value, observacao: b.obs.value.trim(),
+      produtos: b.linhas.map((x) => ({ nome: x.nome.value.trim(), sku: x.sku.value.trim(), frentes: parseInt(x.fr.value, 10) || 1 })).filter((x) => x.nome),
+    })).filter((p) => p.movimento || p.observacao || p.produtos.length);
+
+    const pe = n('div', 'pr-ed-acoes', null, card);
+    const salvar = botao('Salvar prateleiras', 'primario', async () => {
+      const prateleiras = ler();
+      await gravar(ctx, col, vale.value, prateleiras, prateleiras.length ? 'Prateleiras salvas' : 'Prateleiras apagadas', [salvar]);
+    }, pe);
+    salvar.dataset.acao = 'salvar-prateleiras';
+    botao('Cancelar', 'fantasma', () => {
+      if (editando.sujo && !window.confirm('Descartar as mudanças nas prateleiras?')) return;
+      editando = null;
+      app.abrirMovel(ctx.movel.id);
+    }, pe);
+    if (det) {
+      botao('Apagar o detalhe', 'fantasma perigo', async () => {
+        const onde = vale.value === dados().config.plantaTodas ? 'em todas as ERs' : 'na ' + ctx.planta.nome;
+        if (!window.confirm('Apagar os produtos das prateleiras deste espaço ' + onde + '?')) return;
+        await gravar(ctx, col, vale.value, [], 'Prateleiras apagadas', [salvar]);
+      }, pe);
+    }
+    const primeiro = blocos[0] && (blocos[0].linhas[0] ? blocos[0].linhas[0].nome : blocos[0].mov);
+    if (primeiro) setTimeout(() => primeiro.focus(), 0);
+  }
+
+  async function gravar(ctx, col, planta, prateleiras, mensagem, botoes) {
+    botoes.forEach((b) => { b.disabled = true; });
+    try {
+      dados().prateleiras = await app.chamar('salvarPrateleiras', app.acesso(), {
+        acao: 'salvar', ciclo: ctx.ciclo, planta, espaco: col.id, prateleiras,
+      });
+      editando = null;
+      app.toast(mensagem + (planta === dados().config.plantaTodas ? ' em todas as ERs que têm o espaço.' : '.'));
+      app.abrirMovel(ctx.movel.id);
+    } catch (e) {
+      app.erro(e);
+      botoes.forEach((b) => { b.disabled = false; });
+    }
+  }
+
+  /** Fechar a tela do móvel com mudanças não salvas pergunta antes. @return {boolean} pode fechar */
+  function podeFechar() {
+    if (!editando) return true;
+    if (editando.sujo && !window.confirm('As mudanças nas prateleiras não foram salvas. Fechar mesmo assim?')) return false;
+    editando = null;
+    return true;
+  }
+
+  function iniciar(contexto) {
+    app = contexto;
+    const dlg = $('dlgMovel');
+    // Esc e o botão Fechar: com a edição aberta e mudanças, pergunta antes.
+    dlg.addEventListener('cancel', (e) => { if (!podeFechar()) e.preventDefault(); });
+    dlg.querySelector('form').addEventListener('submit', (e) => { if (!podeFechar()) e.preventDefault(); });
+    window.addEventListener('beforeunload', (e) => {
+      if (editando && editando.sujo) { e.preventDefault(); e.returnValue = ''; }
+    });
+  }
+
+  return { iniciar, doEspaco, montarSecao, podeFechar };
+})();
+</script>

@@ -145,6 +145,15 @@ test('visualizador: antecipações ficam na aba Antecipações e chegam a todos 
   assert.deepEqual(a.map((x) => [x.planta, x.movel, x.etiqueta, x.dataTexto]), [['01', 'PIRAMIDE 1', 'NOVO ITEM', '03/11/2026']]);
 });
 
+test('visualizador: prateleiras ficam na aba Prateleiras e chegam a todos no getDados', () => {
+  const { run, falsos } = carregarVisualizador();
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  run(`salvarPrateleiras(${C}, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1', prateleiras: [{ numero: 1, produtos: [{ nome: 'Malbec', frentes: 2 }] }] })`);
+  assert.ok(falsos.planilha.getSheetByName('Prateleiras'), 'aba criada');
+  const g = run('getDados()').prateleiras;
+  assert.deepEqual(g.map((x) => [x.planta, x.espaco, x.prateleiras[0].produtos[0].nome, x.prateleiras[0].produtos[0].frentes]), [['01', 'PIRAMIDE 1', 'Malbec', 2]]);
+});
+
 test('arquivo único para o Apps Script: atualizado, serve a página embutida e lê a planilha', () => {
   const fs = require('fs');
   const unico = fs.readFileSync(ARQUIVO_UNICO, 'utf8');

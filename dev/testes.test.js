@@ -666,6 +666,77 @@ test('antecipação: item do próximo ciclo num espaço do ciclo atual, a partir
   assert.deepEqual(l.map((a) => a.data), ['2026-10-18']);
 });
 
+test('prateleiras: produtos de cada prateleira, por espaço e por ER, só pelo construtor', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  const salvar = (quem, pedido) => run(`salvarPrateleiras(${quem}, ${JSON.stringify(pedido)})`);
+  assert.deepEqual(run('getDados()').prateleiras, []);
+
+  const prateleiras = [
+    { numero: 1, movimento: 'LÇTO EGEO', observacao: 'altura dos olhos', produtos: [{ nome: 'Egeo Dolce 90ml', sku: '12345', frentes: 3 }, { nome: 'Egeo Bomb 90ml', frentes: '2' }] },
+    { numero: 3, movimento: 'BOTIPROMO', produtos: [] },
+    { numero: 4, movimento: '', produtos: [{ nome: 'Kit presente', frentes: 0 }] },
+  ];
+  const base = { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'Gondola 1 / ponta a', prateleiras };
+  assert.throws(() => salvar(V, base), /Só o construtor/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { ciclo: 'C99' })), /não foi encontrado/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { espaco: 'GONDOLA 1' })), /Escolha o espaço/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { espaco: 'TOTEM 1/PAINEL-1' })), /não leva produtos/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { espaco: 'MESA DESTAQUE 1/VERSO' })), /não tem prateleiras/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { prateleiras: [{ numero: 5, produtos: [] }] })), /vai de 1 a 4/);
+
+  let l = salvar(C, base);
+  assert.equal(l.length, 1);
+  assert.deepEqual([l[0].ciclo, l[0].planta, l[0].espaco, l[0].autor], ['Ciclo exemplo', '02', 'GONDOLA 1/PONTA-A', 'Bia']);
+  assert.deepEqual(l[0].prateleiras.map((p) => [p.numero, p.movimento, p.produtos.length]), [[1, 'LÇTO EGEO', 2], [3, 'BOTIPROMO', 0], [4, '', 1]]);
+  assert.deepEqual(l[0].prateleiras[0].produtos, [{ nome: 'Egeo Dolce 90ml', sku: '12345', frentes: 3 }, { nome: 'Egeo Bomb 90ml', sku: '', frentes: 2 }]);
+  assert.equal(l[0].prateleiras[0].observacao, 'altura dos olhos');
+  assert.equal(l[0].prateleiras[2].produtos[0].frentes, 1, 'frentes vazias ou inválidas = 1');
+  const aba = run(`lerAba_(planilha_(), 'Prateleiras', true)`);
+  assert.deepEqual(aba[0].slice(0, 8), ['Ciclo', 'Planta', 'ID Móvel', 'Prateleira', 'Movimento (etiqueta)', 'Produto', 'SKU', 'Frentes']);
+  assert.equal(aba.length, 1 + 4, 'uma linha por produto e uma pela prateleira só com o movimento');
+
+  // Móveis de um espaço só usam o ID do móvel; o móvel make, as prateleiras do corpo; a mesa, o nicho de cada frente.
+  salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'MOVEL MAKE 1', prateleiras: [{ numero: 5, produtos: [{ nome: 'Base' }] }] });
+  assert.throws(() => salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'MESA DESTAQUE 1/FRENTE-1', prateleiras: [{ numero: 2, produtos: [] }] }), /vai de 1 a 1/);
+  // Todas as ERs: cada ER que tem o espaço recebe as mesmas prateleiras.
+  l = salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'TODAS', espaco: 'PIRAMIDE 1', prateleiras: [{ numero: 2, produtos: [{ nome: 'Malbec' }] }] });
+  assert.deepEqual(l.filter((g) => g.espaco === 'PIRAMIDE 1').map((g) => g.planta), ['01', '02', '03', '04']);
+  // Salvar de novo troca as prateleiras do espaço (só nessa ER); a lista vazia apaga.
+  l = salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1', prateleiras: [] });
+  assert.deepEqual(l.filter((g) => g.espaco === 'PIRAMIDE 1').map((g) => g.planta), ['02', '03', '04']);
+  assert.equal(run('getDados()').prateleiras.length, 5);
+
+  // Ciclo em construção: copiar "tudo" leva as prateleiras; enviado, trava; excluir apaga as do ciclo.
+  const rascunho = (pedido) => run(`salvarRascunho(${C}, ${JSON.stringify(pedido)})`);
+  rascunho({ acao: 'criar', ciclo: 'C40', origem: 'Ciclo exemplo' });
+  let d = run('getDados()');
+  assert.equal(d.prateleiras.filter((g) => g.ciclo === 'C40').length, 5, 'a cópia leva as prateleiras');
+  salvar(C, Object.assign({}, base, { ciclo: 'C40', prateleiras: [{ numero: 2, produtos: [{ nome: 'Outro' }] }] }));
+  d = run('getDados()');
+  assert.deepEqual(d.prateleiras.find((g) => g.ciclo === 'C40' && g.espaco === 'GONDOLA 1/PONTA-A').prateleiras.map((p) => p.numero), [2]);
+  assert.deepEqual(d.prateleiras.find((g) => g.ciclo === 'Ciclo exemplo' && g.espaco === 'GONDOLA 1/PONTA-A').prateleiras.map((p) => p.numero), [1, 3, 4], 'o ciclo de origem não muda');
+  rascunho({ acao: 'excluir', ciclo: 'C40' });
+  assert.ok(!run('getDados()').prateleiras.some((g) => g.ciclo === 'C40'), 'excluir o ciclo em construção apaga as prateleiras dele');
+});
+
+test('prateleiras: a cópia "só os fixos" leva só as prateleiras dos espaços fixos', () => {
+  const { run } = carregarGas();
+  const prat = [
+    { ciclo: 'C1', planta: 'ER P', espaco: 'GONDOLA 1/MEIO-A-1', prateleira: 1, produto: 'A' },
+    { ciclo: 'C1', planta: 'ER M', espaco: 'GONDOLA 1/PONTA-A', prateleira: 1, produto: 'B' },
+    { ciclo: 'C1', planta: 'ER P', espaco: 'PIRAMIDE 1', prateleira: 1, produto: 'C' },
+    { ciclo: 'C2', planta: 'ER P', espaco: 'PIRAMIDE 2', prateleira: 1, produto: 'D' },
+  ];
+  const fixos = [{ planta: 'ER P', movel: 'GONDOLA 1/MEIO-A' }, { planta: 'ER G', movel: 'GONDOLA 1/PONTA-A' }];
+  const r = run(`prateleirasParaCopia_(${JSON.stringify(prat)}, 'C1', 'C9', ${JSON.stringify(fixos)})`);
+  assert.deepEqual(r.map((o) => [o.ciclo, o.produto]), [['C9', 'A']], 'a metade do meio fixo vai; a ponta fixa só a partir da ER G não vale na ER M');
+  assert.equal(run(`prateleirasParaCopia_(${JSON.stringify(prat)}, 'C1', 'C9', null)`).length, 3);
+});
+
 test('observação da etiqueta depois do "|": aparece na etiqueta, mas o movimento é o que vem antes', () => {
   const { run } = carregarGas();
   assert.equal(run("chaveEtiqueta_('Lçto  Egeo | só no kit')"), run("chaveEtiqueta_('LÇTO EGEO')"));

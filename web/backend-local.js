@@ -68,6 +68,7 @@
       const abas = ler();
       const dados = montarDados_(abas.layout, abas.movimentos, abas.paineis, abas.tipos);
       dados.antecipacoes = antecipacoesDeValores_(abas['aba:' + CONFIG.ABAS.ANTECIPACOES]);
+      dados.prateleiras = prateleirasDeValores_(abas['aba:' + CONFIG.ABAS.PRATELEIRAS]);
       dados.planilhaUrl = '';
       dados.precisaConfigurar = false;
       dados.modoLocal = true;
@@ -131,6 +132,10 @@
 
     salvarAntecipacao(acesso, pedido) {
       return executarAntecipacao_(ioRascunhos(), acesso, pedido);
+    },
+
+    salvarPrateleiras(acesso, pedido) {
+      return executarPrateleiras_(ioRascunhos(), acesso, pedido);
     },
 
     salvarAjustesEtiquetas(planta, ajustes) {

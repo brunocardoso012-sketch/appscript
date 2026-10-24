@@ -186,7 +186,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
-      rede: REDE,
+      rede: REDE, limitesPrateleira: LIMITES_PRATELEIRA,
     },
   };
 }

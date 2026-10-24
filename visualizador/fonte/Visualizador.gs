@@ -71,6 +71,7 @@ function getDados() {
     lerAbaTexto_(ss, CONFIG.ABAS.TIPOS));
   aplicarAjustesSalvos_(dados.plantas);
   dados.antecipacoes = antecipacoesDeValores_(lerAbaTexto_(ss, CONFIG.ABAS.ANTECIPACOES));
+  dados.prateleiras = prateleirasDeValores_(lerAbaTexto_(ss, CONFIG.ABAS.PRATELEIRAS));
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = false;
@@ -192,6 +193,17 @@ function salvarRascunho(acesso, pedido) {
  */
 function salvarAntecipacao(acesso, pedido) {
   return executarAntecipacao_(ioRascunhos_(planilhaVisualizador_()), acesso, pedido);
+}
+
+/* ============================= PRATELEIRAS =============================== */
+/* Produtos de cada prateleira de cada espaço (aba Prateleiras).              */
+
+/**
+ * Grava os produtos das prateleiras de um espaço (veja aplicarAcaoPrateleiras_). Todo mundo as recebe no getDados.
+ * @return {Array} prateleiras atualizadas
+ */
+function salvarPrateleiras(acesso, pedido) {
+  return executarPrateleiras_(ioRascunhos_(planilhaVisualizador_()), acesso, pedido);
 }
 
 /* ================================ I/O ===================================== */
