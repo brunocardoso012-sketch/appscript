@@ -317,8 +317,8 @@ const CONFIG = {
  * Provisórias: no futuro virão da planilha (troque em senhasDeAcesso_, Validacao.gs).
  */
 const SENHAS_ACESSO = {
-  VALIDADOR: '1234',
-  CONSTRUTOR: '1234',
+  VALIDADOR: 'validacao_exposicao',
+  CONSTRUTOR: 'construcao_exposicao',
 };
 
 /**
@@ -376,17 +376,17 @@ const MARCAS = {
     movel: '#7CC9A0',
     apelidos: ['Boticário', 'BOTICARIO', 'OBOTICARIO', 'BOTI', 'VERDE'],
   },
-  QDB: {
-    nome: 'QDB',
-    etiqueta: '#E23FB4',
-    movel: '#F07ACD',
-    apelidos: ['Quem disse, berenice?', 'QUEMDISSEBERENICE', 'BERENICE', 'ROSA'],
-  },
   EUD: {
     nome: 'EUD',
     etiqueta: '#A11FC9',
     movel: '#B666D8',
     apelidos: ['Eudora', 'EUDORA', 'ROXO'],
+  },
+  QDB: {
+    nome: 'QDB',
+    etiqueta: '#E23FB4',
+    movel: '#F07ACD',
+    apelidos: ['Quem disse, berenice?', 'QUEMDISSEBERENICE', 'BERENICE', 'ROSA'],
   },
   OUI: {
     nome: 'OUI',
@@ -413,8 +413,9 @@ const SIMBOLOS = {
   FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', 'CADEADO', '🔒', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
-  // Não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
-  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: [], automatico: true },
+  // No espaço, não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
+  // Na etiqueta, pode vir da planilha (coluna "Símbolo Etiqueta N"), com a data em "Data Etiqueta N".
+  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: ['ANTECIPACAO', 'ANTECIPADA', '⏩'], automatico: true },
 };
 
 /**
@@ -547,6 +548,9 @@ function colunasMovimentos_() {
   for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
     cols.push({ chave: 'etiqueta' + i, titulo: 'Etiqueta ' + i, texto: true, apelidos: ['Texto ' + i] });
     cols.push({ chave: 'marcaEtiqueta' + i, titulo: 'Marca Etiqueta ' + i, apelidos: ['Cor Etiqueta ' + i] });
+    // Símbolo próprio da etiqueta (aparece ao lado dela); com a antecipação (⏩), a data em que entra.
+    cols.push({ chave: 'simboloEtiqueta' + i, titulo: 'Símbolo Etiqueta ' + i });
+    cols.push({ chave: 'dataEtiqueta' + i, titulo: 'Data Etiqueta ' + i, texto: true, apelidos: ['Data Antecipação ' + i] });
   }
   cols.push({ chave: 'simbolo', titulo: 'Símbolo' });
   cols.push({ chave: 'observacao', titulo: 'Observação', texto: true, apelidos: ['Obs'] });
@@ -1193,7 +1197,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
         const t = texto_(l['etiqueta' + i]);
         // posicao = número da coluna (na gôndola, cada uma vai para um bloco).
-        if (t) etiquetas.push({ texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i });
+        if (t) etiquetas.push(etiquetaDaLinha_(l, i, t, aviso, onde));
       }
       registrarCiclo(ciclo);
       movimentos[ciclo] = movimentos[ciclo] || {};
@@ -1246,18 +1250,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     if (lido.faltando.length) {
       aviso('Aba "' + CONFIG.ABAS.TIPOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
     }
-    // Etiquetas de cada ciclo (para avisar de movimento que não aparece em nenhuma etiqueta).
-    const etiquetasDoCiclo = function (ciclo) {
-      const vistas = {};
-      const c = movimentos[ciclo] || {};
-      Object.keys(c).forEach(function (p) {
-        Object.keys(c[p]).forEach(function (id) {
-          c[p][id].etiquetas.forEach(function (e) { vistas[chaveEtiqueta_(e.texto)] = true; });
-        });
-      });
-      return vistas;
-    };
-    const etiquetasPorCiclo = {};
+    // Movimento cadastrado sem nenhum espaço no ciclo é válido (ex.: cadastrado na construção do ciclo).
     lido.linhas.forEach(function (l) {
       const ciclo = texto_(l.ciclo);
       const texto = texto_(l.etiqueta);
@@ -1275,10 +1268,6 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       }
       const gmv = numeroGmv_(l.gmv);
       if (gmv === null && texto_(l.gmv)) aviso(onde + ': GMV esperado "' + texto_(l.gmv) + '" não é um número — ignorado.');
-      if (movimentos[ciclo]) {
-        etiquetasPorCiclo[ciclo] = etiquetasPorCiclo[ciclo] || etiquetasDoCiclo(ciclo);
-        if (!etiquetasPorCiclo[ciclo][k]) aviso(onde + ': "' + texto + '" não aparece em nenhuma etiqueta do ciclo ' + ciclo + '.');
-      }
       tiposMovimento[ciclo][k] = {
         texto: movimentoDaEtiqueta_(texto),
         classificacao: normClassificacao_(l.classificacao),
@@ -1688,13 +1677,29 @@ function normMarca_(v, aviso, onde) {
   return codigos.join('+');
 }
 
-function normSimbolo_(v, aviso, onde) {
+/**
+ * Etiqueta N de uma linha da aba Movimentos: texto, marca, posição e, se houver, o símbolo próprio dela e, com a
+ * antecipação (⏩), a data em que entra ("2026-10-25"). simbolo e data só aparecem quando preenchidos.
+ */
+function etiquetaDaLinha_(l, i, t, aviso, onde) {
+  const e = { texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i };
+  const simbolo = normSimbolo_(l['simboloEtiqueta' + i], aviso, onde, true);
+  if (simbolo) e.simbolo = simbolo;
+  if (simbolo === 'ANTECIPADO') {
+    const data = dataAntecipacao_(l['dataEtiqueta' + i]);
+    if (data) e.data = data;
+    else if (texto_(l['dataEtiqueta' + i]) && aviso) aviso(onde + ': data da etiqueta ' + i + ' "' + texto_(l['dataEtiqueta' + i]) + '" inválida (use dd/mm/aaaa).');
+  }
+  return e;
+}
+
+function normSimbolo_(v, aviso, onde, daEtiqueta) {
   const s = texto_(v);
   if (!s) return '';
   const bruto = s.toUpperCase();
   const k = chave_(s);
-  // O de antecipação (automatico) não vem da planilha: só da aba Antecipações.
-  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return !SIMBOLOS[c].automatico; });
+  // O de antecipação (automatico) não vem da coluna Símbolo do espaço (só da aba Antecipações); na etiqueta, vem.
+  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return daEtiqueta || !SIMBOLOS[c].automatico; });
   for (let i = 0; i < codigos.length; i++) {
     const nomes = [codigos[i]].concat(SIMBOLOS[codigos[i]].apelidos || []);
     for (let j = 0; j < nomes.length; j++) {
@@ -2121,7 +2126,7 @@ function ciclosPublicados_(abas) {
 
 /**
  * Linha da aba Movimentos de um espaço, a partir do que a página manda.
- * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca}>}} l
+ * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca, simbolo?, data?}>}} l  data: da antecipação (⏩)
  * @return {Object|null} null quando o espaço fica vazio (a linha sai)
  */
 function linhaDeEspaco_(ciclo, planta, movel, l) {
@@ -2137,6 +2142,9 @@ function linhaDeEspaco_(ciclo, planta, movel, l) {
     const e = etiquetas[i - 1];
     o['etiqueta' + i] = e ? texto_(e.texto).slice(0, 200) : '';
     o['marcaEtiqueta' + i] = e ? normMarca_(e.marca) : '';
+    const simbolo = e ? normSimbolo_(e.simbolo, null, null, true) : '';
+    o['simboloEtiqueta' + i] = simbolo;
+    o['dataEtiqueta' + i] = simbolo === 'ANTECIPADO' ? dataAntecipacaoTexto_(dataAntecipacao_(e.data)) : '';
   }
   return o.marca || o.simbolo || o.observacao || etiquetas.length ? o : null;
 }
@@ -2189,7 +2197,8 @@ function listaCurta_(itens) {
  *                    movimentos dos tipos) e trava a edição até o validador decidir;
  *  - excluir:        { acao, ciclo }                  construtor (antes da aprovação);
  *  - devolver:       { acao, ciclo, planta, motivo }   validador: volta para construção, com um comentário;
- *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas.
+ *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas (todos os
+ *                    tipos cadastrados vão para a aba Tipos de movimento, mesmo os que nenhum espaço usa).
  * @param {Object} abas  matrizes (com cabeçalho) de cada campo de abasRascunho_()
  * @param {{papel, autor}} quem  resultado de conferirAcesso_
  * @return {{abas: Object, gravar: string[]}} gravar: campos das abas que mudaram
@@ -2362,11 +2371,15 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigir('VALIDADOR', 'aprova o ciclo');
     exigirRascunho('ENVIADO');
     if (ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '" publicado. Peça para o construtor renomear (criar outro copiando este).');
-    // Tipos cadastrados que nenhum espaço usou não vão para a planilha (dariam aviso de "não aparece em nenhuma etiqueta").
-    const usados = {};
-    objs('rMovimentos').filter(doCiclo).forEach(function (o) { etiquetasDaLinha_(o).forEach(function (e) { usados[chaveEtiqueta_(e)] = true; }); });
+    // Todos os Tipos de movimento cadastrados no ciclo vão para a aba "Tipos de movimento", inclusive os movimentos
+    // novos que ainda não estão em nenhum espaço; o GMV vai como número.
+    const comoPublicada = function (campo, o) {
+      if (campo !== 'tipos') return o;
+      const gmv = typeof o.gmv === 'number' ? o.gmv : numeroGmv_(o.gmv);
+      return Object.assign({}, o, { gmv: gmv === null ? '' : gmv });
+    };
     [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
-      const linhas = objs(x[1]).filter(doCiclo).filter(function (o) { return x[0] !== 'tipos' || usados[chaveEtiqueta_(o.etiqueta)]; });
+      const linhas = objs(x[1]).filter(doCiclo).map(function (o) { return comoPublicada(x[0], o); });
       if (linhas.length) {
         novas[x[0]] = mesclarLinhas_(abas[x[0]] && abas[x[0]].length ? abas[x[0]] : [], linhas, defs[x[0]].colunas);
         gravar.push(x[0]);

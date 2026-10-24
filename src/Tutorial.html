@@ -9,8 +9,8 @@
  *  em "Ver o tutorial".
  *
  *  Passos cujo alvo não existe nesta versão (ex.: Construir loja no visualizador) ou está escondido
- *  são pulados sozinhos. O tour não grava nada na planilha: só abre (e fecha) o Analytics e
- *  escolhe um ciclo, se nenhum estiver escolhido, para a tela ter o que mostrar.
+ *  são pulados sozinhos. O tour é curto (só o essencial) e não grava nada na planilha: só fecha o
+ *  Analytics e escolhe um ciclo, se nenhum estiver escolhido, para a tela ter o que mostrar.
  */
 const Tutorial = (() => {
   const CHAVE_VISTO = 'planoVarejo.tutorialVisto';
@@ -46,90 +46,58 @@ const Tutorial = (() => {
     sel.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  function abrirAnalytics() {
-    const b = $('btnAnalytics');
-    if (b && b.getAttribute('aria-pressed') !== 'true') b.click();
-  }
-
   function fecharAnalytics() {
     const b = $('btnAnalytics');
     if (b && b.getAttribute('aria-pressed') === 'true') b.click();
   }
 
   /**
-   * Os passos do tour. alvo: seletor (ou lista; vale o primeiro visível); antes: ação ao entrar no passo;
-   * comAnalytics: o passo é dentro do Analytics (nos outros, ele fecha, para a planta aparecer).
+   * Os passos do tour (só o essencial, com textos curtos). alvo: seletor (ou lista; vale o primeiro visível);
+   * antes: ação ao entrar no passo; comAnalytics: o passo é dentro do Analytics (nos outros, ele fecha).
    */
   function montarPassos() {
     return [
       {
         alvo: '#selCiclo',
-        titulo: 'Escolha o ciclo',
-        texto: 'Tudo começa aqui. Cada ciclo é um plano de varejo: as cores dos móveis, as etiquetas e os painéis mudam de acordo com o ciclo escolhido. Sem ciclo, a planta aparece limpa.',
+        titulo: 'Ciclo',
+        texto: 'O app abre no último ciclo aprovado. Troque aqui para ver outro.',
         antes: garantirCiclo,
       },
       {
         alvo: '#abasPlanta',
-        titulo: 'Troque de planta',
-        texto: 'ER P, ER M, ER G e ER GG são os tamanhos de loja. O que vale para uma planta vale também para as maiores, a menos que a planilha diga o contrário. Dica: as setas ← → do teclado trocam de planta, ótimo para apresentar.',
-      },
-      {
-        alvo: '#abasVisao',
-        titulo: 'Duas formas de ver as etiquetas',
-        texto: '"Na planta" mostra cada etiqueta junto do espaço do móvel. "Visão simplificada" troca a planta por fichas organizadas por tipo de móvel, mais fáceis de ler numa reunião.',
+        titulo: 'Plantas',
+        texto: 'Um tamanho de loja por aba (ER P a ER GG). As setas ← → também trocam.',
       },
       {
         alvo: '#slide',
-        titulo: 'A planta da loja',
-        texto: 'Cada móvel tem a cor da marca e as etiquetas do ciclo. Clique num móvel para ver a estratégia dele (com o planograma das prateleiras). Use a roda do mouse, a pinça ou os botões − / + para dar zoom; com zoom, arraste para mover.',
+        titulo: 'Planta',
+        texto: 'Cada móvel tem a cor da marca e as etiquetas do ciclo. Clique num móvel para ver os detalhes.',
         posicao: 'centro',
       },
       {
         alvo: '#legenda',
-        titulo: 'Filtre por marca',
-        texto: 'Clique numa marca para destacar só ela: o resto fica em cinza. Clique de novo para ver todas. O filtro vale também para o PNG.',
+        titulo: 'Marcas',
+        texto: 'Clique numa marca para destacar só ela.',
       },
       {
         alvo: '#btnLoja',
         titulo: 'Comunicações ER',
-        texto: 'Abre, à esquerda, as comunicações da ER: nome e ciclo, TV e rádio, (A), (C), os destaques (com a miniatura do móvel a que cada um se refere) e os itens fora da planta (cestinhas, espaço da beleza, cavalete).',
+        texto: 'TV e rádio, (A), (C), destaques e itens fora da planta da ER.',
       },
       {
         alvo: '#btnAnalytics',
         titulo: 'Analytics',
-        texto: 'Um dashboard do ciclo no lugar da planta: quanto do espaço de cada ER vai para cada movimento, marca e classificação (lançamento, promoção…), com o GMV esperado e insights rápidos.',
-      },
-      {
-        alvo: '.an-mapa-cartao',
-        titulo: 'Movimento × ER',
-        texto: 'Cada linha é um movimento e cada coluna uma ER: quanto mais escuro, maior a fatia da ER. Clique numa célula (ou num insight) para ver na planta daquela ER só onde o movimento aparece. "Sobre a análise", no topo, explica o que conta como espaço; "Voltar à planta" (ou Esc) fecha o Analytics.',
-        antes: () => { garantirCiclo(); abrirAnalytics(); },
-        comAnalytics: true,
+        texto: 'Como o espaço de cada ER se divide entre movimentos, marcas e classificações.',
       },
       {
         alvo: '#btnPng',
-        titulo: 'Leve para a apresentação',
-        texto: 'Baixe a planta, a visão simplificada ou a estratégia (o espaço da ER em gráficos). Escolha "PNG" para só o conteúdo, com fundo transparente, ou "Slide completo" para o slide 16:9 pronto para colar.',
+        titulo: 'Baixar PNG',
+        texto: 'Leve a planta para a apresentação: PNG recortado ou slide completo.',
       },
       {
         alvo: '#btnConfig',
-        titulo: 'Configurações',
-        texto: 'Na engrenagem ficam a Validação (o validador comenta a estratégia e o construtor responde; o número mostra os comentários abertos) e Ajustar etiquetas (arraste cada pilha para onde quiser e mude o tamanho das etiquetas). O tutorial também fica aqui.',
-      },
-      {
-        alvo: ['#btnModelo', '#lnkPlanilha'],
-        titulo: 'A planilha manda',
-        texto: 'Tudo o que aparece vem da planilha: abas Movimentos (cor e etiquetas de cada móvel), Painéis (TV, A, C, notas, destaques) e Tipos de movimento (classificação e GMV). Edite a planilha e clique em "Atualizar" para ver as mudanças.',
-        textoCompleto: 'Tudo o que aparece vem da planilha. "Baixar planilha base" gera o arquivo para montar o próximo ciclo (já com o ciclo atual, se quiser) e "Importar planilha" lê o arquivo preenchido. Se editar direto no Google Sheets, clique em "Atualizar".',
-      },
-      {
-        alvo: '#btnConstruir',
-        titulo: 'Construir loja',
-        texto: 'Para mudar o layout de uma planta: adicione, mova, gire e redimensione os móveis e clique em "Salvar planta".',
-      },
-      {
-        titulo: 'Pronto!',
-        texto: 'Você já sabe o essencial. Para rever este tour quando quiser, abra a engrenagem no topo e escolha "Ver o tutorial".',
+        titulo: 'Engrenagem',
+        texto: 'Validação e Construção (cada uma com a sua senha), ajuste das etiquetas, planilha e este tutorial.',
       },
     ];
   }
@@ -241,7 +209,7 @@ const Tutorial = (() => {
     h.textContent = p.titulo;
     const t = document.createElement('p');
     t.id = 'tutTexto';
-    t.textContent = p.textoCompleto && document.getElementById('btnModelo') ? p.textoCompleto : p.texto;
+    t.textContent = p.texto;
     const pontos = document.createElement('div');
     pontos.className = 'tut-pontos';
     pontos.setAttribute('aria-hidden', 'true');
@@ -325,7 +293,7 @@ const Tutorial = (() => {
   function boasVindas() {
     passos = [{
       titulo: 'Bem-vindo ao Plano de Varejo',
-      texto: 'Aqui você vê, em cada ER, onde fica cada marca e cada movimento do ciclo, com as etiquetas na planta e, no Analytics, como o espaço se divide em cada ER. Quer um tour rápido (cerca de 2 minutos) pelas principais funções?',
+      texto: 'Aqui você vê, em cada ER, onde fica cada marca e cada movimento do ciclo, com as etiquetas na planta e, no Analytics, como o espaço se divide em cada ER. Quer um tour rápido (menos de 1 minuto) pelo essencial?',
     }];
     criarCamada();
     atual = 0;

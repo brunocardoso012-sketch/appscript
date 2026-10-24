@@ -340,12 +340,16 @@ test('gôndola, mesas, totem e móvel make: linha do móvel inteiro é ignorada 
 test('validação: senha por papel, quem pode o quê e aba Comentários', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  const V = "{ papel: 'validador', senha: '1234', nome: 'Ana' }";
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const V = "{ papel: 'validador', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   assert.deepEqual(run(`entrarValidacao(${V})`), { papel: 'VALIDADOR', autor: 'Ana', nomePapel: 'Validador' });
   assert.throws(() => run("entrarValidacao({ papel: 'VALIDADOR', senha: '0000', nome: 'Ana' })"), /Senha incorreta/);
-  assert.throws(() => run("entrarValidacao({ papel: 'VALIDADOR', senha: '1234', nome: ' ' })"), /nome/);
-  assert.throws(() => run("entrarValidacao({ papel: 'CHEFE', senha: '1234', nome: 'X' })"), /validador ou construtor/);
+  // Cada módulo tem a sua senha: a da construção não entra na validação, e vice-versa.
+  assert.throws(() => run("entrarValidacao({ papel: 'VALIDADOR', senha: 'construcao_exposicao', nome: 'Ana' })"), /Senha incorreta/);
+  assert.throws(() => run("entrarValidacao({ papel: 'CONSTRUTOR', senha: 'validacao_exposicao', nome: 'Bia' })"), /Senha incorreta/);
+  assert.equal(run(`entrarValidacao(${C})`).papel, 'CONSTRUTOR');
+  assert.throws(() => run("entrarValidacao({ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: ' ' })"), /nome/);
+  assert.throws(() => run("entrarValidacao({ papel: 'CHEFE', senha: 'validacao_exposicao', nome: 'X' })"), /validador ou construtor/);
 
   assert.throws(() => run(`salvarComentario(${C}, { acao: 'novo', ciclo: 'C1', planta: '01', texto: 'x' })`), /Só o validador cria/);
   let l = run(`salvarComentario(${V}, { acao: 'novo', ciclo: 'C1', planta: 'ER P', movel: 'gôndola 1', texto: 'Trocar o lado A' })`);
@@ -373,8 +377,8 @@ test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
   run('configurarPlanilha()');
-  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   const salvar = (quem, pedido) => run(`salvarRascunho(${quem}, ${JSON.stringify(pedido)})`);
   const exemplo = run('getDados()');
   const nLinhasExemplo = Object.values(exemplo.movimentos['Ciclo exemplo']).reduce((s, p) => s + Object.keys(p).length, 0);
@@ -458,7 +462,7 @@ test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   assert.ok(d.ciclos.includes('C11') && d.ciclos.includes('Ciclo exemplo'));
   assert.deepEqual(d.paineis.C11['01'], [{ secao: 'TV', texto: 'GRADE NOVA', marca: 'MULTI', movel: '' }]);
   assert.equal(d.tiposMovimento.C11.BOTIPROMO.gmv, 1500000);
-  assert.ok(!d.tiposMovimento.C11['NÃO USADO']);
+  assert.equal(d.tiposMovimento.C11['NÃO USADO'].gmv, 5, 'os tipos ainda sem espaço também entram na aba');
   assert.ok(!d.avisos.some((a) => /C11/.test(a)), 'sem avisos do ciclo novo: ' + d.avisos.filter((a) => /C11/.test(a)).join(' | '));
   assert.deepEqual(d.tiposMovimento['Ciclo exemplo'], exemplo.tiposMovimento['Ciclo exemplo'], 'os tipos dos outros ciclos ficam como estavam');
   assert.deepEqual(d.paineis['Ciclo exemplo'], exemplo.paineis['Ciclo exemplo']);
@@ -516,7 +520,7 @@ test('tipos de movimento: classificação e GMV esperado por etiqueta do ciclo',
   assert.deepEqual([c1['MULTI PROMO'].classificacao, c1['MULTI PROMO'].gmv], ['PROMOCAO', 2000000]);
   assert.equal(c1['NÃO EXISTE'].gmv, null);
   assert.ok(d.avisos.some((a) => /linha 3: "multi promo" já aparece/.test(a)), d.avisos.join('|'));
-  assert.ok(d.avisos.some((a) => /"NÃO EXISTE" não aparece em nenhuma etiqueta/.test(a)));
+  assert.ok(!d.avisos.some((a) => /NÃO EXISTE/.test(a) && !/GMV/.test(a)), 'movimento cadastrado sem espaço é válido');
   assert.ok(d.avisos.some((a) => /GMV esperado "x"/.test(a)));
   assert.deepEqual(d.ciclos, ['C1'], 'a aba não cria ciclos sozinha');
   const ex = run('montarDados_(valoresLayoutPadrao_(), valoresMovimentosExemplo_(), valoresPaineisExemplo_(), valoresTiposExemplo_())');
@@ -619,8 +623,8 @@ test('antecipação: item do próximo ciclo num espaço do ciclo atual, a partir
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
   run('configurarPlanilha()');
-  const V = "{ papel: 'VALIDADOR', senha: '1234', nome: 'Ana' }";
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   const salvar = (quem, pedido) => run(`salvarAntecipacao(${quem}, ${JSON.stringify(pedido)})`);
   assert.deepEqual(run('getDados()').antecipacoes, []);
 
@@ -678,7 +682,7 @@ test('ciclo em construção: etiqueta com observação usa o movimento cadastrad
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
   run('configurarPlanilha()');
-  const C = "{ papel: 'CONSTRUTOR', senha: '1234', nome: 'Bia' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   const salvar = (pedido) => run(`salvarRascunho(${C}, ${JSON.stringify(pedido)})`);
   salvar({ acao: 'criar', ciclo: 'C30' });
   salvar({ acao: 'salvarTipos', ciclo: 'C30', linhas: [{ etiqueta: 'OUTLET | não vai', gmv: '10 mil' }] });
@@ -687,4 +691,44 @@ test('ciclo em construção: etiqueta com observação usa o movimento cadastrad
   assert.deepEqual(r.movimentos.C30['01']['PIRAMIDE 1'].etiquetas.map((e) => e.texto), ['OUTLET | só no kit', 'outlet | vitrine']);
   assert.throws(() => salvar({ acao: 'salvarEspaco', ciclo: 'C30', planta: 'ER P', movel: 'PIRAMIDE 2', linha: { etiquetas: [{ texto: 'OUTRO | OUTLET' }] } }), /fora dos Tipos/);
   salvar({ acao: 'enviar', ciclo: 'C30' });
+});
+
+test('símbolo por etiqueta: colunas "Símbolo Etiqueta N" e, com a antecipação, "Data Etiqueta N"', () => {
+  const { run } = carregarGas();
+  const mov = [
+    ['Ciclo', 'Planta', 'ID Móvel', 'Etiqueta 1', 'Símbolo Etiqueta 1', 'Etiqueta 2', 'Símbolo Etiqueta 2', 'Data Etiqueta 2', 'Etiqueta 3', 'Símbolo Etiqueta 3', 'Data Etiqueta 3', 'Símbolo'],
+    ['C1', 'ER P', 'PIRAMIDE 1', 'BOTIPROMO', 'NEW', 'LÇTO EGEO', '⏩', '25/10/2026', 'OUTLET', 'ANTECIPADO', '31/02/2026', ''],
+    ['C1', 'ER P', 'PIRAMIDE 2', 'BOTIPROMO', '', '', '', '', '', '', '', 'ANTECIPADO'],
+  ];
+  const d = run(`montarDados_(valoresLayoutPadrao_(), ${JSON.stringify(mov)}, [], null)`);
+  const e = d.movimentos.C1['01']['PIRAMIDE 1'].etiquetas;
+  assert.deepEqual(e[0], { texto: 'BOTIPROMO', marca: '', posicao: 1, simbolo: 'NOVO' });
+  assert.deepEqual(e[1], { texto: 'LÇTO EGEO', marca: '', posicao: 2, simbolo: 'ANTECIPADO', data: '2026-10-25' });
+  assert.equal(e[2].simbolo, 'ANTECIPADO');
+  assert.ok(!e[2].data, 'data inválida fica de fora');
+  assert.ok(d.avisos.some((a) => /data da etiqueta 3 "31\/02\/2026" inválida/.test(a)), d.avisos.join(' | '));
+  // No espaço (coluna Símbolo), a antecipação continua vindo só da aba Antecipações.
+  assert.equal(d.movimentos.C1['01']['PIRAMIDE 2'].simbolo, '');
+  assert.ok(d.avisos.some((a) => /símbolo "ANTECIPADO" não reconhecido/.test(a)));
+});
+
+test('ciclo em construção: símbolo e data de antecipação por etiqueta vão para a aba e voltam', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  const salvar = (pedido) => run(`salvarRascunho(${C}, ${JSON.stringify(pedido)})`);
+  salvar({ acao: 'criar', ciclo: 'C31' });
+  salvar({ acao: 'salvarTipos', ciclo: 'C31', linhas: [{ etiqueta: 'OUTLET', gmv: '10 mil' }, { etiqueta: 'BOTIPROMO', gmv: '5 mil' }] });
+  const r = salvar({ acao: 'salvarEspaco', ciclo: 'C31', planta: 'ER P', movel: 'PIRAMIDE 1', linha: { marca: 'EUD', etiquetas: [
+    { texto: 'OUTLET', simbolo: 'FIXO' }, { texto: 'BOTIPROMO', simbolo: 'ANTECIPADO', data: '2026-11-05' },
+  ] } });
+  const e = r.movimentos.C31['01']['PIRAMIDE 1'].etiquetas;
+  assert.equal(e[0].simbolo, 'FIXO');
+  assert.ok(!e[0].data);
+  assert.deepEqual([e[1].simbolo, e[1].data], ['ANTECIPADO', '2026-11-05']);
+  const aba = f.planilha.getSheetByName('Rascunho Movimentos').getDataRange().getValues();
+  const cab = aba[0];
+  assert.equal(aba[1][cab.indexOf('Data Etiqueta 2')], '05/11/2026', 'na planilha, a data em dd/mm/aaaa');
+  assert.equal(aba[1][cab.indexOf('Símbolo Etiqueta 2')], 'ANTECIPADO');
 });

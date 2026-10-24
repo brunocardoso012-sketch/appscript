@@ -321,10 +321,11 @@ const Antecipacao = (() => {
     Object.keys(dados().marcas).filter((c) => c !== 'NEUTRO').forEach((c) => { n('option', null, dados().marcas[c].nome, marca).value = c; });
     if (val.marca && !dados().marcas[val.marca]) n('option', null, app.nomeDaMarca(val.marca), marca).value = val.marca;
     marca.value = val.marca || '';
+    const pintarMarca = app.colorirSelectMarca(marca);
     // Movimento escolhido da lista: a marca vem junto (a da etiqueta no ciclo de origem).
     etiqueta.addEventListener('change', () => {
       const s = sugeridas.find((x) => Render.chaveEtiqueta(x.texto) === Render.chaveEtiqueta(etiqueta.value));
-      if (s && s.marca && marca.querySelector('option[value="' + s.marca + '"]')) marca.value = s.marca;
+      if (s && s.marca && marca.querySelector('option[value="' + s.marca + '"]')) { marca.value = s.marca; pintarMarca(); }
     });
 
     const modo = n('fieldset', 'campo bloco rs-copiar', null, corpo);

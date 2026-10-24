@@ -187,6 +187,8 @@
     display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px;
     background: transparent; color: var(--texto); font: 600 13px var(--fonte); text-align: left; cursor: pointer;
   }
+  a.menu-item { color: inherit; text-decoration: none; }
+  a.menu-item[hidden] { display: none; }
   .menu-item:hover, .menu-item:focus-visible { background: #f0f1f3; outline: none; }
   .menu-item:disabled { opacity: .5; cursor: default; background: transparent; }
   .menu-item[aria-pressed="true"] { background: var(--destaque); }
@@ -258,6 +260,12 @@
   .an-topo h2 { margin: 0; font-size: 18px; }
   .an-topo span { color: var(--texto-2); font-size: 13px; }
   .an-topo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  /* Aviso fixo no topo do Analytics (a página ainda está em construção). */
+  .an-em-construcao {
+    margin: 0; padding: 8px clamp(16px, 2.5vw, 32px); font-size: 13px; color: #7A4A00;
+    background: #FFF4D6; border-bottom: 1px solid #F2D58A;
+  }
+  [data-tema="escuro"] .an-em-construcao { color: #FFD98A; background: #3A2E12; border-bottom-color: #5C4A1E; }
   #anInfo { display: inline-flex; align-items: center; gap: 6px; }
   .dialogo.an-info { width: min(1000px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; }
   .an-info-regras { margin: 0 0 18px; padding-left: 18px; font-size: 13px; line-height: 1.5; display: grid; gap: 6px; }
@@ -643,6 +651,7 @@
   .pg-testeira.neutra .pg-sem { color: var(--texto-2); }
   .pg-nota { margin: 10px 0 0; font-size: 13px; color: var(--texto-2); }
   .mv-marca-etq { font-size: 14px; color: var(--texto-2); }
+  .mv-simbolo-etq { font-size: 12px; color: var(--texto-2); white-space: nowrap; }
   .mv-obs { white-space: pre-line; }
   .mv-vazio { color: var(--texto-2); font-style: italic; margin: 0; font-size: 16px; }
   @media (max-width: 760px) {
@@ -783,7 +792,11 @@
   .lj-extra-nome { font-size: 12px; font-style: italic; color: var(--texto-2); }
 
   /* Ciclos em construção (Rascunho.html). */
-  .barra-rascunho { background: #eef2ff; border-color: #c7d2fe; }
+  /* Faixa em destaque do ciclo em construção / aguardando aprovação (topo do app). */
+  .barra-rascunho { background: #FFF1D6; border: 1px solid #F0B44C; border-left: 5px solid #E8590C; padding: 8px 14px; }
+  .barra-rascunho #rascunhoInfo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 14px; color: #5C3300; }
+  .rs-faixa-icone { font-size: 18px; line-height: 1; }
+  .rs-faixa-msg { color: #7A4A00; font-size: 13px; }
   .rs-status { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
   .rs-status.em_construcao { background: #fde6d8; color: #9a3a06; }
   .rs-status.enviado { background: #e0e7ff; color: #27367a; }
@@ -859,7 +872,8 @@
     .rs-tipos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
     .rs-tipos-cab { display: none; }
   }
-  [data-tema="escuro"] .barra-rascunho { background: #1e2440; border-color: #3a4580; }
+  [data-tema="escuro"] .barra-rascunho { background: #3A2A10; border-color: #8A5A1A; border-left-color: #E8590C; }
+  [data-tema="escuro"] .barra-rascunho #rascunhoInfo, [data-tema="escuro"] .rs-faixa-msg { color: #FFD9A0; }
   [data-tema="escuro"] .rs-status.em_construcao { background: #4a2510; color: #ffb38a; }
   [data-tema="escuro"] .rs-status.enviado { background: #2a3260; color: #c5cef8; }
   [data-tema="escuro"] .an-data { background: #4a2510; color: #ffb38a; }
@@ -895,8 +909,20 @@
   .pc-linha select, .pc-linha textarea { min-width: 0; width: 100%; padding: 5px 7px; font-size: 13px; }
   .pc-linha textarea { font: inherit; font-size: 13px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); resize: vertical; }
   .pc-etiquetas { max-width: none; gap: 4px; }
-  .pc-etiquetas .rs-etq { grid-template-columns: minmax(0, 1fr) 118px; }
+  .pc-etiquetas .rs-etq { grid-template-columns: minmax(0, 1fr) 118px auto; }
+  .pc-etiquetas .rs-etq .pc-tirar-etq { padding: 0 8px; }
+  .pc-etq-lista { display: grid; gap: 8px; }
+  .pc-etiquetas .pc-add-etq { justify-self: start; margin-top: 2px; }
+  .pc-espaco-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .pc-espaco-cab .pc-dividir { font-size: 12px; padding: 2px 8px; }
+  /* Select de marca com a cor da marca escolhida no fundo (as opções também levam a cor). */
+  select.com-cor-marca { font-weight: 600; border-color: transparent; }
   .pc-etiquetas .rs-etq .rs-etq-obs { grid-column: 1 / -1; order: 3; font-size: 12px; }
+  /* Símbolo da etiqueta e, com a antecipação, a data (embaixo da observação). */
+  .pc-etiquetas .rs-etq .pc-etq-simbolo { grid-column: 1 / -1; order: 4; display: flex; gap: 6px; }
+  .pc-etq-simbolo select { flex: 1 1 auto; min-width: 0; }
+  .pc-etq-simbolo input[type="date"] { flex: 0 0 150px; padding: 4px 6px; font: inherit; font-size: 13px; border: 1px solid var(--borda-forte); border-radius: var(--raio); background: var(--superficie); color: var(--texto); }
+  .pc-etq-simbolo input[hidden] { display: none; }
   .pc-etiquetas select { padding: 5px 7px; font-size: 13px; }
   .pc-espaco .val-acoes { margin: 0; }
   .pc-bloco { margin: 0 0 16px; }
@@ -1153,8 +1179,8 @@ const CONFIG = {
  * Provisórias: no futuro virão da planilha (troque em senhasDeAcesso_, Validacao.gs).
  */
 const SENHAS_ACESSO = {
-  VALIDADOR: '1234',
-  CONSTRUTOR: '1234',
+  VALIDADOR: 'validacao_exposicao',
+  CONSTRUTOR: 'construcao_exposicao',
 };
 
 /**
@@ -1212,17 +1238,17 @@ const MARCAS = {
     movel: '#7CC9A0',
     apelidos: ['Boticário', 'BOTICARIO', 'OBOTICARIO', 'BOTI', 'VERDE'],
   },
-  QDB: {
-    nome: 'QDB',
-    etiqueta: '#E23FB4',
-    movel: '#F07ACD',
-    apelidos: ['Quem disse, berenice?', 'QUEMDISSEBERENICE', 'BERENICE', 'ROSA'],
-  },
   EUD: {
     nome: 'EUD',
     etiqueta: '#A11FC9',
     movel: '#B666D8',
     apelidos: ['Eudora', 'EUDORA', 'ROXO'],
+  },
+  QDB: {
+    nome: 'QDB',
+    etiqueta: '#E23FB4',
+    movel: '#F07ACD',
+    apelidos: ['Quem disse, berenice?', 'QUEMDISSEBERENICE', 'BERENICE', 'ROSA'],
   },
   OUI: {
     nome: 'OUI',
@@ -1249,8 +1275,9 @@ const SIMBOLOS = {
   FIXO: { descricao: 'Espaço fixo (sem mudança nos ciclos)', apelidos: ['ESPACOFIXO', 'CADEADO', '🔒', '◆', 'LOSANGO'] },
   EXPOSICAO: { descricao: 'Exposição, sem comunicação', apelidos: ['E', 'EXPOSICAOSEMCOMUNICACAO'] },
   NOVO: { descricao: 'Novidade', apelidos: ['NEW', 'NOVIDADE'] },
-  // Não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
-  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: [], automatico: true },
+  // No espaço, não vem da planilha: o app põe nos espaços que recebem uma antecipação (aba Antecipações).
+  // Na etiqueta, pode vir da planilha (coluna "Símbolo Etiqueta N"), com a data em "Data Etiqueta N".
+  ANTECIPADO: { descricao: 'Antecipação (item adiantado do próximo ciclo)', apelidos: ['ANTECIPACAO', 'ANTECIPADA', '⏩'], automatico: true },
 };
 
 /**
@@ -1383,6 +1410,9 @@ function colunasMovimentos_() {
   for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
     cols.push({ chave: 'etiqueta' + i, titulo: 'Etiqueta ' + i, texto: true, apelidos: ['Texto ' + i] });
     cols.push({ chave: 'marcaEtiqueta' + i, titulo: 'Marca Etiqueta ' + i, apelidos: ['Cor Etiqueta ' + i] });
+    // Símbolo próprio da etiqueta (aparece ao lado dela); com a antecipação (⏩), a data em que entra.
+    cols.push({ chave: 'simboloEtiqueta' + i, titulo: 'Símbolo Etiqueta ' + i });
+    cols.push({ chave: 'dataEtiqueta' + i, titulo: 'Data Etiqueta ' + i, texto: true, apelidos: ['Data Antecipação ' + i] });
   }
   cols.push({ chave: 'simbolo', titulo: 'Símbolo' });
   cols.push({ chave: 'observacao', titulo: 'Observação', texto: true, apelidos: ['Obs'] });
@@ -1524,7 +1554,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       for (let i = 1; i <= CONFIG.MAX_ETIQUETAS; i++) {
         const t = texto_(l['etiqueta' + i]);
         // posicao = número da coluna (na gôndola, cada uma vai para um bloco).
-        if (t) etiquetas.push({ texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i });
+        if (t) etiquetas.push(etiquetaDaLinha_(l, i, t, aviso, onde));
       }
       registrarCiclo(ciclo);
       movimentos[ciclo] = movimentos[ciclo] || {};
@@ -1577,18 +1607,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     if (lido.faltando.length) {
       aviso('Aba "' + CONFIG.ABAS.TIPOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
     }
-    // Etiquetas de cada ciclo (para avisar de movimento que não aparece em nenhuma etiqueta).
-    const etiquetasDoCiclo = function (ciclo) {
-      const vistas = {};
-      const c = movimentos[ciclo] || {};
-      Object.keys(c).forEach(function (p) {
-        Object.keys(c[p]).forEach(function (id) {
-          c[p][id].etiquetas.forEach(function (e) { vistas[chaveEtiqueta_(e.texto)] = true; });
-        });
-      });
-      return vistas;
-    };
-    const etiquetasPorCiclo = {};
+    // Movimento cadastrado sem nenhum espaço no ciclo é válido (ex.: cadastrado na construção do ciclo).
     lido.linhas.forEach(function (l) {
       const ciclo = texto_(l.ciclo);
       const texto = texto_(l.etiqueta);
@@ -1606,10 +1625,6 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       }
       const gmv = numeroGmv_(l.gmv);
       if (gmv === null && texto_(l.gmv)) aviso(onde + ': GMV esperado "' + texto_(l.gmv) + '" não é um número — ignorado.');
-      if (movimentos[ciclo]) {
-        etiquetasPorCiclo[ciclo] = etiquetasPorCiclo[ciclo] || etiquetasDoCiclo(ciclo);
-        if (!etiquetasPorCiclo[ciclo][k]) aviso(onde + ': "' + texto + '" não aparece em nenhuma etiqueta do ciclo ' + ciclo + '.');
-      }
       tiposMovimento[ciclo][k] = {
         texto: movimentoDaEtiqueta_(texto),
         classificacao: normClassificacao_(l.classificacao),
@@ -2019,13 +2034,29 @@ function normMarca_(v, aviso, onde) {
   return codigos.join('+');
 }
 
-function normSimbolo_(v, aviso, onde) {
+/**
+ * Etiqueta N de uma linha da aba Movimentos: texto, marca, posição e, se houver, o símbolo próprio dela e, com a
+ * antecipação (⏩), a data em que entra ("2026-10-25"). simbolo e data só aparecem quando preenchidos.
+ */
+function etiquetaDaLinha_(l, i, t, aviso, onde) {
+  const e = { texto: t, marca: normMarca_(l['marcaEtiqueta' + i], aviso, onde), posicao: i };
+  const simbolo = normSimbolo_(l['simboloEtiqueta' + i], aviso, onde, true);
+  if (simbolo) e.simbolo = simbolo;
+  if (simbolo === 'ANTECIPADO') {
+    const data = dataAntecipacao_(l['dataEtiqueta' + i]);
+    if (data) e.data = data;
+    else if (texto_(l['dataEtiqueta' + i]) && aviso) aviso(onde + ': data da etiqueta ' + i + ' "' + texto_(l['dataEtiqueta' + i]) + '" inválida (use dd/mm/aaaa).');
+  }
+  return e;
+}
+
+function normSimbolo_(v, aviso, onde, daEtiqueta) {
   const s = texto_(v);
   if (!s) return '';
   const bruto = s.toUpperCase();
   const k = chave_(s);
-  // O de antecipação (automatico) não vem da planilha: só da aba Antecipações.
-  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return !SIMBOLOS[c].automatico; });
+  // O de antecipação (automatico) não vem da coluna Símbolo do espaço (só da aba Antecipações); na etiqueta, vem.
+  const codigos = Object.keys(SIMBOLOS).filter(function (c) { return daEtiqueta || !SIMBOLOS[c].automatico; });
   for (let i = 0; i < codigos.length; i++) {
     const nomes = [codigos[i]].concat(SIMBOLOS[codigos[i]].apelidos || []);
     for (let j = 0; j < nomes.length; j++) {
@@ -2749,9 +2780,11 @@ function formatarAba_(sh, colunas, cab, maxLinhas) {
             .build()
         );
       });
-    } else if (c.chave === 'simbolo') {
-      lista = Object.keys(SIMBOLOS);
-      ajuda = Object.keys(SIMBOLOS).map(function (k) { return k + ' = ' + SIMBOLOS[k].descricao; }).join(' | ');
+    } else if (c.chave === 'simbolo' || /^simboloEtiqueta/.test(c.chave)) {
+      // No espaço, o de antecipação vem só da aba Antecipações; na etiqueta, pode vir daqui (com a data ao lado).
+      lista = Object.keys(SIMBOLOS).filter(function (k) { return c.chave !== 'simbolo' || !SIMBOLOS[k].automatico; });
+      ajuda = lista.map(function (k) { return k + ' = ' + SIMBOLOS[k].descricao; }).join(' | ')
+        + (c.chave === 'simbolo' ? '' : '. Com ANTECIPADO, preencha a data na coluna ao lado (dd/mm/aaaa).');
     } else if (c.chave === 'secao') {
       lista = Object.keys(SECOES_PAINEL);
       ajuda = Object.keys(SECOES_PAINEL).map(function (k) { return k + ' = ' + SECOES_PAINEL[k].descricao; }).join(' | ');
@@ -3622,7 +3655,7 @@ function ciclosPublicados_(abas) {
 
 /**
  * Linha da aba Movimentos de um espaço, a partir do que a página manda.
- * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca}>}} l
+ * @param {{marca, simbolo, observacao, etiquetas: Array<{texto, marca, simbolo?, data?}>}} l  data: da antecipação (⏩)
  * @return {Object|null} null quando o espaço fica vazio (a linha sai)
  */
 function linhaDeEspaco_(ciclo, planta, movel, l) {
@@ -3638,6 +3671,9 @@ function linhaDeEspaco_(ciclo, planta, movel, l) {
     const e = etiquetas[i - 1];
     o['etiqueta' + i] = e ? texto_(e.texto).slice(0, 200) : '';
     o['marcaEtiqueta' + i] = e ? normMarca_(e.marca) : '';
+    const simbolo = e ? normSimbolo_(e.simbolo, null, null, true) : '';
+    o['simboloEtiqueta' + i] = simbolo;
+    o['dataEtiqueta' + i] = simbolo === 'ANTECIPADO' ? dataAntecipacaoTexto_(dataAntecipacao_(e.data)) : '';
   }
   return o.marca || o.simbolo || o.observacao || etiquetas.length ? o : null;
 }
@@ -3690,7 +3726,8 @@ function listaCurta_(itens) {
  *                    movimentos dos tipos) e trava a edição até o validador decidir;
  *  - excluir:        { acao, ciclo }                  construtor (antes da aprovação);
  *  - devolver:       { acao, ciclo, planta, motivo }   validador: volta para construção, com um comentário;
- *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas.
+ *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas (todos os
+ *                    tipos cadastrados vão para a aba Tipos de movimento, mesmo os que nenhum espaço usa).
  * @param {Object} abas  matrizes (com cabeçalho) de cada campo de abasRascunho_()
  * @param {{papel, autor}} quem  resultado de conferirAcesso_
  * @return {{abas: Object, gravar: string[]}} gravar: campos das abas que mudaram
@@ -3863,11 +3900,15 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigir('VALIDADOR', 'aprova o ciclo');
     exigirRascunho('ENVIADO');
     if (ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '" publicado. Peça para o construtor renomear (criar outro copiando este).');
-    // Tipos cadastrados que nenhum espaço usou não vão para a planilha (dariam aviso de "não aparece em nenhuma etiqueta").
-    const usados = {};
-    objs('rMovimentos').filter(doCiclo).forEach(function (o) { etiquetasDaLinha_(o).forEach(function (e) { usados[chaveEtiqueta_(e)] = true; }); });
+    // Todos os Tipos de movimento cadastrados no ciclo vão para a aba "Tipos de movimento", inclusive os movimentos
+    // novos que ainda não estão em nenhum espaço; o GMV vai como número.
+    const comoPublicada = function (campo, o) {
+      if (campo !== 'tipos') return o;
+      const gmv = typeof o.gmv === 'number' ? o.gmv : numeroGmv_(o.gmv);
+      return Object.assign({}, o, { gmv: gmv === null ? '' : gmv });
+    };
     [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
-      const linhas = objs(x[1]).filter(doCiclo).filter(function (o) { return x[0] !== 'tipos' || usados[chaveEtiqueta_(o.etiqueta)]; });
+      const linhas = objs(x[1]).filter(doCiclo).map(function (o) { return comoPublicada(x[0], o); });
       if (linhas.length) {
         novas[x[0]] = mesclarLinhas_(abas[x[0]] && abas[x[0]].length ? abas[x[0]] : [], linhas, defs[x[0]].colunas);
         gravar.push(x[0]);
@@ -4359,10 +4400,12 @@ function executarAntecipacao_(io, acesso, pedido) {
           <span>Ciclo</span>
           <select id="selCiclo" aria-label="Ciclo"></select>
         </label>
+        <!-- so-app-completo -->
         <label class="campo" id="campoComparar" hidden title="Só os espaços que mudaram em relação ao outro ciclo ficam coloridos">
           <span>Comparar com</span>
           <select id="selComparar" aria-label="Comparar com o ciclo"></select>
         </label>
+        <!-- /so-app-completo -->
         <div class="abas" id="abasPlanta" role="tablist" aria-label="Plantas"></div>
         <div class="abas" id="abasVisao" role="tablist" aria-label="Como mostrar as etiquetas">
           <button class="aba" type="button" role="tab" data-visao="planta" aria-selected="true" title="Etiquetas junto de cada espaço do móvel, na planta">Na planta</button>
@@ -4401,27 +4444,32 @@ function executarAntecipacao_(io, acesso, pedido) {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
           Atualizar
         </button>
-        <a id="lnkPlanilha" class="btn fantasma" target="_blank" rel="noopener" hidden>
-          Abrir planilha
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
-        </a>
+        <button id="btnLink" class="btn fantasma" type="button" title="Copia o link que abre o app neste ciclo, ER, visão e filtro">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+          Copiar link
+        </button>
         <button id="btnBusca" class="btn fantasma icone" type="button" aria-label="Buscar" title="Buscar etiqueta, móvel ou marca (Ctrl+K)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
         </button>
         <button id="btnApresentar" class="btn fantasma icone" type="button" aria-label="Apresentar" title="Apresentar: só a planta, em tela cheia (F)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8.2v4.6l4-2.3z"/></svg>
         </button>
-        <!-- Configurações: só o ícone; abre o menu com a validação, o ajuste das etiquetas e o modo noturno. -->
+        <!-- Configurações: só o ícone; abre o menu com a validação, a construção, o ajuste das etiquetas, o modo noturno e a planilha. -->
         <div class="menu-config" id="menuConfig">
           <button id="btnConfig" class="btn fantasma icone" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menuConfigLista" aria-label="Configurações" title="Configurações">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
             <span class="badge" id="cfgBadge" hidden></span>
           </button>
           <div class="menu-lista" id="menuConfigLista" role="menu" hidden>
-            <button id="btnValidacao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Validação da estratégia (pede senha)">
+            <button id="btnValidacao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Validação da estratégia e aprovação dos ciclos novos (pede senha)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z"/><path d="m8.5 12 2.3 2.3L15.5 9.5"/></svg>
               Validação
               <span class="badge" id="valBadge" hidden></span>
+            </button>
+            <button id="btnConstrucao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Construção dos ciclos novos (pede senha)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V10l7-6 7 6v11"/><path d="M9 21v-5h6v5"/></svg>
+              Construção
+              <span class="badge" id="consBadge" hidden></span>
             </button>
             <button id="btnEditar" class="menu-item" type="button" role="menuitem" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
@@ -4431,10 +4479,10 @@ function executarAntecipacao_(io, acesso, pedido) {
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
               Modo noturno
             </button>
-            <button id="btnLink" class="menu-item" type="button" role="menuitem" title="Link que abre o app neste ciclo, ER, visão e filtro">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
-              Copiar link
-            </button>
+            <a id="lnkPlanilha" class="menu-item" role="menuitem" target="_blank" rel="noopener" hidden title="Abre a planilha com os ciclos (numa aba nova)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+              Abrir planilha
+            </a>
             <button id="btnTutorial" class="menu-item" type="button" role="menuitem">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.7-.8 1.2V14M12 17.2v.1"/></svg>
               Ver o tutorial
@@ -4518,12 +4566,15 @@ function executarAntecipacao_(io, acesso, pedido) {
             <button id="anFechar" class="btn" type="button" title="Voltar à planta (Esc)">Voltar à planta ✕</button>
           </div>
         </header>
+        <p class="an-em-construcao" id="anEmConstrucao" role="note">
+          <strong>Página em construção</strong> | pode conter erros nos dados e cálculos
+        </p>
         <div id="anCorpo" class="an-corpo"></div>
       </section>
       <aside class="painel-espaco painel-validacao" id="painelValidacao" hidden aria-label="Validação da estratégia">
         <header class="esp-topo">
           <div>
-            <h2>Validação</h2>
+            <h2 id="valTitulo">Validação</h2>
             <span id="valSub"></span>
           </div>
           <button id="valFechar" class="btn fantasma pequeno" type="button" title="Fechar o painel">✕</button>
@@ -4779,13 +4830,10 @@ function executarAntecipacao_(io, acesso, pedido) {
 
     <dialog id="dlgAcesso" class="dialogo">
       <form id="formAcesso">
-        <h2>Validação da estratégia</h2>
-        <p class="sub">O validador comenta a estratégia do ciclo e aprova os ciclos novos; o construtor da estratégia monta os ciclos novos na planta, vê os comentários, responde e marca como resolvido.</p>
-        <fieldset class="acesso-papeis">
-          <legend>Entrar como</legend>
-          <label class="opcao"><input type="radio" name="papel" value="VALIDADOR" checked> Validador</label>
-          <label class="opcao"><input type="radio" name="papel" value="CONSTRUTOR"> Construtor da estratégia</label>
-        </fieldset>
+        <!-- O papel vem do item escolhido na engrenagem: Validação (validador) ou Construção (construtor). -->
+        <h2 id="acessoTitulo">Validação</h2>
+        <p class="sub" id="acessoSub"></p>
+        <input type="hidden" id="acessoPapel" value="VALIDADOR">
         <label class="acesso-campo">Seu nome <input type="text" id="acessoNome" autocomplete="name" maxlength="60" required></label>
         <label class="acesso-campo">Senha <input type="password" id="acessoSenha" autocomplete="current-password" required></label>
         <p class="acesso-erro" id="acessoErro" role="alert" hidden></p>
@@ -5365,7 +5413,7 @@ const Render = (() => {
    * lista: itens { info, etiquetas, simbolo, espacos } ou null (espaço sem etiqueta, que separa os vizinhos).
    */
   function juntarIguais(lista) {
-    const chave = (it) => it.etiquetas.map((e) => e.texto + '|' + (e.marca || it.info.marca || '')).join('||');
+    const chave = (it) => it.etiquetas.map((e) => e.texto + '|' + (e.marca || it.info.marca || '') + '|' + (e.simbolo || '') + (e.data || '')).join('||');
     const saida = [];
     let anterior = null;
     lista.forEach((it) => {
@@ -5694,9 +5742,41 @@ const Render = (() => {
 
   /* ------------------------------ etiquetas ------------------------------- */
 
+  /** "2026-10-25" → "25/10" (a data da antecipação, ao lado do símbolo ⏩). */
+  const dataCurta = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '');
+
+  /**
+   * O que vai ao lado de cada etiqueta: na 1ª, o símbolo do espaço; em cada uma, o símbolo próprio dela (coluna
+   * "Símbolo Etiqueta N") e, com a antecipação (⏩), a data em que entra.
+   * @return {Array<{simbolos: string[], data: string, w: number}>} w: largura que ocupam ao lado da etiqueta
+   */
+  function marcadoresDe(etiquetas, simbolo, passo) {
+    const p = passo || ETQ.simbolo;
+    return etiquetas.map((e, k) => {
+      const simbolos = [];
+      if (k === 0 && simbolo) simbolos.push(simbolo);
+      if (e.simbolo && simbolos.indexOf(e.simbolo) < 0) simbolos.push(e.simbolo);
+      const data = e.simbolo === 'ANTECIPADO' ? dataCurta(e.data) : '';
+      const wData = data ? largura(data, ETQ.fonte * 0.85, 800, 'normal', FONTE_ETQ) + 4 : 0;
+      return { simbolos, data, w: simbolos.length ? simbolos.length * (p + 4) + wData : 0 };
+    });
+  }
+
+  /** Desenha os símbolos (e a data da antecipação) de uma etiqueta, a partir de x, centrados em cy. */
+  function desenharMarcadores(pai, m, x, cy, escala, passo) {
+    const p = passo || ETQ.simbolo;
+    m.simbolos.forEach((s, j) => desenharSimbolo(pai, s, x + j * (p + 4) + p / 2, cy, escala));
+    if (m.data) {
+      texto(pai, x + m.simbolos.length * (p + 4), cy + ETQ.fonte * 0.3, m.data, {
+        'font-family': FONTE_ETQ, 'font-size': ETQ.fonte * 0.85, 'font-weight': 800, fill: COR.simbolo,
+      });
+    }
+  }
+
   /** Pilha de etiquetas: todas com a mesma largura (wEtq); maxTexto = largura máxima do texto. */
   function medirGrupo(etiquetas, simbolo, corPadrao, maxTexto) {
-    const itens = etiquetas.map((e) => {
+    const marcadores = marcadoresDe(etiquetas, simbolo);
+    const itens = etiquetas.map((e, k) => {
       const linhas = quebrar(e.texto, maxTexto || ETQ.maxTexto, ETQ.fonte, 800, FONTE_ETQ);
       const w = Math.max.apply(null, linhas.map((l) => largura(l, ETQ.fonte, 800, 'normal', FONTE_ETQ))) + ETQ.padX * 2;
       return {
@@ -5704,11 +5784,14 @@ const Render = (() => {
         w,
         h: linhas.length * ETQ.lh + ETQ.padY * 2,
         cores: coresDe(e.marca, 'etiqueta', true) || corPadrao,
+        marcadores: marcadores[k],
+        fixo: simbolo === 'FIXO' || e.simbolo === 'FIXO', // espaço ou etiqueta fixa: borda dupla
       };
     });
     const wEtq = Math.max.apply(null, itens.map((i) => i.w));
     const h = itens.reduce((s, i) => s + i.h, 0) + ETQ.gap * (itens.length - 1);
-    return { itens, wEtq, w: wEtq + (simbolo ? ETQ.simbolo + 4 : 0), h, simbolo };
+    const wMarcadores = Math.max.apply(null, [0].concat(marcadores.map((m) => m.w)));
+    return { itens, wEtq, w: wEtq + (wMarcadores ? wMarcadores + 4 : 0), h, simbolo };
   }
 
   /** Ordem dos símbolos na legenda (o de antecipação vem da aba Antecipações, não da planilha). */
@@ -5916,7 +5999,10 @@ const Render = (() => {
       // Móvel com espaços: o nome do espaço fica entre a miniatura e as etiquetas (que ficam mais estreitas).
       const comLegenda = linhas.some((ln) => ln.espacos);
       const xEtq = FICHA.pad + FICHA.mini + FICHA.vao + (comLegenda ? FICHA.legenda + FICHA.vao : 0);
-      const larguraEtq = FICHA.w - xEtq - FICHA.pad - FICHA.simbolo;
+      // À direita das etiquetas, o espaço dos símbolos (e da data da antecipação) da linha que mais precisa.
+      const wMarcadores = Math.max.apply(null, [FICHA.simbolo].concat(linhas.map((ln) => Math.max.apply(null,
+        [0].concat(marcadoresDe(ln.etiquetas, ln.simbolo, FICHA.simbolo - 4).map((x) => x.w))))));
+      const larguraEtq = FICHA.w - xEtq - FICHA.pad - wMarcadores;
       linhas.forEach((ln) => {
         const corMarca = !ehNeutro(ln.info.marca) && coresDe(ln.info.marca, 'etiqueta', true);
         ln.med = medirGrupo(ln.etiquetas, ln.simbolo, corMarca || corEtiquetaPadrao(true), larguraEtq - ETQ.padX * 2);
@@ -5967,14 +6053,14 @@ const Render = (() => {
       }));
       let ye = y + (ln.h - ln.med.h) / 2;
       ln.med.itens.forEach((it, i) => {
-        fundoEtiqueta(gl, xEtq, ye, ln.med.wEtq, it.h, it.cores, ln.simbolo === 'FIXO');
+        fundoEtiqueta(gl, xEtq, ye, ln.med.wEtq, it.h, it.cores, it.fixo);
         it.linhas.forEach((l, j) => {
           texto(gl, xEtq + ln.med.wEtq / 2, ye + ETQ.padY + ETQ.lh * (j + 1) - 3.6, l, {
             'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
             fill: '#FFFFFF', 'text-anchor': 'middle',
           });
         });
-        if (i === 0 && ln.simbolo) desenharSimbolo(gl, ln.simbolo, xEtq + ln.med.wEtq + FICHA.simbolo / 2 + 1, ye + it.h / 2);
+        desenharMarcadores(gl, it.marcadores, xEtq + ln.med.wEtq + 1, ye + it.h / 2, 1, FICHA.simbolo - 4);
         ye += it.h + ETQ.gap;
       });
       y += ln.h + FICHA.entre;
@@ -6411,14 +6497,14 @@ const Render = (() => {
       y += r.topo;
     }
     r.itens.forEach((it, i) => {
-      fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores, r.simbolo === 'FIXO');
+      fundoEtiqueta(g, r.x, y, r.wEtq, it.h, it.cores, it.fixo);
       it.linhas.forEach((l, k) => {
         texto(g, r.x + r.wEtq / 2, y + ETQ.padY + ETQ.lh * (k + 1) - 3.6 * escalaEtq, l, {
           'font-family': FONTE_ETQ, 'font-size': ETQ.fonte, 'font-weight': 800, 'letter-spacing': 0.15,
           fill: '#FFFFFF', 'text-anchor': 'middle',
         });
       });
-      if (i === 0 && r.simbolo) desenharSimbolo(g, r.simbolo, r.x + r.wEtq + 4 + ETQ.simbolo / 2, y + it.h / 2, escalaEtq);
+      desenharMarcadores(g, it.marcadores, r.x + r.wEtq + 4, y + it.h / 2, escalaEtq);
       y += it.h + ETQ.gap;
     });
     return g;
@@ -6795,7 +6881,8 @@ const Render = (() => {
     };
     const moveis = planta.moveis.filter((m) => m.tipo !== 'EXTRA').map((m) => {
       if (m.tipo !== 'GONDOLA') return m;
-      const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
+      const doRascunho = ctx.meiosDivididos ? ctx.meiosDivididos(m.id) : '';
+      const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0 || doRascunho.indexOf(l) >= 0
         || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
       return div === (m.dividido || '') ? m : Object.assign({}, m, { dividido: div });
     });
@@ -6805,7 +6892,11 @@ const Render = (() => {
     // Situação de cada móvel (e de cada espaço de gôndola) no ciclo.
     const info = {};
     const infoEspaco = {}; // "GON-01/MEIO-A" → linha própria do espaço
-    const anotar = (i) => { if (i && i.simbolo) simbolosUsados.add(i.simbolo); return i; };
+    const anotar = (i) => {
+      if (i && i.simbolo) simbolosUsados.add(i.simbolo);
+      if (i) i.etiquetas.forEach((e) => { if (e.simbolo) simbolosUsados.add(e.simbolo); }); // símbolos das etiquetas
+      return i;
+    };
     moveis.concat(extras).forEach((m) => {
       // Móvel com espaços (gôndola, mesas, totem, móvel make) é preenchido só espaço por espaço:
       // não tem linha do móvel inteiro. Os demais têm uma linha só.
@@ -7382,6 +7473,8 @@ const Planilha = (() => {
           info.etiquetas.slice(0, m.limite).forEach((e, i) => {
             linha['etiqueta' + (i + 1)] = e.texto;
             linha['marcaEtiqueta' + (i + 1)] = e.marca;
+            if (e.simbolo) linha['simboloEtiqueta' + (i + 1)] = e.simbolo;
+            if (e.data) linha['dataEtiqueta' + (i + 1)] = e.data.split('-').reverse().join('/'); // dd/mm/aaaa
           });
           linha.simbolo = info.simbolo;
           linha.observacao = info.observacao;
@@ -7391,7 +7484,7 @@ const Planilha = (() => {
         row.getCell(4).font = { italic: true, color: { argb: 'FF666666' } };
         for (let n = m.limite + 1; n <= max; n++) {
           row.getCell('etiqueta' + n).fill = SEM_USO;
-          row.getCell('marcaEtiqueta' + n).fill = SEM_USO;
+          ['marcaEtiqueta', 'simboloEtiqueta', 'dataEtiqueta'].forEach((c) => { row.getCell(c + n).fill = SEM_USO; });
         }
       });
     });
@@ -7406,6 +7499,11 @@ const Planilha = (() => {
       } else if (c.chave === 'simbolo') {
         validarColuna(ws, i + 1, ultima, simbolosPlanilha, 'Símbolo',
           simbolosPlanilha.map((s) => s + ' = ' + dados.simbolos[s].descricao).join('; '));
+      } else if (/^simboloEtiqueta/.test(c.chave)) {
+        // Na etiqueta também vale a antecipação (ANTECIPADO), com a data na coluna ao lado.
+        const todos = Object.keys(dados.simbolos);
+        validarColuna(ws, i + 1, ultima, todos, c.titulo,
+          todos.map((s) => s + ' = ' + dados.simbolos[s].descricao).join('; ') + '. Com ANTECIPADO, a data vai na coluna ao lado (dd/mm/aaaa).');
       }
     });
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
@@ -8415,8 +8513,8 @@ const Construtor = (() => {
  * ============================================================================
  *  VALIDAÇÃO DA ESTRATÉGIA (página)
  * ============================================================================
- *  Botão "Validação": entra como validador ou construtor da estratégia (nome +
- *  senha). O validador comenta a planta ou um móvel no ciclo escolhido; o
+ *  Dois itens na engrenagem, cada um com a sua senha: "Validação" entra como
+ *  validador e "Construção" como construtor da estratégia (nome + senha). O validador comenta a planta ou um móvel no ciclo escolhido; o
  *  construtor vê, responde e marca como resolvido. Painel ao lado da planta com
  *  os comentários do ciclo e da planta, marcadores nos móveis com comentários
  *  abertos e a seção "Comentários da validação" na tela do móvel.
@@ -8471,7 +8569,24 @@ const Validacao = (() => {
 
   /* ------------------------------- acesso --------------------------------- */
 
-  function abrirAcesso() {
+  /** Texto do diálogo de acesso e do painel de cada papel (o item da engrenagem escolhe o papel). */
+  const MODULOS = {
+    VALIDADOR: {
+      titulo: 'Validação',
+      sub: 'Para o validador: comente a estratégia do ciclo e aprove (ou devolva) os ciclos novos.',
+    },
+    CONSTRUTOR: {
+      titulo: 'Construção',
+      sub: 'Para o construtor da estratégia: monte os ciclos novos na planta, responda aos comentários do validador e marque como resolvido.',
+    },
+  };
+
+  /** Diálogo de acesso ao módulo de um papel ('VALIDADOR' ou 'CONSTRUTOR'), com a senha dele. */
+  function abrirAcesso(papel) {
+    const m = MODULOS[papel] || MODULOS.VALIDADOR;
+    $('acessoPapel').value = MODULOS[papel] ? papel : 'VALIDADOR';
+    $('acessoTitulo').textContent = m.titulo;
+    $('acessoSub').textContent = m.sub;
     const dlg = $('dlgAcesso');
     $('acessoErro').hidden = true;
     $('acessoSenha').value = '';
@@ -8484,13 +8599,15 @@ const Validacao = (() => {
   async function entrar(ev) {
     ev.preventDefault();
     const dlg = $('dlgAcesso');
-    const papel = (dlg.querySelector('input[name="papel"]:checked') || {}).value || '';
+    const papel = $('acessoPapel').value;
     const pedido = { papel, nome: $('acessoNome').value.trim(), senha: $('acessoSenha').value };
     const botaoEntrar = $('acessoEntrar');
     botaoEntrar.disabled = true;
     try {
       const r = await app.chamar('entrarValidacao', pedido);
+      const trocou = !!acesso; // já estava no outro módulo: sai dele antes (ciclos em construção, painel)
       acesso = Object.assign(pedido, { papel: r.papel, nome: r.autor, nomePapel: r.nomePapel });
+      if (trocou && app.aoSair) app.aoSair();
       sessao.gravar(acesso);
       dlg.close();
       app.toast('Você entrou como ' + r.nomePapel.toLowerCase() + '.');
@@ -8547,7 +8664,7 @@ const Validacao = (() => {
   /* ------------------------------- painel ---------------------------------- */
 
   function abrirPainel() {
-    if (!acesso) { abrirAcesso(); return; }
+    if (!acesso) { abrirAcesso('VALIDADOR'); return; }
     painelAberto = true;
     if (app.fecharAnalytics) app.fecharAnalytics();
     atualizar();
@@ -8565,17 +8682,21 @@ const Validacao = (() => {
     const e = app.estado;
     const planta = app.plantaAtual();
     const abertos = ativo() && e.ciclo ? doCiclo().filter((c) => c.status === 'ABERTO').length : 0;
-    const btn = $('btnValidacao');
-    if (btn) {
-      btn.setAttribute('aria-pressed', String(painelAberto && ativo()));
-      $('valBadge').textContent = abertos ? String(abertos) : '';
-      $('valBadge').hidden = !abertos;
-      // O botão fica no menu de configurações: o ícone dele mostra o mesmo número.
-      if ($('cfgBadge')) {
-        $('cfgBadge').textContent = abertos ? String(abertos) : '';
-        $('cfgBadge').hidden = !abertos;
-      }
-      btn.title = ativo() ? 'Validação: ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : 'Validação da estratégia (pede senha)';
+    // Um item por módulo na engrenagem: o do papel que entrou fica marcado e mostra os comentários abertos.
+    [['btnValidacao', 'valBadge', 'VALIDADOR', 'Validação da estratégia e aprovação dos ciclos novos (pede senha)'],
+      ['btnConstrucao', 'consBadge', 'CONSTRUTOR', 'Construção dos ciclos novos (pede senha)']].forEach(([id, badge, papel, dica]) => {
+      const btn = $(id);
+      if (!btn) return;
+      const meu = ativo() && acesso.papel === papel;
+      btn.setAttribute('aria-pressed', String(painelAberto && meu));
+      $(badge).textContent = meu && abertos ? String(abertos) : '';
+      $(badge).hidden = !(meu && abertos);
+      btn.title = meu ? MODULOS[papel].titulo + ': ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : dica;
+    });
+    // Os itens ficam no menu de configurações: o ícone dele mostra o mesmo número.
+    if ($('cfgBadge')) {
+      $('cfgBadge').textContent = abertos ? String(abertos) : '';
+      $('cfgBadge').hidden = !abertos;
     }
     const painel = $('painelValidacao');
     // Construindo um ciclo, o painel de construção (Rascunho.html) fica no lugar deste.
@@ -8589,6 +8710,7 @@ const Validacao = (() => {
 
   function montarPainel(planta) {
     const e = app.estado;
+    $('valTitulo').textContent = MODULOS[acesso.papel] ? MODULOS[acesso.papel].titulo : 'Validação';
     $('valSub').textContent = planta.nome + (e.ciclo ? ' · ' + e.ciclo : '');
     const corpo = $('valCorpo');
     corpo.innerHTML = '';
@@ -8793,10 +8915,15 @@ const Validacao = (() => {
 
   function iniciar(contexto) {
     app = contexto;
-    $('btnValidacao').addEventListener('click', () => {
-      if (painelAberto && ativo()) fecharPainel();
+    // Validação e Construção: já dentro do módulo, o item abre / fecha o painel; senão, pede a senha do módulo
+    // (entrar num módulo sai do outro).
+    const alternar = (papel) => {
+      if (!ativo() || acesso.papel !== papel) { abrirAcesso(papel); return; }
+      if (painelAberto) fecharPainel();
       else abrirPainel();
-    });
+    };
+    $('btnValidacao').addEventListener('click', () => alternar('VALIDADOR'));
+    if ($('btnConstrucao')) $('btnConstrucao').addEventListener('click', () => alternar('CONSTRUTOR'));
     $('valFechar').addEventListener('click', fecharPainel);
     $('formAcesso').addEventListener('submit', entrar);
     $('acessoCancelar').addEventListener('click', () => $('dlgAcesso').close());
@@ -8835,7 +8962,7 @@ const Validacao = (() => {
  */
 const Rascunho = (() => {
   const $ = (id) => document.getElementById(id);
-  let app = null; // { estado, chamar, toast, erro, desenhar, plantaAtual, acesso, montarCiclos, carregar, abrirMovel, movimentoDe, paineisDe, corDaMarca, nomeDaMarca }
+  let app = null; // { estado, ultimoAprovado, chamar, toast, erro, desenhar, plantaAtual, acesso, montarCiclos, carregar, abrirMovel, movimentoDe, paineisDe, corDaMarca, nomeDaMarca }
   let lista = []; // [{ ciclo, status, nomeStatus, origem, criadoPor, criadoEm, enviadoEm, decididoPor, decididoEm }]
   let dados = null; // { movimentos, paineis, tiposMovimento } dos ciclos em construção
   let mesclados = []; // ciclos que mesclar() pôs em estado.dados (para tirar na próxima vez)
@@ -8843,7 +8970,11 @@ const Rascunho = (() => {
   let selecao = ''; // ID do móvel selecionado ('' = nenhum)
   let formChave = ''; // ciclo|ER|móvel do formulário montado (só refaz quando muda, para não perder o foco)
   let verComentarios = false; // o construtor abriu os comentários da validação no lugar do painel
+  let abriuDoPapel = false; // já levou a tela ao ciclo em construção do papel neste login (abrirDoPapel)
   const pendentes = {}; // "ciclo|ER|espaço" → { ciclo, planta, chave, linha } ainda não gravados
+  // Meios de gôndola divididos pelo construtor que ainda não têm nada nas metades (com uma metade preenchida,
+  // a linha dela já divide o meio na planta): "ciclo|ER|móvel" → 'A' | 'B' | 'AB'.
+  const divididos = {};
   let timer = null;
   let gravando = false;
   let gravacao = 'salvo'; // salvo | pendente | salvando | erro
@@ -8921,7 +9052,12 @@ const Rascunho = (() => {
     }
     er[chave] = {
       marca: l.marca || '', simbolo: l.simbolo || '', observacao: obs,
-      etiquetas: l.etiquetas.map((e, k) => ({ texto: e.texto, marca: e.marca || '', posicao: k + 1 })),
+      etiquetas: l.etiquetas.map((e, k) => {
+        const x = { texto: e.texto, marca: e.marca || '', posicao: k + 1 };
+        if (e.simbolo) x.simbolo = e.simbolo;
+        if (e.simbolo === 'ANTECIPADO' && e.data) x.data = e.data;
+        return x;
+      }),
     };
   }
 
@@ -9009,6 +9145,22 @@ const Rascunho = (() => {
     });
   }
 
+  /**
+   * Logo depois de entrar na validação (ou ao abrir o app já com o login), a tela vai para o ciclo em construção
+   * do papel: o construtor, o que está montando; o validador, o que aguarda aprovação. Só uma vez por login.
+   */
+  function abrirDoPapel() {
+    if (abriuDoPapel || !acesso()) return;
+    abriuDoPapel = true;
+    const status = papel() === 'CONSTRUTOR' ? 'EM_CONSTRUCAO' : papel() === 'VALIDADOR' ? 'ENVIADO' : '';
+    const r = lista.slice().reverse().find((x) => x.status === status);
+    if (!r || r.ciclo === app.estado.ciclo) return;
+    app.estado.ciclo = r.ciclo;
+    app.estado.comparar = '';
+    selecao = '';
+    verComentarios = false;
+  }
+
   function aplicar(r) {
     lista = (r && r.rascunhos) || [];
     dados = r || null;
@@ -9016,8 +9168,9 @@ const Rascunho = (() => {
     if (!e.dados) return;
     mesclar(e.dados);
     reaplicarPendentes();
+    abrirDoPapel();
     // O ciclo da tela era um rascunho que não existe mais (aprovado por outra pessoa, excluído…): volta à planta limpa.
-    if (e.ciclo && e.dados.ciclos.indexOf(e.ciclo) < 0 && !doCiclo(e.ciclo)) e.ciclo = '';
+    if (e.ciclo && e.dados.ciclos.indexOf(e.ciclo) < 0 && !doCiclo(e.ciclo)) e.ciclo = app.ultimoAprovado();
     app.montarCiclos();
     app.desenhar();
   }
@@ -9034,9 +9187,10 @@ const Rascunho = (() => {
   function limpar() {
     lista = [];
     dados = null;
+    abriuDoPapel = false; // no próximo login, abre de novo o ciclo do papel
     if (!app || !app.estado.dados) return;
     mesclar(app.estado.dados);
-    if (app.estado.ciclo && app.estado.dados.ciclos.indexOf(app.estado.ciclo) < 0) app.estado.ciclo = '';
+    if (app.estado.ciclo && app.estado.dados.ciclos.indexOf(app.estado.ciclo) < 0) app.estado.ciclo = app.ultimoAprovado();
     app.montarCiclos();
     app.desenhar();
   }
@@ -9105,6 +9259,7 @@ const Rascunho = (() => {
     Object.keys(marcas).filter((c) => c !== 'NEUTRO').forEach((c) => { n('option', null, marcas[c].nome, sel).value = c; });
     if (valor && valor !== 'NEUTRO' && !marcas[valor]) n('option', null, app.nomeDaMarca(valor), sel).value = valor;
     sel.value = valor && valor !== 'NEUTRO' ? valor : '';
+    app.colorirSelectMarca(sel);
     return sel;
   }
 
@@ -9141,7 +9296,7 @@ const Rascunho = (() => {
     e.ciclo = ciclo;
     verComentarios = false;
     selecao = '';
-    if (e.comparar === ciclo) e.comparar = '';
+    e.comparar = ''; // construindo, a planta mostra o ciclo inteiro (sem a comparação)
     app.montarCiclos();
     app.desenhar();
   }
@@ -9199,55 +9354,38 @@ const Rascunho = (() => {
 
   /* --------------------------- faixa do rascunho ---------------------------- */
 
-  /** Faixa acima da planta com o status do ciclo em construção e as ações de cada papel. */
+  /**
+   * Faixa em destaque no topo (logo abaixo das marcas), sempre que o ciclo da tela é um ciclo em construção:
+   * avisa que ele ainda não foi aprovado, com a mensagem de cada papel, e traz as ações do validador. O
+   * construtor monta pelo painel da lateral (passos e ações); com os comentários abertos, as ações vêm aqui.
+   */
   function atualizarFaixa() {
     const faixa = $('barraRascunho');
     const r = atual();
-    // O construtor monta pelo painel da lateral (com os passos e as ações); a faixa é para os outros casos.
-    const mostrar = !!r && !(papel() === 'CONSTRUTOR' && r.status === 'EM_CONSTRUCAO' && !verComentarios);
+    const mostrar = !!r;
     faixa.hidden = !mostrar;
     document.body.classList.toggle('com-rascunho', mostrar);
     if (!mostrar) return;
+    const construtor = papel() === 'CONSTRUTOR';
+    const validador = papel() === 'VALIDADOR';
+    const enviado = r.status === 'ENVIADO';
     const info = $('rascunhoInfo');
     info.innerHTML = '';
-    n('strong', null, 'Ciclo em construção: ', info);
-    info.appendChild(document.createTextNode(r.ciclo + ' · '));
+    n('span', 'rs-faixa-icone', '🚧', info).setAttribute('aria-hidden', 'true');
+    n('strong', null, 'Ciclo ' + r.ciclo + ' (não publicado)', info);
     n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, info);
-    const construindo = papel() === 'CONSTRUTOR' && r.status === 'EM_CONSTRUCAO';
-    const dica = r.status === 'ENVIADO'
-      ? (papel() === 'VALIDADOR' ? ' Confira as ERs e aprove ou devolva.' : ' Aguardando o validador.')
-      : (construindo ? '' : ' O construtor ainda está montando.');
-    info.appendChild(document.createTextNode(dica));
+    const msg = construtor
+      ? (enviado ? 'Enviado para o validador. Você volta a editar se ele devolver.'
+        : 'Você está montando este ciclo. Ele só aparece para todos depois que o validador aprovar.')
+      : validador
+        ? (enviado ? 'Confira as ERs e aprove ou devolva para o construtor.' : 'O construtor ainda está montando este ciclo (não foi enviado para aprovação).')
+        : '';
+    if (msg) n('span', 'rs-faixa-msg', msg, info);
     const acoes = $('rascunhoAcoes');
     acoes.innerHTML = '';
-    if (construindo) {
-      // Os três passos: tipos (com GMV) → móveis (só com movimentos dos tipos) → enviar.
-      const p = passos();
-      const passo1 = p.tipos > 0 && !p.semGmv;
-      const passo2 = p.espacos > 0 && !p.fora.length;
-      const lista = n('ol', 'rs-passos', null, info);
-      const item = (ok, titulo, detalhe) => {
-        const li = n('li', ok ? 'ok' : '', null, lista);
-        n('strong', null, titulo, li);
-        if (detalhe) n('span', null, ' ' + detalhe, li);
-      };
-      item(passo1, 'Tipos de movimento', p.tipos ? p.tipos + (p.tipos === 1 ? ' movimento' : ' movimentos')
-        + (p.semGmv ? ', ' + p.semGmv + ' sem GMV' : ', todos com GMV') : 'cadastre os movimentos e o GMV');
-      item(passo2, 'Móveis', p.fora.length ? p.fora.length + ' movimento(s) fora dos tipos'
-        : p.espacos ? p.espacos + ' linhas · clique num móvel para editar' : 'clique num móvel para preencher');
-      item(false, 'Enviar para aprovação', '');
-      botao('1. Tipos de movimento', passo1 ? '' : 'primario', editarTipos, acoes);
-      botao('Excluir', 'perigo', () => {
-        if (window.confirm('Excluir o ciclo em construção ' + r.ciclo + '? Não dá para desfazer.')) {
-          salvar({ acao: 'excluir', ciclo: r.ciclo }, 'Ciclo excluído.');
-        }
-      }, acoes);
-      botao('3. Enviar para aprovação', passo1 && passo2 ? 'primario' : '', () => {
-        if (window.confirm('Enviar ' + r.ciclo + ' para aprovação? Você só volta a editar se o validador devolver.')) {
-          salvar({ acao: 'enviar', ciclo: r.ciclo }, 'Ciclo enviado para aprovação.');
-        }
-      }, acoes);
-    } else if (papel() === 'VALIDADOR' && r.status === 'ENVIADO') {
+    if (construtor && !enviado && verComentarios) {
+      botao('← Voltar à construção', 'primario', () => { verComentarios = false; app.desenhar(); }, acoes);
+    } else if (validador && enviado) {
       botao('Devolver', '', () => devolver(r), acoes);
       botao('Aprovar e publicar', 'primario', () => {
         if (window.confirm('Aprovar ' + r.ciclo + '? Ele entra na planilha, junto com os outros ciclos, e fica visível para todos.')) {
@@ -9366,19 +9504,93 @@ const Rascunho = (() => {
     if (m.descricao && m.descricao !== m.id) n('span', null, m.descricao, nome);
     botao('Ver detalhes', 'fantasma', () => app.abrirMovel(m.id), topo).title = 'Planograma e comentários deste móvel';
     botao('✕', 'fantasma', () => aoClicarMovel(''), topo).setAttribute('aria-label', 'Tirar a seleção');
-    app.blocosDoMovel(planta, m, app.estado.ciclo).forEach((b) => blocoEspaco(pai, planta, b));
+    app.blocosDoMovel(planta, m, app.estado.ciclo).forEach((b) => blocoEspaco(pai, planta, m, b));
+  }
+
+  /* ------------------------- meio de gôndola em 2 -------------------------- */
+
+  const chaveDivisao = (ciclo, plantaId, movelId) => ciclo + '|' + plantaId + '|' + movelId;
+
+  /** Meios que o construtor dividiu nesta gôndola ('', 'A', 'B' ou 'AB'), só no ciclo em construção da tela. */
+  function meiosDivididos(ciclo, plantaId, movelId) {
+    if (!editavel() || ciclo !== app.estado.ciclo) return '';
+    return divididos[chaveDivisao(ciclo, plantaId, movelId)] || '';
+  }
+
+  const linhaVazia = () => ({ marca: '', simbolo: '', observacao: '', etiquetas: [] });
+  const temConteudo = (i) => !!(i && (i.marca || i.simbolo || (i.observacao || '').trim() || i.etiquetas.length));
+  const copiaDaLinha = (i) => ({
+    marca: i.marca || '', simbolo: i.simbolo || '', observacao: i.observacao || '',
+    etiquetas: i.etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || '', simbolo: e.simbolo || '', data: e.data || '' })),
+  });
+
+  /** Muda um espaço na tela e agenda a gravação (linha vazia apaga a linha do espaço nesta ER). */
+  function gravarEspaco(planta, chave, l) {
+    aplicarLocal(app.estado.ciclo, planta.id, chave, l);
+    agendar(app.estado.ciclo, planta.id, chave, l);
+  }
+
+  /**
+   * Divide o meio (lado A ou B) em duas metades: o que estava no meio passa para a metade 1 e a metade 2
+   * começa vazia, para outro movimento. A linha do meio inteiro (desta ER) sai.
+   */
+  function dividirMeio(planta, m, lado) {
+    const ciclo = app.estado.ciclo;
+    const daEr = (app.estado.dados.movimentos[ciclo] || {})[planta.id] || {};
+    const meio = m.id + '/MEIO-' + lado;
+    if (daEr[meio]) {
+      const atual = copiaDaLinha(daEr[meio]);
+      gravarEspaco(planta, meio + '-1', atual);
+      gravarEspaco(planta, meio, linhaVazia());
+    }
+    const k = chaveDivisao(ciclo, planta.id, m.id);
+    if ((divididos[k] || '').indexOf(lado) < 0) divididos[k] = ['A', 'B'].filter((l) => l === lado || (divididos[k] || '').indexOf(l) >= 0).join('');
+    formChave = '';
+    app.desenhar();
+  }
+
+  /** Junta as duas metades do meio de novo: fica o que está na metade 1 (ou, se ela estiver vazia, na 2). */
+  function juntarMeio(planta, m, lado) {
+    const ciclo = app.estado.ciclo;
+    const daEr = (app.estado.dados.movimentos[ciclo] || {})[planta.id] || {};
+    const meio = m.id + '/MEIO-' + lado;
+    const blocos = app.blocosDoMovel(planta, m, ciclo);
+    const metade = (n2) => (blocos.find((b) => b.chave === meio + '-' + n2) || {}).info || null;
+    const m1 = metade(1);
+    const m2 = metade(2);
+    if (temConteudo(m1) && temConteudo(m2) && JSON.stringify(copiaDaLinha(m1)) !== JSON.stringify(copiaDaLinha(m2))
+      && !window.confirm('Juntar as metades do Meio ' + lado + '? Fica o que está na metade 1; o da metade 2 sai.')) return;
+    const fica = temConteudo(m1) ? m1 : temConteudo(m2) ? m2 : null;
+    [meio + '-1', meio + '-2'].forEach((c) => { if (daEr[c]) gravarEspaco(planta, c, linhaVazia()); });
+    if (fica) gravarEspaco(planta, meio, copiaDaLinha(fica));
+    const k = chaveDivisao(ciclo, planta.id, m.id);
+    divididos[k] = (divididos[k] || '').replace(lado, '');
+    if (!divididos[k]) delete divididos[k];
+    formChave = '';
+    app.desenhar();
   }
 
   /**
    * Um espaço (ou o móvel inteiro) no painel: cada mudança pinta a planta na hora e é gravada sozinha.
-   * @param {{titulo, chave, info, limite, propria}} b  de blocosDoMovel (App.html)
+   * As etiquetas começam com uma (ou as que o espaço já tem) e "+ Adicionar etiqueta" põe outra, até o limite.
+   * @param {{titulo, chave, info, limite, propria, espaco}} b  de blocosDoMovel (App.html)
    */
-  function blocoEspaco(pai, planta, b) {
+  function blocoEspaco(pai, planta, m, b) {
     const ciclo = app.estado.ciclo;
     const i = b.info || { marca: '', etiquetas: [], simbolo: '', observacao: '' };
     const f = n('div', 'rs-espaco pc-espaco', null, pai);
     f.dataset.espaco = b.chave;
-    n('h4', null, b.titulo, f);
+    const cab = n('div', 'pc-espaco-cab', null, f);
+    n('h4', null, b.titulo, cab);
+    // Gôndola: o meio pode ser dividido em duas metades (dois movimentos) e as metades, juntadas de novo.
+    const idEsp = b.espaco ? b.espaco.id : '';
+    if (m.tipo === 'GONDOLA' && /^MEIO-[AB]$/.test(idEsp)) {
+      botao('Dividir em 2', 'fantasma pc-dividir', () => dividirMeio(planta, m, idEsp.slice(-1)), cab)
+        .title = 'Divide este meio em duas metades, cada uma com o seu movimento';
+    } else if (m.tipo === 'GONDOLA' && /^MEIO-[AB]-1$/.test(idEsp)) {
+      botao('Juntar metades', 'fantasma pc-dividir', () => juntarMeio(planta, m, idEsp.slice(5, 6)), cab)
+        .title = 'Volta a ser um meio só (fica o que está na metade 1)';
+    }
     const herdado = b.info && !b.propria
       ? n('p', 'rs-herdado', 'Vem de outra ER (cascata). Ao mudar, vira uma linha própria da ' + planta.nome + '.', f) : null;
     const linha = (rotulo) => {
@@ -9399,15 +9611,55 @@ const Rascunho = (() => {
     // Etiquetas: só os movimentos cadastrados nos Tipos de movimento do ciclo (passo 1).
     const tipos = tiposDoCiclo();
     const etqs = n('div', 'rs-etiquetas pc-etiquetas', null, f);
-    n('span', 'mv-rotulo', 'Etiquetas', etqs);
+    n('span', 'mv-rotulo', 'Etiquetas' + (b.limite > 1 ? ' (até ' + b.limite + ')' : ''), etqs);
+    const listaEtq = n('div', 'pc-etq-lista', null, etqs);
     const campos = [];
+    let adicionar = null;
     if (!tipos.length) {
       n('p', 'rs-herdado', 'Cadastre primeiro os movimentos do ciclo em Tipos de movimento (passo 1): as etiquetas são escolhidas entre eles.', etqs);
       botao('1. Tipos de movimento', 'primario', editarTipos, etqs);
+    } else if (b.limite > 1) {
+      adicionar = botao('+ Adicionar etiqueta', 'fantasma rs-add pc-add-etq', () => {
+        const c = novaEtiqueta({});
+        c.t.focus();
+      }, etqs);
     }
-    for (let k = 0; tipos.length && k < b.limite; k++) {
-      const e = i.etiquetas[k] || {};
-      const row = n('div', 'rs-etq', null, etqs);
+    const obs = n('textarea', null, null, linha('Observação'));
+    obs.rows = 2;
+    obs.value = i.observacao || '';
+    obs.setAttribute('aria-label', 'Observação de ' + b.titulo);
+    const ler = () => ({
+      marca: marca.value, simbolo: simbolo.value, observacao: obs.value,
+      etiquetas: campos.filter((c) => c.t.value.trim()).map((c) => {
+        const obsEtq = c.o.value.replace(/\|/g, '/').trim();
+        const e = { texto: c.t.value + (obsEtq ? ' | ' + obsEtq : ''), marca: c.m.value };
+        if (c.s.value) e.simbolo = c.s.value;
+        if (c.s.value === 'ANTECIPADO' && c.d.value) e.data = c.d.value; // "2026-10-25"
+        return e;
+      }),
+    });
+    const mudou = (redesenhar) => {
+      campos.forEach((c) => c.t.classList.toggle('fora', !!c.t.value && !tipos.some((x) => x.texto === c.t.value)));
+      if (herdado) herdado.hidden = true;
+      gravarEspaco(planta, b.chave, ler());
+      if (redesenhar) app.desenhar();
+      else montarStats();
+    };
+    /** Numera as etiquetas, mostra o "×" de cada uma e o "+ Adicionar etiqueta" enquanto couber outra. */
+    const renumerar = () => {
+      campos.forEach((c, k) => {
+        c.t.setAttribute('aria-label', 'Etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.o.setAttribute('aria-label', 'Observação da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.x.setAttribute('aria-label', 'Tirar a etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.s.setAttribute('aria-label', 'Símbolo da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.d.setAttribute('aria-label', 'Data da antecipação da etiqueta ' + (k + 1) + ' de ' + b.titulo);
+        c.x.hidden = campos.length === 1 && !c.t.value && !c.o.value && !c.m.value && !c.s.value;
+      });
+      if (adicionar) adicionar.hidden = campos.length >= b.limite;
+    };
+    function novaEtiqueta(e) {
+      const row = n('div', 'rs-etq', null, listaEtq);
       const t = n('select', null, null, row);
       n('option', null, '— sem etiqueta —', t).value = '';
       tipos.forEach((x) => { n('option', null, x.texto + (typeof x.gmv === 'number' ? '' : ' (sem GMV)'), t).value = x.texto; });
@@ -9420,7 +9672,6 @@ const Rascunho = (() => {
         t.classList.add('fora');
       }
       t.value = atualT ? atualT.texto : movimento;
-      t.setAttribute('aria-label', 'Etiqueta ' + (k + 1) + ' de ' + b.titulo);
       // Observação da etiqueta: aparece na planta depois de um "|", mas não muda o movimento nem as contas.
       const o = n('input', 'rs-etq-obs', null, row);
       o.type = 'text';
@@ -9428,36 +9679,64 @@ const Rascunho = (() => {
       o.placeholder = '| observação (opcional)';
       o.title = 'Aparece na planta depois de um "|" (ex.: ' + (movimento || 'LÇTO EGEO') + ' | só no kit). Não entra nas contas.';
       o.value = Render.obsDaEtiqueta(e.texto);
-      o.setAttribute('aria-label', 'Observação da etiqueta ' + (k + 1) + ' de ' + b.titulo);
-      const m = selectMarca(row, e.marca, 'Cor da marca do espaço');
-      m.setAttribute('aria-label', 'Marca da etiqueta ' + (k + 1) + ' de ' + b.titulo);
-      campos.push({ t, o, m });
+      const mc = selectMarca(row, e.marca, 'Cor da marca do espaço');
+      // Símbolo próprio da etiqueta (aparece ao lado dela); com a antecipação (⏩), a data em que entra.
+      const sl = n('div', 'pc-etq-simbolo', null, row);
+      const se = n('select', 'rs-etq-simbolo', null, sl);
+      n('option', null, 'Sem símbolo', se).value = '';
+      Object.keys(app.estado.dados.simbolos).forEach((x) => {
+        const d = app.estado.dados.simbolos[x];
+        n('option', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' }[x] || '') + (x === 'ANTECIPADO' ? 'Antecipação' : d.descricao || x), se).value = x;
+      });
+      se.value = e.simbolo || '';
+      const de = n('input', 'rs-etq-data', null, sl);
+      de.type = 'date';
+      de.value = e.data || '';
+      de.title = 'Data em que a antecipação entra';
+      const mostrarData = () => {
+        de.hidden = se.value !== 'ANTECIPADO';
+        de.required = !de.hidden;
+      };
+      mostrarData();
+      se.addEventListener('change', () => {
+        mostrarData();
+        if (!de.hidden && !de.value) de.focus(); // escolheu a antecipação: em seguida, a data
+      });
+      const c = { row, t, o, m: mc, s: se, d: de };
+      c.x = botao('×', 'fantasma pc-tirar-etq', () => {
+        if (campos.length > 1) {
+          row.remove();
+          campos.splice(campos.indexOf(c), 1);
+        } else {
+          [t, o, mc, se, de].forEach((el) => { el.value = ''; });
+          mc.dispatchEvent(new Event('input')); // tira a cor do select
+          mostrarData();
+        }
+        renumerar();
+        mudou(true);
+      }, row);
+      [t, mc, o, se, de].forEach((el) => el.addEventListener('change', () => { renumerar(); mudou(true); }));
+      campos.push(c);
+      renumerar();
+      return c;
     }
-    const obs = n('textarea', null, null, linha('Observação'));
-    obs.rows = 2;
-    obs.value = i.observacao || '';
-    obs.setAttribute('aria-label', 'Observação de ' + b.titulo);
-    const ler = () => ({
-      marca: marca.value, simbolo: simbolo.value, observacao: obs.value,
-      etiquetas: campos.filter((c) => c.t.value.trim()).map((c) => {
-        const obsEtq = c.o.value.replace(/\|/g, '/').trim();
-        return { texto: c.t.value + (obsEtq ? ' | ' + obsEtq : ''), marca: c.m.value };
-      }),
-    });
-    const mudou = (redesenhar) => {
-      campos.forEach((c) => c.t.classList.toggle('fora', !!c.t.value && !tipos.some((x) => x.texto === c.t.value)));
-      if (herdado) herdado.hidden = true;
-      const l = ler();
-      aplicarLocal(ciclo, planta.id, b.chave, l);
-      agendar(ciclo, planta.id, b.chave, l);
-      if (redesenhar) app.desenhar();
-      else montarStats();
-    };
-    [marca, simbolo].concat(campos.reduce((a, c) => a.concat([c.t, c.m, c.o]), [])).forEach((el) => el.addEventListener('change', () => mudou(true)));
+    if (tipos.length) {
+      const atuais = i.etiquetas.slice(0, b.limite);
+      (atuais.length ? atuais : [{}]).forEach((e) => novaEtiqueta(e));
+    }
+    [marca, simbolo].forEach((el) => el.addEventListener('change', () => mudou(true)));
     obs.addEventListener('input', () => mudou(false));
     const acoes = n('div', 'val-acoes', null, f);
     botao('Limpar espaço', 'fantasma', () => {
-      [marca, simbolo, obs].concat(campos.reduce((a, c) => a.concat([c.t, c.o, c.m]), [])).forEach((el) => { el.value = ''; });
+      [marca, simbolo, obs].forEach((el) => { el.value = ''; });
+      marca.dispatchEvent(new Event('input'));
+      campos.splice(1).forEach((c) => c.row.remove());
+      campos.forEach((c) => {
+        [c.t, c.o, c.m, c.s, c.d].forEach((el) => { el.value = ''; });
+        c.m.dispatchEvent(new Event('input'));
+        c.s.dispatchEvent(new Event('change'));
+      });
+      renumerar();
       mudou(true);
     }, acoes);
   }
@@ -9719,7 +9998,7 @@ const Rascunho = (() => {
 
   return {
     iniciar, atualizar, recarregar, limpar, mesclar, montarSecao, editarPaineis, editavel, painelVisivel,
-    selecionado, aoClicarMovel, esvaziarTudo, lista: () => lista, tem: (ciclo) => !!doCiclo(ciclo),
+    selecionado, aoClicarMovel, esvaziarTudo, lista: () => lista, tem: (ciclo) => !!doCiclo(ciclo), meiosDivididos,
   };
 })();
 </script>
@@ -10047,10 +10326,11 @@ const Antecipacao = (() => {
     Object.keys(dados().marcas).filter((c) => c !== 'NEUTRO').forEach((c) => { n('option', null, dados().marcas[c].nome, marca).value = c; });
     if (val.marca && !dados().marcas[val.marca]) n('option', null, app.nomeDaMarca(val.marca), marca).value = val.marca;
     marca.value = val.marca || '';
+    const pintarMarca = app.colorirSelectMarca(marca);
     // Movimento escolhido da lista: a marca vem junto (a da etiqueta no ciclo de origem).
     etiqueta.addEventListener('change', () => {
       const s = sugeridas.find((x) => Render.chaveEtiqueta(x.texto) === Render.chaveEtiqueta(etiqueta.value));
-      if (s && s.marca && marca.querySelector('option[value="' + s.marca + '"]')) marca.value = s.marca;
+      if (s && s.marca && marca.querySelector('option[value="' + s.marca + '"]')) { marca.value = s.marca; pintarMarca(); }
     });
 
     const modo = n('fieldset', 'campo bloco rs-copiar', null, corpo);
@@ -11126,8 +11406,8 @@ const Analytics = (() => {
  *  em "Ver o tutorial".
  *
  *  Passos cujo alvo não existe nesta versão (ex.: Construir loja no visualizador) ou está escondido
- *  são pulados sozinhos. O tour não grava nada na planilha: só abre (e fecha) o Analytics e
- *  escolhe um ciclo, se nenhum estiver escolhido, para a tela ter o que mostrar.
+ *  são pulados sozinhos. O tour é curto (só o essencial) e não grava nada na planilha: só fecha o
+ *  Analytics e escolhe um ciclo, se nenhum estiver escolhido, para a tela ter o que mostrar.
  */
 const Tutorial = (() => {
   const CHAVE_VISTO = 'planoVarejo.tutorialVisto';
@@ -11163,90 +11443,58 @@ const Tutorial = (() => {
     sel.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  function abrirAnalytics() {
-    const b = $('btnAnalytics');
-    if (b && b.getAttribute('aria-pressed') !== 'true') b.click();
-  }
-
   function fecharAnalytics() {
     const b = $('btnAnalytics');
     if (b && b.getAttribute('aria-pressed') === 'true') b.click();
   }
 
   /**
-   * Os passos do tour. alvo: seletor (ou lista; vale o primeiro visível); antes: ação ao entrar no passo;
-   * comAnalytics: o passo é dentro do Analytics (nos outros, ele fecha, para a planta aparecer).
+   * Os passos do tour (só o essencial, com textos curtos). alvo: seletor (ou lista; vale o primeiro visível);
+   * antes: ação ao entrar no passo; comAnalytics: o passo é dentro do Analytics (nos outros, ele fecha).
    */
   function montarPassos() {
     return [
       {
         alvo: '#selCiclo',
-        titulo: 'Escolha o ciclo',
-        texto: 'Tudo começa aqui. Cada ciclo é um plano de varejo: as cores dos móveis, as etiquetas e os painéis mudam de acordo com o ciclo escolhido. Sem ciclo, a planta aparece limpa.',
+        titulo: 'Ciclo',
+        texto: 'O app abre no último ciclo aprovado. Troque aqui para ver outro.',
         antes: garantirCiclo,
       },
       {
         alvo: '#abasPlanta',
-        titulo: 'Troque de planta',
-        texto: 'ER P, ER M, ER G e ER GG são os tamanhos de loja. O que vale para uma planta vale também para as maiores, a menos que a planilha diga o contrário. Dica: as setas ← → do teclado trocam de planta, ótimo para apresentar.',
-      },
-      {
-        alvo: '#abasVisao',
-        titulo: 'Duas formas de ver as etiquetas',
-        texto: '"Na planta" mostra cada etiqueta junto do espaço do móvel. "Visão simplificada" troca a planta por fichas organizadas por tipo de móvel, mais fáceis de ler numa reunião.',
+        titulo: 'Plantas',
+        texto: 'Um tamanho de loja por aba (ER P a ER GG). As setas ← → também trocam.',
       },
       {
         alvo: '#slide',
-        titulo: 'A planta da loja',
-        texto: 'Cada móvel tem a cor da marca e as etiquetas do ciclo. Clique num móvel para ver a estratégia dele (com o planograma das prateleiras). Use a roda do mouse, a pinça ou os botões − / + para dar zoom; com zoom, arraste para mover.',
+        titulo: 'Planta',
+        texto: 'Cada móvel tem a cor da marca e as etiquetas do ciclo. Clique num móvel para ver os detalhes.',
         posicao: 'centro',
       },
       {
         alvo: '#legenda',
-        titulo: 'Filtre por marca',
-        texto: 'Clique numa marca para destacar só ela: o resto fica em cinza. Clique de novo para ver todas. O filtro vale também para o PNG.',
+        titulo: 'Marcas',
+        texto: 'Clique numa marca para destacar só ela.',
       },
       {
         alvo: '#btnLoja',
         titulo: 'Comunicações ER',
-        texto: 'Abre, à esquerda, as comunicações da ER: nome e ciclo, TV e rádio, (A), (C), os destaques (com a miniatura do móvel a que cada um se refere) e os itens fora da planta (cestinhas, espaço da beleza, cavalete).',
+        texto: 'TV e rádio, (A), (C), destaques e itens fora da planta da ER.',
       },
       {
         alvo: '#btnAnalytics',
         titulo: 'Analytics',
-        texto: 'Um dashboard do ciclo no lugar da planta: quanto do espaço de cada ER vai para cada movimento, marca e classificação (lançamento, promoção…), com o GMV esperado e insights rápidos.',
-      },
-      {
-        alvo: '.an-mapa-cartao',
-        titulo: 'Movimento × ER',
-        texto: 'Cada linha é um movimento e cada coluna uma ER: quanto mais escuro, maior a fatia da ER. Clique numa célula (ou num insight) para ver na planta daquela ER só onde o movimento aparece. "Sobre a análise", no topo, explica o que conta como espaço; "Voltar à planta" (ou Esc) fecha o Analytics.',
-        antes: () => { garantirCiclo(); abrirAnalytics(); },
-        comAnalytics: true,
+        texto: 'Como o espaço de cada ER se divide entre movimentos, marcas e classificações.',
       },
       {
         alvo: '#btnPng',
-        titulo: 'Leve para a apresentação',
-        texto: 'Baixe a planta, a visão simplificada ou a estratégia (o espaço da ER em gráficos). Escolha "PNG" para só o conteúdo, com fundo transparente, ou "Slide completo" para o slide 16:9 pronto para colar.',
+        titulo: 'Baixar PNG',
+        texto: 'Leve a planta para a apresentação: PNG recortado ou slide completo.',
       },
       {
         alvo: '#btnConfig',
-        titulo: 'Configurações',
-        texto: 'Na engrenagem ficam a Validação (o validador comenta a estratégia e o construtor responde; o número mostra os comentários abertos) e Ajustar etiquetas (arraste cada pilha para onde quiser e mude o tamanho das etiquetas). O tutorial também fica aqui.',
-      },
-      {
-        alvo: ['#btnModelo', '#lnkPlanilha'],
-        titulo: 'A planilha manda',
-        texto: 'Tudo o que aparece vem da planilha: abas Movimentos (cor e etiquetas de cada móvel), Painéis (TV, A, C, notas, destaques) e Tipos de movimento (classificação e GMV). Edite a planilha e clique em "Atualizar" para ver as mudanças.',
-        textoCompleto: 'Tudo o que aparece vem da planilha. "Baixar planilha base" gera o arquivo para montar o próximo ciclo (já com o ciclo atual, se quiser) e "Importar planilha" lê o arquivo preenchido. Se editar direto no Google Sheets, clique em "Atualizar".',
-      },
-      {
-        alvo: '#btnConstruir',
-        titulo: 'Construir loja',
-        texto: 'Para mudar o layout de uma planta: adicione, mova, gire e redimensione os móveis e clique em "Salvar planta".',
-      },
-      {
-        titulo: 'Pronto!',
-        texto: 'Você já sabe o essencial. Para rever este tour quando quiser, abra a engrenagem no topo e escolha "Ver o tutorial".',
+        titulo: 'Engrenagem',
+        texto: 'Validação e Construção (cada uma com a sua senha), ajuste das etiquetas, planilha e este tutorial.',
       },
     ];
   }
@@ -11358,7 +11606,7 @@ const Tutorial = (() => {
     h.textContent = p.titulo;
     const t = document.createElement('p');
     t.id = 'tutTexto';
-    t.textContent = p.textoCompleto && document.getElementById('btnModelo') ? p.textoCompleto : p.texto;
+    t.textContent = p.texto;
     const pontos = document.createElement('div');
     pontos.className = 'tut-pontos';
     pontos.setAttribute('aria-hidden', 'true');
@@ -11442,7 +11690,7 @@ const Tutorial = (() => {
   function boasVindas() {
     passos = [{
       titulo: 'Bem-vindo ao Plano de Varejo',
-      texto: 'Aqui você vê, em cada ER, onde fica cada marca e cada movimento do ciclo, com as etiquetas na planta e, no Analytics, como o espaço se divide em cada ER. Quer um tour rápido (cerca de 2 minutos) pelas principais funções?',
+      texto: 'Aqui você vê, em cada ER, onde fica cada marca e cada movimento do ciclo, com as etiquetas na planta e, no Analytics, como o espaço se divide em cada ER. Quer um tour rápido (menos de 1 minuto) pelo essencial?',
     }];
     criarCamada();
     atual = 0;
@@ -11647,6 +11895,11 @@ const App = (() => {
 
   /* ------------------------------- carga ---------------------------------- */
 
+  let cicloEscolhido = false; // o ciclo inicial (o último aprovado) já foi escolhido na primeira carga
+
+  /** Último ciclo aprovado: o último da planilha (a aprovação acrescenta o ciclo no fim das abas). */
+  const ultimoAprovado = () => (estado.dados && estado.dados.ciclos.length ? estado.dados.ciclos[estado.dados.ciclos.length - 1] : '');
+
   async function carregar(preferencias) {
     carregando(true, 'Carregando dados da planilha…');
     try {
@@ -11671,8 +11924,12 @@ const App = (() => {
     $('telaConfig').hidden = true;
     svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden
 
-    // O app abre sem ciclo (planta limpa, sem cores nem etiquetas) até o usuário escolher um.
-    const cicloPref = 'ciclo' in pref ? pref.ciclo : estado.ciclo;
+    // Ao abrir, o app vai direto para o último ciclo aprovado (o último da planilha); o link pode pedir outro
+    // (ou a planta limpa). Depois, Atualizar mantém o ciclo da tela. Quem entrou na validação vai para o ciclo
+    // em construção do seu papel (Rascunho.html).
+    const primeiraCarga = !cicloEscolhido;
+    cicloEscolhido = true;
+    const cicloPref = 'ciclo' in pref ? pref.ciclo : primeiraCarga ? ultimoAprovado() : estado.ciclo;
     estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 || Rascunho.tem(cicloPref) ? cicloPref : '';
     const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
     // A planta pode vir pelo ID ou pelo nome ("ER M", do link).
@@ -11681,7 +11938,7 @@ const App = (() => {
     if ('visao' in pref) estado.visao = pref.visao === 'simplificada' ? 'simplificada' : 'planta';
     if ('marca' in pref) estado.filtro = dados.marcas[pref.marca] ? pref.marca : '';
     if ('etiqueta' in pref) estado.filtroEtiqueta = pref.etiqueta || '';
-    if ('comparar' in pref) estado.comparar = pref.comparar || '';
+    if ('comparar' in pref && $('selComparar')) estado.comparar = pref.comparar || '';
     estado.ajustes = {};
 
     $('avisoLocal').hidden = !dados.modoLocal;
@@ -11747,9 +12004,11 @@ const App = (() => {
   /** "Comparar com": os outros ciclos (só aparece com um ciclo escolhido e mais de um ciclo na planilha). */
   function montarComparar() {
     const sel = $('selComparar');
+    // A versão só de visualização não tem a comparação de ciclos.
+    if (!sel) { estado.comparar = ''; return; }
     if (estado.comparar === estado.ciclo || todosOsCiclos().indexOf(estado.comparar) < 0) estado.comparar = '';
     const outros = todosOsCiclos().filter((c) => c !== estado.ciclo);
-    $('campoComparar').hidden = !estado.ciclo || !outros.length;
+    $('campoComparar').hidden = !estado.ciclo || !outros.length || Rascunho.editavel(); // construindo, não compara
     sel.textContent = '';
     sel.appendChild(new Option('Não comparar', '', false, !estado.comparar));
     outros.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.comparar)));
@@ -11885,7 +12144,9 @@ const App = (() => {
       ciclo: estado.ciclo,
       filtro: estado.filtro,
       filtroEtiqueta: construcao ? '' : etiquetasDoFiltro(),
-      destaqueEspacos: !construcao && estado.ciclo && estado.comparar
+      // Montando um ciclo (Construir loja ou ciclo em construção), a comparação não vale: os espaços iguais aos
+      // do outro ciclo (ex.: os fixos copiados) ficariam cinza e sem etiqueta.
+      destaqueEspacos: !construcao && !Rascunho.editavel() && estado.ciclo && estado.comparar
         ? mudancasEntre(planta, estado.ciclo, estado.comparar).map((x) => x.chave) : null,
       ajustes: outra && outra.id !== estado.planta ? {} : estado.ajustes, // ajustes não salvos: só os da planta da tela
       escalaEtiquetas: construcao ? 1 : tamanhoEtiquetas() / 100,
@@ -11901,6 +12162,8 @@ const App = (() => {
         return p;
       },
       selecionado: construcao ? construcao.selecionado : Rascunho.selecionado(),
+      // Meios de gôndola que o construtor dividiu no ciclo em construção (as metades ainda vazias).
+      meiosDivididos: construcao ? null : (id) => Rascunho.meiosDivididos(estado.ciclo, planta.id, id),
       grade: construcao ? construcao.grade : false,
       referencia: construcao ? construcao.referencia : null,
       escuro: document.documentElement.dataset.tema === 'escuro',
@@ -12356,12 +12619,8 @@ const App = (() => {
     const valida = (x) => linhaValida(movimentoDe(ciclo, planta.id, x));
     const lista = [];
     planta.moveis.forEach((m) => {
-      let esp = Render.espacos(m); // frentes e verso das mesas, painéis do totem
-      if (m.tipo === 'GONDOLA') {
-        const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
-          || valida(m.id + '/MEIO-' + l + '-2') || valida(m.id + '/MEIO-' + l + '-1')).join('');
-        esp = Render.espacos(Object.assign({}, m, { dividido: div }));
-      }
+      // Frentes e verso das mesas, painéis do totem; na gôndola, os meios divididos.
+      const esp = Render.espacos(m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, valida, ciclo) }) : m);
       if (esp.length) esp.forEach((e) => lista.push({ movel: m, espaco: e, chave: m.id + '/' + e.id }));
       else lista.push({ movel: m, espaco: null, chave: m.id });
     });
@@ -12399,7 +12658,7 @@ const App = (() => {
   function mudancasEntre(planta, ciclo, outro) {
     const assinatura = (i) => (linhaValida(i)
       // A etiqueta inteira (com a observação depois do "|"): mudar só a observação também é mudança.
-      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => String(e.texto).trim().replace(/\s+/g, ' ').toUpperCase() + '#' + (e.marca || ''))]) : '');
+      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => String(e.texto).trim().replace(/\s+/g, ' ').toUpperCase() + '#' + (e.marca || '') + '#' + (e.simbolo || '') + (e.data || ''))]) : '');
     return espacosDaPlanta(planta, ciclo).map((x) => {
       const id = x.espaco && x.espaco.id;
       const depois = linhaDoEspaco(ciclo, planta.id, x.movel, id);
@@ -12785,7 +13044,7 @@ const App = (() => {
       if (titulo) novo('span', null, titulo, h);
       return { sec, h };
     };
-    if (estado.comparar) secaoMudancas(secao('Mudou desde ' + estado.comparar).sec, planta);
+    if (estado.comparar && !Rascunho.editavel()) secaoMudancas(secao('Mudou desde ' + estado.comparar).sec, planta);
     // Antecipações do ciclo nesta ER (itens do próximo ciclo que entram antes).
     const antecipadas = Antecipacao.daEr(estado.ciclo, planta);
     if (antecipadas.length) Antecipacao.montarLista(secao('Antecipações').sec, antecipadas, planta, false);
@@ -12888,12 +13147,36 @@ const App = (() => {
     return cores.length === 1 ? cores[0] : 'linear-gradient(90deg, ' + cores.join(', ') + ')';
   }
 
+  /**
+   * Select de marca com a cor de cada marca no fundo (nas opções e no próprio select, pela marca escolhida),
+   * para achar a marca pela cor. As opções sem marca ficam com o fundo normal.
+   */
+  function colorirSelectMarca(sel) {
+    const pintar = (el, valor) => {
+      const comCor = !!valor && valor !== 'NEUTRO';
+      el.style.background = comCor ? corDaMarca(valor, 'etiqueta') : '';
+      el.style.color = comCor ? '#FFFFFF' : '';
+    };
+    Array.from(sel.options).forEach((o) => pintar(o, o.value));
+    const atualizar = () => {
+      pintar(sel, sel.value);
+      sel.classList.toggle('com-cor-marca', !!sel.value && sel.value !== 'NEUTRO');
+    };
+    sel.addEventListener('change', atualizar);
+    sel.addEventListener('input', atualizar);
+    atualizar();
+    return atualizar;
+  }
+
   const nomeDaMarca = (valor) => String(valor).split('+').map((p) => {
     const m = estado.dados.marcas[p.trim()];
     return m ? m.nome : p.trim();
   }).join(' + ');
 
   /** Bloco da tela com o que uma linha da planilha define (marca, símbolo, etiquetas, observação). */
+  /** Ícone de cada símbolo nos textos (tela do móvel, listas). */
+  const ICONES_SIMBOLO = { FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' };
+
   function blocoEstrategia(pai, titulo, i, opcoes) {
     const op = opcoes || {};
     const sec = novo('section', 'mv-bloco', null, pai);
@@ -12915,7 +13198,7 @@ const App = (() => {
       const sim = novo('div', 'mv-linha', null, sec);
       novo('span', 'mv-rotulo', 'Símbolo', sim);
       const d = estado.dados.simbolos[i.simbolo];
-      novo('span', null, ({ FIXO: '🔒 ', EXPOSICAO: 'Ⓔ ', NOVO: 'NEW · ', ANTECIPADO: '⏩ ' }[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
+      novo('span', null, (ICONES_SIMBOLO[i.simbolo] || '') + (d ? d.descricao : i.simbolo), sim);
     }
     // Antecipação: quando entra, de onde vem e o que o espaço tinha antes.
     if (i.antecipacoes) Antecipacao.montarDetalhe(sec, i);
@@ -12931,6 +13214,12 @@ const App = (() => {
       const chip = novo('span', 'mv-etiqueta', e.texto, li);
       chip.style.background = corDaMarca(marcaEtq, 'etiqueta');
       if (e.marca && e.marca !== i.marca) novo('span', 'mv-marca-etq', nomeDaMarca(e.marca), li);
+      // Símbolo próprio da etiqueta; com a antecipação, a data em que entra.
+      if (e.simbolo) {
+        const d = estado.dados.simbolos[e.simbolo];
+        const data = e.data ? ' · entra em ' + e.data.split('-').reverse().join('/') : '';
+        novo('span', 'mv-simbolo-etq', (ICONES_SIMBOLO[e.simbolo] || '') + (d ? d.descricao : e.simbolo) + data, li);
+      }
     });
     if (i.observacao) {
       const obs = novo('div', 'mv-linha', null, sec);
@@ -13096,6 +13385,16 @@ const App = (() => {
     return true;
   }
 
+  /**
+   * Meios divididos de uma gôndola ('', 'A', 'B' ou 'AB'): pelo layout, quando o ciclo tem linha para uma das
+   * metades ou quando o construtor dividiu o meio no ciclo em construção (ainda sem nada nas metades).
+   */
+  function meiosDivididos(planta, m, temLinha, ciclo) {
+    const doRascunho = Rascunho.meiosDivididos(ciclo === undefined ? estado.ciclo : ciclo, planta.id, m.id);
+    return ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0 || doRascunho.indexOf(l) >= 0
+      || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
+  }
+
   /** Clique no móvel: abre a tela com a estratégia do ciclo para ele (a linha do móvel ou a de cada espaço). */
   /**
    * O que um móvel tem no ciclo, numa ER: um bloco por espaço (gôndola — com o meio dividido quando o ciclo
@@ -13108,12 +13407,7 @@ const App = (() => {
     const linha = (x) => (ciclo ? movimentoDe(ciclo, planta.id, x) : null);
     const temLinha = (x) => { const i = linha(x); return !!(i && (i.marca || i.etiquetas.length || i.simbolo)); };
     const daEr = ((estado.dados.movimentos[ciclo] || {})[planta.id]) || {};
-    let mov = m;
-    if (m.tipo === 'GONDOLA') {
-      const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
-        || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
-      mov = Object.assign({}, m, { dividido: div });
-    }
+    const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
     const espacos = Render.espacos(mov);
     if (!espacos.length) {
       return [{
@@ -13154,12 +13448,7 @@ const App = (() => {
     } else {
       const config = estado.dados.config || {};
       // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
-      let mov = m;
-      if (m.tipo === 'GONDOLA') {
-        const div = ['A', 'B'].filter((l) => String(m.dividido || '').toUpperCase().indexOf(l) >= 0
-          || temLinha(m.id + '/MEIO-' + l + '-2') || temLinha(m.id + '/MEIO-' + l + '-1')).join('');
-        mov = Object.assign({}, m, { dividido: div });
-      }
+      const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
       const plano = planogramaDe(m, mov, linha, temLinha);
       if (plano) blocoPlanograma(corpo, plano);
       // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.
@@ -13932,16 +14221,16 @@ const App = (() => {
     aoSair: () => Rascunho.limpar(),
   });
   Rascunho.iniciar({
-    estado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,
+    estado, ultimoAprovado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,
     acesso: () => Validacao.acesso(),
     recarregarComentarios: () => Validacao.recarregar(),
-    abrirMovel, blocosDoMovel, corDaMarca,
+    abrirMovel, blocosDoMovel, corDaMarca, colorirSelectMarca, movimentoDe,
     comentariosAbertos: () => Validacao.abertosNoCiclo(),
     abrirComentarios: () => Validacao.abrirPainel(),
     estatisticas: estatisticasConstrucao,
   });
   Antecipacao.iniciar({
-    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca,
+    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca, colorirSelectMarca,
     acesso: () => Validacao.acesso(),
     movimentoDaPlanilha,
   });
