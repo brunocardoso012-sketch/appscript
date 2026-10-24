@@ -71,7 +71,8 @@ function getDados() {
     lerAbaTexto_(ss, CONFIG.ABAS.TIPOS));
   aplicarAjustesSalvos_(dados.plantas);
   dados.antecipacoes = antecipacoesDeValores_(lerAbaTexto_(ss, CONFIG.ABAS.ANTECIPACOES));
-  dados.prateleiras = prateleirasDeValores_(lerAbaTexto_(ss, CONFIG.ABAS.PRATELEIRAS));
+  dados.produtos = produtosDeValores_(lerAbaTexto_(ss, CONFIG.ABAS.PRODUTOS));
+  dados.prateleiras = prateleirasDeValores_(lerAbaTexto_(ss, CONFIG.ABAS.PRATELEIRAS), dados.produtos);
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = false;

@@ -1520,8 +1520,8 @@ const App = (() => {
   const chaveMovimento = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
 
   /**
-   * Células de uma coluna pelas prateleiras detalhadas (Prateleira.html): cada prateleira com o movimento
-   * escolhido para ela (prateleiras vizinhas com o mesmo movimento viram uma célula só).
+   * Células de uma coluna pelas prateleiras desenhadas (Prateleira.html): cada prateleira com o movimento do
+   * maior quadrado dela (prateleiras vizinhas com o mesmo movimento viram uma célula só).
    * @param {Array<{texto, marca}>} etiquetas  as do espaço, para achar a marca do movimento
    */
   function celulasDoDetalhe(n, detalhe, etiquetas, marcaDaLinha) {
@@ -1546,7 +1546,7 @@ const App = (() => {
    * da linha dele); o totem tem uma coluna com um painel por linha; o móvel make, as testeiras por
    * cima e o corpo sem marca; os demais, uma coluna só com a linha do móvel.
    * Cada coluna que leva produtos tem o id do espaço (o da aba Prateleiras) e as etiquetas dele; quando as
-   * prateleiras dela foram detalhadas (detalhe(id)), cada prateleira mostra o movimento escolhido para ela.
+   * prateleiras dela foram desenhadas (detalhe(id)), cada prateleira mostra o movimento do maior quadrado dela.
    * @return {{n, rotulos, colunas: Array<{id, nome, peso, marca, etiquetas, celulas, detalhada}>, testeiras}|null}
    */
   function planogramaDe(m, mov, linha, temLinha, detalhe) {
@@ -1664,7 +1664,7 @@ const App = (() => {
       pos(novo('span', 'pg-nome', c.nome, grade), col, linhaTopo + plano.n + 1);
     });
     if (plano.colunas.some((c) => c.detalhada)) {
-      novo('p', 'pg-nota', 'Nos espaços com as prateleiras detalhadas, cada prateleira mostra o movimento escolhido para ela (veja os produtos abaixo).', sec);
+      novo('p', 'pg-nota', 'Nos espaços com as prateleiras desenhadas, cada prateleira mostra o movimento do maior quadrado dela (veja os quadrados e os produtos abaixo).', sec);
     }
     novo('p', 'pg-nota', plano.rotulos[0] === 'Painel 1'
       ? 'Painel 1 é o de cima. Cada painel tem a cor e a etiqueta da própria linha (ou da Etiqueta N do totem).'
@@ -1761,7 +1761,7 @@ const App = (() => {
       const detalhe = (id) => Prateleira.doEspaco(ciclo, planta.id, id);
       const plano = planogramaDe(m, mov, linha, temLinha, detalhe);
       if (plano) blocoPlanograma(corpo, plano);
-      // Os produtos de cada prateleira (e, para o construtor, a edição).
+      // O desenho de cada prateleira, com os produtos (e, para o construtor, a edição).
       if (plano) Prateleira.montarSecao(corpo, { ciclo, planta, movel: m, plano });
       // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.
       blocosDoMovel(planta, m, ciclo).forEach((b) => blocoEstrategia(corpo, b.titulo, b.info, {
@@ -1849,6 +1849,7 @@ const App = (() => {
     if (r.paineis) partes.push(r.paineis + ' linha(s) de painéis');
     if (r.tipos) partes.push(r.tipos + ' linha(s) de tipos de movimento');
     if (r.layout) partes.push(r.layout + ' linha(s) de layout');
+    if (r.produtos) partes.push(r.produtos + ' produto(s) no catálogo');
     $('resTexto').textContent = (partes.join(' e ') || 'Nenhuma linha') + ' gravada(s)' +
       (r.ciclos.length ? ' — ciclo(s): ' + r.ciclos.join(', ') + '.' : '.') +
       (r.avisos.length ? ' Confira os avisos:' : '');

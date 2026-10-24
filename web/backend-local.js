@@ -16,6 +16,7 @@
       movimentos: valoresMovimentosExemplo_(),
       paineis: valoresPaineisExemplo_(),
       tipos: valoresTiposExemplo_(),
+      produtos: valoresProdutosExemplo_(),
       versoesModelo: versoesAtuais_(),
     };
   }
@@ -26,6 +27,8 @@
       salvo = JSON.parse(window.localStorage.getItem(CHAVE));
     } catch (e) { /* sem armazenamento ou dado corrompido */ }
     if (!salvo || !salvo.layout || !salvo.movimentos || !salvo.paineis) return exemplo();
+    // Dados salvos antes do catálogo de produtos: começam com os produtos de exemplo.
+    if (!salvo.produtos) salvo.produtos = valoresProdutosExemplo_();
     // Plantas cujo modelo base mudou desde que os dados foram salvos são atualizadas.
     const r = atualizarModelosPlantas_(salvo, salvo.versoesModelo || {});
     if (r.plantas.length) {
@@ -50,6 +53,7 @@
     campo[CONFIG.ABAS.PAINEIS] = 'paineis';
     campo[CONFIG.ABAS.TIPOS] = 'tipos';
     campo[CONFIG.ABAS.COMENTARIOS] = 'comentarios';
+    campo[CONFIG.ABAS.PRODUTOS] = 'produtos';
     const chave = (nome) => campo[nome] || 'aba:' + nome;
     const abas = ler();
     return {
@@ -68,7 +72,8 @@
       const abas = ler();
       const dados = montarDados_(abas.layout, abas.movimentos, abas.paineis, abas.tipos);
       dados.antecipacoes = antecipacoesDeValores_(abas['aba:' + CONFIG.ABAS.ANTECIPACOES]);
-      dados.prateleiras = prateleirasDeValores_(abas['aba:' + CONFIG.ABAS.PRATELEIRAS]);
+      dados.produtos = produtosDeValores_(abas.produtos);
+      dados.prateleiras = prateleirasDeValores_(abas['aba:' + CONFIG.ABAS.PRATELEIRAS], dados.produtos);
       dados.planilhaUrl = '';
       dados.precisaConfigurar = false;
       dados.modoLocal = true;
@@ -83,9 +88,9 @@
     importarPlanilha(payload) {
       const prep = prepararImportacao_(payload);
       const abas = ler();
-      const resultado = { movimentos: 0, paineis: 0, tipos: 0, layout: 0 };
+      const resultado = { movimentos: 0, paineis: 0, tipos: 0, layout: 0, produtos: 0 };
       prep.preparados.forEach((p) => {
-        abas[p.bloco.campo] = mesclarLinhas_(abas[p.bloco.campo] || [], p.linhas, p.bloco.colunas);
+        abas[p.bloco.campo] = mesclarLinhas_(abas[p.bloco.campo] || [], p.linhas, p.bloco.colunas, p.bloco.chave);
         resultado[p.bloco.campo] = p.linhas.length;
       });
       gravar(abas);

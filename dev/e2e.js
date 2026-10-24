@@ -824,7 +824,7 @@ test('ciclo em construção: fixos na planta mesmo comparando, meio dividido, et
   assert.ok(await p.locator('#slide .movel[data-movel="GONDOLA 2"][data-espaco="MEIO-B-1"]').count() > 0);
 });
 
-test('prateleiras: o construtor detalha os produtos na tela do móvel e todos veem', async (t) => {
+test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do catálogo', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo cheio');
   await abaPlanta(p, 'ER P').click();
@@ -832,7 +832,7 @@ test('prateleiras: o construtor detalha os produtos na tela do móvel e todos ve
     const g = [...document.querySelectorAll('#slide [data-movel]')].find((e) => /^GONDOLA 1(\/|$)/.test(e.getAttribute('data-movel')));
     g.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
-  // Sem login: a seção aparece, sem o botão de editar.
+  // Sem login: a seção aparece, sem o botão de desenhar.
   await abrirGondola();
   await p.waitForSelector('#dlgMovel[open] .pr-secao');
   assert.strictEqual(await p.locator('[data-acao="editar-prateleiras"]').count(), 0);
@@ -845,31 +845,55 @@ test('prateleiras: o construtor detalha os produtos na tela do móvel e todos ve
   await p.click('#acessoEntrar');
   await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
   await abrirGondola();
-  await p.waitForSelector('#dlgMovel[open] [data-acao="editar-prateleiras"]');
   await p.locator('.pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] [data-acao="editar-prateleiras"]').click();
   const card = p.locator('.pr-espaco.editando');
-  await card.locator('button', { hasText: 'Movimentos pela divisão' }).click();
-  const pr1 = card.locator('.pr-ed-prateleira').nth(0);
-  await pr1.locator('[data-acao="adicionar-produto"]').click();
-  // Colar linhas de uma planilha cria um produto por linha (Produto, SKU, Frentes).
-  await pr1.locator('.pr-ed-nome').first().evaluate((el) => {
-    const dt = new DataTransfer();
-    dt.setData('text', 'Egeo Dolce 90ml\t48211\t3\nEgeo Bomb 90ml\t48212\t2');
-    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-  });
-  assert.strictEqual(await pr1.locator('.pr-ed-linha').count(), 2);
+  /** Arrasta na prateleira, de (x1, y1) a (x2, y2), em fração da prateleira. */
+  const arrastar = async (numero, x1, y1, x2, y2) => {
+    const tela = card.locator('.pr-tela[data-numero="' + numero + '"]');
+    await tela.scrollIntoViewIfNeeded();
+    const r = await tela.boundingBox();
+    await p.mouse.move(r.x + r.width * x1, r.y + r.height * y1);
+    await p.mouse.down();
+    await p.mouse.move(r.x + r.width * x2, r.y + r.height * y2, { steps: 6 });
+    await p.mouse.up();
+  };
+  // Arrastar só na horizontal: o quadrado ocupa a altura toda; o painel dele abre com a busca no catálogo.
+  await arrastar(1, 0.005, 0.5, 0.5, 0.55);
+  await card.locator('.pr-painel .pr-ed-mov').selectOption('LÇTO EGEO');
+  await card.locator('.pr-busca').fill('egeo dolce');
+  await card.locator('.pr-resultado').first().click();
+  await card.locator('.pr-resultado').first().click(); // de novo: soma uma frente
+  // Arrastar também na vertical: o quadrado ocupa só uma parte da altura.
+  await arrastar(1, 0.6, 0.02, 0.9, 0.48);
+  await card.locator('.pr-busca').fill('malbec gold');
+  await card.locator('.pr-resultado').first().click();
+  // Em cima de outro quadrado não entra.
+  await arrastar(1, 0.7, 0.55, 0.98, 0.98);
+  await arrastar(1, 0.55, 0.6, 0.62, 0.65);
+  assert.strictEqual(await card.locator('.pr-tela[data-numero="1"] .pr-quadrado').count(), 3, 'o 3º quadrado entra; o 4º, sobreposto, não');
+  // Delete apaga o quadrado escolhido.
+  await card.locator('.pr-tela[data-numero="1"] .pr-quadrado.escolhido').click();
+  await p.keyboard.press('Delete');
+  assert.strictEqual(await card.locator('.pr-tela[data-numero="1"] .pr-quadrado').count(), 2);
+  // Dividir em 2: dois quadrados iguais, de ponta a ponta.
+  await card.locator('.pr-ed-prateleira').nth(2).locator('.pr-ed-dividir select').selectOption('2');
+  assert.strictEqual(await card.locator('.pr-tela[data-numero="3"] .pr-quadrado').count(), 2);
   await card.locator('select[data-campo="vale"]').selectOption('TODAS');
   await card.locator('[data-acao="salvar-prateleiras"]').click();
-  await p.waitForSelector('.pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] .pr-produto');
+  await p.waitForSelector('.pr-espaco[data-espaco="GONDOLA 1/PONTA-A"]:not(.editando) .pr-quadrado');
   const g = await estado(p, () => App.estado.dados.prateleiras.filter((x) => x.espaco === 'GONDOLA 1/PONTA-A'));
   assert.deepStrictEqual(g.map((x) => x.planta), ['01', '02', '03', '04'], 'vale em todas as ERs que têm o espaço');
-  assert.deepStrictEqual(g[0].prateleiras[0].produtos, [{ nome: 'Egeo Dolce 90ml', sku: '48211', frentes: 3 }, { nome: 'Egeo Bomb 90ml', sku: '48212', frentes: 2 }]);
-  assert.match(await p.textContent('.pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] .pr-resumo'), /2 produtos · 5 frentes/);
-  assert.match(await p.textContent('.mv-plano'), /prateleiras detalhadas/);
+  const p1 = g[0].prateleiras[0];
+  assert.deepStrictEqual(p1.quadrados.map((q) => [q.x, q.y, q.w, q.h]), [[1, 0, 49, 100], [60, 0, 30, 50]]);
+  assert.deepStrictEqual(p1.quadrados.map((q) => q.produtos.map((x) => x.sku + '×' + x.frentes)), [['48211×2'], ['50111×1']]);
+  assert.strictEqual(p1.movimento, 'LÇTO EGEO');
+  assert.deepStrictEqual(g[0].prateleiras[1].quadrados.map((q) => [q.x, q.w]), [[0, 50], [50, 50]]);
+  assert.match(await p.textContent('.pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] .pr-resumo'), /2 produtos · 3 frentes/);
+  assert.match(await p.textContent('.mv-plano'), /prateleiras desenhadas/);
 
   // Mudança sem salvar: fechar pergunta (o teste aceita) e descarta.
   await p.locator('.pr-espaco[data-espaco="GONDOLA 1/MEIO-A"] [data-acao="editar-prateleiras"]').click();
-  await p.locator('.pr-espaco.editando .pr-ed-prateleira').first().locator('[data-acao="adicionar-produto"]').click();
+  await card.locator('.pr-ed-prateleira').first().locator('.pr-ed-dividir select').selectOption('2');
   await p.keyboard.press('Escape');
   await p.waitForSelector('#dlgMovel:not([open])', { state: 'attached' });
 
@@ -879,8 +903,8 @@ test('prateleiras: o construtor detalha os produtos na tela do móvel e todos ve
   await escolherCiclo(p, 'Ciclo exemplo cheio');
   await abaPlanta(p, 'ER G').click();
   await abrirGondola();
-  await p.waitForSelector('#dlgMovel[open] .pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] .pr-produto');
-  assert.match(await p.textContent('#mvEstrategia'), /Egeo Dolce 90ml/);
+  await p.waitForSelector('#dlgMovel[open] .pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] .pr-quadrado');
+  assert.match(await p.textContent('#mvEstrategia'), /Egeo Dolce/);
 });
 
 test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo ⏩', async (t) => {

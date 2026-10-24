@@ -85,7 +85,8 @@ function getDados() {
     lerAba_(ss, CONFIG.ABAS.TIPOS, true)
   );
   dados.antecipacoes = antecipacoesDeValores_(lerAba_(ss, CONFIG.ABAS.ANTECIPACOES, true));
-  dados.prateleiras = prateleirasDeValores_(lerAba_(ss, CONFIG.ABAS.PRATELEIRAS, true));
+  dados.produtos = produtosDeValores_(lerAba_(ss, CONFIG.ABAS.PRODUTOS, true));
+  dados.prateleiras = prateleirasDeValores_(lerAba_(ss, CONFIG.ABAS.PRATELEIRAS, true), dados.produtos);
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = !ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS);
@@ -199,6 +200,9 @@ function configurarPlanilha() {
     if (criarSeVazia_(ss, CONFIG.ABAS.TIPOS, colunasTipos_(), valoresTiposExemplo_())) {
       lista.push(CONFIG.ABAS.TIPOS);
     }
+    if (criarSeVazia_(ss, CONFIG.ABAS.PRODUTOS, colunasProdutos_(), valoresProdutosExemplo_())) {
+      lista.push(CONFIG.ABAS.PRODUTOS);
+    }
     if (criouPlanilha) removerAbaPadraoVazia_(ss);
     return lista;
   });
@@ -225,12 +229,12 @@ function importarPlanilha(payload) {
   const ss = planilha_();
   const prep = prepararImportacao_(payload); // valida tudo antes de gravar
 
-  const resultado = { movimentos: 0, paineis: 0, tipos: 0, layout: 0 };
+  const resultado = { movimentos: 0, paineis: 0, tipos: 0, layout: 0, produtos: 0 };
   comTrava_(function () {
     prep.preparados.forEach(function (p) {
       const sh = ss.getSheetByName(p.bloco.aba);
       const existentes = sh ? sh.getDataRange().getValues() : [];
-      escreverAba_(ss, p.bloco.aba, p.bloco.colunas, mesclarLinhas_(existentes, p.linhas, p.bloco.colunas));
+      escreverAba_(ss, p.bloco.aba, p.bloco.colunas, mesclarLinhas_(existentes, p.linhas, p.bloco.colunas, p.bloco.chave));
       resultado[p.bloco.campo] = p.linhas.length;
     });
   });
@@ -248,6 +252,8 @@ function blocosImportacao_() {
     { campo: 'paineis', aba: CONFIG.ABAS.PAINEIS, colunas: colunasPaineis_() },
     { campo: 'tipos', aba: CONFIG.ABAS.TIPOS, colunas: colunasTipos_() },
     { campo: 'layout', aba: CONFIG.ABAS.LAYOUT, colunas: colunasLayout_() },
+    // O catálogo de produtos vem inteiro: a aba Produtos do arquivo substitui a da planilha.
+    { campo: 'produtos', aba: CONFIG.ABAS.PRODUTOS, colunas: colunasProdutos_(), chave: function () { return 'TODOS'; } },
   ];
 }
 
@@ -276,6 +282,7 @@ function prepararImportacao_(payload) {
       if (b.campo === 'layout') ok = normPlanta_(o.planta) && normId_(o.movel) && texto_(o.tipo);
       else if (b.campo === 'paineis') ok = texto_(o.ciclo) && normPlanta_(o.planta) && texto_(o.texto) && texto_(o.secao);
       else if (b.campo === 'tipos') ok = texto_(o.ciclo) && texto_(o.etiqueta);
+      else if (b.campo === 'produtos') ok = normSku_(o.sku) && texto_(o.nome);
       else ok = texto_(o.ciclo) && normPlanta_(o.planta) && normId_(o.movel);
       if (!ok && avisosLeitura.length < 30) {
         avisosLeitura.push(b.aba + ', linha ' + o._linha + ': faltam campos obrigatórios — linha ignorada.');
@@ -286,7 +293,7 @@ function prepararImportacao_(payload) {
   });
   if (!preparados.length) {
     throw new Error('Não encontrei as abas "' + CONFIG.ABAS.MOVIMENTOS + '", "' + CONFIG.ABAS.PAINEIS + '", "' +
-      CONFIG.ABAS.TIPOS + '" ou "' + CONFIG.ABAS.LAYOUT + '" no arquivo.');
+      CONFIG.ABAS.TIPOS + '", "' + CONFIG.ABAS.LAYOUT + '" ou "' + CONFIG.ABAS.PRODUTOS + '" no arquivo.');
   }
   return { preparados: preparados, avisosLeitura: avisosLeitura };
 }

@@ -23,6 +23,8 @@ const CONFIG = {
     ANTECIPACOES: 'Antecipações',
     // Produtos de cada prateleira de cada espaço (Prateleiras.gs).
     PRATELEIRAS: 'Prateleiras',
+    // Catálogo de produtos que vão nos quadrados das prateleiras (SKU, nome, marca, categoria, movimento).
+    PRODUTOS: 'Produtos',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -86,8 +88,11 @@ const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
  */
 const PRATELEIRAS_POR_TIPO = { GONDOLA: 4, PIRAMIDE: 4, FILA: 3, GONDOLA_PAREDE: 5, VITRINE_L: 2, ILHA_OUI: 3, MAKE: 5 };
 
-/** Limites de uma prateleira: produtos e frentes de cada produto. */
-const LIMITES_PRATELEIRA = { produtos: 40, frentes: 99 };
+/**
+ * Limites das prateleiras: quadrados por prateleira, produtos por quadrado, frentes de cada produto e o
+ * menor lado de um quadrado (em % da prateleira).
+ */
+const LIMITES_PRATELEIRA = { quadrados: 30, produtos: 20, frentes: 99, minimo: 3 };
 
 /**
  * Marcas e cores.
