@@ -215,6 +215,7 @@
   /* A planta e o botão de baixar PNG, no canto de baixo dela. */
   .area-planta { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
   .btn-png { position: absolute; right: 14px; bottom: 14px; z-index: 5; box-shadow: 0 4px 14px rgba(0, 0, 0, .12); }
+  .btn-png.btn-briefing { right: 150px; } /* ao lado do Baixar PNG */
   #slide {
     flex: 1 1 auto;
     min-width: 0;
@@ -5096,6 +5097,10 @@ function executarPrateleiras_(io, acesso, pedido) {
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
           Baixar PNG
         </button>
+        <button id="btnBriefing" class="btn btn-png btn-briefing" type="button" title="Baixar o briefing das gôndolas em PDF: cada gôndola com o planograma desenhado e os produtos de cada quadrado">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
+          Briefing (PDF)
+        </button>
       </div>
       <section class="analytics" id="painelAnalytics" hidden aria-label="Analytics">
         <header class="an-topo">
@@ -5318,6 +5323,24 @@ function executarPrateleiras_(io, acesso, pedido) {
         <div class="rodape-dialogo">
           <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
           <button class="btn primario" id="pngBaixar" value="baixar" type="submit">Baixar PNG</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Briefing das gôndolas em PDF (Briefing.html). -->
+    <dialog id="dlgBriefing" class="dialogo">
+      <form method="dialog">
+        <h2>Briefing das gôndolas (PDF)</h2>
+        <p class="sub">Uma página por gôndola, com o planograma desenhado e uma tabela com cada quadrado (posição e tamanho, em % e em cm) e os produtos na ordem, para reproduzir no programa de planograma.</p>
+        <fieldset class="campo bloco">
+          <legend>ERs</legend>
+          <label class="opcao"><input type="radio" name="briefingErs" value="esta" checked> <span>Só <b id="briefingEsta">esta ER</b></span></label>
+          <label class="opcao"><input type="radio" name="briefingErs" value="todas"> <span>Todas as ERs <small>— as gôndolas de cada ER, em ordem</small></span></label>
+        </fieldset>
+        <p class="sub" id="briefingResumo"></p>
+        <div class="rodape-dialogo">
+          <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
+          <button class="btn primario" id="briefingBaixar" value="baixar" type="submit">Baixar PDF</button>
         </div>
       </form>
     </dialog>
@@ -5951,6 +5974,22 @@ const Render = (() => {
         : { x: m.x + v0, w: v1 - v0, y: m.y + u0, d: u1 - u0 };
       return Object.assign(caixaXY, { z: m.z, h: m.h, movel: m, espaco: e });
     });
+  }
+
+  /**
+   * Medidas de um espaço da gôndola pelo layout (em metros): a largura da frente (o que se vê de quem está diante
+   * dele: a ponta mostra a largura da gôndola; o meio, o comprimento entre as pontas, ou metade dele, quando
+   * dividido) e a altura. As mesmas contas de caixasGondola.
+   * @return {{largura: number, altura: number}|null}
+   */
+  function medidasGondola(m, idEspaco) {
+    if (!m || m.tipo !== 'GONDOLA') return null;
+    const L = Math.max(m.w, m.d);
+    const C = Math.min(m.w, m.d);
+    const p = Math.min(0.6, L * 0.18);
+    const meio = L - 2 * p;
+    const largura = /^PONTA-/.test(idEspaco) ? C : /^MEIO-[AB]-\d$/.test(idEspaco) ? meio / 2 : meio;
+    return { largura, altura: m.h };
   }
 
   /**
@@ -7729,7 +7768,7 @@ const Render = (() => {
     desenharMiniatura(svg, m, null, (e) => { const c = corDoEspaco(e); return c ? [c] : null; }, 1, 1, w - 2, h - 2, verso);
   }
 
-  return { desenhar, paleta, corDaTela, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, movimentoDaEtiqueta, obsDaEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
+  return { desenhar, paleta, corDaTela, miniatura, miniaturaEspacos, espacos, caixasGondola, medidasGondola, chaveEtiqueta, movimentoDaEtiqueta, obsDaEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
 })();
 </script>
 
@@ -11663,6 +11702,495 @@ const Prateleira = (() => {
     <script>
 /**
  * ============================================================================
+ *  BRIEFING DAS GÔNDOLAS (PDF)
+ * ============================================================================
+ *  O botão "Briefing (PDF)", ao lado do "Baixar PNG", gera no navegador um PDF
+ *  com a estratégia desenhada nas gôndolas do ciclo, para quem monta o
+ *  planograma no programa apropriado:
+ *   - uma capa com o ciclo, as ERs, o índice das gôndolas e como ler;
+ *   - uma página por gôndola (e por ER): o planograma, na ordem Ponta A, Meio A,
+ *     Ponta B, Meio B, com cada quadrado identificado por um código
+ *     (ex.: MA-2.1 = Meio A, prateleira 2, quadrado 1), e a tabela de cada
+ *     quadrado: posição e tamanho (em % da prateleira e em cm, pelas medidas do
+ *     layout), movimento e os produtos na ordem (SKU, nome e frentes).
+ *  Os espaços ainda sem desenho saem com a divisão automática pelas etiquetas.
+ *  A biblioteca jsPDF é carregada sob demanda do cdnjs (como o ExcelJS).
+ */
+const Briefing = (() => {
+  const $ = (id) => document.getElementById(id);
+  const JSPDF = {
+    src: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+    integrity: 'sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==',
+  };
+  // { estado, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca }
+  let app = null;
+  let promessa = null;
+
+  /** Página A4 deitada, em mm. */
+  const PAG = { w: 297, h: 210, m: 12 };
+  const TINTA = [28, 31, 36];
+  const TINTA2 = [91, 96, 104];
+  const BORDA = [201, 196, 188];
+  const TABUA = [93, 97, 104];
+  /** Sigla de cada espaço da gôndola, para o código dos quadrados. */
+  const SIGLA = { 'PONTA-A': 'PA', 'MEIO-A': 'MA', 'MEIO-A-1': 'MA1', 'MEIO-A-2': 'MA2', 'PONTA-B': 'PB', 'MEIO-B': 'MB', 'MEIO-B-1': 'MB1', 'MEIO-B-2': 'MB2' };
+
+  function carregarJsPDF() {
+    if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+    if (!promessa) {
+      promessa = new Promise((ok, falha) => {
+        const s = document.createElement('script');
+        s.src = JSPDF.src;
+        s.integrity = JSPDF.integrity;
+        s.crossOrigin = 'anonymous';
+        s.referrerPolicy = 'no-referrer';
+        s.onload = () => ok(window.jspdf.jsPDF);
+        s.onerror = () => {
+          promessa = null;
+          falha(new Error('Não foi possível carregar a biblioteca de PDF (jsPDF). Verifique a conexão.'));
+        };
+        document.head.appendChild(s);
+      });
+    }
+    return promessa;
+  }
+
+  const dados = () => app.estado.dados;
+
+  /** Texto nas fontes padrão do PDF (Latin-1): troca o que elas não têm. */
+  const pdfTexto = (t) => String(t == null ? '' : t)
+    .replace(/\u2026/g, '...').replace(/[\u2013\u2014]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"')
+    .replace(/\u2022/g, '-').replace(/[^\n\u0020-\u00FF]/g, '');
+
+  /** Cor da marca (hex do slide, sem o modo noturno); combinações usam a primeira. */
+  function rgbDaMarca(marca) {
+    const codigo = String(marca || '').split('+')[0].trim();
+    const m = dados().marcas[codigo];
+    const hex = /^#[0-9a-f]{6}$/i.test(codigo) ? codigo : m && m.etiqueta;
+    if (!hex || codigo === 'NEUTRO') return [138, 143, 151];
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  /** A cor clareada (fundo dos quadrados). */
+  const clara = (rgb, f) => rgb.map((c) => Math.round(c + (255 - c) * (f === undefined ? 0.82 : f)));
+
+  const numero = (v, casas) => (Math.round(v * Math.pow(10, casas || 0)) / Math.pow(10, casas || 0)).toLocaleString('pt-BR', { minimumFractionDigits: casas || 0, maximumFractionDigits: casas || 0 });
+  const chaveMov = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+
+  /** Gôndolas de uma ER, em ordem de número. */
+  const gondolasDe = (planta) => planta.moveis.filter((m) => m.tipo === 'GONDOLA')
+    .sort((a, b) => a.id.localeCompare(b.id, 'pt-BR', { numeric: true }));
+
+  /**
+   * O que vai no PDF para uma gôndola: as colunas do planograma e, de cada quadrado, o código, as medidas e os
+   * produtos. @return {{m, plano, colunas: Array<{col, sigla, medidas, desenhada}>, linhas: Array}}
+   */
+  function montarGondola(planta, m, ciclo) {
+    const plano = app.planogramaDoMovel(planta, m, ciclo);
+    const colunas = plano.colunas.map((col) => {
+      const id = col.id.split('/')[1];
+      return { col, id, sigla: SIGLA[id] || id, medidas: Render.medidasGondola(m, id), desenhada: !!col.desenhada };
+    });
+    const linhas = [];
+    colunas.forEach((c) => {
+      if (!c.desenhada) {
+        linhas.push({ semDesenho: true, c, texto: c.col.etiquetas.length ? 'Sem desenho: as etiquetas dividem as prateleiras (' + c.col.etiquetas.map((e) => e.texto).join(' / ') + ')' : 'Sem desenho e sem etiqueta' });
+        return;
+      }
+      c.col.celulas.forEach((cel, k) => {
+        cel.quadrados.forEach((q, i) => {
+          const codigo = c.sigla + '-' + (k + 1) + '.' + (i + 1);
+          q.codigo = codigo;
+          const base = { c, codigo, prateleira: k + 1, q };
+          if (!q.produtos.length) linhas.push(Object.assign({ ordem: '', produto: null }, base));
+          q.produtos.forEach((x, j) => linhas.push(Object.assign({ ordem: j + 1, produto: x, primeira: j === 0 }, base)));
+        });
+      });
+    });
+    return { m, plano, colunas, linhas };
+  }
+
+  /* ------------------------------- desenho -------------------------------- */
+
+  /** Corta o texto com "..." para caber em w (na fonte atual). */
+  function caber(doc, t, w) {
+    let s = pdfTexto(t);
+    if (doc.getTextWidth(s) <= w) return s;
+    while (s.length > 1 && doc.getTextWidth(s + '...') > w) s = s.slice(0, -1);
+    return s.trim() + '...';
+  }
+
+  function fonte(doc, tam, peso, cor) {
+    doc.setFont('helvetica', peso || 'normal');
+    doc.setFontSize(tam);
+    doc.setTextColor.apply(doc, cor || TINTA);
+  }
+
+  function cabecalho(doc, titulo, sub, direita) {
+    fonte(doc, 16, 'bold');
+    doc.text(pdfTexto(titulo), PAG.m, PAG.m + 6);
+    fonte(doc, 9, 'normal', TINTA2);
+    if (sub) doc.text(pdfTexto(sub), PAG.m, PAG.m + 12);
+    if (direita) {
+      fonte(doc, 10, 'bold');
+      doc.text(pdfTexto(direita), PAG.w - PAG.m, PAG.m + 6, { align: 'right' });
+    }
+    doc.setDrawColor.apply(doc, BORDA);
+    doc.setLineWidth(0.3);
+    doc.line(PAG.m, PAG.m + 15, PAG.w - PAG.m, PAG.m + 15);
+  }
+
+  /**
+   * O planograma da gôndola: uma coluna por espaço (meio com o dobro da largura da ponta), as prateleiras de cima
+   * para baixo, com os quadrados e os códigos (ou a divisão automática, sem desenho).
+   */
+  function desenharPlanograma(doc, g, x0, y0, w, h) {
+    const rotW = 8;
+    const nomeH = 6;
+    const vao = 3;
+    const pesos = g.colunas.reduce((s, c) => s + c.col.peso, 0);
+    const util = w - rotW - vao * (g.colunas.length - 1);
+    const n = g.plano.n;
+    const linhaH = (h - nomeH) / n;
+    // Número das prateleiras (1 = a de cima).
+    fonte(doc, 8, 'bold', TINTA2);
+    for (let k = 0; k < n; k++) doc.text(String(k + 1), x0 + rotW - 3, y0 + k * linhaH + linhaH / 2 + 1.2, { align: 'right' });
+    let cx = x0 + rotW;
+    g.colunas.forEach((c) => {
+      const cw = (c.col.peso / pesos) * util;
+      // Fundo e laterais da coluna.
+      doc.setFillColor(244, 242, 239);
+      doc.setDrawColor.apply(doc, BORDA);
+      doc.setLineWidth(0.3);
+      doc.rect(cx, y0, cw, n * linhaH, 'FD');
+      if (c.desenhada) {
+        c.col.celulas.forEach((cel, k) => {
+          const sy = y0 + k * linhaH;
+          const area = { x: cx + 0.8, y: sy + 0.8, w: cw - 1.6, h: linhaH - 2.6 };
+          cel.quadrados.forEach((q) => {
+            const cor = rgbDaMarca(marcaDe(c.col, q.movimento));
+            const bx = area.x + (q.x / 100) * area.w;
+            const by = area.y + (q.y / 100) * area.h;
+            const bw = (q.w / 100) * area.w;
+            const bh = (q.h / 100) * area.h;
+            doc.setFillColor.apply(doc, clara(cor));
+            doc.setDrawColor.apply(doc, cor);
+            doc.setLineWidth(0.45);
+            doc.rect(bx + 0.3, by + 0.3, bw - 0.6, bh - 0.6, 'FD');
+            const tw = bw - 2;
+            let ty = by + 3.4;
+            if (ty < by + bh - 0.5) { fonte(doc, 7, 'bold'); doc.text(caber(doc, q.codigo, tw), bx + 1, ty); }
+            ty += 2.9;
+            if (q.movimento && ty < by + bh - 0.5) { fonte(doc, 5.6, 'bold', cor); doc.text(caber(doc, q.movimento, tw), bx + 1, ty); }
+            ty += 2.8;
+            if (ty < by + bh - 0.5) {
+              fonte(doc, 5.6, 'normal', TINTA2);
+              const qtd = q.produtos.length;
+              doc.text(caber(doc, qtd ? qtd + (qtd === 1 ? ' produto' : ' produtos') + ' · ' + q.produtos.reduce((s, x) => s + x.frentes, 0) + ' fr.' : 'sem produtos', tw), bx + 1, ty);
+            }
+          });
+        });
+      } else {
+        // Sem desenho: a divisão automática pelas etiquetas, em cinza claro, com o texto.
+        c.col.celulas.forEach((cel) => {
+          const sy = y0 + cel.de * linhaH;
+          const sh = (cel.ate - cel.de) * linhaH;
+          const e = cel.etiquetas[0];
+          const cor = rgbDaMarca(e ? e.marca : '');
+          doc.setFillColor.apply(doc, clara(cor, 0.88));
+          doc.rect(cx + 0.15, sy + 0.15, cw - 0.3, sh - 0.3, 'F');
+          // O texto no alto da célula (no meio, ele cairia numa tábua quando a etiqueta ocupa duas prateleiras).
+          fonte(doc, 7, 'bold', e ? cor : TINTA2);
+          const txt = cel.etiquetas.map((x) => x.texto).join(' / ') || 'sem etiqueta';
+          doc.text(caber(doc, txt, cw - 3), cx + cw / 2, sy + 5, { align: 'center' });
+          fonte(doc, 5.6, 'italic', TINTA2);
+          doc.text('sem desenho', cx + cw / 2, sy + 8.2, { align: 'center' });
+        });
+      }
+      // Tábuas das prateleiras.
+      doc.setFillColor.apply(doc, TABUA);
+      for (let k = 0; k < n; k++) doc.rect(cx, y0 + (k + 1) * linhaH - 1.4, cw, 1.4, 'F');
+      // Nome do espaço e a largura da frente (pelo layout).
+      fonte(doc, 7.5, 'bold');
+      const med = c.medidas ? ' · ' + numero(c.medidas.largura * 100) + ' cm' : '';
+      doc.text(caber(doc, c.col.nome.toUpperCase() + ' (' + c.sigla + ')' + med, cw), cx + cw / 2, y0 + n * linhaH + 4.2, { align: 'center' });
+      cx += cw + vao;
+    });
+  }
+
+  /** Marca de um movimento: a da etiqueta do espaço com esse texto. */
+  function marcaDe(col, mov) {
+    const e = col.etiquetas.find((x) => chaveMov(x.texto) === chaveMov(mov));
+    return e ? e.marca : '';
+  }
+
+  /** Colunas da tabela (largura em mm; a do produto é o que sobra). */
+  const COLS = [
+    { t: 'Código', w: 15 }, { t: 'Espaço', w: 17 }, { t: 'Prat.', w: 9, a: 'center' },
+    { t: 'Início %', w: 12, a: 'right' }, { t: 'Larg. %', w: 12, a: 'right' },
+    { t: 'Início cm', w: 13, a: 'right' }, { t: 'Larg. cm', w: 13, a: 'right' },
+    { t: 'Altura', w: 26 }, { t: 'Movimento', w: 30 }, { t: 'Ordem', w: 10, a: 'center' }, { t: 'SKU', w: 16 },
+    { t: 'Produto', w: 0 }, { t: 'Frentes', w: 12, a: 'right' }, { t: 'Observação', w: 26 },
+  ];
+
+  function cabecalhoTabela(doc, y) {
+    const larg = PAG.w - 2 * PAG.m;
+    const resto = larg - COLS.reduce((s, c) => s + c.w, 0);
+    doc.setFillColor(32, 33, 36);
+    doc.rect(PAG.m, y, larg, 5.4, 'F');
+    fonte(doc, 6.8, 'bold', [255, 255, 255]);
+    let x = PAG.m;
+    COLS.forEach((c) => {
+      const w = c.w || resto;
+      doc.text(c.t, c.a === 'right' ? x + w - 1.2 : c.a === 'center' ? x + w / 2 : x + 1.2, y + 3.7, { align: c.a || 'left' });
+      x += w;
+    });
+    return y + 5.4;
+  }
+
+  /** Valores de uma linha da tabela (um produto de um quadrado, ou o quadrado sem produto). */
+  function celulasDaLinha(g, l, n) {
+    const q = l.q;
+    const med = l.c.medidas;
+    const cm = (pct) => (med ? numero((pct / 100) * med.largura * 100) : '-');
+    const alturaCm = med ? (med.altura * 100) / n : 0;
+    const altura = q.h >= 100 ? 'inteira' + (alturaCm ? ' (' + numero(alturaCm) + ' cm)' : '')
+      : (q.y <= 0 ? 'em cima' : q.y + q.h >= 100 ? 'embaixo' : 'no meio') + ': ' + numero(q.y) + '-' + numero(q.y + q.h) + '%';
+    const repete = l.ordem && l.ordem > 1; // nas linhas seguintes do mesmo quadrado, só o produto
+    return [
+      repete ? '' : l.codigo, repete ? '' : l.c.col.nome, repete ? '' : String(l.prateleira),
+      repete ? '' : numero(q.x, 1), repete ? '' : numero(q.w, 1), repete ? '' : cm(q.x), repete ? '' : cm(q.w),
+      repete ? '' : altura, repete ? '' : q.movimento || '-', l.produto ? String(l.ordem) : '-',
+      l.produto ? l.produto.sku : '', l.produto ? l.produto.nome + (l.produto.foraDoCatalogo ? ' (fora da aba Produtos)' : '') : 'sem produtos',
+      l.produto ? String(l.produto.frentes) : '', repete ? '' : q.observacao || '',
+    ];
+  }
+
+  /** Página(s) de uma gôndola. */
+  function paginaGondola(doc, planta, g, ciclo) {
+    const m = g.m;
+    const titulo = m.id + (m.descricao && chaveMov(m.descricao) !== chaveMov(m.id) ? ' · ' + m.descricao : '');
+    const dims = 'Gôndola ' + numero(Math.max(m.w, m.d), 2) + ' × ' + numero(Math.min(m.w, m.d), 2) + ' m, ' + numero(m.h, 2) + ' m de altura, '
+      + g.plano.n + ' prateleiras (1 = a de cima). Medidas em cm pelo layout da loja: confira no móvel.';
+    cabecalho(doc, titulo, dims, planta.nome + ' · ' + (/^ciclo\b/i.test(ciclo) ? ciclo : 'Ciclo ' + ciclo));
+    const yPlano = PAG.m + 19;
+    desenharPlanograma(doc, g, PAG.m, yPlano, PAG.w - 2 * PAG.m, 84);
+    let y = cabecalhoTabela(doc, yPlano + 89);
+    const larg = PAG.w - 2 * PAG.m;
+    const resto = larg - COLS.reduce((s, c) => s + c.w, 0);
+    const limite = PAG.h - PAG.m - 6;
+    let faixa = false;
+    let ultimoQuadrado = null;
+    g.linhas.forEach((l) => {
+      if (y + 4.6 > limite) {
+        doc.addPage();
+        cabecalho(doc, titulo + ' (continuação)', 'Tabela dos quadrados, continuação.', planta.nome + ' · ' + ciclo);
+        y = cabecalhoTabela(doc, PAG.m + 19);
+      }
+      if (l.semDesenho) {
+        doc.setFillColor(250, 249, 247);
+        doc.rect(PAG.m, y, larg, 4.6, 'F');
+        fonte(doc, 6.8, 'bold');
+        doc.text(pdfTexto(l.c.sigla + ' · ' + l.c.col.nome), PAG.m + 1.2, y + 3.2);
+        fonte(doc, 6.8, 'italic', TINTA2);
+        doc.text(caber(doc, l.texto, larg - 40), PAG.m + 33, y + 3.2);
+        y += 4.6;
+        return;
+      }
+      // Faixas alternadas por quadrado (as linhas do mesmo quadrado ficam na mesma cor).
+      if (l.codigo !== ultimoQuadrado) { faixa = !faixa; ultimoQuadrado = l.codigo; }
+      if (faixa) { doc.setFillColor(244, 245, 247); doc.rect(PAG.m, y, larg, 4.6, 'F'); }
+      if (l.ordem === '' || l.ordem === 1) {
+        doc.setDrawColor.apply(doc, BORDA);
+        doc.setLineWidth(0.15);
+        doc.line(PAG.m, y, PAG.m + larg, y);
+      }
+      const vals = celulasDaLinha(g, l, g.plano.n);
+      let x = PAG.m;
+      COLS.forEach((c, i) => {
+        const w = c.w || resto;
+        fonte(doc, 6.8, i === 0 || i === 11 ? 'bold' : 'normal', vals[i] === 'sem produtos' ? TINTA2 : TINTA);
+        if (i === 8 && vals[i] && vals[i] !== '-') doc.setTextColor.apply(doc, rgbDaMarca(marcaDe(l.c.col, vals[i])));
+        const t = caber(doc, vals[i], w - 2.4);
+        doc.text(t, c.a === 'right' ? x + w - 1.2 : c.a === 'center' ? x + w / 2 : x + 1.2, y + 3.2, { align: c.a || 'left' });
+        x += w;
+      });
+      y += 4.6;
+    });
+    if (!g.linhas.length) {
+      fonte(doc, 8, 'italic', TINTA2);
+      doc.text('Nenhum espaço desta gôndola foi desenhado.', PAG.m, y + 5);
+    }
+  }
+
+  /** Linhas do índice que cabem na capa (a 1ª página da capa, depois do "Como ler", e as seguintes). */
+  const INDICE = { primeira: 14, demais: 32 };
+  const paginasDaCapa = (n) => 1 + Math.max(0, Math.ceil((n - INDICE.primeira) / INDICE.demais));
+
+  /** Capa: ciclo, ERs, como ler e o índice das gôndolas (com a página de cada uma), nas páginas reservadas. */
+  function capa(doc, ciclo, ers, indice) {
+    cabecalho(doc, 'Briefing das gôndolas', 'Planograma desenhado no Plano de Varejo, para reproduzir no programa de planograma.',
+      /^ciclo\b/i.test(ciclo) ? ciclo : 'Ciclo ' + ciclo);
+    let y = PAG.m + 24;
+    fonte(doc, 10, 'bold');
+    doc.text('Como ler', PAG.m, y);
+    fonte(doc, 8.5, 'normal');
+    const como = [
+      'Cada página é uma gôndola de uma ER. No alto, o planograma: Ponta A, Meio A, Ponta B e Meio B (cada meio com o dobro da largura de uma ponta), com as prateleiras de cima para baixo (1 = a de cima).',
+      'Cada quadrado desenhado tem um código: sigla do espaço - prateleira . quadrado. Ex.: MA-2.1 = Meio A, prateleira 2, quadrado 1. Siglas: PA (Ponta A), MA (Meio A), PB (Ponta B), MB (Meio B); MA1 / MA2 e MB1 / MB2 são as metades de um meio dividido.',
+      'A tabela traz cada quadrado: Início e Largura em % da prateleira (da esquerda para a direita) e em cm, pela largura da frente do espaço no layout; Altura: "inteira" ou a faixa ocupada (de cima para baixo, em %); o Movimento; e os produtos, na Ordem da esquerda para a direita, com SKU, nome e Frentes.',
+      'Os espaços sem desenho aparecem com a divisão automática pelas etiquetas do espaço (sem produtos definidos).',
+    ];
+    y += 5;
+    como.forEach((p) => {
+      const linhas = doc.splitTextToSize(pdfTexto('• ' + p), PAG.w - 2 * PAG.m);
+      doc.text(linhas, PAG.m, y);
+      y += linhas.length * 3.8 + 1.5;
+    });
+    y += 4;
+    fonte(doc, 10, 'bold');
+    doc.text('Gôndolas', PAG.m, y);
+    y += 3;
+    const cols = [['ER', 22], ['Gôndola', 60], ['Espaços desenhados', 60], ['Quadrados', 24], ['Produtos', 24], ['Página', 20]];
+    doc.setFillColor(32, 33, 36);
+    doc.rect(PAG.m, y, cols.reduce((s, c) => s + c[1], 0), 5.4, 'F');
+    fonte(doc, 7.5, 'bold', [255, 255, 255]);
+    let x = PAG.m;
+    cols.forEach((c) => { doc.text(pdfTexto(c[0]), x + 1.5, y + 3.8); x += c[1]; });
+    y += 5.4;
+    let pagina = 1;
+    let naPagina = 0;
+    indice.forEach((it, i) => {
+      if (naPagina >= (pagina === 1 ? INDICE.primeira : INDICE.demais)) {
+        pagina++;
+        naPagina = 0;
+        doc.setPage(pagina);
+        y = PAG.m + 4;
+      }
+      naPagina++;
+      if (i % 2) { doc.setFillColor(244, 245, 247); doc.rect(PAG.m, y, cols.reduce((s, c) => s + c[1], 0), 5, 'F'); }
+      fonte(doc, 7.5, 'normal');
+      const vals = [it.er, it.gondola, it.desenhados || 'nenhum', String(it.quadrados), String(it.produtos), String(it.pagina)];
+      x = PAG.m;
+      cols.forEach((c, j) => { doc.text(caber(doc, vals[j], c[1] - 3), x + 1.5, y + 3.5); x += c[1]; });
+      y += 5;
+    });
+    if (!indice.length) {
+      fonte(doc, 9, 'italic', TINTA2);
+      doc.text('Nenhuma gôndola nas ERs escolhidas.', PAG.m, y + 6);
+    }
+    doc.setPage(1);
+    fonte(doc, 7.5, 'normal', TINTA2);
+    doc.text(pdfTexto('ERs: ' + ers.map((p) => p.nome).join(', ')), PAG.m, PAG.h - PAG.m - 2);
+  }
+
+  /** Rodapé de todas as páginas: o que é, quando foi gerado e a página. */
+  function rodapes(doc, ciclo) {
+    const total = doc.internal.getNumberOfPages();
+    const agora = new Date();
+    const p2 = (n) => (n < 10 ? '0' : '') + n;
+    const quando = p2(agora.getDate()) + '/' + p2(agora.getMonth() + 1) + '/' + agora.getFullYear() + ' ' + p2(agora.getHours()) + ':' + p2(agora.getMinutes());
+    for (let i = 1; i <= total; i++) {
+      doc.setPage(i);
+      fonte(doc, 7, 'normal', TINTA2);
+      doc.text(pdfTexto('Plano de Varejo · Briefing das gôndolas · ' + ciclo + ' · gerado em ' + quando), PAG.m, PAG.h - PAG.m + 4);
+      doc.text('Página ' + i + ' de ' + total, PAG.w - PAG.m, PAG.h - PAG.m + 4, { align: 'right' });
+    }
+  }
+
+  /**
+   * Gera o PDF das gôndolas das ERs dadas, no ciclo da tela. @return {Promise<{blob, nome, paginas, gondolas}>}
+   */
+  async function gerar(plantas) {
+    const ciclo = app.estado.ciclo;
+    if (!ciclo) throw new Error('Escolha um ciclo para baixar o briefing.');
+    const JsPDF = await carregarJsPDF();
+    const doc = new JsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+    doc.setProperties({ title: 'Briefing das gôndolas · ' + ciclo, subject: 'Planograma das gôndolas', creator: 'Plano de Varejo' });
+    const grupos = plantas.map((planta) => ({ planta, gondolas: gondolasDe(planta).map((m) => montarGondola(planta, m, ciclo)) }));
+    // A capa vem primeiro; o índice precisa das páginas das gôndolas, então as páginas dela ficam reservadas e ela é
+    // desenhada no fim.
+    const total = grupos.reduce((s, gr) => s + gr.gondolas.length, 0);
+    for (let i = 1; i < paginasDaCapa(total); i++) doc.addPage();
+    const indice = [];
+    grupos.forEach((gr) => gr.gondolas.forEach((g) => {
+      doc.addPage();
+      const quadrados = [].concat(...g.colunas.filter((c) => c.desenhada).map((c) => [].concat(...c.col.celulas.map((cel) => cel.quadrados))));
+      indice.push({
+        er: gr.planta.nome, gondola: g.m.id, pagina: doc.internal.getNumberOfPages(),
+        desenhados: g.colunas.filter((c) => c.desenhada).map((c) => c.sigla).join(', '),
+        quadrados: quadrados.length, produtos: quadrados.reduce((s, q) => s + q.produtos.length, 0),
+      });
+      paginaGondola(doc, gr.planta, g, ciclo);
+    }));
+    doc.setPage(1);
+    capa(doc, ciclo, plantas, indice);
+    doc.setPage(doc.internal.getNumberOfPages());
+    rodapes(doc, ciclo);
+    const nome = ('briefing-gondolas-' + ciclo + (plantas.length === 1 ? '-' + plantas[0].nome : '')).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-') + '.pdf';
+    return { blob: doc.output('blob'), nome, paginas: doc.internal.getNumberOfPages(), gondolas: indice.length };
+  }
+
+  function baixarBlob(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  function abrirDialogo() {
+    const planta = app.plantaAtual();
+    if (!planta) return;
+    if (!app.estado.ciclo) { app.toast('Escolha um ciclo para baixar o briefing.', true); return; }
+    const dlg = $('dlgBriefing');
+    $('briefingEsta').textContent = planta.nome;
+    const contar = (lista) => lista.reduce((s, p) => s + gondolasDe(p).length, 0);
+    const atualizar = () => {
+      const todas = dlg.querySelector('input[name="briefingErs"]:checked').value === 'todas';
+      const n = contar(todas ? dados().plantas : [planta]);
+      $('briefingResumo').textContent = n ? n + (n === 1 ? ' gôndola' : ' gôndolas') + ' · ' + (/^ciclo\b/i.test(app.estado.ciclo) ? app.estado.ciclo : 'Ciclo ' + app.estado.ciclo) : 'Nenhuma gôndola nesta escolha.';
+      $('briefingBaixar').disabled = !n;
+    };
+    dlg.querySelectorAll('input[name="briefingErs"]').forEach((r) => { r.onchange = atualizar; });
+    atualizar();
+    dlg.returnValue = '';
+    dlg.showModal();
+  }
+
+  async function baixar() {
+    const dlg = $('dlgBriefing');
+    if (dlg.returnValue !== 'baixar') return;
+    const todas = dlg.querySelector('input[name="briefingErs"]:checked').value === 'todas';
+    const plantas = todas ? dados().plantas : [app.plantaAtual()];
+    app.carregando(true, 'Gerando o briefing em PDF…');
+    try {
+      const r = await gerar(plantas);
+      baixarBlob(r.blob, r.nome);
+      app.toast('Download iniciado: ' + r.nome + ' (' + r.gondolas + (r.gondolas === 1 ? ' gôndola' : ' gôndolas') + ', ' + r.paginas + ' páginas)');
+    } catch (e) {
+      app.erro(e);
+    } finally {
+      app.carregando(false);
+    }
+  }
+
+  function iniciar(contexto) {
+    app = contexto;
+    $('btnBriefing').addEventListener('click', () => { if (dados()) abrirDialogo(); });
+    $('dlgBriefing').addEventListener('close', baixar);
+  }
+
+  return { iniciar, gerar };
+})();
+</script>
+
+    <script>
+/**
+ * ============================================================================
  *  SLIDE DA ESTRATÉGIA (PNG): o espaço da ER por marca, movimento e classificação, em gráficos, 16:9
  * ============================================================================
  *  Estrategia.desenhar(svg, dados, { recorte }) monta, num SVG de 1920×1080, um compilado do painel:
@@ -14655,14 +15183,25 @@ const App = (() => {
     });
   }
 
+  /**
+   * Planograma de um móvel numa ER e num ciclo (a tela do móvel e o briefing das gôndolas usam este): com os
+   * meios divididos da gôndola e as prateleiras desenhadas na construção.
+   */
+  function planogramaDoMovel(planta, m, ciclo) {
+    const linha = (x) => (ciclo ? movimentoDe(ciclo, planta.id, x) : null);
+    const temLinha = (x) => { const i = linha(x); return !!(i && (i.marca || i.etiquetas.length || i.simbolo)); };
+    // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
+    const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
+    const detalhe = (id) => Prateleira.doEspaco(ciclo, planta.id, id);
+    return planogramaDe(m, mov, linha, temLinha, detalhe);
+  }
+
   function abrirMovel(id) {
     const planta = plantaAtual();
     const m = planta && planta.moveis.find((x) => x.id === id);
     if (!m) return;
     const dlg = $('dlgMovel');
     const ciclo = estado.ciclo;
-    const linha = (x) => (ciclo ? movimentoDe(ciclo, planta.id, x) : null);
-    const temLinha = (x) => { const i = linha(x); return !!(i && (i.marca || i.etiquetas.length || i.simbolo)); };
     const tipo = (estado.dados.tipos && estado.dados.tipos[m.tipo]) || m.tipo;
 
     $('mvTitulo').textContent = m.id;
@@ -14677,10 +15216,7 @@ const App = (() => {
       novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver a estratégia deste móvel.', corpo);
     } else {
       const config = estado.dados.config || {};
-      // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
-      const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
-      const detalhe = (id) => Prateleira.doEspaco(ciclo, planta.id, id);
-      const plano = planogramaDe(m, mov, linha, temLinha, detalhe);
+      const plano = planogramaDoMovel(planta, m, ciclo);
       if (plano) {
         // O planograma ocupa a tela (sem a lista dos espaços embaixo); para o construtor, a edição das prateleiras.
         blocoPlanograma(corpo, plano);
@@ -15470,6 +16006,7 @@ const App = (() => {
     acesso: () => Validacao.acesso(),
     movimentoDaPlanilha,
   });
+  Briefing.iniciar({ estado, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca });
   Prateleira.iniciar({
     estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,
     acesso: () => Validacao.acesso(),

@@ -1729,14 +1729,25 @@ const App = (() => {
     });
   }
 
+  /**
+   * Planograma de um móvel numa ER e num ciclo (a tela do móvel e o briefing das gôndolas usam este): com os
+   * meios divididos da gôndola e as prateleiras desenhadas na construção.
+   */
+  function planogramaDoMovel(planta, m, ciclo) {
+    const linha = (x) => (ciclo ? movimentoDe(ciclo, planta.id, x) : null);
+    const temLinha = (x) => { const i = linha(x); return !!(i && (i.marca || i.etiquetas.length || i.simbolo)); };
+    // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
+    const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
+    const detalhe = (id) => Prateleira.doEspaco(ciclo, planta.id, id);
+    return planogramaDe(m, mov, linha, temLinha, detalhe);
+  }
+
   function abrirMovel(id) {
     const planta = plantaAtual();
     const m = planta && planta.moveis.find((x) => x.id === id);
     if (!m) return;
     const dlg = $('dlgMovel');
     const ciclo = estado.ciclo;
-    const linha = (x) => (ciclo ? movimentoDe(ciclo, planta.id, x) : null);
-    const temLinha = (x) => { const i = linha(x); return !!(i && (i.marca || i.etiquetas.length || i.simbolo)); };
     const tipo = (estado.dados.tipos && estado.dados.tipos[m.tipo]) || m.tipo;
 
     $('mvTitulo').textContent = m.id;
@@ -1751,10 +1762,7 @@ const App = (() => {
       novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver a estratégia deste móvel.', corpo);
     } else {
       const config = estado.dados.config || {};
-      // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
-      const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
-      const detalhe = (id) => Prateleira.doEspaco(ciclo, planta.id, id);
-      const plano = planogramaDe(m, mov, linha, temLinha, detalhe);
+      const plano = planogramaDoMovel(planta, m, ciclo);
       if (plano) {
         // O planograma ocupa a tela (sem a lista dos espaços embaixo); para o construtor, a edição das prateleiras.
         blocoPlanograma(corpo, plano);
@@ -2544,6 +2552,7 @@ const App = (() => {
     acesso: () => Validacao.acesso(),
     movimentoDaPlanilha,
   });
+  Briefing.iniciar({ estado, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca });
   Prateleira.iniciar({
     estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,
     acesso: () => Validacao.acesso(),

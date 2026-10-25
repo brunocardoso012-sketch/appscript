@@ -38,6 +38,7 @@ Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (pas
 - **Visualizador sem a comparação de ciclos:** o seletor *Comparar com* fica só no app completo.
 - **Antecipações:** quando um item do próximo ciclo precisa entrar antes, quem entrou na validação cria uma *antecipação* (seção *Antecipações* do painel da validação): escolhe o espaço (na lista ou clicando na planta), o movimento, a marca, se ele substitui o espaço ou soma às etiquetas, e a data em que entra. A planta mostra o item no espaço com o símbolo ⏩ para todo mundo, e a data aparece na tela do móvel e em *Comunicações ER*. As antecipações ficam numa aba nova, *Antecipações*, criada sozinha na primeira vez; as abas *Movimentos* e *Painéis* não mudam.
 - **Prateleiras (o desenho de cada prateleira):** na tela do móvel, o *Planograma · como as prateleiras estão divididas* mostra cada prateleira com os quadrados desenhados e os produtos de cada um. Só com o login da *Construção* aparece a seção *Construção das prateleiras*: o construtor clica em *Desenhar* no espaço, arrasta na prateleira para criar os quadrados (move e muda o tamanho arrastando) e, em cada quadrado, escolhe o movimento e os produtos. Os produtos vêm de uma aba nova, **Produtos** (SKU, Produto, Marca, Categoria e Movimento): crie a aba com essas colunas e cole a lista de produtos (ou use *Configurar planilha*, que cria a aba com exemplos). O desenho fica em outra aba nova, *Prateleiras*, criada sozinha na primeira vez (uma linha por produto de cada quadrado).
+- **Briefing das gôndolas (PDF):** o botão *Briefing (PDF)*, ao lado do *Baixar PNG*, baixa um PDF com uma página por gôndola (da ER da tela ou de todas): o planograma desenhado, com um código em cada quadrado, e a tabela com a posição e o tamanho de cada quadrado (em % e em cm) e os produtos na ordem (SKU, nome e frentes), para reproduzir no programa de planograma.
 
 ---
 
@@ -222,6 +223,7 @@ Abra o link do app e confira:
 - [ ] Entre na *Construção* (senha `construcao_exposicao`): o painel mostra **Ciclos em construção** com o botão *Novo ciclo*. Se quiser testar, crie um ciclo de teste, mude um espaço e depois clique em *Excluir* na faixa do ciclo.
 - [ ] Com um ciclo publicado na tela, a seção **Antecipações** aparece no mesmo painel. Se quiser testar, crie uma antecipação num espaço (o espaço ganha o ⏩) e depois clique em *Excluir*.
 - [ ] Com a aba **Produtos** preenchida, ainda na *Construção*, clique numa gôndola: a tela do móvel tem a seção **Construção das prateleiras**, com o botão *Desenhar* em cada espaço. Se quiser testar, arraste numa prateleira, escolha um produto e salve (o desenho aparece no planograma, no alto); depois use *Apagar o desenho*.
+- [ ] Com um ciclo na tela, o botão **Briefing (PDF)** (ao lado do *Baixar PNG*) baixa o PDF das gôndolas da ER.
 
 Se tudo estiver certo, avise os usuários: o link é o mesmo.
 

@@ -34,8 +34,15 @@ function excelLocal() {
   return null;
 }
 
+/** jsPDF local (o briefing em PDF): JSPDF_JS = caminho do jspdf.umd.min.js, ou o pacote jspdf instalado. */
+function jspdfLocal() {
+  if (process.env.JSPDF_JS && fs.existsSync(process.env.JSPDF_JS)) return process.env.JSPDF_JS;
+  try { return require.resolve('jspdf/dist/jspdf.umd.min.js', { paths: [RAIZ] }); } catch (e) { return null; }
+}
+
 const { chromium } = exigir('playwright');
 const EXCEL_LOCAL = excelLocal();
+const JSPDF_LOCAL = jspdfLocal();
 const PASTA = fs.mkdtempSync(path.join(os.tmpdir(), 'plano-varejo-e2e-'));
 
 /*
@@ -73,6 +80,7 @@ async function abrir(t, opcoes) {
   // Fonte do Google: resposta vazia (sem depender da rede; o app usa a fonte de reserva).
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   if (EXCEL_LOCAL) await ctx.route('**/exceljs.min.js', (r) => r.fulfill({ path: EXCEL_LOCAL, contentType: 'text/javascript' }));
+  if (JSPDF_LOCAL) await ctx.route('**/jspdf.umd.min.js', (r) => r.fulfill({ path: JSPDF_LOCAL, contentType: 'text/javascript', headers: { 'Access-Control-Allow-Origin': '*' } }));
 
   const pagina = await ctx.newPage();
   const erros = [];
@@ -911,6 +919,35 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   await p.waitForSelector('#dlgMovel[open] .mv-plano .pg-desenhada[data-espaco="GONDOLA 1/PONTA-A"] .pr-quadrado');
   assert.match(await p.textContent('.mv-plano'), /Egeo Dolce/);
   assert.strictEqual(await p.locator('.pr-secao').count(), 0);
+});
+
+test('briefing das gôndolas: PDF com o planograma desenhado de cada gôndola', { skip: !JSPDF_LOCAL && 'sem o jsPDF local (JSPDF_JS ou npm i jspdf)' }, async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  await abaPlanta(p, 'ER P').click();
+  // Um espaço desenhado (o mesmo que o editor grava).
+  await p.evaluate(async () => {
+    const C = { papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' };
+    await new Promise((ok, falha) => google.script.run.withSuccessHandler(ok).withFailureHandler(falha).salvarPrateleiras(C, {
+      acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'GONDOLA 1/PONTA-A',
+      prateleiras: [{ numero: 1, quadrados: [{ x: 0, y: 0, w: 60, h: 100, movimento: 'LÇTO EGEO', produtos: [{ sku: '48211', frentes: 3 }] }] }],
+    }));
+    await App.carregar({ ciclo: 'Ciclo exemplo cheio' });
+  });
+  await abaPlanta(p, 'ER P').click();
+  await p.click('#btnBriefing');
+  await p.waitForSelector('#dlgBriefing[open]');
+  assert.match(await p.textContent('#briefingResumo'), /1 gôndola/);
+  await p.check('input[name="briefingErs"][value="todas"]');
+  const n = await estado(p, () => App.estado.dados.plantas.reduce((s, x) => s + x.moveis.filter((m) => m.tipo === 'GONDOLA').length, 0));
+  assert.match(await p.textContent('#briefingResumo'), new RegExp(n + ' gôndolas'));
+  const d = await baixar(p, () => p.click('#briefingBaixar'));
+  assert.match(d.nome, /^briefing-gondolas-Ciclo-exemplo-cheio\.pdf$/);
+  assert.strictEqual(d.bytes.subarray(0, 5).toString(), '%PDF-');
+  // Capa + uma página por gôndola (no mínimo).
+  const paginas = (d.bytes.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  assert.ok(paginas >= n + 1, paginas + ' páginas para ' + n + ' gôndolas');
+  assert.match(await p.textContent('#toast'), new RegExp(n + ' gôndolas'));
 });
 
 test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo ⏩', async (t) => {
