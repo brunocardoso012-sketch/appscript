@@ -921,33 +921,42 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   assert.strictEqual(await p.locator('.pr-secao').count(), 0);
 });
 
-test('briefing das gôndolas: PDF com o planograma desenhado de cada gôndola', { skip: !JSPDF_LOCAL && 'sem o jsPDF local (JSPDF_JS ou npm i jspdf)' }, async (t) => {
+test('briefing das gôndolas e pirâmides: PDF com o planograma desenhado de cada móvel', { skip: !JSPDF_LOCAL && 'sem o jsPDF local (JSPDF_JS ou npm i jspdf)' }, async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo cheio');
   await abaPlanta(p, 'ER P').click();
-  // Um espaço desenhado (o mesmo que o editor grava).
+  // Um espaço da gôndola e uma pirâmide desenhados (o mesmo que o editor grava).
   await p.evaluate(async () => {
     const C = { papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' };
-    await new Promise((ok, falha) => google.script.run.withSuccessHandler(ok).withFailureHandler(falha).salvarPrateleiras(C, {
+    const salvar = (pedido) => new Promise((ok, falha) => google.script.run.withSuccessHandler(ok).withFailureHandler(falha).salvarPrateleiras(C, pedido));
+    await salvar({
       acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'GONDOLA 1/PONTA-A',
-      prateleiras: [{ numero: 1, quadrados: [{ x: 0, y: 0, w: 60, h: 100, movimento: 'LÇTO EGEO', produtos: [{ sku: '48211', frentes: 3 }] }] }],
-    }));
+      prateleiras: [{ numero: 1, quadrados: [{ x: 0, w: 60, movimento: 'LÇTO EGEO', produtos: [{ sku: '48211', frentes: 3 }] }] }],
+    });
+    await salvar({
+      acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'PIRAMIDE 1',
+      prateleiras: [{ numero: 4, quadrados: [{ x: 0, w: 100, produtos: [{ sku: '50110', frentes: 4 }] }] }],
+    });
     await App.carregar({ ciclo: 'Ciclo exemplo cheio' });
   });
   await abaPlanta(p, 'ER P').click();
   await p.click('#btnBriefing');
   await p.waitForSelector('#dlgBriefing[open]');
-  assert.match(await p.textContent('#briefingResumo'), /1 gôndola/);
+  const naEr = await estado(p, () => App.estado.dados.plantas.find((x) => x.nome === 'ER P').moveis.filter((m) => m.tipo === 'PIRAMIDE').length);
+  assert.match(await p.textContent('#briefingResumo'), new RegExp('1 gôndola e ' + naEr + ' pirâmide'));
   await p.check('input[name="briefingErs"][value="todas"]');
-  const n = await estado(p, () => App.estado.dados.plantas.reduce((s, x) => s + x.moveis.filter((m) => m.tipo === 'GONDOLA').length, 0));
-  assert.match(await p.textContent('#briefingResumo'), new RegExp(n + ' gôndolas'));
+  const conta = (tipo) => p.evaluate((t) => App.estado.dados.plantas.reduce((s, x) => s + x.moveis.filter((m) => m.tipo === t).length, 0), tipo);
+  const gondolas = await conta('GONDOLA');
+  const piramides = await conta('PIRAMIDE');
+  const n = gondolas + piramides;
+  assert.match(await p.textContent('#briefingResumo'), new RegExp(gondolas + ' gôndolas e ' + piramides + ' pirâmides'));
   const d = await baixar(p, () => p.click('#briefingBaixar'));
-  assert.match(d.nome, /^briefing-gondolas-Ciclo-exemplo-cheio\.pdf$/);
+  assert.match(d.nome, /^briefing-planogramas-Ciclo-exemplo-cheio\.pdf$/);
   assert.strictEqual(d.bytes.subarray(0, 5).toString(), '%PDF-');
   // Capa + uma página por gôndola (no mínimo).
   const paginas = (d.bytes.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
-  assert.ok(paginas >= n + 1, paginas + ' páginas para ' + n + ' gôndolas');
-  assert.match(await p.textContent('#toast'), new RegExp(n + ' gôndolas'));
+  assert.ok(paginas >= n + 1, paginas + ' páginas para ' + n + ' gôndolas e pirâmides');
+  assert.match(await p.textContent('#toast'), new RegExp(gondolas + ' gôndolas e ' + piramides + ' pirâmides'));
 });
 
 test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo ⏩', async (t) => {
