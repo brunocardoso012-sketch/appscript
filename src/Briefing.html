@@ -129,7 +129,7 @@ const Briefing = (() => {
     fonte(doc, 16, 'bold');
     doc.text(pdfTexto(titulo), PAG.m, PAG.m + 6);
     fonte(doc, 9, 'normal', TINTA2);
-    if (sub) doc.text(pdfTexto(sub), PAG.m, PAG.m + 12);
+    if (sub) doc.text(caber(doc, sub, PAG.w - 2 * PAG.m), PAG.m, PAG.m + 12);
     if (direita) {
       fonte(doc, 10, 'bold');
       doc.text(pdfTexto(direita), PAG.w - PAG.m, PAG.m + 6, { align: 'right' });
@@ -178,7 +178,13 @@ const Briefing = (() => {
             doc.rect(bx + 0.3, by + 0.3, bw - 0.6, bh - 0.6, 'FD');
             const tw = bw - 2;
             let ty = by + 3.4;
-            if (ty < by + bh - 0.5) { fonte(doc, 7, 'bold'); doc.text(caber(doc, q.codigo, tw), bx + 1, ty); }
+            if (ty < by + bh - 0.5) {
+              // O código liga o desenho à tabela: diminui até caber e nunca é cortado.
+              let tam = 7;
+              fonte(doc, tam, 'bold');
+              while (tam > 4.5 && doc.getTextWidth(q.codigo) > tw) { tam -= 0.5; fonte(doc, tam, 'bold'); }
+              doc.text(q.codigo, bx + 1, ty);
+            }
             ty += 2.9;
             if (q.movimento && ty < by + bh - 0.5) { fonte(doc, 5.6, 'bold', cor); doc.text(caber(doc, q.movimento, tw), bx + 1, ty); }
             ty += 2.8;
@@ -228,7 +234,7 @@ const Briefing = (() => {
     { t: 'Código', w: 15 }, { t: 'Espaço', w: 17 }, { t: 'Prat.', w: 9, a: 'center' },
     { t: 'Início %', w: 12, a: 'right' }, { t: 'Larg. %', w: 12, a: 'right' },
     { t: 'Início cm', w: 13, a: 'right' }, { t: 'Larg. cm', w: 13, a: 'right' },
-    { t: 'Altura', w: 26 }, { t: 'Movimento', w: 30 }, { t: 'Ordem', w: 10, a: 'center' }, { t: 'SKU', w: 16 },
+    { t: 'Movimento', w: 34 }, { t: 'Ordem', w: 10, a: 'center' }, { t: 'SKU', w: 16 },
     { t: 'Produto', w: 0 }, { t: 'Frentes', w: 12, a: 'right' }, { t: 'Observação', w: 26 },
   ];
 
@@ -248,18 +254,15 @@ const Briefing = (() => {
   }
 
   /** Valores de uma linha da tabela (um produto de um quadrado, ou o quadrado sem produto). */
-  function celulasDaLinha(g, l, n) {
+  function celulasDaLinha(l) {
     const q = l.q;
     const med = l.c.medidas;
     const cm = (pct) => (med ? numero((pct / 100) * med.largura * 100) : '-');
-    const alturaCm = med ? (med.altura * 100) / n : 0;
-    const altura = q.h >= 100 ? 'inteira' + (alturaCm ? ' (' + numero(alturaCm) + ' cm)' : '')
-      : (q.y <= 0 ? 'em cima' : q.y + q.h >= 100 ? 'embaixo' : 'no meio') + ': ' + numero(q.y) + '-' + numero(q.y + q.h) + '%';
     const repete = l.ordem && l.ordem > 1; // nas linhas seguintes do mesmo quadrado, só o produto
     return [
       repete ? '' : l.codigo, repete ? '' : l.c.col.nome, repete ? '' : String(l.prateleira),
       repete ? '' : numero(q.x, 1), repete ? '' : numero(q.w, 1), repete ? '' : cm(q.x), repete ? '' : cm(q.w),
-      repete ? '' : altura, repete ? '' : q.movimento || '-', l.produto ? String(l.ordem) : '-',
+      repete ? '' : q.movimento || '-', l.produto ? String(l.ordem) : '-',
       l.produto ? l.produto.sku : '', l.produto ? l.produto.nome + (l.produto.foraDoCatalogo ? ' (fora da aba Produtos)' : '') : 'sem produtos',
       l.produto ? String(l.produto.frentes) : '', repete ? '' : q.observacao || '',
     ];
@@ -269,8 +272,8 @@ const Briefing = (() => {
   function paginaGondola(doc, planta, g, ciclo) {
     const m = g.m;
     const titulo = m.id + (m.descricao && chaveMov(m.descricao) !== chaveMov(m.id) ? ' · ' + m.descricao : '');
-    const dims = 'Gôndola ' + numero(Math.max(m.w, m.d), 2) + ' × ' + numero(Math.min(m.w, m.d), 2) + ' m, ' + numero(m.h, 2) + ' m de altura, '
-      + g.plano.n + ' prateleiras (1 = a de cima). Medidas em cm pelo layout da loja: confira no móvel.';
+    const dims = 'Gôndola ' + numero(Math.max(m.w, m.d), 2) + ' × ' + numero(Math.min(m.w, m.d), 2) + ' m, ' + numero(m.h, 2) + ' m de altura · '
+      + g.plano.n + ' prateleiras de cerca de ' + numero((m.h * 100) / g.plano.n) + ' cm (1 = a de cima) · medidas em cm pelo layout: confira no móvel';
     cabecalho(doc, titulo, dims, planta.nome + ' · ' + (/^ciclo\b/i.test(ciclo) ? ciclo : 'Ciclo ' + ciclo));
     const yPlano = PAG.m + 19;
     desenharPlanograma(doc, g, PAG.m, yPlano, PAG.w - 2 * PAG.m, 84);
@@ -304,12 +307,12 @@ const Briefing = (() => {
         doc.setLineWidth(0.15);
         doc.line(PAG.m, y, PAG.m + larg, y);
       }
-      const vals = celulasDaLinha(g, l, g.plano.n);
+      const vals = celulasDaLinha(l);
       let x = PAG.m;
       COLS.forEach((c, i) => {
         const w = c.w || resto;
-        fonte(doc, 6.8, i === 0 || i === 11 ? 'bold' : 'normal', vals[i] === 'sem produtos' ? TINTA2 : TINTA);
-        if (i === 8 && vals[i] && vals[i] !== '-') doc.setTextColor.apply(doc, rgbDaMarca(marcaDe(l.c.col, vals[i])));
+        fonte(doc, 6.8, i === 0 || i === 10 ? 'bold' : 'normal', vals[i] === 'sem produtos' ? TINTA2 : TINTA);
+        if (i === 7 && vals[i] && vals[i] !== '-') doc.setTextColor.apply(doc, rgbDaMarca(marcaDe(l.c.col, vals[i])));
         const t = caber(doc, vals[i], w - 2.4);
         doc.text(t, c.a === 'right' ? x + w - 1.2 : c.a === 'center' ? x + w / 2 : x + 1.2, y + 3.2, { align: c.a || 'left' });
         x += w;
@@ -337,7 +340,7 @@ const Briefing = (() => {
     const como = [
       'Cada página é uma gôndola de uma ER. No alto, o planograma: Ponta A, Meio A, Ponta B e Meio B (cada meio com o dobro da largura de uma ponta), com as prateleiras de cima para baixo (1 = a de cima).',
       'Cada quadrado desenhado tem um código: sigla do espaço - prateleira . quadrado. Ex.: MA-2.1 = Meio A, prateleira 2, quadrado 1. Siglas: PA (Ponta A), MA (Meio A), PB (Ponta B), MB (Meio B); MA1 / MA2 e MB1 / MB2 são as metades de um meio dividido.',
-      'A tabela traz cada quadrado: Início e Largura em % da prateleira (da esquerda para a direita) e em cm, pela largura da frente do espaço no layout; Altura: "inteira" ou a faixa ocupada (de cima para baixo, em %); o Movimento; e os produtos, na Ordem da esquerda para a direita, com SKU, nome e Frentes.',
+      'A tabela traz cada quadrado (todos ocupam a altura toda da prateleira, lado a lado): Início e Largura em % da prateleira (da esquerda para a direita) e em cm, pela largura da frente do espaço no layout; o Movimento; e os produtos, na Ordem da esquerda para a direita, com SKU, nome e Frentes.',
       'Os espaços sem desenho aparecem com a divisão automática pelas etiquetas do espaço (sem produtos definidos).',
     ];
     y += 5;

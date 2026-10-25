@@ -866,20 +866,20 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
     await p.mouse.move(r.x + r.width * x2, r.y + r.height * y2, { steps: 6 });
     await p.mouse.up();
   };
-  // Arrastar só na horizontal: o quadrado ocupa a altura toda; o painel dele abre com a busca no catálogo.
+  // Arrastar na prateleira cria um quadrado na altura toda; o painel dele abre com a busca no catálogo.
   await arrastar(1, 0.005, 0.5, 0.5, 0.55);
   await card.locator('.pr-painel .pr-ed-mov').selectOption('LÇTO EGEO');
   await card.locator('.pr-busca').fill('egeo dolce');
   await card.locator('.pr-resultado').first().click();
   await card.locator('.pr-resultado').first().click(); // de novo: soma uma frente
-  // Arrastar também na vertical: o quadrado ocupa só uma parte da altura.
+  // Arrastar também na vertical não muda nada: o quadrado continua na altura toda (não há quadrado em cima de outro).
   await arrastar(1, 0.6, 0.02, 0.9, 0.48);
   await card.locator('.pr-busca').fill('malbec gold');
   await card.locator('.pr-resultado').first().click();
-  // Em cima de outro quadrado não entra.
-  await arrastar(1, 0.7, 0.55, 0.98, 0.98);
+  // Sobre a largura de outro quadrado não entra; no espaço livre, entra.
   await arrastar(1, 0.55, 0.6, 0.62, 0.65);
-  assert.strictEqual(await card.locator('.pr-tela[data-numero="1"] .pr-quadrado').count(), 3, 'o 3º quadrado entra; o 4º, sobreposto, não');
+  await arrastar(1, 0.92, 0.5, 0.995, 0.5);
+  assert.strictEqual(await card.locator('.pr-tela[data-numero="1"] .pr-quadrado').count(), 3, 'o quadrado sobreposto não entra; o do espaço livre, sim');
   // Delete apaga o quadrado escolhido.
   await card.locator('.pr-tela[data-numero="1"] .pr-quadrado.escolhido').click();
   await p.keyboard.press('Delete');
@@ -896,7 +896,7 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   const g = await estado(p, () => App.estado.dados.prateleiras.filter((x) => x.espaco === 'GONDOLA 1/PONTA-A'));
   assert.deepStrictEqual(g.map((x) => x.planta), ['01', '02', '03', '04'], 'vale em todas as ERs que têm o espaço');
   const p1 = g[0].prateleiras[0];
-  assert.deepStrictEqual(p1.quadrados.map((q) => [q.x, q.y, q.w, q.h]), [[1, 0, 49, 100], [60, 0, 30, 50]]);
+  assert.deepStrictEqual(p1.quadrados.map((q) => [q.x, q.y, q.w, q.h]), [[1, 0, 49, 100], [60, 0, 30, 100]]);
   assert.deepStrictEqual(p1.quadrados.map((q) => q.produtos.map((x) => x.sku + '×' + x.frentes)), [['48211×2'], ['50111×1']]);
   assert.strictEqual(p1.movimento, 'LÇTO EGEO');
   assert.deepStrictEqual(g[0].prateleiras[1].quadrados.map((q) => [q.x, q.w]), [[0, 50], [50, 50]]);

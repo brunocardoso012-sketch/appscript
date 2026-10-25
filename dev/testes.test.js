@@ -683,8 +683,8 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
   const prateleiras = [
     { numero: 1, quadrados: [
       { x: 0, y: 0, w: 60, h: 100, movimento: 'LÇTO EGEO', observacao: 'altura dos olhos', produtos: [{ sku: '48211', frentes: 3 }, { sku: ' 48212 ', frentes: '2' }] },
-      { x: 60, y: 0, w: 40, h: 50, movimento: 'BOTIPROMO', produtos: [] },
-      { x: 60, y: 50, w: 40, h: 50, movimento: 'BOTIPROMO', produtos: [{ sku: '50110' }] },
+      { x: 60, y: 0, w: 20, h: 50, movimento: 'BOTIPROMO', produtos: [] }, // a altura é ignorada: todos na altura toda
+      { x: 80, w: 20, movimento: 'BOTIPROMO', produtos: [{ sku: '50110' }] },
     ] },
     { numero: 4, quadrados: [{ x: 10, y: 0, w: 30, h: 100, produtos: [{ sku: '90001', frentes: 0 }] }] },
   ];
@@ -696,7 +696,9 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
   assert.throws(() => salvar(C, Object.assign({}, base, { espaco: 'MESA DESTAQUE 1/VERSO' })), /não tem prateleiras/);
   assert.throws(() => salvar(C, Object.assign({}, base, { prateleiras: [{ numero: 5, quadrados: [] }] })), /vai de 1 a 4/);
   const comQuadrados = (q) => Object.assign({}, base, { prateleiras: [{ numero: 1, quadrados: q }] });
-  assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 50, h: 100 }, { x: 40, y: 0, w: 30, h: 100 }])), /um em cima do outro/);
+  assert.throws(() => salvar(C, comQuadrados([{ x: 0, w: 50 }, { x: 40, w: 30 }])), /sobrepostos/);
+  // Um quadrado não fica em cima do outro: as alturas não contam, então dois na mesma largura se sobrepõem.
+  assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 50, h: 50 }, { x: 0, y: 50, w: 50, h: 50 }])), /sobrepostos/);
   assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 1, h: 100 }])), /pequeno demais/);
   assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 50, h: 100, produtos: [{ sku: 'NAO-EXISTE' }] }])), /fora da aba Produtos: SKU "NAO-EXISTE"/);
 
@@ -706,13 +708,13 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
   const p1 = l[0].prateleiras[0];
   assert.equal(p1.movimento, 'LÇTO EGEO', 'o movimento da prateleira é o do maior quadrado');
   assert.deepEqual(p1.quadrados.map((q) => [q.x, q.y, q.w, q.h, q.movimento, q.produtos.length]),
-    [[0, 0, 60, 100, 'LÇTO EGEO', 2], [60, 0, 40, 50, 'BOTIPROMO', 0], [60, 50, 40, 50, 'BOTIPROMO', 1]]);
+    [[0, 0, 60, 100, 'LÇTO EGEO', 2], [60, 0, 20, 100, 'BOTIPROMO', 0], [80, 0, 20, 100, 'BOTIPROMO', 1]]);
   assert.deepEqual(p1.quadrados[0].produtos.map((x) => [x.sku, x.frentes, x.foraDoCatalogo]), [['48211', 3, false], ['48212', 2, false]]);
   assert.match(p1.quadrados[0].produtos[0].nome, /Egeo Dolce/, 'o nome vem do catálogo');
   assert.equal(p1.quadrados[0].observacao, 'altura dos olhos');
   assert.equal(l[0].prateleiras[1].quadrados[0].produtos[0].frentes, 1, 'frentes vazias ou inválidas = 1');
   const aba = run(`lerAba_(planilha_(), 'Prateleiras', true)`);
-  assert.deepEqual(aba[0].slice(0, 13), ['Ciclo', 'Planta', 'ID Móvel', 'Prateleira', 'Quadrado', 'X (%)', 'Largura (%)', 'Y (%)', 'Altura (%)', 'Movimento (etiqueta)', 'SKU', 'Produto', 'Frentes']);
+  assert.deepEqual(aba[0].slice(0, 11), ['Ciclo', 'Planta', 'ID Móvel', 'Prateleira', 'Quadrado', 'X (%)', 'Largura (%)', 'Movimento (etiqueta)', 'SKU', 'Produto', 'Frentes']);
   assert.equal(aba.length, 1 + 5, 'uma linha por produto e uma pelo quadrado sem produto');
 
   // Quem tira um produto da aba Produtos continua vendo o quadrado, com o produto marcado.
