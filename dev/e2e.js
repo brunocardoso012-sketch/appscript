@@ -934,7 +934,7 @@ test('briefing das gôndolas e pirâmides: PDF com o planograma desenhado de cad
       prateleiras: [{ numero: 1, quadrados: [{ x: 0, w: 60, movimento: 'LÇTO EGEO', produtos: [{ sku: '48211', frentes: 3 }] }] }],
     });
     await salvar({
-      acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'PIRAMIDE 1',
+      acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-2',
       prateleiras: [{ numero: 4, quadrados: [{ x: 0, w: 100, produtos: [{ sku: '50110', frentes: 4 }] }] }],
     });
     await App.carregar({ ciclo: 'Ciclo exemplo cheio' });

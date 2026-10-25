@@ -150,12 +150,12 @@ test('visualizador: prateleiras ficam na aba Prateleiras e chegam a todos no get
   const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   // O catálogo vem da aba Produtos da planilha.
   run(`gravarAbaTexto_(planilhaVisualizador_(), 'Produtos', [['SKU', 'Produto'], ['M1', 'Malbec']])`);
-  run(`salvarPrateleiras(${C}, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1', prateleiras: [{ numero: 1, quadrados: [{ x: 0, y: 0, w: 50, h: 100, produtos: [{ sku: 'm1', frentes: 2 }] }] }] })`);
+  run(`salvarPrateleiras(${C}, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-1', prateleiras: [{ numero: 1, quadrados: [{ x: 0, w: 50, produtos: [{ sku: 'm1', frentes: 2 }] }] }] })`);
   assert.ok(falsos.planilha.getSheetByName('Prateleiras'), 'aba criada');
   const d = run('getDados()');
   assert.deepEqual(d.produtos.map((p) => p.sku), ['M1']);
   const q = d.prateleiras[0].prateleiras[0].quadrados[0];
-  assert.deepEqual([d.prateleiras[0].planta, d.prateleiras[0].espaco, q.w, q.produtos[0].nome, q.produtos[0].frentes], ['01', 'PIRAMIDE 1', 50, 'Malbec', 2]);
+  assert.deepEqual([d.prateleiras[0].planta, d.prateleiras[0].espaco, q.w, q.produtos[0].nome, q.produtos[0].frentes], ['01', 'PIRAMIDE 1/LADO-1', 50, 'Malbec', 2]);
 });
 
 test('arquivo único para o Apps Script: atualizado, serve a página embutida e lê a planilha', () => {

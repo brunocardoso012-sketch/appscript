@@ -2808,6 +2808,7 @@ function valoresPrateleirasVazios_() {
  *  - gôndola: cada ponta e cada meio (ou metade do meio), com as prateleiras da gôndola;
  *  - mesas destaque: o nicho de cada frente (1 prateleira; o verso é comunicação);
  *  - móvel make: as prateleiras do corpo (o ID do móvel; as testeiras são comunicação);
+ *  - pirâmide: os 4 lados, do mesmo tamanho (PIRAMIDE 1/LADO-1 a LADO-4), cada um com as 4 prateleiras dela;
  *  - totem, móvel de atendimento e itens fora da planta: não levam produtos;
  *  - os demais: o móvel inteiro.
  * @return {{ids: string[], n: number}} ids: IDs completos ("GONDOLA 1/PONTA-A" ou "PIRAMIDE 1")
@@ -2819,8 +2820,12 @@ function espacosDePrateleira_(m) {
   if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
     return { ids: espacosDoMovel_(m).filter(function (e) { return !e.vm; }).map(function (e) { return m.id + '/' + e.id; }), n: 1 };
   }
+  if (m.tipo === 'PIRAMIDE') return { ids: LADOS_PIRAMIDE.map(function (e) { return m.id + '/' + e; }), n: n };
   return { ids: [m.id], n: n };
 }
+
+/** Os 4 lados da pirâmide nas prateleiras, do mesmo tamanho, cada um com as prateleiras dela. */
+const LADOS_PIRAMIDE = ['LADO-1', 'LADO-2', 'LADO-3', 'LADO-4'];
 
 /** Frentes de um produto: inteiro de 1 a LIMITES_PRATELEIRA.frentes (vazio ou inválido = 1). */
 function normFrentes_(v) {
@@ -3037,8 +3042,9 @@ function prateleirasParaCopia_(prateleiras, origem, ciclo, fixos) {
     return fixos.some(function (f) {
       const pf = normPlanta_(f.planta);
       const mf = normIdEspaco_(f.movel);
-      // O meio inteiro fixo vale também para as metades dele.
-      const mesmo = mf === espaco || (/\/MEIO-[AB]$/.test(mf) && espaco.indexOf(mf + '-') === 0);
+      // O meio inteiro fixo vale também para as metades dele; o móvel inteiro fixo (a pirâmide), para os lados dele.
+      const mesmo = mf === espaco || (/\/MEIO-[AB]$/.test(mf) && espaco.indexOf(mf + '-') === 0)
+        || (mf.indexOf('/') < 0 && espaco.indexOf(mf + '/') === 0);
       return mesmo && (pf === CONFIG.PLANTA_TODAS || pf <= planta);
     });
   }).map(function (o) { return Object.assign({}, o, { ciclo: ciclo }); });
@@ -4550,7 +4556,7 @@ const PAGINA_ = [
   "    <dialog id=\"dlgBriefing\" class=\"dialogo\">",
   "      <form method=\"dialog\">",
   "        <h2>Briefing das gôndolas e pirâmides (PDF)</h2>",
-  "        <p class=\"sub\">Uma página por gôndola e por pirâmide (4 partes iguais), com o planograma desenhado e uma tabela com cada quadrado (posição e tamanho, em % e em cm) e os produtos na ordem, para reproduzir no programa de planograma.</p>",
+  "        <p class=\"sub\">Uma página por gôndola e por pirâmide (os 4 lados, cada um com as 4 prateleiras), com o planograma desenhado e uma tabela com cada quadrado (posição e tamanho, em % e em cm) e os produtos na ordem, para reproduzir no programa de planograma.</p>",
   "        <fieldset class=\"campo bloco\">",
   "          <legend>ERs</legend>",
   "          <label class=\"opcao\"><input type=\"radio\" name=\"briefingErs\" value=\"esta\" checked> <span>Só <b id=\"briefingEsta\">esta ER</b></span></label>",
@@ -9567,10 +9573,10 @@ const PAGINA_ = [
   " *  monta o planograma no programa apropriado:",
   " *   - uma capa com o ciclo, as ERs, o índice dos móveis e como ler;",
   " *   - uma página por gôndola e por pirâmide (de cada ER): o planograma (na",
-  " *     gôndola, Ponta A, Meio A, Ponta B, Meio B; na pirâmide, as 4 partes",
-  " *     iguais, de cima para baixo), com cada quadrado identificado por um código",
-  " *     (ex.: MA-2.1 = Meio A, prateleira 2, quadrado 1; PIR-3.1 = pirâmide,",
-  " *     parte 3, quadrado 1), e a tabela de cada",
+  " *     gôndola, Ponta A, Meio A, Ponta B, Meio B; na pirâmide, os 4 lados do",
+  " *     mesmo tamanho, com as 4 prateleiras), com cada quadrado identificado por",
+  " *     um código (ex.: MA-2.1 = Meio A, prateleira 2, quadrado 1; L3-2.1 =",
+  " *     lado 3 da pirâmide, prateleira 2, quadrado 1), e a tabela de cada",
   " *     quadrado: posição e tamanho (em % da prateleira e em cm, pelas medidas do",
   " *     layout), movimento e os produtos na ordem (SKU, nome e frentes).",
   " *  Os espaços ainda sem desenho saem com a divisão automática pelas etiquetas.",
@@ -9593,7 +9599,8 @@ const PAGINA_ = [
   "  const BORDA = [201, 196, 188];",
   "  const TABUA = [93, 97, 104];",
   "  /** Sigla de cada espaço da gôndola, para o código dos quadrados. */",
-  "  const SIGLA = { 'PONTA-A': 'PA', 'MEIO-A': 'MA', 'MEIO-A-1': 'MA1', 'MEIO-A-2': 'MA2', 'PONTA-B': 'PB', 'MEIO-B': 'MB', 'MEIO-B-1': 'MB1', 'MEIO-B-2': 'MB2' };",
+  "  const SIGLA = { 'PONTA-A': 'PA', 'MEIO-A': 'MA', 'MEIO-A-1': 'MA1', 'MEIO-A-2': 'MA2', 'PONTA-B': 'PB', 'MEIO-B': 'MB', 'MEIO-B-1': 'MB1', 'MEIO-B-2': 'MB2',",
+  "    'LADO-1': 'L1', 'LADO-2': 'L2', 'LADO-3': 'L3', 'LADO-4': 'L4' };",
   "",
   "  function carregarJsPDF() {",
   "    if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);",
@@ -9650,8 +9657,8 @@ const PAGINA_ = [
   "  };",
   "",
   "  /**",
-  "   * Medidas pelo layout (em metros): a largura da frente de cada espaço e a altura. A pirâmide tem 4 partes",
-  "   * iguais, de cima para baixo, da largura da frente dela.",
+  "   * Medidas pelo layout (em metros): a largura da frente de cada espaço e a altura. Os 4 lados da pirâmide têm o",
+  "   * mesmo tamanho: a largura de um lado dela.",
   "   */",
   "  const medidasDe = (m, id) => (ehPiramide(m) ? { largura: Math.max(m.w, m.d), altura: m.h } : Render.medidasGondola(m, id));",
   "",
@@ -9662,7 +9669,6 @@ const PAGINA_ = [
   "  function montarGondola(planta, m, ciclo) {",
   "    const plano = app.planogramaDoMovel(planta, m, ciclo);",
   "    const colunas = plano.colunas.map((col) => {",
-  "      if (ehPiramide(m)) return { col: Object.assign({}, col, { nome: 'Pirâmide' }), id: m.id, sigla: 'PIR', medidas: medidasDe(m), desenhada: !!col.desenhada };",
   "      const id = col.id.split('/')[1];",
   "      return { col, id, sigla: SIGLA[id] || id, medidas: medidasDe(m, id), desenhada: !!col.desenhada };",
   "    });",
@@ -9850,9 +9856,10 @@ const PAGINA_ = [
   "  function paginaGondola(doc, planta, g, ciclo) {",
   "    const m = g.m;",
   "    const titulo = m.id + (m.descricao && chaveMov(m.descricao) !== chaveMov(m.id) ? ' · ' + m.descricao : '');",
-  "    const niveis = ehPiramide(m) ? g.plano.n + ' partes iguais' : g.plano.n + ' prateleiras';",
+  "    const medida = (ehPiramide(m) ? '4 lados de ' + numero(Math.max(m.w, m.d) * 100) + ' cm · ' : '')",
+  "      + g.plano.n + ' prateleiras de cerca de ' + numero((m.h * 100) / g.plano.n) + ' cm (1 = a de cima)';",
   "    const dims = (ehPiramide(m) ? 'Pirâmide ' : 'Gôndola ') + numero(Math.max(m.w, m.d), 2) + ' × ' + numero(Math.min(m.w, m.d), 2) + ' m, ' + numero(m.h, 2) + ' m de altura · '",
-  "      + niveis + ' de cerca de ' + numero((m.h * 100) / g.plano.n) + ' cm (1 = a de cima) · medidas em cm pelo layout: confira no móvel';",
+  "      + medida + ' · medidas em cm pelo layout: confira no móvel';",
   "    cabecalho(doc, titulo, dims, planta.nome + ' · ' + (/^ciclo\\b/i.test(ciclo) ? ciclo : 'Ciclo ' + ciclo));",
   "    const yPlano = PAG.m + 19;",
   "    desenharPlanograma(doc, g, PAG.m, yPlano, PAG.w - 2 * PAG.m, 84);",
@@ -9917,8 +9924,8 @@ const PAGINA_ = [
   "    doc.text('Como ler', PAG.m, y);",
   "    fonte(doc, 8.5, 'normal');",
   "    const como = [",
-  "      'Cada página é uma gôndola ou uma pirâmide de uma ER. No alto, o planograma, de cima para baixo (1 = a de cima). Na gôndola: Ponta A, Meio A, Ponta B e Meio B (cada meio com o dobro da largura de uma ponta), com as prateleiras. Na pirâmide: as 4 partes iguais, uma em cima da outra.',",
-  "      'Cada quadrado desenhado tem um código: sigla do espaço - prateleira . quadrado. Ex.: MA-2.1 = Meio A, prateleira 2, quadrado 1. Siglas: PA (Ponta A), MA (Meio A), PB (Ponta B), MB (Meio B); MA1 / MA2 e MB1 / MB2 são as metades de um meio dividido; PIR é a pirâmide (PIR-3.1 = parte 3, quadrado 1).',",
+  "      'Cada página é uma gôndola ou uma pirâmide de uma ER. No alto, o planograma, de cima para baixo (1 = a de cima). Na gôndola: Ponta A, Meio A, Ponta B e Meio B (cada meio com o dobro da largura de uma ponta), com as prateleiras. Na pirâmide: os 4 lados, do mesmo tamanho (Lado 1 a Lado 4), cada um com as 4 prateleiras.',",
+  "      'Cada quadrado desenhado tem um código: sigla do espaço - prateleira . quadrado. Ex.: MA-2.1 = Meio A, prateleira 2, quadrado 1. Siglas: PA (Ponta A), MA (Meio A), PB (Ponta B), MB (Meio B); MA1 / MA2 e MB1 / MB2 são as metades de um meio dividido; L1 a L4 são os lados da pirâmide (L3-2.1 = lado 3, prateleira 2, quadrado 1).',",
   "      'A tabela traz cada quadrado (todos ocupam a altura toda da prateleira, lado a lado): Início e Largura em % da prateleira (da esquerda para a direita) e em cm, pela largura da frente do espaço no layout; o Movimento; e os produtos, na Ordem da esquerda para a direita, com SKU, nome e Frentes.',",
   "      'Os espaços sem desenho aparecem com a divisão automática pelas etiquetas do espaço (sem produtos definidos).',",
   "    ];",
@@ -12935,9 +12942,14 @@ const PAGINA_ = [
   "    }",
   "    const geral = linha(m.id);",
   "    const lim = (config.etiquetasPorTipo || {})[m.tipo];",
-  "    // A pirâmide tem 4 partes iguais, uma em cima da outra.",
-  "    if (m.tipo === 'PIRAMIDE') rotulos.forEach((r, k) => { rotulos[k] = 'Parte ' + (k + 1); });",
-  "    return { n, rotulos, colunas: [coluna(m.tipo === 'EXTRA' ? null : m.id, m.tipo === 'PIRAMIDE' ? 'Pirâmide' : 'Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };",
+  "    if (m.tipo === 'PIRAMIDE') {",
+  "      // Os 4 lados, do mesmo tamanho, cada um com as 4 prateleiras e as etiquetas da pirâmide (um espaço de",
+  "      // prateleira cada: PIRAMIDE 1/LADO-1…4).",
+  "      const etiquetas = geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [];",
+  "      const colunas = [1, 2, 3, 4].map((k) => coluna(m.id + '/LADO-' + k, 'Lado ' + k, 1, n, geral, etiquetas));",
+  "      return { n, rotulos, colunas, testeiras: null };",
+  "    }",
+  "    return { n, rotulos, colunas: [coluna(m.tipo === 'EXTRA' ? null : m.id, 'Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };",
   "  }",
   "",
   "  /** Seção \"Planograma\" da tela do móvel: as prateleiras de cada espaço, com a cor e as etiquetas de cada uma. */",

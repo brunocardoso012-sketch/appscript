@@ -1599,9 +1599,14 @@ const App = (() => {
     }
     const geral = linha(m.id);
     const lim = (config.etiquetasPorTipo || {})[m.tipo];
-    // A pirâmide tem 4 partes iguais, uma em cima da outra.
-    if (m.tipo === 'PIRAMIDE') rotulos.forEach((r, k) => { rotulos[k] = 'Parte ' + (k + 1); });
-    return { n, rotulos, colunas: [coluna(m.tipo === 'EXTRA' ? null : m.id, m.tipo === 'PIRAMIDE' ? 'Pirâmide' : 'Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };
+    if (m.tipo === 'PIRAMIDE') {
+      // Os 4 lados, do mesmo tamanho, cada um com as 4 prateleiras e as etiquetas da pirâmide (um espaço de
+      // prateleira cada: PIRAMIDE 1/LADO-1…4).
+      const etiquetas = geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [];
+      const colunas = [1, 2, 3, 4].map((k) => coluna(m.id + '/LADO-' + k, 'Lado ' + k, 1, n, geral, etiquetas));
+      return { n, rotulos, colunas, testeiras: null };
+    }
+    return { n, rotulos, colunas: [coluna(m.tipo === 'EXTRA' ? null : m.id, 'Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };
   }
 
   /** Seção "Planograma" da tela do móvel: as prateleiras de cada espaço, com a cor e as etiquetas de cada uma. */

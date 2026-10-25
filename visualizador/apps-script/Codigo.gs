@@ -2798,6 +2798,7 @@ function valoresPrateleirasVazios_() {
  *  - gôndola: cada ponta e cada meio (ou metade do meio), com as prateleiras da gôndola;
  *  - mesas destaque: o nicho de cada frente (1 prateleira; o verso é comunicação);
  *  - móvel make: as prateleiras do corpo (o ID do móvel; as testeiras são comunicação);
+ *  - pirâmide: os 4 lados, do mesmo tamanho (PIRAMIDE 1/LADO-1 a LADO-4), cada um com as 4 prateleiras dela;
  *  - totem, móvel de atendimento e itens fora da planta: não levam produtos;
  *  - os demais: o móvel inteiro.
  * @return {{ids: string[], n: number}} ids: IDs completos ("GONDOLA 1/PONTA-A" ou "PIRAMIDE 1")
@@ -2809,8 +2810,12 @@ function espacosDePrateleira_(m) {
   if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
     return { ids: espacosDoMovel_(m).filter(function (e) { return !e.vm; }).map(function (e) { return m.id + '/' + e.id; }), n: 1 };
   }
+  if (m.tipo === 'PIRAMIDE') return { ids: LADOS_PIRAMIDE.map(function (e) { return m.id + '/' + e; }), n: n };
   return { ids: [m.id], n: n };
 }
+
+/** Os 4 lados da pirâmide nas prateleiras, do mesmo tamanho, cada um com as prateleiras dela. */
+const LADOS_PIRAMIDE = ['LADO-1', 'LADO-2', 'LADO-3', 'LADO-4'];
 
 /** Frentes de um produto: inteiro de 1 a LIMITES_PRATELEIRA.frentes (vazio ou inválido = 1). */
 function normFrentes_(v) {
@@ -3027,8 +3032,9 @@ function prateleirasParaCopia_(prateleiras, origem, ciclo, fixos) {
     return fixos.some(function (f) {
       const pf = normPlanta_(f.planta);
       const mf = normIdEspaco_(f.movel);
-      // O meio inteiro fixo vale também para as metades dele.
-      const mesmo = mf === espaco || (/\/MEIO-[AB]$/.test(mf) && espaco.indexOf(mf + '-') === 0);
+      // O meio inteiro fixo vale também para as metades dele; o móvel inteiro fixo (a pirâmide), para os lados dele.
+      const mesmo = mf === espaco || (/\/MEIO-[AB]$/.test(mf) && espaco.indexOf(mf + '-') === 0)
+        || (mf.indexOf('/') < 0 && espaco.indexOf(mf + '/') === 0);
       return mesmo && (pf === CONFIG.PLANTA_TODAS || pf <= planta);
     });
   }).map(function (o) { return Object.assign({}, o, { ciclo: ciclo }); });
