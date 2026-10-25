@@ -133,13 +133,15 @@ const Prateleira = (() => {
       const cabe = (li) => li.getBoundingClientRect().bottom <= limite;
       if (itens.every(cabe)) return;
       const mais = n('li', 'pr-q-mais', null, ul);
+      // Num quadrado estreito, só "+N".
+      const texto = (k) => '+' + k + (el.clientWidth < 110 ? '' : k > 1 ? ' produtos' : ' produto');
       let escondidos = 0;
       for (let i = itens.length - 1; i >= 0; i--) {
-        mais.textContent = '+' + (escondidos || 1) + (escondidos > 1 ? ' produtos' : ' produto');
+        mais.textContent = texto(escondidos || 1);
         if (cabe(itens[i]) && cabe(mais)) break;
         itens[i].hidden = true;
         escondidos++;
-        mais.textContent = '+' + escondidos + (escondidos > 1 ? ' produtos' : ' produto');
+        mais.textContent = texto(escondidos);
         if (i === 0 || (cabe(itens[i - 1]) && cabe(mais))) break;
       }
     }));

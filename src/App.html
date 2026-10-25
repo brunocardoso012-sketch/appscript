@@ -1560,10 +1560,16 @@ const App = (() => {
     const rotulos = Array.from({ length: n }, (_, k) => String(k + 1));
     if (m.tipo === 'CAIXA') return null;
     if (m.tipo === 'GONDOLA') {
-      const colunas = Render.caixasGondola(mov).map((b) => {
-        const { p, etiquetas } = doEspaco(b.espaco);
-        return coluna(m.id + '/' + b.espaco.id, b.espaco.nome, Math.max(b.w, b.d), n, p, etiquetas);
-      });
+      // Na ordem Ponta A, Meio A, Ponta B, Meio B; cada meio tem o dobro da largura de uma ponta (a metade de um
+      // meio dividido, a mesma da ponta).
+      const ordem = (id) => ['PONTA-A', 'MEIO-A', 'PONTA-B', 'MEIO-B'].indexOf(id.replace(/^(MEIO-[AB])-\d$/, '$1'));
+      const colunas = Render.caixasGondola(mov).slice()
+        .sort((a, b) => ordem(a.espaco.id) - ordem(b.espaco.id) || a.espaco.id.localeCompare(b.espaco.id))
+        .map((b) => {
+          const { p, etiquetas } = doEspaco(b.espaco);
+          const peso = /^MEIO-[AB]$/.test(b.espaco.id) ? 2 : 1;
+          return coluna(m.id + '/' + b.espaco.id, b.espaco.nome, peso, n, p, etiquetas);
+        });
       return { n, rotulos, colunas, testeiras: null };
     }
     if (m.tipo === 'TOTEM') {
@@ -1605,7 +1611,9 @@ const App = (() => {
     const grade = novo('div', 'pg-grade', null, caixa);
     // Espaços desenhados na construção: colunas mais largas e prateleiras mais altas, para caberem os produtos.
     const desenho = plano.colunas.some((c) => c.desenhada);
-    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(' + (c.desenhada ? 240 : 120) + 'px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
+    // A largura mínima segue o peso de cada coluna, para a proporção valer também em telas estreitas.
+    const base = desenho ? 150 : 90;
+    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(' + Math.round(base * c.peso) + 'px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
     const linhaTopo = plano.testeiras ? 1 : 0;
     grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(' + (desenho ? 112 : 58) + 'px, auto)) auto';
     const pos = (n, col, row, rowFim) => {
