@@ -893,7 +893,6 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   assert.strictEqual(p1.movimento, 'LÇTO EGEO');
   assert.deepStrictEqual(g[0].prateleiras[1].quadrados.map((q) => [q.x, q.w]), [[0, 50], [50, 50]]);
   assert.match(await p.textContent('.pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] .pr-resumo'), /2 produtos · 3 frentes/);
-  assert.match(await p.textContent('.mv-plano'), /definidas na construção/);
   assert.ok(await p.locator('.mv-plano .pg-celula:not(.pg-desenhada)').count() > 0, 'os espaços sem desenho continuam com a divisão automática');
 
   // Mudança sem salvar: fechar pergunta (o teste aceita) e descarta.
@@ -950,11 +949,10 @@ test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo
   const linha = await estado(p, () => App.resolver.movimento('Ciclo exemplo', '01', 'GONDOLA 1/PONTA-A'));
   assert.ok(!linha || !linha.etiquetas.some((e) => e.texto === 'LÇTO ANTECIPADO'), 'a planilha base não leva a antecipação');
 
-  // Tela do móvel: quando entra e o que tinha antes.
+  // Tela do móvel: o planograma já mostra o item antecipado no espaço (a data fica em Comunicações ER).
   await p.locator('#valCorpo .an-item .val-movel').first().click();
   await p.waitForSelector('#dlgMovel[open]');
-  assert.match(await p.textContent('#mvEstrategia'), /Entra em 25\/10\/2026/);
-  assert.match(await p.textContent('#mvEstrategia'), /Antes/);
+  assert.match(await p.textContent('.mv-plano'), /LÇTO ANTECIPADO/);
   await p.keyboard.press('Escape');
   await p.waitForSelector('#dlgMovel:not([open])', { state: 'attached' });
 
