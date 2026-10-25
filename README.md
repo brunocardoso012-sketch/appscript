@@ -23,7 +23,7 @@ No app (legenda, listas, Analytics, PNG), as marcas aparecem pela sigla de 3 let
 - **Botão "Baixar planilha base"**: gera um `.xlsx` com uma linha por móvel de cada planta, listas suspensas e cores por marca. Pode vir em branco ou já preenchido com um ciclo existente, para servir de ponto de partida do próximo.
 - **Botão "Importar planilha"**: lê o `.xlsx` preenchido, grava no Google Sheets e já mostra o ciclo importado.
 - **Zoom na planta**: role o mouse sobre a planta (ou use a pinça no celular, os botões − / + acima dela ou as teclas <kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd>). Com zoom, arraste para mover a planta. As etiquetas crescem junto com a planta, para ler melhor; as caixas de destaque continuam do mesmo tamanho na tela. Clique no percentual para voltar a 100%. O PNG sai sempre sem zoom.
-- **Estratégia do móvel**: clique num móvel (ou numa etiqueta dele) para abrir uma tela inteira com o desenho do móvel e o que o ciclo define para ele: marca, símbolo, etiquetas (com a cor e o bloco de cada uma) e observação — na gôndola, mesas, totem e móvel make, a linha de cada espaço. No alto, o **planograma** mostra como as prateleiras estão divididas: uma coluna por espaço (lados e meios da gôndola, frentes da mesa, blocos do balcão), com as prateleiras de cima para baixo; as etiquetas de cada espaço dividem as prateleiras na ordem (Etiqueta 1 em cima), cada uma com a cor da sua marca. No totem, cada linha é um painel; no móvel make, as testeiras aparecem por cima.
+- **Estratégia do móvel**: clique num móvel (ou numa etiqueta dele) para abrir uma tela inteira com o desenho do móvel e o que o ciclo define para ele: marca, símbolo, etiquetas (com a cor e o bloco de cada uma) e observação — na gôndola, mesas, totem e móvel make, a linha de cada espaço. No alto, o **planograma** mostra como as prateleiras estão divididas: uma coluna por espaço (lados e meios da gôndola, frentes da mesa, blocos do balcão), com as prateleiras de cima para baixo; as etiquetas de cada espaço dividem as prateleiras na ordem (Etiqueta 1 em cima), cada uma com a cor da sua marca. No totem, cada linha é um painel; no móvel make, as testeiras aparecem por cima. Nos espaços em que as prateleiras foram desenhadas na construção, o planograma mostra, em cada prateleira, os quadrados com o movimento e os produtos de cada um (veja [Prateleiras](#prateleiras-o-desenho-de-cada-prateleira-com-os-produtos)).
 - **Destaque ao passar o mouse**: com o mouse sobre um móvel (ou uma etiqueta dele), as etiquetas desse móvel ganham contorno e as linhas-guia escurecem; as dos outros móveis ficam mais claras.
 - **Planta em tela cheia**: a planta ocupa toda a área abaixo dos botões, sem moldura, com as notas e a legenda dos símbolos no canto de baixo. O nome da ER, o ciclo, as listas de TV / rádio, (A) e (C), os destaques e os itens fora da planta (Cestinhas, Espaço da Beleza, Cavalete) não ficam no desenho: ficam em **Comunicações ER**.
 - **Comunicações ER**: o botão abre um menu à esquerda da planta (com o *Analytics* aberto, o botão volta para a planta com o menu aberto) com o nome da ER e o ciclo, TV e rádio, (A), (C), os **destaques** (seção `CALLOUT` da aba Painéis; cada um com a miniatura do móvel a que se refere, na cor da marca, no lugar da caixa que apontava para o móvel na planta) e os itens fora da planta com as etiquetas deles. No PNG do slide, os destaques vão na coluna lateral, depois do (C), também com a miniatura do móvel. Com uma marca no filtro, as etiquetas das outras marcas ficam em cinza, como no slide. O app lembra se ele estava aberto; na primeira vez, abre em telas largas. No *Construir loja* e no PNG do slide, esses painéis continuam no slide, como antes.
@@ -89,6 +89,21 @@ Quando a estratégia muda no curto prazo e um item do ciclo seguinte precisa ent
 - **Na planilha:** aba **Antecipações** (criada na primeira gravação), uma linha por antecipação: *ID*, *Ciclo*, *Planta* (a ER ou `TODAS`), *ID Móvel* (o espaço, ex.: `GONDOLA 1/PONTA-A`), *Movimento (etiqueta)*, *Marca*, *Como entra* (`SUBSTITUIR` ou `SOMAR`), *Data de entrada* (dd/mm/aaaa), *Vem do ciclo*, *Observação*, *Criado por* e *Criado em*. As regras ficam em [`src/Antecipacoes.gs`](src/Antecipacoes.gs) e são conferidas no servidor (ciclo publicado, espaço que existe na ER, data válida).
 
 - **Onde ficam:** na aba **Comentários** da planilha, criada no primeiro comentário, com uma linha por mensagem: as respostas apontam para o comentário na coluna *Responde a*. Na versão web, ficam no navegador.
+
+### Prateleiras (o desenho de cada prateleira, com os produtos)
+
+Depois da estratégia dos movimentos (que movimento fica em cada espaço), o construtor **desenha cada prateleira**: quadrados na prateleira e, em cada quadrado, o movimento e os **produtos**, escolhidos no catálogo da aba **Produtos** da planilha. Vale no app completo, no visualizador e na versão web.
+
+- **Ver** (todo mundo): na tela do móvel (clique no móvel), o **Planograma · como as prateleiras estão divididas** mostra, nos espaços desenhados, cada prateleira com os quadrados no lugar e no tamanho definidos, cada um na cor da marca do movimento, com os produtos e as frentes (passe o mouse para ver os SKUs; num quadrado pequeno, os que não cabem viram "+N produtos"). Os espaços ainda sem desenho continuam com a divisão automática pelas etiquetas. Levam produtos: cada ponta e meio da gôndola, o nicho de cada frente da mesa, as prateleiras do corpo do móvel make e o móvel inteiro nos móveis de um espaço só (o totem, o verso da mesa e o móvel de atendimento não levam).
+- **Desenhar** (só no modo de construção: login da *Construção*, com a senha, num ciclo publicado ou num ciclo em construção ainda não enviado): a tela do móvel ganha a seção **Construção das prateleiras**, com um cartão por espaço; *Desenhar* (ou *Editar*) abre a edição ali mesmo. Quem não entrou na Construção não vê essa seção, só o resultado no planograma.
+  - **Arraste numa prateleira** para criar um quadrado. Arrastando só para o lado, ele ocupa a altura toda; arrastando também para cima ou para baixo, só aquela parte (para empilhar dois quadrados). Os quadrados não podem se sobrepor.
+  - **Arraste o quadrado** para mover e **puxe as bordas** para mudar o tamanho. *Dividir em* (1 a 6) troca os quadrados da prateleira por quadrados iguais, de ponta a ponta; *Limpar* apaga os da prateleira. **Delete** apaga o quadrado escolhido.
+  - **Clique num quadrado** para abrir o painel dele, logo embaixo da prateleira: o **movimento** (entre as etiquetas do espaço; o quadrado novo já vem com o da divisão do planograma), uma observação e os **produtos**. A busca acha no catálogo por nome, SKU, marca ou categoria; *Só do movimento …* mostra só os produtos daquele movimento (coluna *Movimento* da aba Produtos). Clicar num produto põe no quadrado (de novo, soma uma frente); as frentes, a ordem (↑ ↓) e o × ficam na lista do quadrado.
+- **Vale em:** *Só na ER da tela* ou *Todas as ERs que têm este espaço* (cada ER recebe as mesmas prateleiras e continua com as suas, para ajustar depois). *Copiar de* começa com o desenho de outra ER. Cada ER tem as suas prateleiras: não há cascata entre as ERs.
+- **Salvar prateleiras** grava; *Apagar o desenho* tira tudo do espaço. Fechar a tela com mudanças não salvas pergunta antes.
+- **Ciclos em construção:** a cópia de um ciclo (*Tudo*) leva as prateleiras; *Só os movimentos fixos (🔒)* leva só as dos espaços fixos. Excluir o ciclo em construção apaga as prateleiras dele; na aprovação elas continuam (o nome do ciclo é o mesmo).
+- **Aba Produtos (o catálogo):** uma linha por produto: **SKU** e **Produto** (obrigatórios), *Marca* (`BOT`, `EUD`, `QDB`, `OUI`, `MULTI`), *Categoria* e *Movimento (etiqueta)* (o movimento a que o produto pertence, para o filtro *Só do movimento*). No Apps Script, o app lê a aba direto da planilha: é só manter a lista ali. *Configurar planilha* cria a aba com produtos de exemplo. A *planilha base* (*Baixar planilha base*) vem com a aba Produtos preenchida com o catálogo atual, e *Importar planilha* com essa aba **substitui o catálogo inteiro** (é assim que a versão web recebe a lista). Só entram nos quadrados produtos do catálogo (o servidor confere); um produto que sai da aba continua no quadrado, riscado, até ser trocado.
+- **Na planilha:** aba **Prateleiras** (criada na primeira gravação), **uma linha por produto de cada quadrado**: *Ciclo*, *Planta* (a ER), *ID Móvel* (o espaço, ex.: `GONDOLA 1/PONTA-A`, ou o móvel, ex.: `PIRAMIDE 1`), *Prateleira* (1 = a de cima), *Quadrado* (numerados de cima para baixo e da esquerda para a direita), *X (%)*, *Largura (%)*, *Y (%)* e *Altura (%)* (a posição na prateleira, a partir do canto de cima à esquerda), *Movimento (etiqueta)*, *SKU*, *Produto*, *Frentes*, *Observação* (do quadrado, na primeira linha dele), *Atualizado por* e *Atualizado em*. O quadrado sem produto tem uma linha sem SKU. As regras ficam em [`src/Prateleiras.gs`](src/Prateleiras.gs) e são conferidas no servidor (só o construtor; ciclo que existe e não foi enviado; espaço que existe na ER; prateleira dentro do número de níveis do móvel; quadrados sem sobreposição, com pelo menos 3% de lado, até 30 por prateleira; até 20 produtos por quadrado, todos da aba Produtos; até 99 frentes).
 
 ## Construir loja (editor do layout)
 
@@ -192,6 +207,7 @@ Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`
    | Script | `Validacao` | [`src/Validacao.gs`](src/Validacao.gs) |
    | Script | `Rascunhos` | [`src/Rascunhos.gs`](src/Rascunhos.gs) |
    | Script | `Antecipacoes` | [`src/Antecipacoes.gs`](src/Antecipacoes.gs) |
+   | Script | `Prateleiras` | [`src/Prateleiras.gs`](src/Prateleiras.gs) |
    | HTML | `Index` | [`src/Index.html`](src/Index.html) |
    | HTML | `Styles` | [`src/Styles.html`](src/Styles.html) |
    | HTML | `Render` | [`src/Render.html`](src/Render.html) |
@@ -200,6 +216,7 @@ Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`
    | HTML | `Validacao` | [`src/Validacao.html`](src/Validacao.html) |
    | HTML | `Rascunho` | [`src/Rascunho.html`](src/Rascunho.html) |
    | HTML | `Antecipacao` | [`src/Antecipacao.html`](src/Antecipacao.html) |
+   | HTML | `Prateleira` | [`src/Prateleira.html`](src/Prateleira.html) |
    | HTML | `Estrategia` | [`src/Estrategia.html`](src/Estrategia.html) |
    | HTML | `Tutorial` | [`src/Tutorial.html`](src/Tutorial.html) |
    | HTML | `Analytics` | [`src/Analytics.html`](src/Analytics.html) |
@@ -341,6 +358,7 @@ src/
   Validacao.gs      validação da estratégia: senhas, aba Comentários e quem pode o quê
   Rascunhos.gs      ciclos em construção: criar, editar, enviar, devolver e aprovar (abas Rascunho…)
   Antecipacoes.gs   antecipações: item do próximo ciclo num espaço do ciclo atual, com a data (aba Antecipações)
+  Prateleiras.gs    prateleiras: os quadrados de cada prateleira e os produtos deles, por ER (abas Prateleiras e Produtos)
   Index.html        página (inclui os arquivos abaixo)
   Styles.html       estilos
   Render.html       desenho isométrico em SVG (slide 1920×1080)
@@ -352,6 +370,7 @@ src/
   Validacao.html    painel de validação (acesso, comentários, marcadores na planta)
   Rascunho.html     ciclos em construção: novo ciclo, edição dos espaços, Comunicações ER, Tipos, aprovação
   Antecipacao.html  antecipações: seção no painel da validação, diálogo, junção com a planta e símbolo ⏩
+  Prateleira.html   prateleiras: quadrados no planograma da tela do móvel e a seção "Construção das prateleiras" (só no modo de construção)
   App.html          estado da tela, botões e chamadas ao servidor
 index.html          versão web gerada (netli.fyi / Netlify)
 netlify.toml        publicação estática a partir da raiz

@@ -182,11 +182,11 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     secoes: SECOES_PAINEL,
     tipos: TIPOS_MOVEL,
     tiposConstrucao: TIPOS_CONSTRUCAO,
-    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), tipos: colunasTipos_(), layout: colunasLayout_() },
+    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), tipos: colunasTipos_(), layout: colunasLayout_(), produtos: colunasProdutos_() },
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
-      rede: REDE,
+      rede: REDE, limitesPrateleira: LIMITES_PRATELEIRA,
     },
   };
 }

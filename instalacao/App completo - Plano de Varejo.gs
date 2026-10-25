@@ -32,6 +32,10 @@ const CONFIG = {
     R_TIPOS: 'Rascunho Tipos',
     // Itens do ciclo seguinte adiantados para o ciclo atual (Antecipacoes.gs).
     ANTECIPACOES: 'Antecipações',
+    // Produtos de cada prateleira de cada espaço (Prateleiras.gs).
+    PRATELEIRAS: 'Prateleiras',
+    // Catálogo de produtos que vão nos quadrados das prateleiras (SKU, nome, marca, categoria, movimento).
+    PRODUTOS: 'Produtos',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -87,6 +91,19 @@ const TIPOS_SEM_ETIQUETA = ['CAIXA'];
  * mesmas etiquetas (texto e cor) viram uma pilha só.
  */
 const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
+
+/**
+ * Quantas prateleiras (níveis) cada tipo de móvel tem, de cima para baixo; tipos que não aparecem aqui
+ * têm uma (o nicho de cada frente da mesa, o PDV…). Vale para as prateleiras com produtos (Prateleiras.gs).
+ * (A página tem uma cópia desta tabela em Render.PRATELEIRAS, que o desenho usa.)
+ */
+const PRATELEIRAS_POR_TIPO = { GONDOLA: 4, PIRAMIDE: 4, FILA: 3, GONDOLA_PAREDE: 5, VITRINE_L: 2, ILHA_OUI: 3, MAKE: 5 };
+
+/**
+ * Limites das prateleiras: quadrados por prateleira, produtos por quadrado, frentes de cada produto e o
+ * menor lado de um quadrado (em % da prateleira).
+ */
+const LIMITES_PRATELEIRA = { quadrados: 30, produtos: 20, frentes: 99, minimo: 3 };
 
 /**
  * Marcas e cores.
@@ -517,11 +534,11 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     secoes: SECOES_PAINEL,
     tipos: TIPOS_MOVEL,
     tiposConstrucao: TIPOS_CONSTRUCAO,
-    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), tipos: colunasTipos_(), layout: colunasLayout_() },
+    colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), tipos: colunasTipos_(), layout: colunasLayout_(), produtos: colunasProdutos_() },
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
       etiquetasPorTipo: ETIQUETAS_POR_TIPO, etiquetasPorBloco: ETIQUETAS_POR_BLOCO, nomesPlantas: NOMES_PLANTAS,
-      rede: REDE,
+      rede: REDE, limitesPrateleira: LIMITES_PRATELEIRA,
     },
   };
 }
@@ -1109,6 +1126,8 @@ function getDados() {
     lerAba_(ss, CONFIG.ABAS.TIPOS, true)
   );
   dados.antecipacoes = antecipacoesDeValores_(lerAba_(ss, CONFIG.ABAS.ANTECIPACOES, true));
+  dados.produtos = produtosDeValores_(lerAba_(ss, CONFIG.ABAS.PRODUTOS, true));
+  dados.prateleiras = prateleirasDeValores_(lerAba_(ss, CONFIG.ABAS.PRATELEIRAS, true), dados.produtos);
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = !ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS);
@@ -1181,6 +1200,16 @@ function salvarAntecipacao(acesso, pedido) {
   return executarAntecipacao_(ioRascunhos_(planilha_()), acesso, pedido);
 }
 
+/* ============================= PRATELEIRAS =============================== */
+
+/**
+ * Grava os produtos das prateleiras de um espaço (veja aplicarAcaoPrateleiras_). Todo mundo as recebe no getDados.
+ * @return {Array} prateleiras atualizadas
+ */
+function salvarPrateleiras(acesso, pedido) {
+  return executarPrateleiras_(ioRascunhos_(planilha_()), acesso, pedido);
+}
+
 /**
  * Cria as abas que faltam (com layout padrão e um ciclo de exemplo).
  * Nunca sobrescreve abas que já têm dados.
@@ -1212,6 +1241,9 @@ function configurarPlanilha() {
     if (criarSeVazia_(ss, CONFIG.ABAS.TIPOS, colunasTipos_(), valoresTiposExemplo_())) {
       lista.push(CONFIG.ABAS.TIPOS);
     }
+    if (criarSeVazia_(ss, CONFIG.ABAS.PRODUTOS, colunasProdutos_(), valoresProdutosExemplo_())) {
+      lista.push(CONFIG.ABAS.PRODUTOS);
+    }
     if (criouPlanilha) removerAbaPadraoVazia_(ss);
     return lista;
   });
@@ -1238,12 +1270,12 @@ function importarPlanilha(payload) {
   const ss = planilha_();
   const prep = prepararImportacao_(payload); // valida tudo antes de gravar
 
-  const resultado = { movimentos: 0, paineis: 0, tipos: 0, layout: 0 };
+  const resultado = { movimentos: 0, paineis: 0, tipos: 0, layout: 0, produtos: 0 };
   comTrava_(function () {
     prep.preparados.forEach(function (p) {
       const sh = ss.getSheetByName(p.bloco.aba);
       const existentes = sh ? sh.getDataRange().getValues() : [];
-      escreverAba_(ss, p.bloco.aba, p.bloco.colunas, mesclarLinhas_(existentes, p.linhas, p.bloco.colunas));
+      escreverAba_(ss, p.bloco.aba, p.bloco.colunas, mesclarLinhas_(existentes, p.linhas, p.bloco.colunas, p.bloco.chave));
       resultado[p.bloco.campo] = p.linhas.length;
     });
   });
@@ -1261,6 +1293,8 @@ function blocosImportacao_() {
     { campo: 'paineis', aba: CONFIG.ABAS.PAINEIS, colunas: colunasPaineis_() },
     { campo: 'tipos', aba: CONFIG.ABAS.TIPOS, colunas: colunasTipos_() },
     { campo: 'layout', aba: CONFIG.ABAS.LAYOUT, colunas: colunasLayout_() },
+    // O catálogo de produtos vem inteiro: a aba Produtos do arquivo substitui a da planilha.
+    { campo: 'produtos', aba: CONFIG.ABAS.PRODUTOS, colunas: colunasProdutos_(), chave: function () { return 'TODOS'; } },
   ];
 }
 
@@ -1289,6 +1323,7 @@ function prepararImportacao_(payload) {
       if (b.campo === 'layout') ok = normPlanta_(o.planta) && normId_(o.movel) && texto_(o.tipo);
       else if (b.campo === 'paineis') ok = texto_(o.ciclo) && normPlanta_(o.planta) && texto_(o.texto) && texto_(o.secao);
       else if (b.campo === 'tipos') ok = texto_(o.ciclo) && texto_(o.etiqueta);
+      else if (b.campo === 'produtos') ok = normSku_(o.sku) && texto_(o.nome);
       else ok = texto_(o.ciclo) && normPlanta_(o.planta) && normId_(o.movel);
       if (!ok && avisosLeitura.length < 30) {
         avisosLeitura.push(b.aba + ', linha ' + o._linha + ': faltam campos obrigatórios — linha ignorada.');
@@ -1299,7 +1334,7 @@ function prepararImportacao_(payload) {
   });
   if (!preparados.length) {
     throw new Error('Não encontrei as abas "' + CONFIG.ABAS.MOVIMENTOS + '", "' + CONFIG.ABAS.PAINEIS + '", "' +
-      CONFIG.ABAS.TIPOS + '" ou "' + CONFIG.ABAS.LAYOUT + '" no arquivo.');
+      CONFIG.ABAS.TIPOS + '", "' + CONFIG.ABAS.LAYOUT + '" ou "' + CONFIG.ABAS.PRODUTOS + '" no arquivo.');
   }
   return { preparados: preparados, avisosLeitura: avisosLeitura };
 }
@@ -2492,6 +2527,8 @@ function abasRascunho_() {
     { campo: 'paineis', aba: CONFIG.ABAS.PAINEIS, colunas: colunasPaineis_(), publicada: true },
     { campo: 'tipos', aba: CONFIG.ABAS.TIPOS, colunas: colunasTipos_(), publicada: true },
     { campo: 'comentarios', aba: CONFIG.ABAS.COMENTARIOS, colunas: colunasComentarios_() },
+    // As prateleiras são gravadas por Prateleiras.gs; aqui só são copiadas (criar) e apagadas (excluir).
+    { campo: 'prateleiras', aba: CONFIG.ABAS.PRATELEIRAS, colunas: colunasPrateleiras_() },
   ];
 }
 
@@ -2583,8 +2620,8 @@ function listaCurta_(itens) {
  * três passos: (1) os Tipos de movimento, com o GMV de cada um; (2) os móveis, só com os movimentos
  * cadastrados nos tipos; (3) o envio para aprovação, que confere os dois.
  *  - criar:          { acao, ciclo, origem?, copiar? }  construtor; origem = ciclo (publicado ou em construção) a copiar;
- *                    copiar = 'tudo' (padrão: movimentos, comunicações e tipos) ou 'fixos' (só as linhas com 🔒 e os
- *                    tipos desses movimentos);
+ *                    copiar = 'tudo' (padrão: movimentos, comunicações, tipos e prateleiras) ou 'fixos' (só as linhas
+ *                    com 🔒, os tipos desses movimentos e as prateleiras desses espaços);
  *  - salvarTipos:    { acao, ciclo, linhas: [{etiqueta, classificacao, gmv, observacao}] }  construtor: os movimentos
  *                    que o ciclo pode usar (substitui a lista toda);
  *  - salvarEspaco:   { acao, ciclo, planta, movel, linha }  construtor; só com movimentos dos tipos; linha vazia apaga
@@ -2651,6 +2688,9 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
       let movimentos = daOrigem('movimentos', 'rMovimentos');
       if (!movimentos.length) throw new Error('O ciclo "' + origem + '" não foi encontrado.');
       let tipos = daOrigem('tipos', 'rTipos');
+      // As prateleiras ficam numa aba só (publicados e em construção): as do ciclo de origem, ou só as dos espaços fixos.
+      const prateleiras = prateleirasParaCopia_(objs('prateleiras'), origem, ciclo, soFixos ? movimentos.filter(function (o) { return normSimbolo_(o.simbolo) === 'FIXO'; }) : null);
+      if (prateleiras.length) trocar('prateleiras', objs('prateleiras').concat(prateleiras));
       if (soFixos) {
         // Só os espaços fixos (🔒), com os tipos dos movimentos deles; as comunicações ficam em branco.
         movimentos = movimentos.filter(function (o) { return normSimbolo_(o.simbolo) === 'FIXO'; });
@@ -2746,6 +2786,7 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigir('CONSTRUTOR', 'exclui um ciclo em construção');
     exigirRascunho();
     ['rMovimentos', 'rPaineis', 'rTipos'].forEach(function (c) { trocar(c, semCiclo(c)); });
+    if (objs('prateleiras').some(doCiclo)) trocar('prateleiras', semCiclo('prateleiras'));
     trocar('rascunhos', rascunhos.filter(function (r) { return r !== atual; }));
     return { abas: novas, gravar: gravar };
   }
@@ -3035,6 +3076,392 @@ function executarAntecipacao_(io, acesso, pedido) {
     const r = aplicarAcaoAntecipacao_(valores, contexto, quem, pedido);
     io.gravar(CONFIG.ABAS.ANTECIPACOES, colunasAntecipacoes_(), r.valores);
     return antecipacoesDeValores_(r.valores);
+  });
+}
+
+/* ===== src/Prateleiras.gs ===== */
+/**
+ * ============================================================================
+ *  PRATELEIRAS (os quadrados de cada prateleira e os produtos de cada quadrado)
+ * ============================================================================
+ *  Depois da estratégia dos movimentos (que movimento fica em cada espaço), o
+ *  construtor da estratégia desenha o planograma de cada prateleira: quadrados
+ *  (posição e tamanho, em % da prateleira) e, em cada quadrado, o movimento e
+ *  os produtos, escolhidos na aba "Produtos" (o catálogo: SKU, nome, marca,
+ *  categoria e movimento). Todo mundo vê na tela do móvel (Prateleira.html);
+ *  só o construtor edita, num ciclo publicado ou num ciclo em construção que
+ *  ainda não foi enviado.
+ *
+ *  Ficam na aba "Prateleiras", uma linha por produto de cada quadrado (o
+ *  quadrado sem produto tem uma linha sem SKU). Cada ER tem as suas linhas:
+ *  "Vale em todas as ERs" grava as mesmas prateleiras em cada ER que tem o
+ *  espaço. Este arquivo só tem regras sobre matrizes: quem lê e grava as abas é
+ *  o Code.gs, o Visualizador.gs e, na versão web, o web/backend-local.js
+ *  (executarPrateleiras_, com o leitor / gravador de cada um).
+ */
+
+/** Colunas da aba Produtos (o catálogo de onde saem os produtos dos quadrados). */
+function colunasProdutos_() {
+  return [
+    { titulo: 'SKU', chave: 'sku', obrigatoria: true, texto: true, apelidos: ['Código', 'Cód. produto', 'Código do produto'] },
+    { titulo: 'Produto', chave: 'nome', obrigatoria: true, texto: true, apelidos: ['Nome', 'Descrição', 'Nome do produto'] },
+    { titulo: 'Marca', chave: 'marca', texto: true },
+    { titulo: 'Categoria', chave: 'categoria', texto: true, apelidos: ['Linha', 'Família'] },
+    { titulo: 'Movimento (etiqueta)', chave: 'movimento', texto: true, apelidos: ['Movimento', 'Etiqueta'] },
+  ];
+}
+
+/** SKU como chave: sem espaços nas pontas e em maiúsculas ("ab-12 " → "AB-12"). */
+function normSku_(v) {
+  return texto_(v).replace(/\s+/g, ' ').toUpperCase();
+}
+
+/**
+ * Catálogo da aba Produtos (as linhas sem SKU ou sem nome ficam de fora; SKU repetido vale a primeira linha),
+ * em ordem de nome. @return {Array<{sku, nome, marca, categoria, movimento}>}
+ */
+function produtosDeValores_(valores) {
+  if (!valores || !valores.length) return [];
+  const vistos = {};
+  const lista = [];
+  objetosDeValores_(valores, colunasProdutos_()).linhas.forEach(function (l) {
+    const sku = normSku_(l.sku);
+    const nome = texto_(l.nome);
+    if (!sku || !nome || vistos[sku]) return;
+    vistos[sku] = true;
+    lista.push({ sku: sku, nome: nome, marca: normMarca_(l.marca), categoria: texto_(l.categoria), movimento: texto_(l.movimento) });
+  });
+  return lista.sort(function (a, b) { return a.nome < b.nome ? -1 : a.nome > b.nome ? 1 : 0; });
+}
+
+/** Matriz [cabeçalho, ...linhas] da aba Produtos de exemplo (os produtos dos ciclos de exemplo). */
+function valoresProdutosExemplo_() {
+  const cols = colunasProdutos_();
+  const linhas = [cols.map(function (c) { return c.titulo; })];
+  EXEMPLO_PRODUTOS.forEach(function (p) {
+    const o = { sku: p[0], nome: p[1], marca: p[2], categoria: p[3], movimento: p[4] };
+    linhas.push(cols.map(function (c) { return o[c.chave] || ''; }));
+  });
+  return linhas;
+}
+
+/** Produtos de exemplo: [SKU, nome, marca, categoria, movimento]. */
+const EXEMPLO_PRODUTOS = [
+  ['48211', 'Egeo Dolce Desodorante Colônia 90ml', 'BOT', 'Perfumaria', 'LÇTO EGEO'],
+  ['48212', 'Egeo Bomb Black Desodorante Colônia 90ml', 'BOT', 'Perfumaria', 'LÇTO EGEO'],
+  ['48213', 'Egeo Choc Desodorante Colônia 90ml', 'BOT', 'Perfumaria', 'LÇTO EGEO'],
+  ['48214', 'Egeo Vanilla Vibe Desodorante Colônia 90ml', 'BOT', 'Perfumaria', 'LÇTO EGEO'],
+  ['50110', 'Malbec Desodorante Colônia 100ml', 'BOT', 'Perfumaria', 'BOTIPROMO'],
+  ['50111', 'Malbec Gold Desodorante Colônia 100ml', 'BOT', 'Perfumaria', 'BOTIPROMO'],
+  ['50112', 'Lily Eau de Parfum 75ml', 'BOT', 'Perfumaria', 'BOTIPROMO'],
+  ['50113', 'Floratta Rose Desodorante Colônia 75ml', 'BOT', 'Perfumaria', 'BOTIPROMO'],
+  ['50114', 'Nativa SPA Hidratante Ameixa 400ml', 'BOT', 'Corpo e banho', 'BOTIPROMO'],
+  ['61020', 'Siàge Nutri Rosé Shampoo 250ml', 'EUD', 'Cabelos', 'SIÀGE ULTIMATE'],
+  ['61021', 'Siàge Nutri Rosé Condicionador 200ml', 'EUD', 'Cabelos', 'SIÀGE ULTIMATE'],
+  ['61022', 'Siàge Nutri Rosé Máscara 250g', 'EUD', 'Cabelos', 'SIÀGE ULTIMATE'],
+  ['61030', 'Eudora Glam Batom Matte', 'EUD', 'Maquiagem', 'OUTLET EUD'],
+  ['61031', 'Eudora Soul Desodorante Colônia 95ml', 'EUD', 'Perfumaria', 'OUTLET EUD'],
+  ['72001', 'QDB Juicy Mood Gloss Labial', 'QDB', 'Maquiagem', 'JUICY MOOD'],
+  ['72002', 'QDB Juicy Mood Body Splash 200ml', 'QDB', 'Perfumaria', 'JUICY MOOD'],
+  ['72010', 'QDB Máscara de Cílios Volume', 'QDB', 'Maquiagem', 'LIQUIDA QDB'],
+  ['72011', 'QDB Base Líquida Matte', 'QDB', 'Maquiagem', 'LIQUIDA QDB'],
+  ['80100', 'O.U.i Eau de Parfum L\'Âme 75ml', 'OUI', 'Perfumaria', ''],
+  ['90001', 'Kit Presente Dia das Mães', 'MULTI', 'Presentes', 'MULTI PROMO'],
+];
+
+/** Colunas da aba Prateleiras: uma linha por produto de cada quadrado. */
+function colunasPrateleiras_() {
+  return [
+    { titulo: 'Ciclo', chave: 'ciclo', obrigatoria: true, texto: true },
+    { titulo: 'Planta', chave: 'planta', obrigatoria: true, texto: true },
+    { titulo: 'ID Móvel', chave: 'espaco', obrigatoria: true, texto: true, apelidos: ['Espaço', 'Móvel'] },
+    { titulo: 'Prateleira', chave: 'prateleira', obrigatoria: true, texto: true, apelidos: ['Nível'] },
+    { titulo: 'Quadrado', chave: 'quadrado', texto: true },
+    { titulo: 'X (%)', chave: 'x', texto: true, apelidos: ['X'] },
+    { titulo: 'Largura (%)', chave: 'w', texto: true, apelidos: ['Largura'] },
+    { titulo: 'Y (%)', chave: 'y', texto: true, apelidos: ['Y'] },
+    { titulo: 'Altura (%)', chave: 'h', texto: true, apelidos: ['Altura'] },
+    { titulo: 'Movimento (etiqueta)', chave: 'movimento', texto: true, apelidos: ['Movimento', 'Etiqueta'] },
+    { titulo: 'SKU', chave: 'sku', texto: true, apelidos: ['Código', 'Cód. produto'] },
+    { titulo: 'Produto', chave: 'produto', texto: true },
+    { titulo: 'Frentes', chave: 'frentes', texto: true, apelidos: ['Facings'] },
+    { titulo: 'Observação', chave: 'observacao', texto: true, apelidos: ['Obs'] },
+    { titulo: 'Atualizado por', chave: 'autor', texto: true },
+    { titulo: 'Atualizado em', chave: 'data', texto: true },
+  ];
+}
+
+/** Matriz vazia da aba (só o cabeçalho). */
+function valoresPrateleirasVazios_() {
+  return [colunasPrateleiras_().map(function (c) { return c.titulo; })];
+}
+
+/**
+ * Onde um móvel leva produtos: os espaços (IDs aceitos na aba) e quantas prateleiras cada um tem.
+ *  - gôndola: cada ponta e cada meio (ou metade do meio), com as prateleiras da gôndola;
+ *  - mesas destaque: o nicho de cada frente (1 prateleira; o verso é comunicação);
+ *  - móvel make: as prateleiras do corpo (o ID do móvel; as testeiras são comunicação);
+ *  - totem, móvel de atendimento e itens fora da planta: não levam produtos;
+ *  - os demais: o móvel inteiro.
+ * @return {{ids: string[], n: number}} ids: IDs completos ("GONDOLA 1/PONTA-A" ou "PIRAMIDE 1")
+ */
+function espacosDePrateleira_(m) {
+  if (!m || m.tipo === 'EXTRA' || m.tipo === 'TOTEM' || TIPOS_SEM_ETIQUETA.indexOf(m.tipo) >= 0) return { ids: [], n: 0 };
+  const n = PRATELEIRAS_POR_TIPO[m.tipo] || 1;
+  if (m.tipo === 'GONDOLA') return { ids: espacosAceitos_(m).map(function (e) { return m.id + '/' + e; }), n: n };
+  if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
+    return { ids: espacosDoMovel_(m).filter(function (e) { return !e.vm; }).map(function (e) { return m.id + '/' + e.id; }), n: 1 };
+  }
+  return { ids: [m.id], n: n };
+}
+
+/** Frentes de um produto: inteiro de 1 a LIMITES_PRATELEIRA.frentes (vazio ou inválido = 1). */
+function normFrentes_(v) {
+  const n = Math.round(numero_(v, 1));
+  return Math.max(1, Math.min(LIMITES_PRATELEIRA.frentes, isFinite(n) ? n : 1));
+}
+
+/** Medida de um quadrado em % da prateleira (0 a 100, com uma casa); vazio ou inválido = padrao. */
+function normPct_(v, padrao) {
+  const n = numero_(String(texto_(v)).replace('%', ''), padrao);
+  return Math.round(Math.max(0, Math.min(100, isFinite(n) ? n : padrao)) * 10) / 10;
+}
+
+/** Os dois quadrados se sobrepõem (encostar não conta)? */
+function quadradosSobrepostos_(a, b) {
+  const folga = 0.05;
+  return a.x + a.w > b.x + folga && b.x + b.w > a.x + folga && a.y + a.h > b.y + folga && b.y + b.h > a.y + folga;
+}
+
+/**
+ * Prateleiras da aba, agrupadas por espaço (ciclo, ER e espaço), com as prateleiras em ordem (1 = a de cima),
+ * os quadrados de cada uma (posição em % da prateleira: x da esquerda, y de cima) e os produtos de cada
+ * quadrado na ordem das linhas. O movimento da prateleira é o do maior quadrado (para o planograma).
+ * Linha sem as medidas do quadrado vale como a prateleira inteira.
+ * @return {Array<{ciclo, planta, espaco, prateleiras: Array<{numero, movimento, quadrados: Array<{x, y, w, h, movimento,
+ *   observacao, produtos: Array<{sku, nome, frentes}>}>}>, autor, data}>}
+ */
+function prateleirasDeValores_(valores, produtos) {
+  if (!valores || !valores.length) return [];
+  const catalogo = {};
+  (produtos || []).forEach(function (p) { catalogo[p.sku] = p; });
+  const grupos = {};
+  const ordem = [];
+  objetosDeValores_(valores, colunasPrateleiras_()).linhas.forEach(function (l) {
+    const ciclo = texto_(l.ciclo);
+    const planta = normPlanta_(l.planta);
+    const espaco = normIdEspaco_(l.espaco);
+    const numero = Math.round(numero_(l.prateleira, 0));
+    if (!ciclo || !planta || planta === CONFIG.PLANTA_TODAS || !espaco || !(numero >= 1)) return;
+    const k = ciclo + '\u0001' + planta + '\u0001' + espaco;
+    if (!grupos[k]) {
+      grupos[k] = { ciclo: ciclo, planta: planta, espaco: espaco, porNumero: {}, autor: '', data: '' };
+      ordem.push(k);
+    }
+    const g = grupos[k];
+    if (texto_(l.autor)) g.autor = texto_(l.autor);
+    if (texto_(l.data)) g.data = texto_(l.data);
+    const p = g.porNumero[numero] || (g.porNumero[numero] = { numero: numero, porQuadrado: {}, ordem: [] });
+    const nq = Math.max(1, Math.round(numero_(l.quadrado, 1)));
+    let q = p.porQuadrado[nq];
+    if (!q) {
+      const temMedidas = texto_(l.w) !== '';
+      q = p.porQuadrado[nq] = {
+        x: temMedidas ? normPct_(l.x, 0) : 0, y: temMedidas ? normPct_(l.y, 0) : 0,
+        w: temMedidas ? normPct_(l.w, 100) : 100, h: temMedidas ? normPct_(l.h, 100) : 100,
+        movimento: '', observacao: '', produtos: [],
+      };
+      p.ordem.push(nq);
+    }
+    if (!q.movimento && texto_(l.movimento)) q.movimento = texto_(l.movimento);
+    if (!q.observacao && texto_(l.observacao)) q.observacao = texto_(l.observacao);
+    const sku = normSku_(l.sku);
+    if (sku || texto_(l.produto)) {
+      // O nome vem do catálogo (a aba Produtos); o da linha fica para o produto que saiu dele.
+      const c = catalogo[sku];
+      q.produtos.push({ sku: sku, nome: c ? c.nome : texto_(l.produto) || sku, frentes: normFrentes_(l.frentes), foraDoCatalogo: !c });
+    }
+  });
+  return ordem.map(function (k) {
+    const g = grupos[k];
+    const prateleiras = Object.keys(g.porNumero).map(function (n) {
+      const p = g.porNumero[n];
+      const quadrados = p.ordem.map(function (nq) { return p.porQuadrado[nq]; });
+      const maior = quadrados.filter(function (q) { return q.movimento; })
+        .sort(function (a, b) { return b.w * b.h - a.w * a.h; })[0];
+      return { numero: p.numero, movimento: maior ? maior.movimento : '', quadrados: quadrados };
+    }).sort(function (a, b) { return a.numero - b.numero; });
+    return { ciclo: g.ciclo, planta: g.planta, espaco: g.espaco, prateleiras: prateleiras, autor: g.autor, data: g.data };
+  });
+}
+
+/**
+ * Linhas da aba para as prateleiras de um espaço numa ER (o quadrado sem produto tem uma linha sem SKU).
+ * Os produtos têm de estar no catálogo (aba Produtos). Lança erro com o motivo quando algo não cabe.
+ * @param {Object<string, {nome}>} catalogo  SKU → produto
+ */
+function linhasDePrateleiras_(ciclo, planta, espaco, n, prateleiras, catalogo, quem, quando) {
+  const linhas = [];
+  const vistas = {};
+  const fora = [];
+  const lim = LIMITES_PRATELEIRA;
+  (Array.isArray(prateleiras) ? prateleiras : []).forEach(function (p) {
+    const numero = Math.round(numero_(p && p.numero, 0));
+    if (!(numero >= 1 && numero <= n)) throw new Error('Prateleira ' + texto_(p && p.numero) + ' não existe neste espaço (vai de 1 a ' + n + ').');
+    if (vistas[numero]) throw new Error('A prateleira ' + numero + ' veio duas vezes.');
+    vistas[numero] = true;
+    const quadrados = (Array.isArray(p.quadrados) ? p.quadrados : []).map(function (q) {
+      const x = normPct_(q && q.x, 0);
+      const y = normPct_(q && q.y, 0);
+      return {
+        x: x, y: y, w: Math.min(normPct_(q && q.w, 0), Math.round((100 - x) * 10) / 10), h: Math.min(normPct_(q && q.h, 0), Math.round((100 - y) * 10) / 10),
+        movimento: texto_(q && q.movimento).slice(0, 200), observacao: texto_(q && q.observacao).slice(0, 500),
+        produtos: (q && Array.isArray(q.produtos) ? q.produtos : []).filter(function (x) { return x && normSku_(x.sku); }),
+      };
+    });
+    if (quadrados.length > lim.quadrados) throw new Error('A prateleira ' + numero + ' tem mais de ' + lim.quadrados + ' quadrados.');
+    quadrados.forEach(function (q, i) {
+      if (q.w < lim.minimo || q.h < lim.minimo) throw new Error('Na prateleira ' + numero + ', um quadrado ficou pequeno demais (mínimo ' + lim.minimo + '% da prateleira).');
+      if (q.produtos.length > lim.produtos) throw new Error('Na prateleira ' + numero + ', um quadrado tem mais de ' + lim.produtos + ' produtos.');
+      quadrados.slice(0, i).forEach(function (o) {
+        if (quadradosSobrepostos_(o, q)) throw new Error('Na prateleira ' + numero + ', há quadrados um em cima do outro: ajuste para não se sobreporem.');
+      });
+    });
+    // Numerados de cima para baixo e da esquerda para a direita.
+    quadrados.sort(function (a, b) { return a.y - b.y || a.x - b.x; }).forEach(function (q, i) {
+      const base = {
+        ciclo: ciclo, planta: nomePlanta_(planta), espaco: espaco, prateleira: numero, quadrado: i + 1,
+        x: q.x, w: q.w, y: q.y, h: q.h, movimento: q.movimento, autor: quem.autor, data: quando,
+      };
+      if (!q.produtos.length) {
+        linhas.push(Object.assign({}, base, { sku: '', produto: '', frentes: '', observacao: q.observacao }));
+        return;
+      }
+      q.produtos.forEach(function (x, j) {
+        const sku = normSku_(x.sku);
+        const c = catalogo[sku];
+        if (!c && fora.indexOf(sku) < 0) fora.push(sku);
+        linhas.push(Object.assign({}, base, {
+          sku: sku, produto: c ? c.nome : '', frentes: normFrentes_(x.frentes),
+          // A observação é do quadrado: vai na primeira linha dele.
+          observacao: j ? '' : q.observacao,
+        }));
+      });
+    });
+  });
+  if (fora.length) throw new Error('Produto fora da aba Produtos: SKU ' + listaCurta_(fora) + '. Cadastre na aba Produtos da planilha ou escolha outro.');
+  return linhas.sort(function (a, b) { return a.prateleira - b.prateleira || a.quadrado - b.quadrado; });
+}
+
+/**
+ * Aplica uma ação às prateleiras e devolve a matriz nova da aba (sem gravar nada).
+ *  - salvar: { acao, ciclo, planta, espaco, prateleiras: [{numero, quadrados: [{x, y, w, h, movimento, observacao,
+ *            produtos: [{sku, frentes}]}]}] }  troca as prateleiras do espaço nessa ER (lista vazia apaga); planta = a
+ *            ER ou "TODAS" (cada ER que tem o espaço recebe as mesmas prateleiras); x, y, w e h em % da prateleira.
+ * Só o construtor da estratégia, num ciclo publicado ou num ciclo em construção ainda não enviado.
+ * @param {Array<Array>} valores  matriz atual da aba (com cabeçalho), ou vazia
+ * @param {{plantas: Array, ciclos: Object, rascunhos: Object, produtos: Array}} contexto  plantas do layout
+ *   (montarPlantas_), ciclos publicados, o status de cada ciclo em construção e o catálogo (produtosDeValores_)
+ * @param {{papel, autor}} quem  resultado de conferirAcesso_
+ * @return {{valores: Array<Array>, plantas: string[]}} plantas: as ERs gravadas
+ */
+function aplicarAcaoPrateleiras_(valores, contexto, quem, pedido, agora) {
+  const p = pedido || {};
+  if (p.acao !== 'salvar') throw new Error('Ação inválida.');
+  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor da estratégia detalha as prateleiras.');
+  const ciclo = texto_(p.ciclo).slice(0, 60);
+  if (!ciclo) throw new Error('Escolha o ciclo.');
+  const status = contexto.rascunhos[ciclo];
+  if (status === 'ENVIADO') throw new Error('O ciclo "' + ciclo + '" foi enviado para aprovação: só volta a ser editado se o validador devolver.');
+  if (!contexto.ciclos[ciclo] && status !== 'EM_CONSTRUCAO') throw new Error('O ciclo "' + ciclo + '" não foi encontrado (nem publicado, nem em construção).');
+
+  const planta = normPlanta_(p.planta);
+  if (!planta) throw new Error('Escolha a ER.');
+  const espaco = normIdEspaco_(p.espaco);
+  if (!espaco) throw new Error('Escolha o espaço do móvel.');
+  const base = espaco.split('/')[0];
+  // ERs que recebem: a escolhida ou, com "TODAS", cada uma que tem o espaço.
+  const onde = planta === CONFIG.PLANTA_TODAS ? contexto.plantas : contexto.plantas.filter(function (x) { return x.id === planta; });
+  if (!onde.length) throw new Error('A ER escolhida não existe no layout.');
+  const destinos = [];
+  let motivo = '';
+  onde.forEach(function (pl) {
+    const m = pl.moveis.filter(function (x) { return x.id === base; })[0];
+    if (!m) { motivo = motivo || 'O móvel "' + base + '" não existe na ' + nomePlanta_(pl.id) + '.'; return; }
+    const e = espacosDePrateleira_(m);
+    if (!e.ids.length) { motivo = '"' + base + '" não leva produtos nas prateleiras.'; return; }
+    if (e.ids.indexOf(espaco) < 0) {
+      motivo = espaco === base ? 'Escolha o espaço do móvel "' + base + '" (ex.: ' + e.ids[0] + ').' : 'O móvel "' + base + '" não tem prateleiras em "' + espaco + '".';
+      return;
+    }
+    destinos.push({ planta: pl.id, n: e.n });
+  });
+  if (!destinos.length) throw new Error(motivo || 'Nenhuma ER tem o espaço "' + espaco + '".');
+
+  const quando = formatarDataComentario_(agora || new Date());
+  const catalogo = {};
+  (contexto.produtos || []).forEach(function (x) { catalogo[x.sku] = x; });
+  const cols = colunasPrateleiras_();
+  const daEr = {};
+  destinos.forEach(function (d) { daEr[d.planta] = true; });
+  // Sai o que o espaço tinha nessas ERs; entram as prateleiras novas.
+  const outras = (valores && valores.length ? objetosDaMatriz_(valores, cols) : []).filter(function (o) {
+    return !(texto_(o.ciclo) === ciclo && daEr[normPlanta_(o.planta)] && normIdEspaco_(o.espaco) === espaco);
+  });
+  const novas = [];
+  destinos.forEach(function (d) { novas.push.apply(novas, linhasDePrateleiras_(ciclo, d.planta, espaco, d.n, p.prateleiras, catalogo, quem, quando)); });
+  return { valores: matrizDeObjetos_(outras.concat(novas), cols), plantas: destinos.map(function (d) { return d.planta; }) };
+}
+
+/**
+ * Linhas da aba para um ciclo novo copiado de outro (Rascunhos.gs, ação "criar"): todas as do ciclo de origem
+ * ou, com fixos, só as dos espaços fixos (🔒) do ciclo de origem (a linha fixa de uma ER vale também para as
+ * ERs maiores, como na planta).
+ * @param {Array<Object>} prateleiras  objetos da aba (todas as linhas)
+ * @param {Array<Object>|null} fixos  linhas da aba Movimentos com o 🔒 (null = copiar tudo)
+ */
+function prateleirasParaCopia_(prateleiras, origem, ciclo, fixos) {
+  return prateleiras.filter(function (o) {
+    if (texto_(o.ciclo) !== origem) return false;
+    if (!fixos) return true;
+    const planta = normPlanta_(o.planta);
+    const espaco = normIdEspaco_(o.espaco);
+    return fixos.some(function (f) {
+      const pf = normPlanta_(f.planta);
+      const mf = normIdEspaco_(f.movel);
+      // O meio inteiro fixo vale também para as metades dele.
+      const mesmo = mf === espaco || (/\/MEIO-[AB]$/.test(mf) && espaco.indexOf(mf + '-') === 0);
+      return mesmo && (pf === CONFIG.PLANTA_TODAS || pf <= planta);
+    });
+  }).map(function (o) { return Object.assign({}, o, { ciclo: ciclo }); });
+}
+
+/**
+ * Executa um pedido da página: confere o acesso, lê a aba, aplica a ação e grava. io = o mesmo dos rascunhos
+ * ({ ler(nomeDaAba), gravar(nomeDaAba, colunas, matriz), layout(), travar(fn) }).
+ * @return {Array} prateleiras atualizadas (como em prateleirasDeValores_)
+ */
+function executarPrateleiras_(io, acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  return io.travar(function () {
+    const valores = io.ler(CONFIG.ABAS.PRATELEIRAS);
+    const abas = {
+      movimentos: io.ler(CONFIG.ABAS.MOVIMENTOS) || [],
+      paineis: io.ler(CONFIG.ABAS.PAINEIS) || [],
+      tipos: io.ler(CONFIG.ABAS.TIPOS) || [],
+    };
+    const rascunhos = {};
+    objetosDaMatriz_(io.ler(CONFIG.ABAS.RASCUNHOS) || [], colunasRascunhos_()).forEach(function (r) {
+      const status = texto_(r.status);
+      if (texto_(r.ciclo) && status !== 'APROVADO') rascunhos[texto_(r.ciclo)] = STATUS_RASCUNHO[status] ? status : 'EM_CONSTRUCAO';
+    });
+    const layout = io.layout();
+    const linhasLayout = objetosDeValores_(layout && layout.length ? layout : valoresLayoutPadrao_(), colunasLayout_()).linhas;
+    const produtos = produtosDeValores_(io.ler(CONFIG.ABAS.PRODUTOS));
+    const contexto = { plantas: montarPlantas_(linhasLayout, function () {}), ciclos: ciclosPublicados_(abas), rascunhos: rascunhos, produtos: produtos };
+    const r = aplicarAcaoPrateleiras_(valores, contexto, quem, pedido);
+    io.gravar(CONFIG.ABAS.PRATELEIRAS, colunasPrateleiras_(), r.valores);
+    return prateleirasDeValores_(r.valores, produtos);
   });
 }
 
@@ -3693,6 +4120,103 @@ const PAGINA_ = [
   "  .pg-testeira .pg-sem { color: rgba(255, 255, 255, .8); }",
   "  .pg-testeira.neutra .pg-sem { color: var(--texto-2); }",
   "  .pg-nota { margin: 10px 0 0; font-size: 13px; color: var(--texto-2); }",
+  "  /* prateleiras: o desenho de cada prateleira (Prateleira.html): quadrados em % da prateleira, com os produtos */",
+  "  .pr-dica { margin: 0 0 12px; font-size: 14px; color: var(--texto-2); }",
+  "  .pr-aviso { margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; background: var(--destaque); font-size: 13px; }",
+  "  .pr-espaco { border: 1px solid var(--borda); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; background: var(--superficie); outline: none; }",
+  "  .pr-espaco.editando { border-color: var(--borda-forte); box-shadow: var(--sombra); }",
+  "  .pr-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }",
+  "  .pr-titulo { flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }",
+  "  .pr-titulo strong { font-size: 15px; text-transform: uppercase; letter-spacing: .4px; margin-right: 4px; }",
+  "  .pr-chip {",
+  "    color: #fff; font: 800 12px/1.25 var(--fonte-etq); padding: 3px 10px; border-radius: 10px;",
+  "    white-space: pre-line; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);",
+  "  }",
+  "  .pr-resumo { font-size: 13px; color: var(--texto-2); font-variant-numeric: tabular-nums; }",
+  "  .pr-vazio { margin: 8px 0 0; font-size: 13px; font-style: italic; color: var(--texto-2); }",
+  "  .pr-estante { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }",
+  "  .pr-prateleira { display: flex; gap: 10px; align-items: stretch; }",
+  "  .pr-num { flex: 0 0 44px; align-self: center; text-align: right; font-size: 12px; color: var(--texto-2); }",
+  "  /* a prateleira: fundo claro com a tábua embaixo; os quadrados ficam em cima, em % dela */",
+  "  .pr-tela {",
+  "    position: relative; flex: 1 1 auto; min-width: 0; height: 112px; border-radius: 6px 6px 0 0;",
+  "    background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(0, 0, 0, .04) calc(10% - 1px) 10%), #f4f2ef;",
+  "    border-bottom: 7px solid #5d6168;",
+  "  }",
+  "  .pr-tela.desenho { cursor: crosshair; touch-action: none; user-select: none; height: 128px; }",
+  "  .pr-tela-vazia { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-style: italic; color: var(--texto-2); pointer-events: none; }",
+  "  .pr-quadrado {",
+  "    position: absolute; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; gap: 3px;",
+  "    padding: 4px 6px; border-radius: 4px; border: 2px solid var(--cor, #9aa0a6);",
+  "    background: linear-gradient(rgba(255, 255, 255, .84), rgba(255, 255, 255, .84)), var(--cor, #9aa0a6);",
+  "  }",
+  "  .pr-quadrado.editavel { cursor: move; touch-action: none; }",
+  "  .pr-quadrado.escolhido { box-shadow: 0 0 0 2px var(--superficie), 0 0 0 4px #E8590C; z-index: 2; }",
+  "  .pr-quadrado.fantasma { border-style: dashed; background: rgba(232, 89, 12, .12); border-color: #E8590C; pointer-events: none; }",
+  "  .pr-quadrado.fantasma.invalido { background: rgba(180, 35, 24, .15); border-color: #b42318; }",
+  "  .pr-q-mov {",
+  "    align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;",
+  "    color: #fff; background: var(--cor); font: 800 10px/1.3 var(--fonte-etq); padding: 1px 6px; border-radius: 6px;",
+  "  }",
+  "  .pr-q-produtos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; min-height: 0; }",
+  "  .pr-q-produtos li { display: flex; gap: 4px; font-size: 11px; line-height: 1.25; color: #1C1F24; }",
+  "  .pr-q-produtos li.fora { color: #b42318; text-decoration: line-through; }",
+  "  .pr-q-nome { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }",
+  "  .pr-q-fr { flex: 0 0 auto; color: #5B6068; font-variant-numeric: tabular-nums; }",
+  "  .pr-q-vazio { font-size: 11px; font-style: italic; color: #5B6068; }",
+  "  .pr-q-produtos li.pr-q-mais { font-weight: 700; color: #5B6068; }",
+  "  /* no planograma: a prateleira desenhada na construção, com os quadrados por cima da tábua */",
+  "  .pg-celula.pg-desenhada { padding: 0; }",
+  "  .pg-quadrados { position: absolute; inset: 4px 3px 10px; z-index: 2; }",
+  "  .pg-quadrados .pr-tela-vazia { font-size: 11px; }",
+  "  .pr-borda { position: absolute; z-index: 1; }",
+  "  .pr-borda.e, .pr-borda.w { top: 0; bottom: 0; width: 8px; cursor: ew-resize; }",
+  "  .pr-borda.e { right: -2px; }",
+  "  .pr-borda.w { left: -2px; }",
+  "  .pr-borda.n, .pr-borda.s { left: 8px; right: 8px; height: 7px; cursor: ns-resize; }",
+  "  .pr-borda.n { top: -2px; }",
+  "  .pr-borda.s { bottom: -2px; }",
+  "  .pr-meta { margin: 10px 0 0; font-size: 12px; color: var(--texto-2); }",
+  "  /* edição */",
+  "  .pr-opcoes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin: 12px 0 8px; }",
+  "  .pr-campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--texto-2); }",
+  "  .pr-ed-dica { margin: 0 0 10px; font-size: 12px; color: var(--texto-2); }",
+  "  .pr-ed-prateleira { display: flex; flex-direction: column; gap: 6px; }",
+  "  .pr-ed-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }",
+  "  .pr-ed-cab strong { font-size: 13px; }",
+  "  .pr-ed-dividir { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--texto-2); }",
+  "  .pr-ed-mov.fora { border-color: #E8590C; box-shadow: inset 0 0 0 1px #E8590C; color: #9a3a06; }",
+  "  /* painel do quadrado escolhido */",
+  "  .pr-painel { border: 1px solid var(--borda-forte); border-left: 6px solid var(--cor, #9aa0a6); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }",
+  "  .pr-painel-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }",
+  "  .pr-painel-topo .btn { margin-left: auto; }",
+  "  .pr-painel-campos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }",
+  "  .pr-painel-campos select, .pr-painel-campos input { min-width: 0; width: 100%; box-sizing: border-box; }",
+  "  .pr-painel-produtos { display: flex; flex-direction: column; gap: 4px; }",
+  "  .pr-ed-linha { display: grid; grid-template-columns: minmax(0, 1fr) 70px auto auto auto; gap: 4px; align-items: center; }",
+  "  .pr-ed-linha.fora .pr-ed-nome { color: #b42318; }",
+  "  .pr-ed-nome { display: flex; flex-direction: column; font-size: 13px; font-weight: 600; min-width: 0; }",
+  "  .pr-ed-nome small { font-weight: 400; font-size: 11px; color: var(--texto-2); }",
+  "  .pr-ed-linha input, .pr-busca { font: inherit; font-size: 13px; padding: 5px 7px; border: 1px solid var(--borda-forte); border-radius: 6px; background: var(--superficie); color: var(--texto); min-width: 0; box-sizing: border-box; }",
+  "  .pr-escolha { display: flex; flex-direction: column; gap: 6px; }",
+  "  .pr-escolha-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }",
+  "  .pr-busca { flex: 1 1 260px; }",
+  "  .pr-resultados { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px; max-height: 220px; overflow: auto; }",
+  "  .pr-resultado {",
+  "    display: grid; grid-template-columns: 10px minmax(0, 1fr); column-gap: 8px; align-items: center; text-align: left;",
+  "    padding: 6px 8px; border: 1px solid var(--borda); border-radius: 6px; background: var(--superficie); color: var(--texto); cursor: pointer; font: inherit;",
+  "  }",
+  "  .pr-resultado:hover { border-color: var(--borda-forte); background: #f5f6f8; }",
+  "  .pr-resultados > .pr-vazio, .pr-resultados > .btn { grid-column: 1 / -1; justify-self: start; margin: 0; }",
+  "  .pr-resultado.ja { border-color: #2f9e44; }",
+  "  .pr-resultado i { grid-row: 1 / 3; width: 10px; height: 10px; border-radius: 50%; }",
+  "  .pr-r-nome { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+  "  .pr-resultado small { grid-column: 2; font-size: 11px; color: var(--texto-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+  "  .pr-ed-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }",
+  "  @media (max-width: 760px) {",
+  "    .pr-num { flex-basis: 28px; }",
+  "    .pr-painel-campos { grid-template-columns: 1fr; }",
+  "  }",
   "  .mv-marca-etq { font-size: 14px; color: var(--texto-2); }",
   "  .mv-simbolo-etq { font-size: 12px; color: var(--texto-2); white-space: nowrap; }",
   "  .mv-obs { white-space: pre-line; }",
@@ -4142,6 +4666,17 @@ const PAGINA_ = [
   "  [data-tema=\"escuro\"] .dialogo::backdrop { background: rgba(0, 0, 0, .6); }",
   "  [data-tema=\"escuro\"] .acesso-erro,",
   "  [data-tema=\"escuro\"] .btn.perigo { color: #f97066; }",
+  "  [data-tema=\"escuro\"] .pr-tela { background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(255, 255, 255, .05) calc(10% - 1px) 10%), #23272c; border-bottom-color: #444a52; }",
+  "  [data-tema=\"escuro\"] .pr-quadrado { background: linear-gradient(rgba(27, 30, 34, .8), rgba(27, 30, 34, .8)), var(--cor, #9aa0a6); }",
+  "  [data-tema=\"escuro\"] .pr-q-produtos li { color: #e8eaed; }",
+  "  [data-tema=\"escuro\"] .pr-q-fr, [data-tema=\"escuro\"] .pr-q-vazio { color: #aab0b8; }",
+  "  [data-tema=\"escuro\"] .pr-q-produtos li.pr-q-mais { color: #aab0b8; }",
+  "  /* o planograma mantém as cores do slide: os quadrados dele também ficam claros */",
+  "  [data-tema=\"escuro\"] .pg-quadrados .pr-quadrado { background: linear-gradient(rgba(255, 255, 255, .84), rgba(255, 255, 255, .84)), var(--cor, #9aa0a6); }",
+  "  [data-tema=\"escuro\"] .pg-quadrados .pr-q-produtos li { color: #1C1F24; }",
+  "  [data-tema=\"escuro\"] .pg-quadrados .pr-q-fr, [data-tema=\"escuro\"] .pg-quadrados .pr-q-vazio, [data-tema=\"escuro\"] .pg-quadrados .pr-q-mais { color: #5B6068; }",
+  "  [data-tema=\"escuro\"] .pr-resultado:hover { background: #23272c; }",
+  "  [data-tema=\"escuro\"] .pr-ed-mov.fora { color: #ffb38a; }",
   "  [data-tema=\"escuro\"] .carregando { background: rgba(17, 19, 22, .72); }",
   "  [data-tema=\"escuro\"] .spinner { border-color: #3a3f46; border-top-color: var(--texto); }",
   "  [data-tema=\"escuro\"] .toast { background: #2a2e34; color: var(--texto); border: 1px solid var(--borda-forte); }",
@@ -7380,6 +7915,23 @@ const PAGINA_ = [
   "    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };",
   "  }",
   "",
+  "  /**",
+  "   * Aba Produtos: o catálogo de onde saem os produtos dos quadrados das prateleiras (vem com o atual). Na",
+  "   * importação, ela substitui o catálogo inteiro.",
+  "   */",
+  "  function abaProdutos(wb, dados) {",
+  "    const cols = dados.colunas.produtos;",
+  "    if (!cols) return;",
+  "    const ws = wb.addWorksheet(dados.config.abas.PRODUTOS, { views: [{ state: 'frozen', xSplit: 2, ySplit: 1 }] });",
+  "    ws.columns = cols.map((c) => ({ header: c.titulo, key: c.chave, width: c.chave === 'nome' ? 48 : c.chave === 'movimento' ? 26 : 14, style: { numFmt: '@' } }));",
+  "    estilizarCabecalho(ws.getRow(1));",
+  "    (dados.produtos || []).forEach((p) => ws.addRow(p));",
+  "    const marcas = Object.keys(dados.marcas || {}).filter((k) => k !== 'NEUTRO');",
+  "    const i = cols.findIndex((c) => c.chave === 'marca');",
+  "    if (i >= 0 && marcas.length) validarColuna(ws, i + 1, ws.rowCount + LINHAS_EXTRAS, marcas, 'Marca', 'Marca do produto: ' + marcas.join(', ') + '.');",
+  "    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };",
+  "  }",
+  "",
   "  /** Aba Layout com a posição atual dos móveis (para ajustar coordenadas). */",
   "  function abaLayout(wb, dados, op) {",
   "    const cols = dados.colunas.layout;",
@@ -7433,6 +7985,7 @@ const PAGINA_ = [
   "    abaMovimentos(wb, dados, op, resolver);",
   "    abaPaineis(wb, dados, op, resolver);",
   "    abaTipos(wb, dados, op, resolver);",
+  "    abaProdutos(wb, dados);",
   "    if (op.incluirLayout) abaLayout(wb, dados, op);",
   "    abaInstrucoes(wb, dados, op);",
   "    const buffer = await wb.xlsx.writeBuffer();",
@@ -7490,12 +8043,14 @@ const PAGINA_ = [
   "    const pai = achar(abas.PAINEIS);",
   "    const tip = achar(abas.TIPOS);",
   "    const lay = achar(abas.LAYOUT);",
+  "    const prod = achar(abas.PRODUTOS);",
   "    if (mov) out.movimentos = matrizDaAba(mov);",
   "    if (pai) out.paineis = matrizDaAba(pai);",
   "    if (tip) out.tipos = matrizDaAba(tip);",
   "    if (lay) out.layout = matrizDaAba(lay);",
-  "    if (!out.movimentos && !out.paineis && !out.tipos && !out.layout) {",
-  "      throw new Error('O arquivo não tem as abas \"' + abas.MOVIMENTOS + '\", \"' + abas.PAINEIS + '\", \"' + abas.TIPOS + '\" ou \"' + abas.LAYOUT +",
+  "    if (prod) out.produtos = matrizDaAba(prod);",
+  "    if (!out.movimentos && !out.paineis && !out.tipos && !out.layout && !out.produtos) {",
+  "      throw new Error('O arquivo não tem as abas \"' + abas.MOVIMENTOS + '\", \"' + abas.PAINEIS + '\", \"' + abas.TIPOS + '\", \"' + abas.LAYOUT + '\" ou \"' + abas.PRODUTOS +",
   "        '\". Use a planilha gerada pelo botão \"Baixar planilha base\".');",
   "    }",
   "    return out;",
@@ -10258,6 +10813,638 @@ const PAGINA_ = [
   "  }",
   "",
   "  return { iniciar, aplicar, daEr, montarDetalhe, montarLista, montarSecao, aoClicarMovel, escolhendo: () => !!escolhendo };",
+  "})();",
+  "</script>",
+  "",
+  "    <script>",
+  "/**",
+  " * ============================================================================",
+  " *  PRATELEIRAS (página): o planograma de cada prateleira, na tela do móvel",
+  " * ============================================================================",
+  " *  Depois da estratégia dos movimentos, o construtor desenha cada prateleira de",
+  " *  cada espaço: arrasta na prateleira para criar um quadrado (de ponta a ponta",
+  " *  na altura, ou só uma parte, se arrastar também para cima ou para baixo),",
+  " *  move e muda o tamanho dele, e escolhe o movimento e os produtos do quadrado",
+  " *  no catálogo (aba Produtos da planilha: SKU, nome, marca, categoria e",
+  " *  movimento). O que foi definido aparece para todo mundo no planograma da",
+  " *  tela do móvel (\"como as prateleiras estão divididas\", em App.html, com",
+  " *  desenharQuadrados). A edição fica só no modo de construção (login da",
+  " *  Construção, com senha): a seção \"Construção das prateleiras\", com o botão",
+  " *  \"Desenhar\" de cada espaço. Cada ER tem as suas prateleiras; \"Vale em todas",
+  " *  as ERs\" grava as mesmas em cada ER que tem o espaço. As regras ficam em",
+  " *  Prateleiras.gs (conferidas no servidor).",
+  " */",
+  "const Prateleira = (() => {",
+  "  const $ = (id) => document.getElementById(id);",
+  "  // { estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento, acesso, rascunhos }",
+  "  let app = null;",
+  "  let editando = null; // { chave: \"ciclo|planta|espaço\", sujo } do espaço aberto na edição",
+  "  /** Passo do desenho, em % da prateleira (na horizontal e na vertical). */",
+  "  const PASSO = { x: 1, y: 5 };",
+  "  /** Arrastar menos que isto na vertical faz o quadrado ocupar a altura toda da prateleira. */",
+  "  const ALTURA_INTEIRA = 30;",
+  "",
+  "  function n(tag, classe, texto, pai) {",
+  "    const e = document.createElement(tag);",
+  "    if (classe) e.className = classe;",
+  "    if (texto !== undefined && texto !== null) e.textContent = texto;",
+  "    if (pai) pai.appendChild(e);",
+  "    return e;",
+  "  }",
+  "",
+  "  function botao(texto, classe, fn, pai) {",
+  "    const b = n('button', 'btn pequeno ' + (classe || ''), texto, pai);",
+  "    b.type = 'button';",
+  "    b.addEventListener('click', fn);",
+  "    return b;",
+  "  }",
+  "",
+  "  const dados = () => app.estado.dados;",
+  "  const todas = () => (dados() && dados().prateleiras) || [];",
+  "  const catalogo = () => (dados() && dados().produtos) || [];",
+  "  const limites = () => Object.assign({ quadrados: 30, produtos: 20, frentes: 99, minimo: 3 }, (dados().config || {}).limitesPrateleira);",
+  "  const nomeEr = (id) => (dados().plantas.find((p) => p.id === id) || {}).nome || id;",
+  "  const simples = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();",
+  "  const arred = (v, passo) => Math.round(v / passo) * passo;",
+  "  const limitar = (v, a, b) => Math.max(a, Math.min(b, v));",
+  "",
+  "  /** Prateleiras detalhadas de um espaço numa ER (ou null). */",
+  "  function doEspaco(ciclo, planta, id) {",
+  "    return todas().find((g) => g.ciclo === ciclo && g.planta === planta && g.espaco === id) || null;",
+  "  }",
+  "",
+  "  /** O construtor edita num ciclo publicado ou num ciclo em construção que ainda não foi enviado. */",
+  "  function podeEditar(ciclo) {",
+  "    const a = app.acesso();",
+  "    if (!a || a.papel !== 'CONSTRUTOR' || !ciclo) return false;",
+  "    if (dados().ciclos.indexOf(ciclo) >= 0) return true;",
+  "    const r = app.rascunhos().find((x) => x.ciclo === ciclo);",
+  "    return !!r && r.status === 'EM_CONSTRUCAO';",
+  "  }",
+  "",
+  "  /** Marca de um movimento: a da etiqueta do espaço com esse texto (ou ''). */",
+  "  function marcaDoMovimento(col, mov) {",
+  "    const k = app.chaveMovimento(mov);",
+  "    const e = col.etiquetas.find((x) => app.chaveMovimento(x.texto) === k);",
+  "    return e ? e.marca : '';",
+  "  }",
+  "  const corDoMovimento = (col, mov) => {",
+  "    const marca = mov ? marcaDoMovimento(col, mov) : '';",
+  "    return marca ? app.corDaMarca(marca, 'etiqueta') : '#9aa0a6';",
+  "  };",
+  "",
+  "  /** \"Prateleira 2\" (ou o nome do nível, como o nicho da mesa). */",
+  "  const rotulo = (plano, k) => (/^\\d+$/.test(plano.rotulos[k]) ? 'Prateleira ' + (k + 1) : plano.rotulos[k]);",
+  "  const produtosDe = (det) => [].concat(...det.prateleiras.map((p) => [].concat(...p.quadrados.map((q) => q.produtos))));",
+  "  const somaFrentes = (lista) => lista.reduce((s, x) => s + (Number(x.frentes) || 0), 0);",
+  "  const sobrepoe = (a, b) => a.x + a.w > b.x + 0.05 && b.x + b.w > a.x + 0.05 && a.y + a.h > b.y + 0.05 && b.y + b.h > a.y + 0.05;",
+  "",
+  "  /** Posição do quadrado no elemento (em % da prateleira). */",
+  "  function posicionar(el, q) {",
+  "    el.style.left = q.x + '%';",
+  "    el.style.top = q.y + '%';",
+  "    el.style.width = q.w + '%';",
+  "    el.style.height = q.h + '%';",
+  "  }",
+  "",
+  "  /** Conteúdo de um quadrado: o movimento e os produtos (nome ×frentes). */",
+  "  function conteudoQuadrado(el, col, q) {",
+  "    el.style.setProperty('--cor', corDoMovimento(col, q.movimento));",
+  "    if (q.movimento) n('span', 'pr-q-mov', q.movimento, el);",
+  "    const ul = n('ul', 'pr-q-produtos', null, el);",
+  "    q.produtos.forEach((x) => {",
+  "      const li = n('li', x.foraDoCatalogo ? 'fora' : null, null, ul);",
+  "      n('span', 'pr-q-nome', x.nome, li);",
+  "      n('span', 'pr-q-fr', '×' + x.frentes, li);",
+  "    });",
+  "    if (!q.produtos.length) n('span', 'pr-q-vazio', 'sem produtos', el);",
+  "    el.title = [q.movimento, ...q.produtos.map((x) => x.nome + ' · SKU ' + x.sku + ' · ' + x.frentes + (x.frentes === 1 ? ' frente' : ' frentes')",
+  "      + (x.foraDoCatalogo ? ' (fora da aba Produtos)' : '')), q.observacao].filter(Boolean).join('\\n');",
+  "  }",
+  "",
+  "  /**",
+  "   * Quadrados de uma prateleira, no lugar e no tamanho definidos (o planograma da tela do móvel usa esta função).",
+  "   * @param {{etiquetas}} col  a coluna do planograma (as etiquetas do espaço dão a cor de cada movimento)",
+  "   */",
+  "  function desenharQuadrados(alvo, col, quadrados) {",
+  "    if (!quadrados.length) { n('span', 'pr-tela-vazia', 'prateleira sem quadrados', alvo); return; }",
+  "    quadrados.forEach((q) => {",
+  "      const el = n('div', 'pr-quadrado', null, alvo);",
+  "      posicionar(el, q);",
+  "      conteudoQuadrado(el, col, q);",
+  "    });",
+  "  }",
+  "",
+  "  /**",
+  "   * Quadrado baixo ou estreito: os produtos que não cabem saem da lista e viram \"+N\" (todos continuam na dica do",
+  "   * mouse). Mede depois que a tela aparece.",
+  "   */",
+  "  function ajustarTextos(raiz) {",
+  "    requestAnimationFrame(() => raiz.querySelectorAll('.pr-quadrado').forEach((el) => {",
+  "      const ul = el.querySelector('.pr-q-produtos');",
+  "      if (!ul || !el.clientHeight) return;",
+  "      const itens = Array.from(ul.children).filter((li) => !li.classList.contains('pr-q-mais'));",
+  "      itens.forEach((li) => { li.hidden = false; });",
+  "      const velho = ul.querySelector('.pr-q-mais');",
+  "      if (velho) velho.remove();",
+  "      const limite = el.getBoundingClientRect().bottom - 3;",
+  "      const cabe = (li) => li.getBoundingClientRect().bottom <= limite;",
+  "      if (itens.every(cabe)) return;",
+  "      const mais = n('li', 'pr-q-mais', null, ul);",
+  "      let escondidos = 0;",
+  "      for (let i = itens.length - 1; i >= 0; i--) {",
+  "        mais.textContent = '+' + (escondidos || 1) + (escondidos > 1 ? ' produtos' : ' produto');",
+  "        if (cabe(itens[i]) && cabe(mais)) break;",
+  "        itens[i].hidden = true;",
+  "        escondidos++;",
+  "        mais.textContent = '+' + escondidos + (escondidos > 1 ? ' produtos' : ' produto');",
+  "        if (i === 0 || (cabe(itens[i - 1]) && cabe(mais))) break;",
+  "      }",
+  "    }));",
+  "  }",
+  "",
+  "  /* ---------------------------- construção ------------------------------- */",
+  "",
+  "  /**",
+  "   * Seção \"Construção das prateleiras\" da tela do móvel: só no modo de construção (login da Construção), com um",
+  "   * cartão por espaço que leva produtos (as colunas do planograma com id) e o botão de desenhar. O desenho salvo",
+  "   * aparece no planograma, acima.",
+  "   * @param {{ciclo, planta, movel, plano}} ctx  plano: o de planogramaDe (App.html)",
+  "   */",
+  "  function montarSecao(corpo, ctx) {",
+  "    const colunas = ctx.plano.colunas.filter((c) => c.id);",
+  "    if (!colunas.length || !podeEditar(ctx.ciclo)) return;",
+  "    const sec = n('section', 'mv-bloco pr-secao', null, corpo);",
+  "    n('h3', null, 'Construção das prateleiras', sec);",
+  "    n('p', 'pr-dica', 'Clique em Desenhar (ou Editar) no espaço: arraste em cada prateleira para criar os quadrados e escolha o movimento e os produtos de cada um. '",
+  "      + 'O que for salvo aparece no planograma, acima, para todo mundo.', sec);",
+  "    colunas.forEach((col) => {",
+  "      const card = n('div', 'pr-espaco', null, sec);",
+  "      card.dataset.espaco = col.id;",
+  "      const chave = ctx.ciclo + '|' + ctx.planta.id + '|' + col.id;",
+  "      if (editando && editando.chave === chave) montarEdicao(card, ctx, col);",
+  "      else montarLeitura(card, ctx, col);",
+  "    });",
+  "  }",
+  "",
+  "  /** Móvel de um espaço só: o cartão não repete o nome \"Móvel\". */",
+  "  const colunaUnica = (ctx) => {",
+  "    const com = ctx.plano.colunas.filter((c) => c.id);",
+  "    return com.length === 1 && !/\\//.test(com[0].id);",
+  "  };",
+  "",
+  "  function cabecalho(card, ctx, col, det) {",
+  "    const topo = n('div', 'pr-topo', null, card);",
+  "    const titulo = n('div', 'pr-titulo', null, topo);",
+  "    n('strong', null, colunaUnica(ctx) ? 'Prateleiras' : col.nome, titulo);",
+  "    col.etiquetas.forEach((e) => {",
+  "      const chip = n('span', 'pr-chip', e.texto, titulo);",
+  "      chip.style.background = app.corDaMarca(e.marca, 'etiqueta');",
+  "    });",
+  "    if (det) {",
+  "      const produtos = produtosDe(det);",
+  "      n('span', 'pr-resumo', produtos.length + (produtos.length === 1 ? ' produto' : ' produtos') + ' · ' + somaFrentes(produtos) + ' frentes', topo);",
+  "    }",
+  "    return topo;",
+  "  }",
+  "",
+  "  /** Cartão de um espaço fora da edição: o resumo e o botão de desenhar (o desenho fica no planograma). */",
+  "  function montarLeitura(card, ctx, col) {",
+  "    const det = doEspaco(ctx.ciclo, ctx.planta.id, col.id);",
+  "    const topo = cabecalho(card, ctx, col, det);",
+  "    const b = botao(det ? 'Editar' : 'Desenhar', det ? '' : 'primario', () => {",
+  "      editando = { chave: ctx.ciclo + '|' + ctx.planta.id + '|' + col.id, sujo: false };",
+  "      app.abrirMovel(ctx.movel.id);",
+  "    }, topo);",
+  "    b.dataset.acao = 'editar-prateleiras';",
+  "    n('p', det ? 'pr-meta' : 'pr-vazio', det ? (det.autor ? 'Atualizado por ' + det.autor + (det.data ? ' em ' + det.data : '') : 'Desenhado.') : 'Sem desenho nesta ER.', card);",
+  "  }",
+  "",
+  "  /* ------------------------------- edição -------------------------------- */",
+  "",
+  "  /** Movimento sugerido para um quadrado novo da prateleira k: o da divisão do planograma (Etiqueta 1 em cima). */",
+  "  function movimentoSugerido(ctx, col, k) {",
+  "    const c = app.dividirPrateleiras(ctx.plano.n, col.etiquetas).find((x) => k >= x.de && k < x.ate);",
+  "    return c && c.etiquetas[0] ? c.etiquetas[0].texto : '';",
+  "  }",
+  "",
+  "  /** Cópia de trabalho das prateleiras (cada quadrado com um id da tela). */",
+  "  let seq = 0;",
+  "  const copiar = (prateleiras) => {",
+  "    const r = {};",
+  "    (prateleiras || []).forEach((p) => {",
+  "      r[p.numero] = p.quadrados.map((q) => Object.assign({}, q, { id: ++seq, produtos: q.produtos.map((x) => Object.assign({}, x)) }));",
+  "    });",
+  "    return r;",
+  "  };",
+  "",
+  "  function montarEdicao(card, ctx, col) {",
+  "    card.classList.add('editando');",
+  "    const det = doEspaco(ctx.ciclo, ctx.planta.id, col.id);",
+  "    cabecalho(card, ctx, col, null);",
+  "    const sujo = () => { editando.sujo = true; };",
+  "    let trabalho = copiar(det ? det.prateleiras : []);",
+  "    let selecionado = null; // { numero, id }",
+  "    const doNumero = (numero) => trabalho[numero] || (trabalho[numero] = []);",
+  "    const quadradoSel = () => selecionado && doNumero(selecionado.numero).find((q) => q.id === selecionado.id);",
+  "",
+  "    // Opções: onde vale e de onde começar.",
+  "    const opcoes = n('div', 'pr-opcoes', null, card);",
+  "    const lVale = n('label', 'pr-campo', 'Vale em', opcoes);",
+  "    const vale = n('select', null, null, lVale);",
+  "    vale.appendChild(new Option('Só na ' + ctx.planta.nome, ctx.planta.id));",
+  "    vale.appendChild(new Option('Todas as ERs que têm este espaço', dados().config.plantaTodas));",
+  "    vale.dataset.campo = 'vale';",
+  "    const outras = todas().filter((g) => g.ciclo === ctx.ciclo && g.espaco === col.id && g.planta !== ctx.planta.id);",
+  "    if (outras.length) {",
+  "      const lCopiar = n('label', 'pr-campo', 'Copiar de', opcoes);",
+  "      const sel = n('select', null, null, lCopiar);",
+  "      sel.appendChild(new Option('—', ''));",
+  "      outras.forEach((g) => sel.appendChild(new Option(nomeEr(g.planta), g.planta)));",
+  "      sel.addEventListener('change', () => {",
+  "        const g = outras.find((x) => x.planta === sel.value);",
+  "        if (!g) return;",
+  "        trabalho = copiar(g.prateleiras);",
+  "        selecionado = null;",
+  "        sujo();",
+  "        redesenharTudo();",
+  "      });",
+  "    }",
+  "    n('p', 'pr-ed-dica', 'Arraste numa prateleira para desenhar um quadrado (arrastando também para cima ou para baixo, ele ocupa só uma parte da altura). '",
+  "      + 'Clique num quadrado para escolher o movimento e os produtos; arraste para mover e puxe as bordas para mudar o tamanho. Delete apaga o quadrado escolhido.', card);",
+  "    if (!catalogo().length) {",
+  "      n('p', 'pr-aviso', 'A aba Produtos da planilha está vazia: cadastre os produtos (SKU e nome) para escolher aqui.', card);",
+  "    }",
+  "",
+  "    // Uma tela de desenho por prateleira.",
+  "    const estante = n('div', 'pr-estante pr-edicao', null, card);",
+  "    const telas = {};",
+  "    for (let k = 0; k < ctx.plano.n; k++) {",
+  "      const numero = k + 1;",
+  "      const bloco = n('div', 'pr-ed-prateleira', null, estante);",
+  "      const cab = n('div', 'pr-ed-cab', null, bloco);",
+  "      n('strong', null, rotulo(ctx.plano, k), cab);",
+  "      const lDiv = n('label', 'pr-ed-dividir', 'Dividir em', cab);",
+  "      const dividir = n('select', null, null, lDiv);",
+  "      dividir.appendChild(new Option('—', ''));",
+  "      for (let i = 1; i <= 6; i++) dividir.appendChild(new Option(i === 1 ? '1 (inteira)' : String(i), String(i)));",
+  "      dividir.title = 'Troca os quadrados da prateleira por quadrados iguais, de ponta a ponta';",
+  "      dividir.addEventListener('change', () => {",
+  "        const qtd = parseInt(dividir.value, 10);",
+  "        dividir.value = '';",
+  "        if (!qtd) return;",
+  "        if (doNumero(numero).some((q) => q.produtos.length) && !window.confirm('Trocar os quadrados desta prateleira (e os produtos deles)?')) return;",
+  "        const mov = movimentoSugerido(ctx, col, k);",
+  "        const largura = Math.floor(100 / qtd);",
+  "        trabalho[numero] = Array.from({ length: qtd }, (_, i) => ({",
+  "          id: ++seq, x: i * largura, y: 0, w: i === qtd - 1 ? 100 - i * largura : largura, h: 100, movimento: mov, observacao: '', produtos: [],",
+  "        }));",
+  "        selecionado = { numero, id: trabalho[numero][0].id };",
+  "        sujo();",
+  "        redesenhar(numero);",
+  "      });",
+  "      botao('Limpar', 'fantasma', () => {",
+  "        if (!doNumero(numero).length) return;",
+  "        if (doNumero(numero).some((q) => q.produtos.length) && !window.confirm('Apagar os quadrados desta prateleira?')) return;",
+  "        trabalho[numero] = [];",
+  "        if (selecionado && selecionado.numero === numero) selecionado = null;",
+  "        sujo();",
+  "        redesenhar(numero);",
+  "      }, cab);",
+  "      const tela = n('div', 'pr-tela desenho', null, bloco);",
+  "      tela.dataset.numero = String(numero);",
+  "      tela.setAttribute('aria-label', 'Desenho da ' + rotulo(ctx.plano, k).toLowerCase());",
+  "      telas[numero] = { bloco, tela };",
+  "      ligarDesenho(tela, numero, k);",
+  "    }",
+  "    // Painel do quadrado escolhido: fica logo embaixo da prateleira dele.",
+  "    const painel = n('div', 'pr-painel', null, null);",
+  "",
+  "    /** Desenho na prateleira: arrastar no fundo cria um quadrado (sem sobrepor os outros). */",
+  "    function ligarDesenho(tela, numero, k) {",
+  "      tela.addEventListener('pointerdown', (ev) => {",
+  "        if (ev.target !== tela || ev.button !== 0) return;",
+  "        ev.preventDefault();",
+  "        const r = tela.getBoundingClientRect();",
+  "        const pct = (e) => ({ x: limitar(((e.clientX - r.left) / r.width) * 100, 0, 100), y: limitar(((e.clientY - r.top) / r.height) * 100, 0, 100) });",
+  "        const ini = pct(ev);",
+  "        const fantasma = n('div', 'pr-quadrado fantasma', null, tela);",
+  "        let atual = null;",
+  "        const medir = (e) => {",
+  "          const p = pct(e);",
+  "          const x = arred(Math.min(ini.x, p.x), PASSO.x);",
+  "          const w = arred(Math.max(ini.x, p.x), PASSO.x) - x;",
+  "          const alto = Math.abs(p.y - ini.y) >= ALTURA_INTEIRA;",
+  "          const y = alto ? arred(Math.min(ini.y, p.y), PASSO.y) : 0;",
+  "          const h = alto ? arred(Math.max(ini.y, p.y), PASSO.y) - y : 100;",
+  "          atual = { x, y, w, h };",
+  "          posicionar(fantasma, atual);",
+  "          fantasma.classList.toggle('invalido', doNumero(numero).some((q) => sobrepoe(q, atual)));",
+  "        };",
+  "        const mover = (e) => medir(e);",
+  "        const soltar = (e) => {",
+  "          tela.removeEventListener('pointermove', mover);",
+  "          tela.removeEventListener('pointerup', soltar);",
+  "          tela.removeEventListener('pointercancel', soltar);",
+  "          medir(e);",
+  "          fantasma.remove();",
+  "          if (!atual || atual.w < limites().minimo || atual.h < limites().minimo) {",
+  "            // Um clique no fundo só tira a escolha.",
+  "            if (selecionado) { selecionado = null; redesenharTudo(); }",
+  "            return;",
+  "          }",
+  "          if (doNumero(numero).some((q) => sobrepoe(q, atual))) { app.toast('O quadrado não pode ficar em cima de outro.', true); return; }",
+  "          if (doNumero(numero).length >= limites().quadrados) { app.toast('Até ' + limites().quadrados + ' quadrados por prateleira.', true); return; }",
+  "          const q = Object.assign({ id: ++seq, movimento: movimentoSugerido(ctx, col, k), observacao: '', produtos: [] }, atual);",
+  "          doNumero(numero).push(q);",
+  "          selecionado = { numero, id: q.id };",
+  "          sujo();",
+  "          redesenhar(numero);",
+  "          const busca = painel.querySelector('.pr-busca');",
+  "          if (busca) busca.focus();",
+  "        };",
+  "        tela.setPointerCapture(ev.pointerId);",
+  "        tela.addEventListener('pointermove', mover);",
+  "        tela.addEventListener('pointerup', soltar);",
+  "        tela.addEventListener('pointercancel', soltar);",
+  "        medir(ev);",
+  "      });",
+  "    }",
+  "",
+  "    /**",
+  "     * Quadrado na tela de edição: clique escolhe; arrastar move; as bordas mudam o tamanho. A mudança que",
+  "     * sobreporia outro quadrado não entra.",
+  "     */",
+  "    function ligarQuadrado(el, numero, q) {",
+  "      el.addEventListener('pointerdown', (ev) => {",
+  "        if (ev.button !== 0) return;",
+  "        ev.preventDefault();",
+  "        ev.stopPropagation();",
+  "        const tela = telas[numero].tela;",
+  "        const r = tela.getBoundingClientRect();",
+  "        const borda = ev.target.dataset.borda || '';",
+  "        const ini = { cx: ev.clientX, cy: ev.clientY, x: q.x, y: q.y, w: q.w, h: q.h };",
+  "        let mexeu = false;",
+  "        const minimo = limites().minimo;",
+  "        const mover = (e) => {",
+  "          const dx = ((e.clientX - ini.cx) / r.width) * 100;",
+  "          const dy = ((e.clientY - ini.cy) / r.height) * 100;",
+  "          if (!mexeu && Math.abs(e.clientX - ini.cx) < 3 && Math.abs(e.clientY - ini.cy) < 3) return;",
+  "          mexeu = true;",
+  "          let c = { x: ini.x, y: ini.y, w: ini.w, h: ini.h };",
+  "          if (!borda) {",
+  "            c.x = limitar(arred(ini.x + dx, PASSO.x), 0, 100 - ini.w);",
+  "            c.y = limitar(arred(ini.y + dy, PASSO.y), 0, 100 - ini.h);",
+  "          } else {",
+  "            if (borda.indexOf('e') >= 0) c.w = limitar(arred(ini.x + ini.w + dx, PASSO.x), ini.x + minimo, 100) - ini.x;",
+  "            if (borda.indexOf('w') >= 0) { c.x = limitar(arred(ini.x + dx, PASSO.x), 0, ini.x + ini.w - minimo); c.w = ini.x + ini.w - c.x; }",
+  "            if (borda.indexOf('s') >= 0) c.h = limitar(arred(ini.y + ini.h + dy, PASSO.y), ini.y + minimo, 100) - ini.y;",
+  "            if (borda.indexOf('n') >= 0) { c.y = limitar(arred(ini.y + dy, PASSO.y), 0, ini.y + ini.h - minimo); c.h = ini.y + ini.h - c.y; }",
+  "          }",
+  "          c = { x: Math.round(c.x * 10) / 10, y: Math.round(c.y * 10) / 10, w: Math.round(c.w * 10) / 10, h: Math.round(c.h * 10) / 10 };",
+  "          if (doNumero(numero).some((o) => o !== q && sobrepoe(o, c))) return;",
+  "          Object.assign(q, c);",
+  "          posicionar(el, q);",
+  "        };",
+  "        const soltar = () => {",
+  "          el.removeEventListener('pointermove', mover);",
+  "          el.removeEventListener('pointerup', soltar);",
+  "          el.removeEventListener('pointercancel', soltar);",
+  "          if (mexeu) sujo();",
+  "          selecionado = { numero, id: q.id };",
+  "          redesenharTudo();",
+  "          card.focus({ preventScroll: true }); // para o Delete apagar o quadrado escolhido",
+  "        };",
+  "        el.setPointerCapture(ev.pointerId);",
+  "        el.addEventListener('pointermove', mover);",
+  "        el.addEventListener('pointerup', soltar);",
+  "        el.addEventListener('pointercancel', soltar);",
+  "      });",
+  "    }",
+  "",
+  "    function redesenhar(numero) {",
+  "      const { tela } = telas[numero];",
+  "      tela.textContent = '';",
+  "      const lista = doNumero(numero);",
+  "      if (!lista.length) n('span', 'pr-tela-vazia', 'arraste aqui para desenhar um quadrado', tela);",
+  "      lista.forEach((q) => {",
+  "        const el = n('div', 'pr-quadrado editavel', null, tela);",
+  "        el.dataset.quadrado = String(q.id);",
+  "        if (selecionado && selecionado.numero === numero && selecionado.id === q.id) el.classList.add('escolhido');",
+  "        posicionar(el, q);",
+  "        conteudoQuadrado(el, col, q);",
+  "        ['n', 's', 'e', 'w'].forEach((b) => { n('i', 'pr-borda ' + b, null, el).dataset.borda = b; });",
+  "        ligarQuadrado(el, numero, q);",
+  "      });",
+  "      ajustarTextos(tela);",
+  "      montarPainel();",
+  "    }",
+  "    function redesenharTudo() { Object.keys(telas).forEach((k) => redesenhar(Number(k))); }",
+  "",
+  "    /** Painel do quadrado escolhido: movimento, observação, produtos e a busca no catálogo. */",
+  "    function montarPainel() {",
+  "      const q = quadradoSel();",
+  "      painel.textContent = '';",
+  "      if (!q) { painel.remove(); return; }",
+  "      const { bloco } = telas[selecionado.numero];",
+  "      bloco.after(painel);",
+  "      painel.style.setProperty('--cor', corDoMovimento(col, q.movimento));",
+  "      const topo = n('div', 'pr-painel-topo', null, painel);",
+  "      n('strong', null, 'Quadrado · ' + rotulo(ctx.plano, selecionado.numero - 1).toLowerCase(), topo);",
+  "      n('span', 'pr-resumo', Math.round(q.w) + '% da largura' + (q.h < 100 ? ' · ' + Math.round(q.h) + '% da altura' : ''), topo);",
+  "      botao('Apagar quadrado', 'fantasma perigo', apagarSelecionado, topo).dataset.acao = 'apagar-quadrado';",
+  "",
+  "      const campos = n('div', 'pr-painel-campos', null, painel);",
+  "      const lMov = n('label', 'pr-campo', 'Movimento', campos);",
+  "      const mov = n('select', 'pr-ed-mov', null, lMov);",
+  "      mov.appendChild(new Option('— sem movimento', ''));",
+  "      col.etiquetas.forEach((e) => mov.appendChild(new Option(e.texto, e.texto)));",
+  "      if (q.movimento && !col.etiquetas.some((e) => e.texto === q.movimento)) {",
+  "        mov.appendChild(new Option(q.movimento + ' (fora das etiquetas do espaço)', q.movimento));",
+  "        mov.classList.add('fora');",
+  "      }",
+  "      mov.value = q.movimento;",
+  "      mov.addEventListener('change', () => { q.movimento = mov.value; sujo(); redesenhar(selecionado.numero); });",
+  "      const lObs = n('label', 'pr-campo', 'Observação (opcional)', campos);",
+  "      const obs = n('input', null, null, lObs);",
+  "      obs.type = 'text';",
+  "      obs.maxLength = 500;",
+  "      obs.value = q.observacao || '';",
+  "      obs.addEventListener('input', () => { q.observacao = obs.value; sujo(); });",
+  "",
+  "      // Produtos do quadrado, da esquerda para a direita.",
+  "      const lista = n('div', 'pr-painel-produtos', null, painel);",
+  "      if (!q.produtos.length) n('p', 'pr-vazio', 'Nenhum produto: escolha na lista abaixo.', lista);",
+  "      q.produtos.forEach((x, i) => {",
+  "        const l = n('div', 'pr-ed-linha' + (x.foraDoCatalogo ? ' fora' : ''), null, lista);",
+  "        const nome = n('span', 'pr-ed-nome', x.nome, l);",
+  "        n('small', null, 'SKU ' + x.sku + (x.foraDoCatalogo ? ' · fora da aba Produtos' : ''), nome);",
+  "        const fr = n('input', 'pr-ed-frentes', null, l);",
+  "        fr.type = 'number';",
+  "        fr.min = '1';",
+  "        fr.max = String(limites().frentes);",
+  "        fr.value = String(x.frentes || 1);",
+  "        fr.title = 'Frentes (quantas unidades lado a lado)';",
+  "        fr.setAttribute('aria-label', 'Frentes de ' + x.nome);",
+  "        fr.addEventListener('change', () => {",
+  "          x.frentes = limitar(parseInt(fr.value, 10) || 1, 1, limites().frentes);",
+  "          fr.value = String(x.frentes);",
+  "          sujo();",
+  "          redesenhar(selecionado.numero);",
+  "        });",
+  "        const mover = (d) => {",
+  "          const j = i + d;",
+  "          if (j < 0 || j >= q.produtos.length) return;",
+  "          q.produtos.splice(j, 0, q.produtos.splice(i, 1)[0]);",
+  "          sujo();",
+  "          redesenhar(selecionado.numero);",
+  "        };",
+  "        botao('↑', 'fantasma', () => mover(-1), l).title = 'Mais para a esquerda';",
+  "        botao('↓', 'fantasma', () => mover(1), l).title = 'Mais para a direita';",
+  "        botao('×', 'fantasma', () => { q.produtos.splice(i, 1); sujo(); redesenhar(selecionado.numero); }, l).title = 'Tirar o produto';",
+  "      });",
+  "",
+  "      // Busca no catálogo (aba Produtos): por SKU, nome, marca, categoria ou movimento.",
+  "      const escolha = n('div', 'pr-escolha', null, painel);",
+  "      const barra = n('div', 'pr-escolha-barra', null, escolha);",
+  "      const busca = n('input', 'pr-busca', null, barra);",
+  "      busca.type = 'search';",
+  "      busca.placeholder = 'Buscar produto por nome, SKU, marca ou categoria';",
+  "      busca.setAttribute('aria-label', 'Buscar produto no catálogo');",
+  "      const temDoMovimento = !!q.movimento && catalogo().some((p) => app.chaveMovimento(p.movimento) === app.chaveMovimento(q.movimento));",
+  "      const lSo = n('label', 'opcao', null, barra);",
+  "      const so = n('input', null, null, lSo);",
+  "      so.type = 'checkbox';",
+  "      so.checked = temDoMovimento;",
+  "      so.disabled = !temDoMovimento;",
+  "      n('span', null, 'Só do movimento ' + (q.movimento || ''), lSo);",
+  "      const resultados = n('div', 'pr-resultados', null, escolha);",
+  "      const filtrar = () => {",
+  "        resultados.textContent = '';",
+  "        const termos = simples(busca.value).split(/\\s+/).filter(Boolean);",
+  "        const achados = catalogo().filter((p) => {",
+  "          if (so.checked && app.chaveMovimento(p.movimento) !== app.chaveMovimento(q.movimento)) return false;",
+  "          const alvo = simples([p.sku, p.nome, p.marca, p.categoria, p.movimento].join(' '));",
+  "          return termos.every((t) => alvo.indexOf(t) >= 0);",
+  "        });",
+  "        if (!achados.length) {",
+  "          n('p', 'pr-vazio', catalogo().length ? 'Nenhum produto encontrado' + (so.checked ? ' no movimento ' + q.movimento + '.' : '.') : 'Catálogo vazio (aba Produtos).', resultados);",
+  "          if (so.checked) botao('Buscar em todos os produtos', '', () => { so.checked = false; filtrar(); }, resultados);",
+  "          return;",
+  "        }",
+  "        achados.slice(0, 60).forEach((p) => {",
+  "          const b = n('button', 'pr-resultado', null, resultados);",
+  "          b.type = 'button';",
+  "          const cor = n('i', null, null, b);",
+  "          cor.style.background = p.marca ? app.corDaMarca(p.marca, 'etiqueta') : 'transparent';",
+  "          n('span', 'pr-r-nome', p.nome, b);",
+  "          n('small', null, ['SKU ' + p.sku, p.categoria, p.movimento].filter(Boolean).join(' · '), b);",
+  "          const ja = q.produtos.find((x) => x.sku === p.sku);",
+  "          if (ja) b.classList.add('ja');",
+  "          b.title = ja ? 'Já está no quadrado: clique para somar uma frente' : 'Pôr no quadrado';",
+  "          b.addEventListener('click', () => {",
+  "            if (ja) ja.frentes = Math.min(limites().frentes, (ja.frentes || 1) + 1);",
+  "            else if (q.produtos.length >= limites().produtos) { app.toast('Até ' + limites().produtos + ' produtos por quadrado.', true); return; }",
+  "            else q.produtos.push({ sku: p.sku, nome: p.nome, frentes: 1 });",
+  "            sujo();",
+  "            const termo = busca.value;",
+  "            redesenhar(selecionado.numero);",
+  "            const nova = painel.querySelector('.pr-busca');",
+  "            nova.value = termo;",
+  "            nova.dispatchEvent(new Event('input'));",
+  "            nova.focus();",
+  "          });",
+  "        });",
+  "        if (achados.length > 60) n('p', 'pr-vazio', 'Mais ' + (achados.length - 60) + ' produtos: refine a busca.', resultados);",
+  "      };",
+  "      busca.addEventListener('input', filtrar);",
+  "      so.addEventListener('change', filtrar);",
+  "      filtrar();",
+  "    }",
+  "",
+  "    function apagarSelecionado() {",
+  "      const q = quadradoSel();",
+  "      if (!q) return;",
+  "      const numero = selecionado.numero;",
+  "      trabalho[numero] = doNumero(numero).filter((x) => x !== q);",
+  "      selecionado = null;",
+  "      sujo();",
+  "      redesenhar(numero);",
+  "    }",
+  "    // Delete / Backspace (fora dos campos) apaga o quadrado escolhido; Esc só tira a escolha.",
+  "    card.tabIndex = -1;",
+  "    card.addEventListener('keydown', (ev) => {",
+  "      if (/^(INPUT|SELECT|TEXTAREA)$/.test(ev.target.tagName)) return;",
+  "      if ((ev.key === 'Delete' || ev.key === 'Backspace') && quadradoSel()) { ev.preventDefault(); apagarSelecionado(); }",
+  "    });",
+  "",
+  "    /** Prateleiras para o servidor (as sem quadrado ficam de fora). */",
+  "    const ler = () => Object.keys(trabalho).map(Number).sort((a, b) => a - b)",
+  "      .filter((numero) => trabalho[numero].length)",
+  "      .map((numero) => ({",
+  "        numero,",
+  "        quadrados: trabalho[numero].map((q) => ({",
+  "          x: q.x, y: q.y, w: q.w, h: q.h, movimento: q.movimento, observacao: (q.observacao || '').trim(),",
+  "          produtos: q.produtos.map((x) => ({ sku: x.sku, frentes: x.frentes })),",
+  "        })),",
+  "      }));",
+  "",
+  "    const pe = n('div', 'pr-ed-acoes', null, card);",
+  "    const salvar = botao('Salvar prateleiras', 'primario', async () => {",
+  "      const prateleiras = ler();",
+  "      await gravar(ctx, col, vale.value, prateleiras, prateleiras.length ? 'Prateleiras salvas' : 'Prateleiras apagadas', [salvar]);",
+  "    }, pe);",
+  "    salvar.dataset.acao = 'salvar-prateleiras';",
+  "    botao('Cancelar', 'fantasma', () => {",
+  "      if (editando.sujo && !window.confirm('Descartar as mudanças nas prateleiras?')) return;",
+  "      editando = null;",
+  "      app.abrirMovel(ctx.movel.id);",
+  "    }, pe);",
+  "    if (det) {",
+  "      botao('Apagar o desenho', 'fantasma perigo', async () => {",
+  "        const onde = vale.value === dados().config.plantaTodas ? 'em todas as ERs' : 'na ' + ctx.planta.nome;",
+  "        if (!window.confirm('Apagar os quadrados e os produtos das prateleiras deste espaço ' + onde + '?')) return;",
+  "        await gravar(ctx, col, vale.value, [], 'Prateleiras apagadas', [salvar]);",
+  "      }, pe);",
+  "    }",
+  "    redesenharTudo();",
+  "  }",
+  "",
+  "  async function gravar(ctx, col, planta, prateleiras, mensagem, botoes) {",
+  "    botoes.forEach((b) => { b.disabled = true; });",
+  "    try {",
+  "      dados().prateleiras = await app.chamar('salvarPrateleiras', app.acesso(), {",
+  "        acao: 'salvar', ciclo: ctx.ciclo, planta, espaco: col.id, prateleiras,",
+  "      });",
+  "      editando = null;",
+  "      app.toast(mensagem + (planta === dados().config.plantaTodas ? ' em todas as ERs que têm o espaço.' : '.'));",
+  "      app.abrirMovel(ctx.movel.id);",
+  "    } catch (e) {",
+  "      app.erro(e);",
+  "      botoes.forEach((b) => { b.disabled = false; });",
+  "    }",
+  "  }",
+  "",
+  "  /** Fechar a tela do móvel com mudanças não salvas pergunta antes. @return {boolean} pode fechar */",
+  "  function podeFechar() {",
+  "    if (!editando) return true;",
+  "    if (editando.sujo && !window.confirm('As mudanças nas prateleiras não foram salvas. Fechar mesmo assim?')) return false;",
+  "    editando = null;",
+  "    return true;",
+  "  }",
+  "",
+  "  function iniciar(contexto) {",
+  "    app = contexto;",
+  "    const dlg = $('dlgMovel');",
+  "    // Esc e o botão Fechar: com a edição aberta e mudanças, pergunta antes.",
+  "    dlg.addEventListener('cancel', (e) => { if (!podeFechar()) e.preventDefault(); });",
+  "    dlg.querySelector('form').addEventListener('submit', (e) => { if (!podeFechar()) e.preventDefault(); });",
+  "    window.addEventListener('beforeunload', (e) => {",
+  "      if (editando && editando.sujo) { e.preventDefault(); e.returnValue = ''; }",
+  "    });",
+  "  }",
+  "",
+  "  return { iniciar, doEspaco, montarSecao, desenharQuadrados, ajustarTextos, podeFechar };",
   "})();",
   "</script>",
   "",
@@ -13043,14 +14230,20 @@ const PAGINA_ = [
   "    return Array.from({ length: n }, (_, j) => ({ de: j, ate: j + 1, etiquetas: etiquetas.slice(Math.floor((j * k) / n), Math.floor(((j + 1) * k) / n)) }));",
   "  }",
   "",
+  "  /** Texto de comparação de um movimento (sem acento, maiúsculas e espaços simples). */",
+  "  const chaveMovimento = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\\s+/g, ' ').trim();",
+  "",
   "  /**",
   "   * Colunas do planograma do móvel (mesmas regras da planta): uma por espaço da gôndola e por frente",
   "   * da mesa, cada uma com as etiquetas da linha do próprio espaço; uma por bloco do balcão (Etiqueta N",
   "   * da linha dele); o totem tem uma coluna com um painel por linha; o móvel make, as testeiras por",
   "   * cima e o corpo sem marca; os demais, uma coluna só com a linha do móvel.",
-  "   * @return {{n, rotulos, colunas: Array<{nome, peso, marca, celulas}>, testeiras}|null}",
+  "   * Cada coluna que leva produtos tem o id do espaço (o da aba Prateleiras) e as etiquetas dele; quando as",
+  "   * prateleiras dela foram desenhadas na construção (detalhe(id)), cada prateleira mostra os quadrados desenhados,",
+  "   * com os produtos (celula.quadrados), no lugar da divisão automática pelas etiquetas.",
+  "   * @return {{n, rotulos, colunas: Array<{id, nome, peso, marca, etiquetas, celulas, desenhada}>, testeiras}|null}",
   "   */",
-  "  function planogramaDe(m, mov, linha, temLinha) {",
+  "  function planogramaDe(m, mov, linha, temLinha, detalhe) {",
   "    const config = estado.dados.config || {};",
   "    const limBloco = (config.etiquetasPorBloco || {})[m.tipo] || 1;",
   "    /** Linha própria do espaço (a metade sem linha usa a do meio). */",
@@ -13061,10 +14254,18 @@ const PAGINA_ = [
   "    };",
   "    /** Etiqueta pronta para o planograma: texto e marca (a dela ou a da linha). */",
   "    const etq = (e, i) => ({ texto: e.texto, marca: e.marca || (i && i.marca !== 'NEUTRO' ? i.marca : '') });",
-  "    const coluna = (nome, peso, n, i, etiquetas) => ({",
-  "      nome, peso, marca: i ? i.marca : '',",
-  "      celulas: dividirPrateleiras(n, etiquetas.map((e) => etq(e, i))),",
-  "    });",
+  "    const coluna = (id, nome, peso, n, i, etiquetas, outras) => {",
+  "      const lista = etiquetas.map((e) => etq(e, i));",
+  "      const det = id && detalhe ? detalhe(id) : null;",
+  "      const desenhada = !!(det && det.prateleiras.some((p) => p.quadrados.length));",
+  "      const quadradosDe = (k) => ((det.prateleiras.find((p) => p.numero === k + 1) || {}).quadrados || []);",
+  "      return {",
+  "        id, nome, peso, marca: i ? i.marca : '', etiquetas: lista.length ? lista : outras || [], desenhada,",
+  "        celulas: desenhada",
+  "          ? Array.from({ length: n }, (_, k) => ({ de: k, ate: k + 1, etiquetas: [], quadrados: quadradosDe(k) }))",
+  "          : dividirPrateleiras(n, lista),",
+  "      };",
+  "    };",
   "    const doEspaco = (e) => {",
   "      const p = propriaDe(e);",
   "      return { p, etiquetas: p ? p.etiquetas.slice(0, limBloco) : [] };",
@@ -13075,23 +14276,23 @@ const PAGINA_ = [
   "    if (m.tipo === 'GONDOLA') {",
   "      const colunas = Render.caixasGondola(mov).map((b) => {",
   "        const { p, etiquetas } = doEspaco(b.espaco);",
-  "        return coluna(b.espaco.nome, Math.max(b.w, b.d), n, p, etiquetas);",
+  "        return coluna(m.id + '/' + b.espaco.id, b.espaco.nome, Math.max(b.w, b.d), n, p, etiquetas);",
   "      });",
   "      return { n, rotulos, colunas, testeiras: null };",
   "    }",
   "    if (m.tipo === 'TOTEM') {",
-  "      // Uma coluna, um painel por linha (1 = o de cima), cada um com a linha do próprio painel.",
+  "      // Uma coluna, um painel por linha (1 = o de cima), cada um com a linha do próprio painel. Painel não leva produto.",
   "      const celulas = Render.espacos(m).map((e, k) => {",
   "        const { p, etiquetas } = doEspaco(e);",
   "        return { de: k, ate: k + 1, marca: p ? p.marca : '', etiquetas: etiquetas.map((x) => etq(x, p)) };",
   "      });",
-  "      return { n: 3, rotulos: ['Painel 1', 'Painel 2', 'Painel 3'], colunas: [{ nome: 'Totem', peso: 1, marca: '', celulas }], testeiras: null };",
+  "      return { n: 3, rotulos: ['Painel 1', 'Painel 2', 'Painel 3'], colunas: [{ id: null, nome: 'Totem', peso: 1, marca: '', etiquetas: [], celulas }], testeiras: null };",
   "    }",
   "    if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {",
   "      // O verso não é nicho: fica só na lista de espaços, abaixo do planograma.",
   "      const colunas = Render.espacos(m).filter((e) => !e.vm).map((e) => {",
   "        const { p, etiquetas } = doEspaco(e);",
-  "        return coluna(e.nome, 1, 1, p, etiquetas);",
+  "        return coluna(m.id + '/' + e.id, e.nome, 1, 1, p, etiquetas);",
   "      });",
   "      return { n: 1, rotulos: ['Nicho'], colunas, testeiras: null };",
   "    }",
@@ -13100,11 +14301,13 @@ const PAGINA_ = [
   "        const p = propriaDe(e);",
   "        return { nome: e.nome, marca: p ? p.marca : '', etiquetas: p ? p.etiquetas.slice(0, 1).map((x) => etq(x, p)) : [] };",
   "      });",
-  "      return { n, rotulos, colunas: [coluna('Prateleiras', 1, n, null, [])], testeiras };",
+  "      // As prateleiras do corpo não têm linha: os movimentos delas são os das testeiras.",
+  "      const dasTesteiras = [].concat(...testeiras.map((t) => t.etiquetas));",
+  "      return { n, rotulos, colunas: [coluna(m.id, 'Prateleiras', 1, n, null, [], dasTesteiras)], testeiras };",
   "    }",
   "    const geral = linha(m.id);",
   "    const lim = (config.etiquetasPorTipo || {})[m.tipo];",
-  "    return { n, rotulos, colunas: [coluna('Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };",
+  "    return { n, rotulos, colunas: [coluna(m.tipo === 'EXTRA' ? null : m.id, 'Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };",
   "  }",
   "",
   "  /** Seção \"Planograma\" da tela do móvel: as prateleiras de cada espaço, com a cor e as etiquetas de cada uma. */",
@@ -13114,9 +14317,11 @@ const PAGINA_ = [
   "    const fundo = (marca) => (marca && marca !== 'NEUTRO' ? corDaMarca(marca, 'etiqueta') : '');",
   "    const caixa = novo('div', 'pg', null, sec);",
   "    const grade = novo('div', 'pg-grade', null, caixa);",
-  "    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(120px, ' + c.peso.toFixed(2) + 'fr)').join(' ');",
+  "    // Espaços desenhados na construção: colunas mais largas e prateleiras mais altas, para caberem os produtos.",
+  "    const desenho = plano.colunas.some((c) => c.desenhada);",
+  "    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(' + (c.desenhada ? 240 : 120) + 'px, ' + c.peso.toFixed(2) + 'fr)').join(' ');",
   "    const linhaTopo = plano.testeiras ? 1 : 0;",
-  "    grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(58px, auto)) auto';",
+  "    grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(' + (desenho ? 112 : 58) + 'px, auto)) auto';",
   "    const pos = (n, col, row, rowFim) => {",
   "      n.style.gridColumn = String(col);",
   "      n.style.gridRow = row + (rowFim ? ' / ' + rowFim : '');",
@@ -13147,6 +14352,15 @@ const PAGINA_ = [
   "    plano.colunas.forEach((c, ci) => {",
   "      const col = ci + 2;",
   "      c.celulas.forEach((cel) => {",
+  "        if (cel.quadrados) {",
+  "          // Prateleira desenhada: os quadrados no lugar e no tamanho definidos, com os produtos (Prateleira.html).",
+  "          const n = pos(novo('div', 'pg-celula pg-desenhada neutra', null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);",
+  "          n.style.setProperty('--cor', '#F4F2EF');",
+  "          n.dataset.espaco = c.id;",
+  "          n.dataset.numero = String(cel.de + 1);",
+  "          Prateleira.desenharQuadrados(novo('div', 'pg-quadrados', null, n), c, cel.quadrados);",
+  "          return;",
+  "        }",
   "        const n = pos(novo('div', 'pg-celula', null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);",
   "        const cor = fundo(cel.etiquetas.length ? cel.etiquetas[0].marca : cel.marca || c.marca);",
   "        n.style.setProperty('--cor', cor || '#ECEAE6');",
@@ -13157,6 +14371,11 @@ const PAGINA_ = [
   "      for (let k = 0; k < plano.n; k++) pos(novo('i', 'pg-tabua', null, grade), col, linhaTopo + k + 1);",
   "      pos(novo('span', 'pg-nome', c.nome, grade), col, linhaTopo + plano.n + 1);",
   "    });",
+  "    if (desenho) {",
+  "      Prateleira.ajustarTextos(grade);",
+  "      novo('p', 'pg-nota', 'Nos espaços com as prateleiras definidas na construção, cada prateleira mostra os quadrados, cada um com o movimento e os produtos (×frentes); passe o mouse para ver os SKUs.'",
+  "        + (plano.colunas.every((c) => !c.id || c.desenhada) ? '' : ' Nos outros espaços, as etiquetas dividem as prateleiras automaticamente.'), sec);",
+  "    }",
   "    novo('p', 'pg-nota', plano.rotulos[0] === 'Painel 1'",
   "      ? 'Painel 1 é o de cima. Cada painel tem a cor e a etiqueta da própria linha (ou da Etiqueta N do totem).'",
   "      : plano.n > 1",
@@ -13249,8 +14468,11 @@ const PAGINA_ = [
   "      const config = estado.dados.config || {};",
   "      // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).",
   "      const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;",
-  "      const plano = planogramaDe(m, mov, linha, temLinha);",
+  "      const detalhe = (id) => Prateleira.doEspaco(ciclo, planta.id, id);",
+  "      const plano = planogramaDe(m, mov, linha, temLinha, detalhe);",
   "      if (plano) blocoPlanograma(corpo, plano);",
+  "      // O desenho de cada prateleira, com os produtos (e, para o construtor, a edição).",
+  "      if (plano) Prateleira.montarSecao(corpo, { ciclo, planta, movel: m, plano });",
   "      // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.",
   "      blocosDoMovel(planta, m, ciclo).forEach((b) => blocoEstrategia(corpo, b.titulo, b.info, {",
   "        vazio: b.espaco ? 'Sem linha neste ciclo: o espaço fica branco (neutro).' : 'Sem linha neste ciclo: o móvel fica branco (neutro).',",
@@ -13337,6 +14559,7 @@ const PAGINA_ = [
   "    if (r.paineis) partes.push(r.paineis + ' linha(s) de painéis');",
   "    if (r.tipos) partes.push(r.tipos + ' linha(s) de tipos de movimento');",
   "    if (r.layout) partes.push(r.layout + ' linha(s) de layout');",
+  "    if (r.produtos) partes.push(r.produtos + ' produto(s) no catálogo');",
   "    $('resTexto').textContent = (partes.join(' e ') || 'Nenhuma linha') + ' gravada(s)' +",
   "      (r.ciclos.length ? ' — ciclo(s): ' + r.ciclos.join(', ') + '.' : '.') +",
   "      (r.avisos.length ? ' Confira os avisos:' : '');",
@@ -14033,6 +15256,11 @@ const PAGINA_ = [
   "    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca, colorirSelectMarca,",
   "    acesso: () => Validacao.acesso(),",
   "    movimentoDaPlanilha,",
+  "  });",
+  "  Prateleira.iniciar({",
+  "    estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,",
+  "    acesso: () => Validacao.acesso(),",
+  "    rascunhos: () => Rascunho.lista(),",
   "  });",
   "  // Na primeira visita, depois de carregar, oferece o tutorial guiado.",
   "  // O link (#ciclo=…&er=…) escolhe ciclo, ER, visão e filtros; sem link, abre como sempre.",

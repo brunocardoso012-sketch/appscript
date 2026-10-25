@@ -1516,14 +1516,20 @@ const App = (() => {
     return Array.from({ length: n }, (_, j) => ({ de: j, ate: j + 1, etiquetas: etiquetas.slice(Math.floor((j * k) / n), Math.floor(((j + 1) * k) / n)) }));
   }
 
+  /** Texto de comparação de um movimento (sem acento, maiúsculas e espaços simples). */
+  const chaveMovimento = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+
   /**
    * Colunas do planograma do móvel (mesmas regras da planta): uma por espaço da gôndola e por frente
    * da mesa, cada uma com as etiquetas da linha do próprio espaço; uma por bloco do balcão (Etiqueta N
    * da linha dele); o totem tem uma coluna com um painel por linha; o móvel make, as testeiras por
    * cima e o corpo sem marca; os demais, uma coluna só com a linha do móvel.
-   * @return {{n, rotulos, colunas: Array<{nome, peso, marca, celulas}>, testeiras}|null}
+   * Cada coluna que leva produtos tem o id do espaço (o da aba Prateleiras) e as etiquetas dele; quando as
+   * prateleiras dela foram desenhadas na construção (detalhe(id)), cada prateleira mostra os quadrados desenhados,
+   * com os produtos (celula.quadrados), no lugar da divisão automática pelas etiquetas.
+   * @return {{n, rotulos, colunas: Array<{id, nome, peso, marca, etiquetas, celulas, desenhada}>, testeiras}|null}
    */
-  function planogramaDe(m, mov, linha, temLinha) {
+  function planogramaDe(m, mov, linha, temLinha, detalhe) {
     const config = estado.dados.config || {};
     const limBloco = (config.etiquetasPorBloco || {})[m.tipo] || 1;
     /** Linha própria do espaço (a metade sem linha usa a do meio). */
@@ -1534,10 +1540,18 @@ const App = (() => {
     };
     /** Etiqueta pronta para o planograma: texto e marca (a dela ou a da linha). */
     const etq = (e, i) => ({ texto: e.texto, marca: e.marca || (i && i.marca !== 'NEUTRO' ? i.marca : '') });
-    const coluna = (nome, peso, n, i, etiquetas) => ({
-      nome, peso, marca: i ? i.marca : '',
-      celulas: dividirPrateleiras(n, etiquetas.map((e) => etq(e, i))),
-    });
+    const coluna = (id, nome, peso, n, i, etiquetas, outras) => {
+      const lista = etiquetas.map((e) => etq(e, i));
+      const det = id && detalhe ? detalhe(id) : null;
+      const desenhada = !!(det && det.prateleiras.some((p) => p.quadrados.length));
+      const quadradosDe = (k) => ((det.prateleiras.find((p) => p.numero === k + 1) || {}).quadrados || []);
+      return {
+        id, nome, peso, marca: i ? i.marca : '', etiquetas: lista.length ? lista : outras || [], desenhada,
+        celulas: desenhada
+          ? Array.from({ length: n }, (_, k) => ({ de: k, ate: k + 1, etiquetas: [], quadrados: quadradosDe(k) }))
+          : dividirPrateleiras(n, lista),
+      };
+    };
     const doEspaco = (e) => {
       const p = propriaDe(e);
       return { p, etiquetas: p ? p.etiquetas.slice(0, limBloco) : [] };
@@ -1548,23 +1562,23 @@ const App = (() => {
     if (m.tipo === 'GONDOLA') {
       const colunas = Render.caixasGondola(mov).map((b) => {
         const { p, etiquetas } = doEspaco(b.espaco);
-        return coluna(b.espaco.nome, Math.max(b.w, b.d), n, p, etiquetas);
+        return coluna(m.id + '/' + b.espaco.id, b.espaco.nome, Math.max(b.w, b.d), n, p, etiquetas);
       });
       return { n, rotulos, colunas, testeiras: null };
     }
     if (m.tipo === 'TOTEM') {
-      // Uma coluna, um painel por linha (1 = o de cima), cada um com a linha do próprio painel.
+      // Uma coluna, um painel por linha (1 = o de cima), cada um com a linha do próprio painel. Painel não leva produto.
       const celulas = Render.espacos(m).map((e, k) => {
         const { p, etiquetas } = doEspaco(e);
         return { de: k, ate: k + 1, marca: p ? p.marca : '', etiquetas: etiquetas.map((x) => etq(x, p)) };
       });
-      return { n: 3, rotulos: ['Painel 1', 'Painel 2', 'Painel 3'], colunas: [{ nome: 'Totem', peso: 1, marca: '', celulas }], testeiras: null };
+      return { n: 3, rotulos: ['Painel 1', 'Painel 2', 'Painel 3'], colunas: [{ id: null, nome: 'Totem', peso: 1, marca: '', etiquetas: [], celulas }], testeiras: null };
     }
     if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
       // O verso não é nicho: fica só na lista de espaços, abaixo do planograma.
       const colunas = Render.espacos(m).filter((e) => !e.vm).map((e) => {
         const { p, etiquetas } = doEspaco(e);
-        return coluna(e.nome, 1, 1, p, etiquetas);
+        return coluna(m.id + '/' + e.id, e.nome, 1, 1, p, etiquetas);
       });
       return { n: 1, rotulos: ['Nicho'], colunas, testeiras: null };
     }
@@ -1573,11 +1587,13 @@ const App = (() => {
         const p = propriaDe(e);
         return { nome: e.nome, marca: p ? p.marca : '', etiquetas: p ? p.etiquetas.slice(0, 1).map((x) => etq(x, p)) : [] };
       });
-      return { n, rotulos, colunas: [coluna('Prateleiras', 1, n, null, [])], testeiras };
+      // As prateleiras do corpo não têm linha: os movimentos delas são os das testeiras.
+      const dasTesteiras = [].concat(...testeiras.map((t) => t.etiquetas));
+      return { n, rotulos, colunas: [coluna(m.id, 'Prateleiras', 1, n, null, [], dasTesteiras)], testeiras };
     }
     const geral = linha(m.id);
     const lim = (config.etiquetasPorTipo || {})[m.tipo];
-    return { n, rotulos, colunas: [coluna('Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };
+    return { n, rotulos, colunas: [coluna(m.tipo === 'EXTRA' ? null : m.id, 'Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };
   }
 
   /** Seção "Planograma" da tela do móvel: as prateleiras de cada espaço, com a cor e as etiquetas de cada uma. */
@@ -1587,9 +1603,11 @@ const App = (() => {
     const fundo = (marca) => (marca && marca !== 'NEUTRO' ? corDaMarca(marca, 'etiqueta') : '');
     const caixa = novo('div', 'pg', null, sec);
     const grade = novo('div', 'pg-grade', null, caixa);
-    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(120px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
+    // Espaços desenhados na construção: colunas mais largas e prateleiras mais altas, para caberem os produtos.
+    const desenho = plano.colunas.some((c) => c.desenhada);
+    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(' + (c.desenhada ? 240 : 120) + 'px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
     const linhaTopo = plano.testeiras ? 1 : 0;
-    grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(58px, auto)) auto';
+    grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(' + (desenho ? 112 : 58) + 'px, auto)) auto';
     const pos = (n, col, row, rowFim) => {
       n.style.gridColumn = String(col);
       n.style.gridRow = row + (rowFim ? ' / ' + rowFim : '');
@@ -1620,6 +1638,15 @@ const App = (() => {
     plano.colunas.forEach((c, ci) => {
       const col = ci + 2;
       c.celulas.forEach((cel) => {
+        if (cel.quadrados) {
+          // Prateleira desenhada: os quadrados no lugar e no tamanho definidos, com os produtos (Prateleira.html).
+          const n = pos(novo('div', 'pg-celula pg-desenhada neutra', null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);
+          n.style.setProperty('--cor', '#F4F2EF');
+          n.dataset.espaco = c.id;
+          n.dataset.numero = String(cel.de + 1);
+          Prateleira.desenharQuadrados(novo('div', 'pg-quadrados', null, n), c, cel.quadrados);
+          return;
+        }
         const n = pos(novo('div', 'pg-celula', null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);
         const cor = fundo(cel.etiquetas.length ? cel.etiquetas[0].marca : cel.marca || c.marca);
         n.style.setProperty('--cor', cor || '#ECEAE6');
@@ -1630,6 +1657,11 @@ const App = (() => {
       for (let k = 0; k < plano.n; k++) pos(novo('i', 'pg-tabua', null, grade), col, linhaTopo + k + 1);
       pos(novo('span', 'pg-nome', c.nome, grade), col, linhaTopo + plano.n + 1);
     });
+    if (desenho) {
+      Prateleira.ajustarTextos(grade);
+      novo('p', 'pg-nota', 'Nos espaços com as prateleiras definidas na construção, cada prateleira mostra os quadrados, cada um com o movimento e os produtos (×frentes); passe o mouse para ver os SKUs.'
+        + (plano.colunas.every((c) => !c.id || c.desenhada) ? '' : ' Nos outros espaços, as etiquetas dividem as prateleiras automaticamente.'), sec);
+    }
     novo('p', 'pg-nota', plano.rotulos[0] === 'Painel 1'
       ? 'Painel 1 é o de cima. Cada painel tem a cor e a etiqueta da própria linha (ou da Etiqueta N do totem).'
       : plano.n > 1
@@ -1722,8 +1754,11 @@ const App = (() => {
       const config = estado.dados.config || {};
       // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
       const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
-      const plano = planogramaDe(m, mov, linha, temLinha);
+      const detalhe = (id) => Prateleira.doEspaco(ciclo, planta.id, id);
+      const plano = planogramaDe(m, mov, linha, temLinha, detalhe);
       if (plano) blocoPlanograma(corpo, plano);
+      // O desenho de cada prateleira, com os produtos (e, para o construtor, a edição).
+      if (plano) Prateleira.montarSecao(corpo, { ciclo, planta, movel: m, plano });
       // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.
       blocosDoMovel(planta, m, ciclo).forEach((b) => blocoEstrategia(corpo, b.titulo, b.info, {
         vazio: b.espaco ? 'Sem linha neste ciclo: o espaço fica branco (neutro).' : 'Sem linha neste ciclo: o móvel fica branco (neutro).',
@@ -1810,6 +1845,7 @@ const App = (() => {
     if (r.paineis) partes.push(r.paineis + ' linha(s) de painéis');
     if (r.tipos) partes.push(r.tipos + ' linha(s) de tipos de movimento');
     if (r.layout) partes.push(r.layout + ' linha(s) de layout');
+    if (r.produtos) partes.push(r.produtos + ' produto(s) no catálogo');
     $('resTexto').textContent = (partes.join(' e ') || 'Nenhuma linha') + ' gravada(s)' +
       (r.ciclos.length ? ' — ciclo(s): ' + r.ciclos.join(', ') + '.' : '.') +
       (r.avisos.length ? ' Confira os avisos:' : '');
@@ -2506,6 +2542,11 @@ const App = (() => {
     estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca, colorirSelectMarca,
     acesso: () => Validacao.acesso(),
     movimentoDaPlanilha,
+  });
+  Prateleira.iniciar({
+    estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,
+    acesso: () => Validacao.acesso(),
+    rascunhos: () => Rascunho.lista(),
   });
   // Na primeira visita, depois de carregar, oferece o tutorial guiado.
   // O link (#ciclo=…&er=…) escolhe ciclo, ER, visão e filtros; sem link, abre como sempre.

@@ -389,6 +389,23 @@ const Planilha = (() => {
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
   }
 
+  /**
+   * Aba Produtos: o catálogo de onde saem os produtos dos quadrados das prateleiras (vem com o atual). Na
+   * importação, ela substitui o catálogo inteiro.
+   */
+  function abaProdutos(wb, dados) {
+    const cols = dados.colunas.produtos;
+    if (!cols) return;
+    const ws = wb.addWorksheet(dados.config.abas.PRODUTOS, { views: [{ state: 'frozen', xSplit: 2, ySplit: 1 }] });
+    ws.columns = cols.map((c) => ({ header: c.titulo, key: c.chave, width: c.chave === 'nome' ? 48 : c.chave === 'movimento' ? 26 : 14, style: { numFmt: '@' } }));
+    estilizarCabecalho(ws.getRow(1));
+    (dados.produtos || []).forEach((p) => ws.addRow(p));
+    const marcas = Object.keys(dados.marcas || {}).filter((k) => k !== 'NEUTRO');
+    const i = cols.findIndex((c) => c.chave === 'marca');
+    if (i >= 0 && marcas.length) validarColuna(ws, i + 1, ws.rowCount + LINHAS_EXTRAS, marcas, 'Marca', 'Marca do produto: ' + marcas.join(', ') + '.');
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
+  }
+
   /** Aba Layout com a posição atual dos móveis (para ajustar coordenadas). */
   function abaLayout(wb, dados, op) {
     const cols = dados.colunas.layout;
@@ -442,6 +459,7 @@ const Planilha = (() => {
     abaMovimentos(wb, dados, op, resolver);
     abaPaineis(wb, dados, op, resolver);
     abaTipos(wb, dados, op, resolver);
+    abaProdutos(wb, dados);
     if (op.incluirLayout) abaLayout(wb, dados, op);
     abaInstrucoes(wb, dados, op);
     const buffer = await wb.xlsx.writeBuffer();
@@ -499,12 +517,14 @@ const Planilha = (() => {
     const pai = achar(abas.PAINEIS);
     const tip = achar(abas.TIPOS);
     const lay = achar(abas.LAYOUT);
+    const prod = achar(abas.PRODUTOS);
     if (mov) out.movimentos = matrizDaAba(mov);
     if (pai) out.paineis = matrizDaAba(pai);
     if (tip) out.tipos = matrizDaAba(tip);
     if (lay) out.layout = matrizDaAba(lay);
-    if (!out.movimentos && !out.paineis && !out.tipos && !out.layout) {
-      throw new Error('O arquivo não tem as abas "' + abas.MOVIMENTOS + '", "' + abas.PAINEIS + '", "' + abas.TIPOS + '" ou "' + abas.LAYOUT +
+    if (prod) out.produtos = matrizDaAba(prod);
+    if (!out.movimentos && !out.paineis && !out.tipos && !out.layout && !out.produtos) {
+      throw new Error('O arquivo não tem as abas "' + abas.MOVIMENTOS + '", "' + abas.PAINEIS + '", "' + abas.TIPOS + '", "' + abas.LAYOUT + '" ou "' + abas.PRODUTOS +
         '". Use a planilha gerada pelo botão "Baixar planilha base".');
     }
     return out;

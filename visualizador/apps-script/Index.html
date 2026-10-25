@@ -650,6 +650,103 @@
   .pg-testeira .pg-sem { color: rgba(255, 255, 255, .8); }
   .pg-testeira.neutra .pg-sem { color: var(--texto-2); }
   .pg-nota { margin: 10px 0 0; font-size: 13px; color: var(--texto-2); }
+  /* prateleiras: o desenho de cada prateleira (Prateleira.html): quadrados em % da prateleira, com os produtos */
+  .pr-dica { margin: 0 0 12px; font-size: 14px; color: var(--texto-2); }
+  .pr-aviso { margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; background: var(--destaque); font-size: 13px; }
+  .pr-espaco { border: 1px solid var(--borda); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; background: var(--superficie); outline: none; }
+  .pr-espaco.editando { border-color: var(--borda-forte); box-shadow: var(--sombra); }
+  .pr-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .pr-titulo { flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+  .pr-titulo strong { font-size: 15px; text-transform: uppercase; letter-spacing: .4px; margin-right: 4px; }
+  .pr-chip {
+    color: #fff; font: 800 12px/1.25 var(--fonte-etq); padding: 3px 10px; border-radius: 10px;
+    white-space: pre-line; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+  }
+  .pr-resumo { font-size: 13px; color: var(--texto-2); font-variant-numeric: tabular-nums; }
+  .pr-vazio { margin: 8px 0 0; font-size: 13px; font-style: italic; color: var(--texto-2); }
+  .pr-estante { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .pr-prateleira { display: flex; gap: 10px; align-items: stretch; }
+  .pr-num { flex: 0 0 44px; align-self: center; text-align: right; font-size: 12px; color: var(--texto-2); }
+  /* a prateleira: fundo claro com a tábua embaixo; os quadrados ficam em cima, em % dela */
+  .pr-tela {
+    position: relative; flex: 1 1 auto; min-width: 0; height: 112px; border-radius: 6px 6px 0 0;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(0, 0, 0, .04) calc(10% - 1px) 10%), #f4f2ef;
+    border-bottom: 7px solid #5d6168;
+  }
+  .pr-tela.desenho { cursor: crosshair; touch-action: none; user-select: none; height: 128px; }
+  .pr-tela-vazia { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-style: italic; color: var(--texto-2); pointer-events: none; }
+  .pr-quadrado {
+    position: absolute; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; gap: 3px;
+    padding: 4px 6px; border-radius: 4px; border: 2px solid var(--cor, #9aa0a6);
+    background: linear-gradient(rgba(255, 255, 255, .84), rgba(255, 255, 255, .84)), var(--cor, #9aa0a6);
+  }
+  .pr-quadrado.editavel { cursor: move; touch-action: none; }
+  .pr-quadrado.escolhido { box-shadow: 0 0 0 2px var(--superficie), 0 0 0 4px #E8590C; z-index: 2; }
+  .pr-quadrado.fantasma { border-style: dashed; background: rgba(232, 89, 12, .12); border-color: #E8590C; pointer-events: none; }
+  .pr-quadrado.fantasma.invalido { background: rgba(180, 35, 24, .15); border-color: #b42318; }
+  .pr-q-mov {
+    align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #fff; background: var(--cor); font: 800 10px/1.3 var(--fonte-etq); padding: 1px 6px; border-radius: 6px;
+  }
+  .pr-q-produtos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; min-height: 0; }
+  .pr-q-produtos li { display: flex; gap: 4px; font-size: 11px; line-height: 1.25; color: #1C1F24; }
+  .pr-q-produtos li.fora { color: #b42318; text-decoration: line-through; }
+  .pr-q-nome { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .pr-q-fr { flex: 0 0 auto; color: #5B6068; font-variant-numeric: tabular-nums; }
+  .pr-q-vazio { font-size: 11px; font-style: italic; color: #5B6068; }
+  .pr-q-produtos li.pr-q-mais { font-weight: 700; color: #5B6068; }
+  /* no planograma: a prateleira desenhada na construção, com os quadrados por cima da tábua */
+  .pg-celula.pg-desenhada { padding: 0; }
+  .pg-quadrados { position: absolute; inset: 4px 3px 10px; z-index: 2; }
+  .pg-quadrados .pr-tela-vazia { font-size: 11px; }
+  .pr-borda { position: absolute; z-index: 1; }
+  .pr-borda.e, .pr-borda.w { top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
+  .pr-borda.e { right: -2px; }
+  .pr-borda.w { left: -2px; }
+  .pr-borda.n, .pr-borda.s { left: 8px; right: 8px; height: 7px; cursor: ns-resize; }
+  .pr-borda.n { top: -2px; }
+  .pr-borda.s { bottom: -2px; }
+  .pr-meta { margin: 10px 0 0; font-size: 12px; color: var(--texto-2); }
+  /* edição */
+  .pr-opcoes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin: 12px 0 8px; }
+  .pr-campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--texto-2); }
+  .pr-ed-dica { margin: 0 0 10px; font-size: 12px; color: var(--texto-2); }
+  .pr-ed-prateleira { display: flex; flex-direction: column; gap: 6px; }
+  .pr-ed-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+  .pr-ed-cab strong { font-size: 13px; }
+  .pr-ed-dividir { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--texto-2); }
+  .pr-ed-mov.fora { border-color: #E8590C; box-shadow: inset 0 0 0 1px #E8590C; color: #9a3a06; }
+  /* painel do quadrado escolhido */
+  .pr-painel { border: 1px solid var(--borda-forte); border-left: 6px solid var(--cor, #9aa0a6); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .pr-painel-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+  .pr-painel-topo .btn { margin-left: auto; }
+  .pr-painel-campos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .pr-painel-campos select, .pr-painel-campos input { min-width: 0; width: 100%; box-sizing: border-box; }
+  .pr-painel-produtos { display: flex; flex-direction: column; gap: 4px; }
+  .pr-ed-linha { display: grid; grid-template-columns: minmax(0, 1fr) 70px auto auto auto; gap: 4px; align-items: center; }
+  .pr-ed-linha.fora .pr-ed-nome { color: #b42318; }
+  .pr-ed-nome { display: flex; flex-direction: column; font-size: 13px; font-weight: 600; min-width: 0; }
+  .pr-ed-nome small { font-weight: 400; font-size: 11px; color: var(--texto-2); }
+  .pr-ed-linha input, .pr-busca { font: inherit; font-size: 13px; padding: 5px 7px; border: 1px solid var(--borda-forte); border-radius: 6px; background: var(--superficie); color: var(--texto); min-width: 0; box-sizing: border-box; }
+  .pr-escolha { display: flex; flex-direction: column; gap: 6px; }
+  .pr-escolha-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+  .pr-busca { flex: 1 1 260px; }
+  .pr-resultados { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px; max-height: 220px; overflow: auto; }
+  .pr-resultado {
+    display: grid; grid-template-columns: 10px minmax(0, 1fr); column-gap: 8px; align-items: center; text-align: left;
+    padding: 6px 8px; border: 1px solid var(--borda); border-radius: 6px; background: var(--superficie); color: var(--texto); cursor: pointer; font: inherit;
+  }
+  .pr-resultado:hover { border-color: var(--borda-forte); background: #f5f6f8; }
+  .pr-resultados > .pr-vazio, .pr-resultados > .btn { grid-column: 1 / -1; justify-self: start; margin: 0; }
+  .pr-resultado.ja { border-color: #2f9e44; }
+  .pr-resultado i { grid-row: 1 / 3; width: 10px; height: 10px; border-radius: 50%; }
+  .pr-r-nome { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pr-resultado small { grid-column: 2; font-size: 11px; color: var(--texto-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pr-ed-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  @media (max-width: 760px) {
+    .pr-num { flex-basis: 28px; }
+    .pr-painel-campos { grid-template-columns: 1fr; }
+  }
   .mv-marca-etq { font-size: 14px; color: var(--texto-2); }
   .mv-simbolo-etq { font-size: 12px; color: var(--texto-2); white-space: nowrap; }
   .mv-obs { white-space: pre-line; }
@@ -1099,6 +1196,17 @@
   [data-tema="escuro"] .dialogo::backdrop { background: rgba(0, 0, 0, .6); }
   [data-tema="escuro"] .acesso-erro,
   [data-tema="escuro"] .btn.perigo { color: #f97066; }
+  [data-tema="escuro"] .pr-tela { background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(255, 255, 255, .05) calc(10% - 1px) 10%), #23272c; border-bottom-color: #444a52; }
+  [data-tema="escuro"] .pr-quadrado { background: linear-gradient(rgba(27, 30, 34, .8), rgba(27, 30, 34, .8)), var(--cor, #9aa0a6); }
+  [data-tema="escuro"] .pr-q-produtos li { color: #e8eaed; }
+  [data-tema="escuro"] .pr-q-fr, [data-tema="escuro"] .pr-q-vazio { color: #aab0b8; }
+  [data-tema="escuro"] .pr-q-produtos li.pr-q-mais { color: #aab0b8; }
+  /* o planograma mantém as cores do slide: os quadrados dele também ficam claros */
+  [data-tema="escuro"] .pg-quadrados .pr-quadrado { background: linear-gradient(rgba(255, 255, 255, .84), rgba(255, 255, 255, .84)), var(--cor, #9aa0a6); }
+  [data-tema="escuro"] .pg-quadrados .pr-q-produtos li { color: #1C1F24; }
+  [data-tema="escuro"] .pg-quadrados .pr-q-fr, [data-tema="escuro"] .pg-quadrados .pr-q-vazio, [data-tema="escuro"] .pg-quadrados .pr-q-mais { color: #5B6068; }
+  [data-tema="escuro"] .pr-resultado:hover { background: #23272c; }
+  [data-tema="escuro"] .pr-ed-mov.fora { color: #ffb38a; }
   [data-tema="escuro"] .carregando { background: rgba(17, 19, 22, .72); }
   [data-tema="escuro"] .spinner { border-color: #3a3f46; border-top-color: var(--texto); }
   [data-tema="escuro"] .toast { background: #2a2e34; color: var(--texto); border: 1px solid var(--borda-forte); }
@@ -5714,6 +5822,638 @@ const Antecipacao = (() => {
     <script>
 /**
  * ============================================================================
+ *  PRATELEIRAS (página): o planograma de cada prateleira, na tela do móvel
+ * ============================================================================
+ *  Depois da estratégia dos movimentos, o construtor desenha cada prateleira de
+ *  cada espaço: arrasta na prateleira para criar um quadrado (de ponta a ponta
+ *  na altura, ou só uma parte, se arrastar também para cima ou para baixo),
+ *  move e muda o tamanho dele, e escolhe o movimento e os produtos do quadrado
+ *  no catálogo (aba Produtos da planilha: SKU, nome, marca, categoria e
+ *  movimento). O que foi definido aparece para todo mundo no planograma da
+ *  tela do móvel ("como as prateleiras estão divididas", em App.html, com
+ *  desenharQuadrados). A edição fica só no modo de construção (login da
+ *  Construção, com senha): a seção "Construção das prateleiras", com o botão
+ *  "Desenhar" de cada espaço. Cada ER tem as suas prateleiras; "Vale em todas
+ *  as ERs" grava as mesmas em cada ER que tem o espaço. As regras ficam em
+ *  Prateleiras.gs (conferidas no servidor).
+ */
+const Prateleira = (() => {
+  const $ = (id) => document.getElementById(id);
+  // { estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento, acesso, rascunhos }
+  let app = null;
+  let editando = null; // { chave: "ciclo|planta|espaço", sujo } do espaço aberto na edição
+  /** Passo do desenho, em % da prateleira (na horizontal e na vertical). */
+  const PASSO = { x: 1, y: 5 };
+  /** Arrastar menos que isto na vertical faz o quadrado ocupar a altura toda da prateleira. */
+  const ALTURA_INTEIRA = 30;
+
+  function n(tag, classe, texto, pai) {
+    const e = document.createElement(tag);
+    if (classe) e.className = classe;
+    if (texto !== undefined && texto !== null) e.textContent = texto;
+    if (pai) pai.appendChild(e);
+    return e;
+  }
+
+  function botao(texto, classe, fn, pai) {
+    const b = n('button', 'btn pequeno ' + (classe || ''), texto, pai);
+    b.type = 'button';
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  const dados = () => app.estado.dados;
+  const todas = () => (dados() && dados().prateleiras) || [];
+  const catalogo = () => (dados() && dados().produtos) || [];
+  const limites = () => Object.assign({ quadrados: 30, produtos: 20, frentes: 99, minimo: 3 }, (dados().config || {}).limitesPrateleira);
+  const nomeEr = (id) => (dados().plantas.find((p) => p.id === id) || {}).nome || id;
+  const simples = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const arred = (v, passo) => Math.round(v / passo) * passo;
+  const limitar = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  /** Prateleiras detalhadas de um espaço numa ER (ou null). */
+  function doEspaco(ciclo, planta, id) {
+    return todas().find((g) => g.ciclo === ciclo && g.planta === planta && g.espaco === id) || null;
+  }
+
+  /** O construtor edita num ciclo publicado ou num ciclo em construção que ainda não foi enviado. */
+  function podeEditar(ciclo) {
+    const a = app.acesso();
+    if (!a || a.papel !== 'CONSTRUTOR' || !ciclo) return false;
+    if (dados().ciclos.indexOf(ciclo) >= 0) return true;
+    const r = app.rascunhos().find((x) => x.ciclo === ciclo);
+    return !!r && r.status === 'EM_CONSTRUCAO';
+  }
+
+  /** Marca de um movimento: a da etiqueta do espaço com esse texto (ou ''). */
+  function marcaDoMovimento(col, mov) {
+    const k = app.chaveMovimento(mov);
+    const e = col.etiquetas.find((x) => app.chaveMovimento(x.texto) === k);
+    return e ? e.marca : '';
+  }
+  const corDoMovimento = (col, mov) => {
+    const marca = mov ? marcaDoMovimento(col, mov) : '';
+    return marca ? app.corDaMarca(marca, 'etiqueta') : '#9aa0a6';
+  };
+
+  /** "Prateleira 2" (ou o nome do nível, como o nicho da mesa). */
+  const rotulo = (plano, k) => (/^\d+$/.test(plano.rotulos[k]) ? 'Prateleira ' + (k + 1) : plano.rotulos[k]);
+  const produtosDe = (det) => [].concat(...det.prateleiras.map((p) => [].concat(...p.quadrados.map((q) => q.produtos))));
+  const somaFrentes = (lista) => lista.reduce((s, x) => s + (Number(x.frentes) || 0), 0);
+  const sobrepoe = (a, b) => a.x + a.w > b.x + 0.05 && b.x + b.w > a.x + 0.05 && a.y + a.h > b.y + 0.05 && b.y + b.h > a.y + 0.05;
+
+  /** Posição do quadrado no elemento (em % da prateleira). */
+  function posicionar(el, q) {
+    el.style.left = q.x + '%';
+    el.style.top = q.y + '%';
+    el.style.width = q.w + '%';
+    el.style.height = q.h + '%';
+  }
+
+  /** Conteúdo de um quadrado: o movimento e os produtos (nome ×frentes). */
+  function conteudoQuadrado(el, col, q) {
+    el.style.setProperty('--cor', corDoMovimento(col, q.movimento));
+    if (q.movimento) n('span', 'pr-q-mov', q.movimento, el);
+    const ul = n('ul', 'pr-q-produtos', null, el);
+    q.produtos.forEach((x) => {
+      const li = n('li', x.foraDoCatalogo ? 'fora' : null, null, ul);
+      n('span', 'pr-q-nome', x.nome, li);
+      n('span', 'pr-q-fr', '×' + x.frentes, li);
+    });
+    if (!q.produtos.length) n('span', 'pr-q-vazio', 'sem produtos', el);
+    el.title = [q.movimento, ...q.produtos.map((x) => x.nome + ' · SKU ' + x.sku + ' · ' + x.frentes + (x.frentes === 1 ? ' frente' : ' frentes')
+      + (x.foraDoCatalogo ? ' (fora da aba Produtos)' : '')), q.observacao].filter(Boolean).join('\n');
+  }
+
+  /**
+   * Quadrados de uma prateleira, no lugar e no tamanho definidos (o planograma da tela do móvel usa esta função).
+   * @param {{etiquetas}} col  a coluna do planograma (as etiquetas do espaço dão a cor de cada movimento)
+   */
+  function desenharQuadrados(alvo, col, quadrados) {
+    if (!quadrados.length) { n('span', 'pr-tela-vazia', 'prateleira sem quadrados', alvo); return; }
+    quadrados.forEach((q) => {
+      const el = n('div', 'pr-quadrado', null, alvo);
+      posicionar(el, q);
+      conteudoQuadrado(el, col, q);
+    });
+  }
+
+  /**
+   * Quadrado baixo ou estreito: os produtos que não cabem saem da lista e viram "+N" (todos continuam na dica do
+   * mouse). Mede depois que a tela aparece.
+   */
+  function ajustarTextos(raiz) {
+    requestAnimationFrame(() => raiz.querySelectorAll('.pr-quadrado').forEach((el) => {
+      const ul = el.querySelector('.pr-q-produtos');
+      if (!ul || !el.clientHeight) return;
+      const itens = Array.from(ul.children).filter((li) => !li.classList.contains('pr-q-mais'));
+      itens.forEach((li) => { li.hidden = false; });
+      const velho = ul.querySelector('.pr-q-mais');
+      if (velho) velho.remove();
+      const limite = el.getBoundingClientRect().bottom - 3;
+      const cabe = (li) => li.getBoundingClientRect().bottom <= limite;
+      if (itens.every(cabe)) return;
+      const mais = n('li', 'pr-q-mais', null, ul);
+      let escondidos = 0;
+      for (let i = itens.length - 1; i >= 0; i--) {
+        mais.textContent = '+' + (escondidos || 1) + (escondidos > 1 ? ' produtos' : ' produto');
+        if (cabe(itens[i]) && cabe(mais)) break;
+        itens[i].hidden = true;
+        escondidos++;
+        mais.textContent = '+' + escondidos + (escondidos > 1 ? ' produtos' : ' produto');
+        if (i === 0 || (cabe(itens[i - 1]) && cabe(mais))) break;
+      }
+    }));
+  }
+
+  /* ---------------------------- construção ------------------------------- */
+
+  /**
+   * Seção "Construção das prateleiras" da tela do móvel: só no modo de construção (login da Construção), com um
+   * cartão por espaço que leva produtos (as colunas do planograma com id) e o botão de desenhar. O desenho salvo
+   * aparece no planograma, acima.
+   * @param {{ciclo, planta, movel, plano}} ctx  plano: o de planogramaDe (App.html)
+   */
+  function montarSecao(corpo, ctx) {
+    const colunas = ctx.plano.colunas.filter((c) => c.id);
+    if (!colunas.length || !podeEditar(ctx.ciclo)) return;
+    const sec = n('section', 'mv-bloco pr-secao', null, corpo);
+    n('h3', null, 'Construção das prateleiras', sec);
+    n('p', 'pr-dica', 'Clique em Desenhar (ou Editar) no espaço: arraste em cada prateleira para criar os quadrados e escolha o movimento e os produtos de cada um. '
+      + 'O que for salvo aparece no planograma, acima, para todo mundo.', sec);
+    colunas.forEach((col) => {
+      const card = n('div', 'pr-espaco', null, sec);
+      card.dataset.espaco = col.id;
+      const chave = ctx.ciclo + '|' + ctx.planta.id + '|' + col.id;
+      if (editando && editando.chave === chave) montarEdicao(card, ctx, col);
+      else montarLeitura(card, ctx, col);
+    });
+  }
+
+  /** Móvel de um espaço só: o cartão não repete o nome "Móvel". */
+  const colunaUnica = (ctx) => {
+    const com = ctx.plano.colunas.filter((c) => c.id);
+    return com.length === 1 && !/\//.test(com[0].id);
+  };
+
+  function cabecalho(card, ctx, col, det) {
+    const topo = n('div', 'pr-topo', null, card);
+    const titulo = n('div', 'pr-titulo', null, topo);
+    n('strong', null, colunaUnica(ctx) ? 'Prateleiras' : col.nome, titulo);
+    col.etiquetas.forEach((e) => {
+      const chip = n('span', 'pr-chip', e.texto, titulo);
+      chip.style.background = app.corDaMarca(e.marca, 'etiqueta');
+    });
+    if (det) {
+      const produtos = produtosDe(det);
+      n('span', 'pr-resumo', produtos.length + (produtos.length === 1 ? ' produto' : ' produtos') + ' · ' + somaFrentes(produtos) + ' frentes', topo);
+    }
+    return topo;
+  }
+
+  /** Cartão de um espaço fora da edição: o resumo e o botão de desenhar (o desenho fica no planograma). */
+  function montarLeitura(card, ctx, col) {
+    const det = doEspaco(ctx.ciclo, ctx.planta.id, col.id);
+    const topo = cabecalho(card, ctx, col, det);
+    const b = botao(det ? 'Editar' : 'Desenhar', det ? '' : 'primario', () => {
+      editando = { chave: ctx.ciclo + '|' + ctx.planta.id + '|' + col.id, sujo: false };
+      app.abrirMovel(ctx.movel.id);
+    }, topo);
+    b.dataset.acao = 'editar-prateleiras';
+    n('p', det ? 'pr-meta' : 'pr-vazio', det ? (det.autor ? 'Atualizado por ' + det.autor + (det.data ? ' em ' + det.data : '') : 'Desenhado.') : 'Sem desenho nesta ER.', card);
+  }
+
+  /* ------------------------------- edição -------------------------------- */
+
+  /** Movimento sugerido para um quadrado novo da prateleira k: o da divisão do planograma (Etiqueta 1 em cima). */
+  function movimentoSugerido(ctx, col, k) {
+    const c = app.dividirPrateleiras(ctx.plano.n, col.etiquetas).find((x) => k >= x.de && k < x.ate);
+    return c && c.etiquetas[0] ? c.etiquetas[0].texto : '';
+  }
+
+  /** Cópia de trabalho das prateleiras (cada quadrado com um id da tela). */
+  let seq = 0;
+  const copiar = (prateleiras) => {
+    const r = {};
+    (prateleiras || []).forEach((p) => {
+      r[p.numero] = p.quadrados.map((q) => Object.assign({}, q, { id: ++seq, produtos: q.produtos.map((x) => Object.assign({}, x)) }));
+    });
+    return r;
+  };
+
+  function montarEdicao(card, ctx, col) {
+    card.classList.add('editando');
+    const det = doEspaco(ctx.ciclo, ctx.planta.id, col.id);
+    cabecalho(card, ctx, col, null);
+    const sujo = () => { editando.sujo = true; };
+    let trabalho = copiar(det ? det.prateleiras : []);
+    let selecionado = null; // { numero, id }
+    const doNumero = (numero) => trabalho[numero] || (trabalho[numero] = []);
+    const quadradoSel = () => selecionado && doNumero(selecionado.numero).find((q) => q.id === selecionado.id);
+
+    // Opções: onde vale e de onde começar.
+    const opcoes = n('div', 'pr-opcoes', null, card);
+    const lVale = n('label', 'pr-campo', 'Vale em', opcoes);
+    const vale = n('select', null, null, lVale);
+    vale.appendChild(new Option('Só na ' + ctx.planta.nome, ctx.planta.id));
+    vale.appendChild(new Option('Todas as ERs que têm este espaço', dados().config.plantaTodas));
+    vale.dataset.campo = 'vale';
+    const outras = todas().filter((g) => g.ciclo === ctx.ciclo && g.espaco === col.id && g.planta !== ctx.planta.id);
+    if (outras.length) {
+      const lCopiar = n('label', 'pr-campo', 'Copiar de', opcoes);
+      const sel = n('select', null, null, lCopiar);
+      sel.appendChild(new Option('—', ''));
+      outras.forEach((g) => sel.appendChild(new Option(nomeEr(g.planta), g.planta)));
+      sel.addEventListener('change', () => {
+        const g = outras.find((x) => x.planta === sel.value);
+        if (!g) return;
+        trabalho = copiar(g.prateleiras);
+        selecionado = null;
+        sujo();
+        redesenharTudo();
+      });
+    }
+    n('p', 'pr-ed-dica', 'Arraste numa prateleira para desenhar um quadrado (arrastando também para cima ou para baixo, ele ocupa só uma parte da altura). '
+      + 'Clique num quadrado para escolher o movimento e os produtos; arraste para mover e puxe as bordas para mudar o tamanho. Delete apaga o quadrado escolhido.', card);
+    if (!catalogo().length) {
+      n('p', 'pr-aviso', 'A aba Produtos da planilha está vazia: cadastre os produtos (SKU e nome) para escolher aqui.', card);
+    }
+
+    // Uma tela de desenho por prateleira.
+    const estante = n('div', 'pr-estante pr-edicao', null, card);
+    const telas = {};
+    for (let k = 0; k < ctx.plano.n; k++) {
+      const numero = k + 1;
+      const bloco = n('div', 'pr-ed-prateleira', null, estante);
+      const cab = n('div', 'pr-ed-cab', null, bloco);
+      n('strong', null, rotulo(ctx.plano, k), cab);
+      const lDiv = n('label', 'pr-ed-dividir', 'Dividir em', cab);
+      const dividir = n('select', null, null, lDiv);
+      dividir.appendChild(new Option('—', ''));
+      for (let i = 1; i <= 6; i++) dividir.appendChild(new Option(i === 1 ? '1 (inteira)' : String(i), String(i)));
+      dividir.title = 'Troca os quadrados da prateleira por quadrados iguais, de ponta a ponta';
+      dividir.addEventListener('change', () => {
+        const qtd = parseInt(dividir.value, 10);
+        dividir.value = '';
+        if (!qtd) return;
+        if (doNumero(numero).some((q) => q.produtos.length) && !window.confirm('Trocar os quadrados desta prateleira (e os produtos deles)?')) return;
+        const mov = movimentoSugerido(ctx, col, k);
+        const largura = Math.floor(100 / qtd);
+        trabalho[numero] = Array.from({ length: qtd }, (_, i) => ({
+          id: ++seq, x: i * largura, y: 0, w: i === qtd - 1 ? 100 - i * largura : largura, h: 100, movimento: mov, observacao: '', produtos: [],
+        }));
+        selecionado = { numero, id: trabalho[numero][0].id };
+        sujo();
+        redesenhar(numero);
+      });
+      botao('Limpar', 'fantasma', () => {
+        if (!doNumero(numero).length) return;
+        if (doNumero(numero).some((q) => q.produtos.length) && !window.confirm('Apagar os quadrados desta prateleira?')) return;
+        trabalho[numero] = [];
+        if (selecionado && selecionado.numero === numero) selecionado = null;
+        sujo();
+        redesenhar(numero);
+      }, cab);
+      const tela = n('div', 'pr-tela desenho', null, bloco);
+      tela.dataset.numero = String(numero);
+      tela.setAttribute('aria-label', 'Desenho da ' + rotulo(ctx.plano, k).toLowerCase());
+      telas[numero] = { bloco, tela };
+      ligarDesenho(tela, numero, k);
+    }
+    // Painel do quadrado escolhido: fica logo embaixo da prateleira dele.
+    const painel = n('div', 'pr-painel', null, null);
+
+    /** Desenho na prateleira: arrastar no fundo cria um quadrado (sem sobrepor os outros). */
+    function ligarDesenho(tela, numero, k) {
+      tela.addEventListener('pointerdown', (ev) => {
+        if (ev.target !== tela || ev.button !== 0) return;
+        ev.preventDefault();
+        const r = tela.getBoundingClientRect();
+        const pct = (e) => ({ x: limitar(((e.clientX - r.left) / r.width) * 100, 0, 100), y: limitar(((e.clientY - r.top) / r.height) * 100, 0, 100) });
+        const ini = pct(ev);
+        const fantasma = n('div', 'pr-quadrado fantasma', null, tela);
+        let atual = null;
+        const medir = (e) => {
+          const p = pct(e);
+          const x = arred(Math.min(ini.x, p.x), PASSO.x);
+          const w = arred(Math.max(ini.x, p.x), PASSO.x) - x;
+          const alto = Math.abs(p.y - ini.y) >= ALTURA_INTEIRA;
+          const y = alto ? arred(Math.min(ini.y, p.y), PASSO.y) : 0;
+          const h = alto ? arred(Math.max(ini.y, p.y), PASSO.y) - y : 100;
+          atual = { x, y, w, h };
+          posicionar(fantasma, atual);
+          fantasma.classList.toggle('invalido', doNumero(numero).some((q) => sobrepoe(q, atual)));
+        };
+        const mover = (e) => medir(e);
+        const soltar = (e) => {
+          tela.removeEventListener('pointermove', mover);
+          tela.removeEventListener('pointerup', soltar);
+          tela.removeEventListener('pointercancel', soltar);
+          medir(e);
+          fantasma.remove();
+          if (!atual || atual.w < limites().minimo || atual.h < limites().minimo) {
+            // Um clique no fundo só tira a escolha.
+            if (selecionado) { selecionado = null; redesenharTudo(); }
+            return;
+          }
+          if (doNumero(numero).some((q) => sobrepoe(q, atual))) { app.toast('O quadrado não pode ficar em cima de outro.', true); return; }
+          if (doNumero(numero).length >= limites().quadrados) { app.toast('Até ' + limites().quadrados + ' quadrados por prateleira.', true); return; }
+          const q = Object.assign({ id: ++seq, movimento: movimentoSugerido(ctx, col, k), observacao: '', produtos: [] }, atual);
+          doNumero(numero).push(q);
+          selecionado = { numero, id: q.id };
+          sujo();
+          redesenhar(numero);
+          const busca = painel.querySelector('.pr-busca');
+          if (busca) busca.focus();
+        };
+        tela.setPointerCapture(ev.pointerId);
+        tela.addEventListener('pointermove', mover);
+        tela.addEventListener('pointerup', soltar);
+        tela.addEventListener('pointercancel', soltar);
+        medir(ev);
+      });
+    }
+
+    /**
+     * Quadrado na tela de edição: clique escolhe; arrastar move; as bordas mudam o tamanho. A mudança que
+     * sobreporia outro quadrado não entra.
+     */
+    function ligarQuadrado(el, numero, q) {
+      el.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== 0) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        const tela = telas[numero].tela;
+        const r = tela.getBoundingClientRect();
+        const borda = ev.target.dataset.borda || '';
+        const ini = { cx: ev.clientX, cy: ev.clientY, x: q.x, y: q.y, w: q.w, h: q.h };
+        let mexeu = false;
+        const minimo = limites().minimo;
+        const mover = (e) => {
+          const dx = ((e.clientX - ini.cx) / r.width) * 100;
+          const dy = ((e.clientY - ini.cy) / r.height) * 100;
+          if (!mexeu && Math.abs(e.clientX - ini.cx) < 3 && Math.abs(e.clientY - ini.cy) < 3) return;
+          mexeu = true;
+          let c = { x: ini.x, y: ini.y, w: ini.w, h: ini.h };
+          if (!borda) {
+            c.x = limitar(arred(ini.x + dx, PASSO.x), 0, 100 - ini.w);
+            c.y = limitar(arred(ini.y + dy, PASSO.y), 0, 100 - ini.h);
+          } else {
+            if (borda.indexOf('e') >= 0) c.w = limitar(arred(ini.x + ini.w + dx, PASSO.x), ini.x + minimo, 100) - ini.x;
+            if (borda.indexOf('w') >= 0) { c.x = limitar(arred(ini.x + dx, PASSO.x), 0, ini.x + ini.w - minimo); c.w = ini.x + ini.w - c.x; }
+            if (borda.indexOf('s') >= 0) c.h = limitar(arred(ini.y + ini.h + dy, PASSO.y), ini.y + minimo, 100) - ini.y;
+            if (borda.indexOf('n') >= 0) { c.y = limitar(arred(ini.y + dy, PASSO.y), 0, ini.y + ini.h - minimo); c.h = ini.y + ini.h - c.y; }
+          }
+          c = { x: Math.round(c.x * 10) / 10, y: Math.round(c.y * 10) / 10, w: Math.round(c.w * 10) / 10, h: Math.round(c.h * 10) / 10 };
+          if (doNumero(numero).some((o) => o !== q && sobrepoe(o, c))) return;
+          Object.assign(q, c);
+          posicionar(el, q);
+        };
+        const soltar = () => {
+          el.removeEventListener('pointermove', mover);
+          el.removeEventListener('pointerup', soltar);
+          el.removeEventListener('pointercancel', soltar);
+          if (mexeu) sujo();
+          selecionado = { numero, id: q.id };
+          redesenharTudo();
+          card.focus({ preventScroll: true }); // para o Delete apagar o quadrado escolhido
+        };
+        el.setPointerCapture(ev.pointerId);
+        el.addEventListener('pointermove', mover);
+        el.addEventListener('pointerup', soltar);
+        el.addEventListener('pointercancel', soltar);
+      });
+    }
+
+    function redesenhar(numero) {
+      const { tela } = telas[numero];
+      tela.textContent = '';
+      const lista = doNumero(numero);
+      if (!lista.length) n('span', 'pr-tela-vazia', 'arraste aqui para desenhar um quadrado', tela);
+      lista.forEach((q) => {
+        const el = n('div', 'pr-quadrado editavel', null, tela);
+        el.dataset.quadrado = String(q.id);
+        if (selecionado && selecionado.numero === numero && selecionado.id === q.id) el.classList.add('escolhido');
+        posicionar(el, q);
+        conteudoQuadrado(el, col, q);
+        ['n', 's', 'e', 'w'].forEach((b) => { n('i', 'pr-borda ' + b, null, el).dataset.borda = b; });
+        ligarQuadrado(el, numero, q);
+      });
+      ajustarTextos(tela);
+      montarPainel();
+    }
+    function redesenharTudo() { Object.keys(telas).forEach((k) => redesenhar(Number(k))); }
+
+    /** Painel do quadrado escolhido: movimento, observação, produtos e a busca no catálogo. */
+    function montarPainel() {
+      const q = quadradoSel();
+      painel.textContent = '';
+      if (!q) { painel.remove(); return; }
+      const { bloco } = telas[selecionado.numero];
+      bloco.after(painel);
+      painel.style.setProperty('--cor', corDoMovimento(col, q.movimento));
+      const topo = n('div', 'pr-painel-topo', null, painel);
+      n('strong', null, 'Quadrado · ' + rotulo(ctx.plano, selecionado.numero - 1).toLowerCase(), topo);
+      n('span', 'pr-resumo', Math.round(q.w) + '% da largura' + (q.h < 100 ? ' · ' + Math.round(q.h) + '% da altura' : ''), topo);
+      botao('Apagar quadrado', 'fantasma perigo', apagarSelecionado, topo).dataset.acao = 'apagar-quadrado';
+
+      const campos = n('div', 'pr-painel-campos', null, painel);
+      const lMov = n('label', 'pr-campo', 'Movimento', campos);
+      const mov = n('select', 'pr-ed-mov', null, lMov);
+      mov.appendChild(new Option('— sem movimento', ''));
+      col.etiquetas.forEach((e) => mov.appendChild(new Option(e.texto, e.texto)));
+      if (q.movimento && !col.etiquetas.some((e) => e.texto === q.movimento)) {
+        mov.appendChild(new Option(q.movimento + ' (fora das etiquetas do espaço)', q.movimento));
+        mov.classList.add('fora');
+      }
+      mov.value = q.movimento;
+      mov.addEventListener('change', () => { q.movimento = mov.value; sujo(); redesenhar(selecionado.numero); });
+      const lObs = n('label', 'pr-campo', 'Observação (opcional)', campos);
+      const obs = n('input', null, null, lObs);
+      obs.type = 'text';
+      obs.maxLength = 500;
+      obs.value = q.observacao || '';
+      obs.addEventListener('input', () => { q.observacao = obs.value; sujo(); });
+
+      // Produtos do quadrado, da esquerda para a direita.
+      const lista = n('div', 'pr-painel-produtos', null, painel);
+      if (!q.produtos.length) n('p', 'pr-vazio', 'Nenhum produto: escolha na lista abaixo.', lista);
+      q.produtos.forEach((x, i) => {
+        const l = n('div', 'pr-ed-linha' + (x.foraDoCatalogo ? ' fora' : ''), null, lista);
+        const nome = n('span', 'pr-ed-nome', x.nome, l);
+        n('small', null, 'SKU ' + x.sku + (x.foraDoCatalogo ? ' · fora da aba Produtos' : ''), nome);
+        const fr = n('input', 'pr-ed-frentes', null, l);
+        fr.type = 'number';
+        fr.min = '1';
+        fr.max = String(limites().frentes);
+        fr.value = String(x.frentes || 1);
+        fr.title = 'Frentes (quantas unidades lado a lado)';
+        fr.setAttribute('aria-label', 'Frentes de ' + x.nome);
+        fr.addEventListener('change', () => {
+          x.frentes = limitar(parseInt(fr.value, 10) || 1, 1, limites().frentes);
+          fr.value = String(x.frentes);
+          sujo();
+          redesenhar(selecionado.numero);
+        });
+        const mover = (d) => {
+          const j = i + d;
+          if (j < 0 || j >= q.produtos.length) return;
+          q.produtos.splice(j, 0, q.produtos.splice(i, 1)[0]);
+          sujo();
+          redesenhar(selecionado.numero);
+        };
+        botao('↑', 'fantasma', () => mover(-1), l).title = 'Mais para a esquerda';
+        botao('↓', 'fantasma', () => mover(1), l).title = 'Mais para a direita';
+        botao('×', 'fantasma', () => { q.produtos.splice(i, 1); sujo(); redesenhar(selecionado.numero); }, l).title = 'Tirar o produto';
+      });
+
+      // Busca no catálogo (aba Produtos): por SKU, nome, marca, categoria ou movimento.
+      const escolha = n('div', 'pr-escolha', null, painel);
+      const barra = n('div', 'pr-escolha-barra', null, escolha);
+      const busca = n('input', 'pr-busca', null, barra);
+      busca.type = 'search';
+      busca.placeholder = 'Buscar produto por nome, SKU, marca ou categoria';
+      busca.setAttribute('aria-label', 'Buscar produto no catálogo');
+      const temDoMovimento = !!q.movimento && catalogo().some((p) => app.chaveMovimento(p.movimento) === app.chaveMovimento(q.movimento));
+      const lSo = n('label', 'opcao', null, barra);
+      const so = n('input', null, null, lSo);
+      so.type = 'checkbox';
+      so.checked = temDoMovimento;
+      so.disabled = !temDoMovimento;
+      n('span', null, 'Só do movimento ' + (q.movimento || ''), lSo);
+      const resultados = n('div', 'pr-resultados', null, escolha);
+      const filtrar = () => {
+        resultados.textContent = '';
+        const termos = simples(busca.value).split(/\s+/).filter(Boolean);
+        const achados = catalogo().filter((p) => {
+          if (so.checked && app.chaveMovimento(p.movimento) !== app.chaveMovimento(q.movimento)) return false;
+          const alvo = simples([p.sku, p.nome, p.marca, p.categoria, p.movimento].join(' '));
+          return termos.every((t) => alvo.indexOf(t) >= 0);
+        });
+        if (!achados.length) {
+          n('p', 'pr-vazio', catalogo().length ? 'Nenhum produto encontrado' + (so.checked ? ' no movimento ' + q.movimento + '.' : '.') : 'Catálogo vazio (aba Produtos).', resultados);
+          if (so.checked) botao('Buscar em todos os produtos', '', () => { so.checked = false; filtrar(); }, resultados);
+          return;
+        }
+        achados.slice(0, 60).forEach((p) => {
+          const b = n('button', 'pr-resultado', null, resultados);
+          b.type = 'button';
+          const cor = n('i', null, null, b);
+          cor.style.background = p.marca ? app.corDaMarca(p.marca, 'etiqueta') : 'transparent';
+          n('span', 'pr-r-nome', p.nome, b);
+          n('small', null, ['SKU ' + p.sku, p.categoria, p.movimento].filter(Boolean).join(' · '), b);
+          const ja = q.produtos.find((x) => x.sku === p.sku);
+          if (ja) b.classList.add('ja');
+          b.title = ja ? 'Já está no quadrado: clique para somar uma frente' : 'Pôr no quadrado';
+          b.addEventListener('click', () => {
+            if (ja) ja.frentes = Math.min(limites().frentes, (ja.frentes || 1) + 1);
+            else if (q.produtos.length >= limites().produtos) { app.toast('Até ' + limites().produtos + ' produtos por quadrado.', true); return; }
+            else q.produtos.push({ sku: p.sku, nome: p.nome, frentes: 1 });
+            sujo();
+            const termo = busca.value;
+            redesenhar(selecionado.numero);
+            const nova = painel.querySelector('.pr-busca');
+            nova.value = termo;
+            nova.dispatchEvent(new Event('input'));
+            nova.focus();
+          });
+        });
+        if (achados.length > 60) n('p', 'pr-vazio', 'Mais ' + (achados.length - 60) + ' produtos: refine a busca.', resultados);
+      };
+      busca.addEventListener('input', filtrar);
+      so.addEventListener('change', filtrar);
+      filtrar();
+    }
+
+    function apagarSelecionado() {
+      const q = quadradoSel();
+      if (!q) return;
+      const numero = selecionado.numero;
+      trabalho[numero] = doNumero(numero).filter((x) => x !== q);
+      selecionado = null;
+      sujo();
+      redesenhar(numero);
+    }
+    // Delete / Backspace (fora dos campos) apaga o quadrado escolhido; Esc só tira a escolha.
+    card.tabIndex = -1;
+    card.addEventListener('keydown', (ev) => {
+      if (/^(INPUT|SELECT|TEXTAREA)$/.test(ev.target.tagName)) return;
+      if ((ev.key === 'Delete' || ev.key === 'Backspace') && quadradoSel()) { ev.preventDefault(); apagarSelecionado(); }
+    });
+
+    /** Prateleiras para o servidor (as sem quadrado ficam de fora). */
+    const ler = () => Object.keys(trabalho).map(Number).sort((a, b) => a - b)
+      .filter((numero) => trabalho[numero].length)
+      .map((numero) => ({
+        numero,
+        quadrados: trabalho[numero].map((q) => ({
+          x: q.x, y: q.y, w: q.w, h: q.h, movimento: q.movimento, observacao: (q.observacao || '').trim(),
+          produtos: q.produtos.map((x) => ({ sku: x.sku, frentes: x.frentes })),
+        })),
+      }));
+
+    const pe = n('div', 'pr-ed-acoes', null, card);
+    const salvar = botao('Salvar prateleiras', 'primario', async () => {
+      const prateleiras = ler();
+      await gravar(ctx, col, vale.value, prateleiras, prateleiras.length ? 'Prateleiras salvas' : 'Prateleiras apagadas', [salvar]);
+    }, pe);
+    salvar.dataset.acao = 'salvar-prateleiras';
+    botao('Cancelar', 'fantasma', () => {
+      if (editando.sujo && !window.confirm('Descartar as mudanças nas prateleiras?')) return;
+      editando = null;
+      app.abrirMovel(ctx.movel.id);
+    }, pe);
+    if (det) {
+      botao('Apagar o desenho', 'fantasma perigo', async () => {
+        const onde = vale.value === dados().config.plantaTodas ? 'em todas as ERs' : 'na ' + ctx.planta.nome;
+        if (!window.confirm('Apagar os quadrados e os produtos das prateleiras deste espaço ' + onde + '?')) return;
+        await gravar(ctx, col, vale.value, [], 'Prateleiras apagadas', [salvar]);
+      }, pe);
+    }
+    redesenharTudo();
+  }
+
+  async function gravar(ctx, col, planta, prateleiras, mensagem, botoes) {
+    botoes.forEach((b) => { b.disabled = true; });
+    try {
+      dados().prateleiras = await app.chamar('salvarPrateleiras', app.acesso(), {
+        acao: 'salvar', ciclo: ctx.ciclo, planta, espaco: col.id, prateleiras,
+      });
+      editando = null;
+      app.toast(mensagem + (planta === dados().config.plantaTodas ? ' em todas as ERs que têm o espaço.' : '.'));
+      app.abrirMovel(ctx.movel.id);
+    } catch (e) {
+      app.erro(e);
+      botoes.forEach((b) => { b.disabled = false; });
+    }
+  }
+
+  /** Fechar a tela do móvel com mudanças não salvas pergunta antes. @return {boolean} pode fechar */
+  function podeFechar() {
+    if (!editando) return true;
+    if (editando.sujo && !window.confirm('As mudanças nas prateleiras não foram salvas. Fechar mesmo assim?')) return false;
+    editando = null;
+    return true;
+  }
+
+  function iniciar(contexto) {
+    app = contexto;
+    const dlg = $('dlgMovel');
+    // Esc e o botão Fechar: com a edição aberta e mudanças, pergunta antes.
+    dlg.addEventListener('cancel', (e) => { if (!podeFechar()) e.preventDefault(); });
+    dlg.querySelector('form').addEventListener('submit', (e) => { if (!podeFechar()) e.preventDefault(); });
+    window.addEventListener('beforeunload', (e) => {
+      if (editando && editando.sujo) { e.preventDefault(); e.returnValue = ''; }
+    });
+  }
+
+  return { iniciar, doEspaco, montarSecao, desenharQuadrados, ajustarTextos, podeFechar };
+})();
+</script>
+
+    <script>
+/**
+ * ============================================================================
  *  SLIDE DA ESTRATÉGIA (PNG): o espaço da ER por marca, movimento e classificação, em gráficos, 16:9
  * ============================================================================
  *  Estrategia.desenhar(svg, dados, { recorte }) monta, num SVG de 1920×1080, um compilado do painel:
@@ -8493,14 +9233,20 @@ const App = (() => {
     return Array.from({ length: n }, (_, j) => ({ de: j, ate: j + 1, etiquetas: etiquetas.slice(Math.floor((j * k) / n), Math.floor(((j + 1) * k) / n)) }));
   }
 
+  /** Texto de comparação de um movimento (sem acento, maiúsculas e espaços simples). */
+  const chaveMovimento = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+
   /**
    * Colunas do planograma do móvel (mesmas regras da planta): uma por espaço da gôndola e por frente
    * da mesa, cada uma com as etiquetas da linha do próprio espaço; uma por bloco do balcão (Etiqueta N
    * da linha dele); o totem tem uma coluna com um painel por linha; o móvel make, as testeiras por
    * cima e o corpo sem marca; os demais, uma coluna só com a linha do móvel.
-   * @return {{n, rotulos, colunas: Array<{nome, peso, marca, celulas}>, testeiras}|null}
+   * Cada coluna que leva produtos tem o id do espaço (o da aba Prateleiras) e as etiquetas dele; quando as
+   * prateleiras dela foram desenhadas na construção (detalhe(id)), cada prateleira mostra os quadrados desenhados,
+   * com os produtos (celula.quadrados), no lugar da divisão automática pelas etiquetas.
+   * @return {{n, rotulos, colunas: Array<{id, nome, peso, marca, etiquetas, celulas, desenhada}>, testeiras}|null}
    */
-  function planogramaDe(m, mov, linha, temLinha) {
+  function planogramaDe(m, mov, linha, temLinha, detalhe) {
     const config = estado.dados.config || {};
     const limBloco = (config.etiquetasPorBloco || {})[m.tipo] || 1;
     /** Linha própria do espaço (a metade sem linha usa a do meio). */
@@ -8511,10 +9257,18 @@ const App = (() => {
     };
     /** Etiqueta pronta para o planograma: texto e marca (a dela ou a da linha). */
     const etq = (e, i) => ({ texto: e.texto, marca: e.marca || (i && i.marca !== 'NEUTRO' ? i.marca : '') });
-    const coluna = (nome, peso, n, i, etiquetas) => ({
-      nome, peso, marca: i ? i.marca : '',
-      celulas: dividirPrateleiras(n, etiquetas.map((e) => etq(e, i))),
-    });
+    const coluna = (id, nome, peso, n, i, etiquetas, outras) => {
+      const lista = etiquetas.map((e) => etq(e, i));
+      const det = id && detalhe ? detalhe(id) : null;
+      const desenhada = !!(det && det.prateleiras.some((p) => p.quadrados.length));
+      const quadradosDe = (k) => ((det.prateleiras.find((p) => p.numero === k + 1) || {}).quadrados || []);
+      return {
+        id, nome, peso, marca: i ? i.marca : '', etiquetas: lista.length ? lista : outras || [], desenhada,
+        celulas: desenhada
+          ? Array.from({ length: n }, (_, k) => ({ de: k, ate: k + 1, etiquetas: [], quadrados: quadradosDe(k) }))
+          : dividirPrateleiras(n, lista),
+      };
+    };
     const doEspaco = (e) => {
       const p = propriaDe(e);
       return { p, etiquetas: p ? p.etiquetas.slice(0, limBloco) : [] };
@@ -8525,23 +9279,23 @@ const App = (() => {
     if (m.tipo === 'GONDOLA') {
       const colunas = Render.caixasGondola(mov).map((b) => {
         const { p, etiquetas } = doEspaco(b.espaco);
-        return coluna(b.espaco.nome, Math.max(b.w, b.d), n, p, etiquetas);
+        return coluna(m.id + '/' + b.espaco.id, b.espaco.nome, Math.max(b.w, b.d), n, p, etiquetas);
       });
       return { n, rotulos, colunas, testeiras: null };
     }
     if (m.tipo === 'TOTEM') {
-      // Uma coluna, um painel por linha (1 = o de cima), cada um com a linha do próprio painel.
+      // Uma coluna, um painel por linha (1 = o de cima), cada um com a linha do próprio painel. Painel não leva produto.
       const celulas = Render.espacos(m).map((e, k) => {
         const { p, etiquetas } = doEspaco(e);
         return { de: k, ate: k + 1, marca: p ? p.marca : '', etiquetas: etiquetas.map((x) => etq(x, p)) };
       });
-      return { n: 3, rotulos: ['Painel 1', 'Painel 2', 'Painel 3'], colunas: [{ nome: 'Totem', peso: 1, marca: '', celulas }], testeiras: null };
+      return { n: 3, rotulos: ['Painel 1', 'Painel 2', 'Painel 3'], colunas: [{ id: null, nome: 'Totem', peso: 1, marca: '', etiquetas: [], celulas }], testeiras: null };
     }
     if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
       // O verso não é nicho: fica só na lista de espaços, abaixo do planograma.
       const colunas = Render.espacos(m).filter((e) => !e.vm).map((e) => {
         const { p, etiquetas } = doEspaco(e);
-        return coluna(e.nome, 1, 1, p, etiquetas);
+        return coluna(m.id + '/' + e.id, e.nome, 1, 1, p, etiquetas);
       });
       return { n: 1, rotulos: ['Nicho'], colunas, testeiras: null };
     }
@@ -8550,11 +9304,13 @@ const App = (() => {
         const p = propriaDe(e);
         return { nome: e.nome, marca: p ? p.marca : '', etiquetas: p ? p.etiquetas.slice(0, 1).map((x) => etq(x, p)) : [] };
       });
-      return { n, rotulos, colunas: [coluna('Prateleiras', 1, n, null, [])], testeiras };
+      // As prateleiras do corpo não têm linha: os movimentos delas são os das testeiras.
+      const dasTesteiras = [].concat(...testeiras.map((t) => t.etiquetas));
+      return { n, rotulos, colunas: [coluna(m.id, 'Prateleiras', 1, n, null, [], dasTesteiras)], testeiras };
     }
     const geral = linha(m.id);
     const lim = (config.etiquetasPorTipo || {})[m.tipo];
-    return { n, rotulos, colunas: [coluna('Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };
+    return { n, rotulos, colunas: [coluna(m.tipo === 'EXTRA' ? null : m.id, 'Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };
   }
 
   /** Seção "Planograma" da tela do móvel: as prateleiras de cada espaço, com a cor e as etiquetas de cada uma. */
@@ -8564,9 +9320,11 @@ const App = (() => {
     const fundo = (marca) => (marca && marca !== 'NEUTRO' ? corDaMarca(marca, 'etiqueta') : '');
     const caixa = novo('div', 'pg', null, sec);
     const grade = novo('div', 'pg-grade', null, caixa);
-    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(120px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
+    // Espaços desenhados na construção: colunas mais largas e prateleiras mais altas, para caberem os produtos.
+    const desenho = plano.colunas.some((c) => c.desenhada);
+    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(' + (c.desenhada ? 240 : 120) + 'px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
     const linhaTopo = plano.testeiras ? 1 : 0;
-    grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(58px, auto)) auto';
+    grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(' + (desenho ? 112 : 58) + 'px, auto)) auto';
     const pos = (n, col, row, rowFim) => {
       n.style.gridColumn = String(col);
       n.style.gridRow = row + (rowFim ? ' / ' + rowFim : '');
@@ -8597,6 +9355,15 @@ const App = (() => {
     plano.colunas.forEach((c, ci) => {
       const col = ci + 2;
       c.celulas.forEach((cel) => {
+        if (cel.quadrados) {
+          // Prateleira desenhada: os quadrados no lugar e no tamanho definidos, com os produtos (Prateleira.html).
+          const n = pos(novo('div', 'pg-celula pg-desenhada neutra', null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);
+          n.style.setProperty('--cor', '#F4F2EF');
+          n.dataset.espaco = c.id;
+          n.dataset.numero = String(cel.de + 1);
+          Prateleira.desenharQuadrados(novo('div', 'pg-quadrados', null, n), c, cel.quadrados);
+          return;
+        }
         const n = pos(novo('div', 'pg-celula', null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);
         const cor = fundo(cel.etiquetas.length ? cel.etiquetas[0].marca : cel.marca || c.marca);
         n.style.setProperty('--cor', cor || '#ECEAE6');
@@ -8607,6 +9374,11 @@ const App = (() => {
       for (let k = 0; k < plano.n; k++) pos(novo('i', 'pg-tabua', null, grade), col, linhaTopo + k + 1);
       pos(novo('span', 'pg-nome', c.nome, grade), col, linhaTopo + plano.n + 1);
     });
+    if (desenho) {
+      Prateleira.ajustarTextos(grade);
+      novo('p', 'pg-nota', 'Nos espaços com as prateleiras definidas na construção, cada prateleira mostra os quadrados, cada um com o movimento e os produtos (×frentes); passe o mouse para ver os SKUs.'
+        + (plano.colunas.every((c) => !c.id || c.desenhada) ? '' : ' Nos outros espaços, as etiquetas dividem as prateleiras automaticamente.'), sec);
+    }
     novo('p', 'pg-nota', plano.rotulos[0] === 'Painel 1'
       ? 'Painel 1 é o de cima. Cada painel tem a cor e a etiqueta da própria linha (ou da Etiqueta N do totem).'
       : plano.n > 1
@@ -8699,8 +9471,11 @@ const App = (() => {
       const config = estado.dados.config || {};
       // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
       const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
-      const plano = planogramaDe(m, mov, linha, temLinha);
+      const detalhe = (id) => Prateleira.doEspaco(ciclo, planta.id, id);
+      const plano = planogramaDe(m, mov, linha, temLinha, detalhe);
       if (plano) blocoPlanograma(corpo, plano);
+      // O desenho de cada prateleira, com os produtos (e, para o construtor, a edição).
+      if (plano) Prateleira.montarSecao(corpo, { ciclo, planta, movel: m, plano });
       // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.
       blocosDoMovel(planta, m, ciclo).forEach((b) => blocoEstrategia(corpo, b.titulo, b.info, {
         vazio: b.espaco ? 'Sem linha neste ciclo: o espaço fica branco (neutro).' : 'Sem linha neste ciclo: o móvel fica branco (neutro).',
@@ -8787,6 +9562,7 @@ const App = (() => {
     if (r.paineis) partes.push(r.paineis + ' linha(s) de painéis');
     if (r.tipos) partes.push(r.tipos + ' linha(s) de tipos de movimento');
     if (r.layout) partes.push(r.layout + ' linha(s) de layout');
+    if (r.produtos) partes.push(r.produtos + ' produto(s) no catálogo');
     $('resTexto').textContent = (partes.join(' e ') || 'Nenhuma linha') + ' gravada(s)' +
       (r.ciclos.length ? ' — ciclo(s): ' + r.ciclos.join(', ') + '.' : '.') +
       (r.avisos.length ? ' Confira os avisos:' : '');
@@ -9483,6 +10259,11 @@ const App = (() => {
     estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta, abrirMovel, nomeDaMarca, corDaMarca, colorirSelectMarca,
     acesso: () => Validacao.acesso(),
     movimentoDaPlanilha,
+  });
+  Prateleira.iniciar({
+    estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,
+    acesso: () => Validacao.acesso(),
+    rascunhos: () => Rascunho.lista(),
   });
   // Na primeira visita, depois de carregar, oferece o tutorial guiado.
   // O link (#ciclo=…&er=…) escolhe ciclo, ER, visão e filtros; sem link, abre como sempre.

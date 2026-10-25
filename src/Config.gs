@@ -21,6 +21,10 @@ const CONFIG = {
     R_TIPOS: 'Rascunho Tipos',
     // Itens do ciclo seguinte adiantados para o ciclo atual (Antecipacoes.gs).
     ANTECIPACOES: 'Antecipações',
+    // Produtos de cada prateleira de cada espaço (Prateleiras.gs).
+    PRATELEIRAS: 'Prateleiras',
+    // Catálogo de produtos que vão nos quadrados das prateleiras (SKU, nome, marca, categoria, movimento).
+    PRODUTOS: 'Produtos',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -76,6 +80,19 @@ const TIPOS_SEM_ETIQUETA = ['CAIXA'];
  * mesmas etiquetas (texto e cor) viram uma pilha só.
  */
 const ETIQUETAS_POR_BLOCO = { GONDOLA: 4, MESA: 4, MESA_3: 4 };
+
+/**
+ * Quantas prateleiras (níveis) cada tipo de móvel tem, de cima para baixo; tipos que não aparecem aqui
+ * têm uma (o nicho de cada frente da mesa, o PDV…). Vale para as prateleiras com produtos (Prateleiras.gs).
+ * (A página tem uma cópia desta tabela em Render.PRATELEIRAS, que o desenho usa.)
+ */
+const PRATELEIRAS_POR_TIPO = { GONDOLA: 4, PIRAMIDE: 4, FILA: 3, GONDOLA_PAREDE: 5, VITRINE_L: 2, ILHA_OUI: 3, MAKE: 5 };
+
+/**
+ * Limites das prateleiras: quadrados por prateleira, produtos por quadrado, frentes de cada produto e o
+ * menor lado de um quadrado (em % da prateleira).
+ */
+const LIMITES_PRATELEIRA = { quadrados: 30, produtos: 20, frentes: 99, minimo: 3 };
 
 /**
  * Marcas e cores.

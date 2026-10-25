@@ -55,7 +55,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   const { ctx, run } = carregarGas(f.globais);
 
   const conf = run('configurarPlanilha()');
-  assert.deepEqual(Array.from(conf.criadas), ['Layout', 'Movimentos', 'Painéis', 'Tipos de movimento']);
+  assert.deepEqual(Array.from(conf.criadas), ['Layout', 'Movimentos', 'Painéis', 'Tipos de movimento', 'Produtos']);
   assert.ok(f.planilha.getSheetByName('Página1'), 'aba do usuário é mantida');
   assert.equal(f.planilha.getSheetByName('Movimentos')._aba.congeladas, 3);
   assert.equal(run('configurarPlanilha()').criadas.length, 0, 'não sobrescreve abas existentes');
@@ -138,7 +138,7 @@ test('modo standalone cria a planilha e guarda o ID', () => {
   assert.equal(run('getDados()').precisaConfigurar, true);
   run('configurarPlanilha()');
   assert.equal(f.propriedades.SPREADSHEET_ID, 'TESTE');
-  assert.deepEqual(f.planilha.getSheets().map((s) => s.getName()), ['Layout', 'Movimentos', 'Painéis', 'Tipos de movimento']);
+  assert.deepEqual(f.planilha.getSheets().map((s) => s.getName()), ['Layout', 'Movimentos', 'Painéis', 'Tipos de movimento', 'Produtos']);
   assert.equal(run('getDados()').plantas.length, 4);
 });
 
@@ -664,6 +664,110 @@ test('antecipação: item do próximo ciclo num espaço do ciclo atual, a partir
   assert.throws(() => salvar(C, { acao: 'excluir', id: 'X' }), /não encontrada/);
   l = salvar(C, { acao: 'excluir', id });
   assert.deepEqual(l.map((a) => a.data), ['2026-10-18']);
+});
+
+test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba Produtos', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  const salvar = (quem, pedido) => run(`salvarPrateleiras(${quem}, ${JSON.stringify(pedido)})`);
+  let d = run('getDados()');
+  assert.deepEqual(d.prateleiras, []);
+  // O catálogo vem da aba Produtos (criada com os produtos de exemplo).
+  assert.ok(d.produtos.length >= 10);
+  assert.deepEqual(Object.keys(d.produtos[0]), ['sku', 'nome', 'marca', 'categoria', 'movimento']);
+  assert.ok(run(`lerAba_(planilha_(), 'Produtos', true)`)[0].includes('SKU'));
+
+  const prateleiras = [
+    { numero: 1, quadrados: [
+      { x: 0, y: 0, w: 60, h: 100, movimento: 'LÇTO EGEO', observacao: 'altura dos olhos', produtos: [{ sku: '48211', frentes: 3 }, { sku: ' 48212 ', frentes: '2' }] },
+      { x: 60, y: 0, w: 40, h: 50, movimento: 'BOTIPROMO', produtos: [] },
+      { x: 60, y: 50, w: 40, h: 50, movimento: 'BOTIPROMO', produtos: [{ sku: '50110' }] },
+    ] },
+    { numero: 4, quadrados: [{ x: 10, y: 0, w: 30, h: 100, produtos: [{ sku: '90001', frentes: 0 }] }] },
+  ];
+  const base = { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'Gondola 1 / ponta a', prateleiras };
+  assert.throws(() => salvar(V, base), /Só o construtor/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { ciclo: 'C99' })), /não foi encontrado/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { espaco: 'GONDOLA 1' })), /Escolha o espaço/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { espaco: 'TOTEM 1/PAINEL-1' })), /não leva produtos/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { espaco: 'MESA DESTAQUE 1/VERSO' })), /não tem prateleiras/);
+  assert.throws(() => salvar(C, Object.assign({}, base, { prateleiras: [{ numero: 5, quadrados: [] }] })), /vai de 1 a 4/);
+  const comQuadrados = (q) => Object.assign({}, base, { prateleiras: [{ numero: 1, quadrados: q }] });
+  assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 50, h: 100 }, { x: 40, y: 0, w: 30, h: 100 }])), /um em cima do outro/);
+  assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 1, h: 100 }])), /pequeno demais/);
+  assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 50, h: 100, produtos: [{ sku: 'NAO-EXISTE' }] }])), /fora da aba Produtos: SKU "NAO-EXISTE"/);
+
+  let l = salvar(C, base);
+  assert.equal(l.length, 1);
+  assert.deepEqual([l[0].ciclo, l[0].planta, l[0].espaco, l[0].autor], ['Ciclo exemplo', '02', 'GONDOLA 1/PONTA-A', 'Bia']);
+  const p1 = l[0].prateleiras[0];
+  assert.equal(p1.movimento, 'LÇTO EGEO', 'o movimento da prateleira é o do maior quadrado');
+  assert.deepEqual(p1.quadrados.map((q) => [q.x, q.y, q.w, q.h, q.movimento, q.produtos.length]),
+    [[0, 0, 60, 100, 'LÇTO EGEO', 2], [60, 0, 40, 50, 'BOTIPROMO', 0], [60, 50, 40, 50, 'BOTIPROMO', 1]]);
+  assert.deepEqual(p1.quadrados[0].produtos.map((x) => [x.sku, x.frentes, x.foraDoCatalogo]), [['48211', 3, false], ['48212', 2, false]]);
+  assert.match(p1.quadrados[0].produtos[0].nome, /Egeo Dolce/, 'o nome vem do catálogo');
+  assert.equal(p1.quadrados[0].observacao, 'altura dos olhos');
+  assert.equal(l[0].prateleiras[1].quadrados[0].produtos[0].frentes, 1, 'frentes vazias ou inválidas = 1');
+  const aba = run(`lerAba_(planilha_(), 'Prateleiras', true)`);
+  assert.deepEqual(aba[0].slice(0, 13), ['Ciclo', 'Planta', 'ID Móvel', 'Prateleira', 'Quadrado', 'X (%)', 'Largura (%)', 'Y (%)', 'Altura (%)', 'Movimento (etiqueta)', 'SKU', 'Produto', 'Frentes']);
+  assert.equal(aba.length, 1 + 5, 'uma linha por produto e uma pelo quadrado sem produto');
+
+  // Quem tira um produto da aba Produtos continua vendo o quadrado, com o produto marcado.
+  run(`escreverAba_(planilha_(), 'Produtos', colunasProdutos_(), [['SKU', 'Produto'], ['48212', 'Egeo Bomb']])`);
+  d = run('getDados()');
+  const q0 = d.prateleiras[0].prateleiras[0].quadrados[0];
+  assert.deepEqual(q0.produtos.map((x) => [x.sku, x.foraDoCatalogo]), [['48211', true], ['48212', false]]);
+  run(`escreverAba_(planilha_(), 'Produtos', colunasProdutos_(), valoresProdutosExemplo_())`);
+
+  // Móveis de um espaço só usam o ID do móvel; o móvel make, as prateleiras do corpo; a mesa, o nicho de cada frente.
+  salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'MOVEL MAKE 1', prateleiras: [{ numero: 5, quadrados: [{ x: 0, y: 0, w: 100, h: 100, produtos: [{ sku: '61030' }] }] }] });
+  assert.throws(() => salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'MESA DESTAQUE 1/FRENTE-1', prateleiras: [{ numero: 2, quadrados: [] }] }), /vai de 1 a 1/);
+  // Todas as ERs: cada ER que tem o espaço recebe as mesmas prateleiras.
+  const umQuadrado = [{ numero: 2, quadrados: [{ x: 0, y: 0, w: 100, h: 100, produtos: [{ sku: '50111' }] }] }];
+  l = salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'TODAS', espaco: 'PIRAMIDE 1', prateleiras: umQuadrado });
+  assert.deepEqual(l.filter((g) => g.espaco === 'PIRAMIDE 1').map((g) => g.planta), ['01', '02', '03', '04']);
+  // Salvar de novo troca as prateleiras do espaço (só nessa ER); a lista vazia apaga.
+  l = salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1', prateleiras: [] });
+  assert.deepEqual(l.filter((g) => g.espaco === 'PIRAMIDE 1').map((g) => g.planta), ['02', '03', '04']);
+  assert.equal(run('getDados()').prateleiras.length, 5);
+
+  // Ciclo em construção: copiar "tudo" leva as prateleiras; excluir apaga as do ciclo.
+  const rascunho = (pedido) => run(`salvarRascunho(${C}, ${JSON.stringify(pedido)})`);
+  rascunho({ acao: 'criar', ciclo: 'C40', origem: 'Ciclo exemplo' });
+  d = run('getDados()');
+  assert.equal(d.prateleiras.filter((g) => g.ciclo === 'C40').length, 5, 'a cópia leva as prateleiras');
+  salvar(C, Object.assign({}, base, { ciclo: 'C40', prateleiras: umQuadrado }));
+  d = run('getDados()');
+  assert.deepEqual(d.prateleiras.find((g) => g.ciclo === 'C40' && g.espaco === 'GONDOLA 1/PONTA-A').prateleiras.map((p) => p.numero), [2]);
+  assert.deepEqual(d.prateleiras.find((g) => g.ciclo === 'Ciclo exemplo' && g.espaco === 'GONDOLA 1/PONTA-A').prateleiras.map((p) => p.numero), [1, 4], 'o ciclo de origem não muda');
+  rascunho({ acao: 'excluir', ciclo: 'C40' });
+  assert.ok(!run('getDados()').prateleiras.some((g) => g.ciclo === 'C40'), 'excluir o ciclo em construção apaga as prateleiras dele');
+});
+
+test('produtos: a aba Produtos da planilha importada substitui o catálogo', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  const r = run(`importarPlanilha({ produtos: [['SKU', 'Nome', 'Marca', 'Categoria'], ['A1', 'Batom', 'qdb', 'Make'], ['', 'sem sku'], ['A2', 'Base', 'EUD', '']] })`);
+  assert.equal(r.produtos, 2);
+  assert.deepEqual(run('getDados()').produtos.map((p) => [p.sku, p.nome, p.marca]), [['A2', 'Base', 'EUD'], ['A1', 'Batom', 'QDB']]);
+});
+
+test('prateleiras: a cópia "só os fixos" leva só as prateleiras dos espaços fixos', () => {
+  const { run } = carregarGas();
+  const prat = [
+    { ciclo: 'C1', planta: 'ER P', espaco: 'GONDOLA 1/MEIO-A-1', prateleira: 1, produto: 'A' },
+    { ciclo: 'C1', planta: 'ER M', espaco: 'GONDOLA 1/PONTA-A', prateleira: 1, produto: 'B' },
+    { ciclo: 'C1', planta: 'ER P', espaco: 'PIRAMIDE 1', prateleira: 1, produto: 'C' },
+    { ciclo: 'C2', planta: 'ER P', espaco: 'PIRAMIDE 2', prateleira: 1, produto: 'D' },
+  ];
+  const fixos = [{ planta: 'ER P', movel: 'GONDOLA 1/MEIO-A' }, { planta: 'ER G', movel: 'GONDOLA 1/PONTA-A' }];
+  const r = run(`prateleirasParaCopia_(${JSON.stringify(prat)}, 'C1', 'C9', ${JSON.stringify(fixos)})`);
+  assert.deepEqual(r.map((o) => [o.ciclo, o.produto]), [['C9', 'A']], 'a metade do meio fixo vai; a ponta fixa só a partir da ER G não vale na ER M');
+  assert.equal(run(`prateleirasParaCopia_(${JSON.stringify(prat)}, 'C1', 'C9', null)`).length, 3);
 });
 
 test('observação da etiqueta depois do "|": aparece na etiqueta, mas o movimento é o que vem antes', () => {

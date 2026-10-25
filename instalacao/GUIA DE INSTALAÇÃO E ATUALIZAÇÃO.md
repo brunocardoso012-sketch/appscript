@@ -37,6 +37,7 @@ Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (pas
 - **Ordem das marcas:** em todas as listas do app (legenda, filtros, selects, Analytics, PNG), as marcas seguem a ordem **BOT | EUD | QDB | OUI | MM**.
 - **Visualizador sem a comparação de ciclos:** o seletor *Comparar com* fica só no app completo.
 - **Antecipações:** quando um item do próximo ciclo precisa entrar antes, quem entrou na validação cria uma *antecipação* (seção *Antecipações* do painel da validação): escolhe o espaço (na lista ou clicando na planta), o movimento, a marca, se ele substitui o espaço ou soma às etiquetas, e a data em que entra. A planta mostra o item no espaço com o símbolo ⏩ para todo mundo, e a data aparece na tela do móvel e em *Comunicações ER*. As antecipações ficam numa aba nova, *Antecipações*, criada sozinha na primeira vez; as abas *Movimentos* e *Painéis* não mudam.
+- **Prateleiras (o desenho de cada prateleira):** na tela do móvel, o *Planograma · como as prateleiras estão divididas* mostra cada prateleira com os quadrados desenhados e os produtos de cada um. Só com o login da *Construção* aparece a seção *Construção das prateleiras*: o construtor clica em *Desenhar* no espaço, arrasta na prateleira para criar os quadrados (move e muda o tamanho arrastando) e, em cada quadrado, escolhe o movimento e os produtos. Os produtos vêm de uma aba nova, **Produtos** (SKU, Produto, Marca, Categoria e Movimento): crie a aba com essas colunas e cole a lista de produtos (ou use *Configurar planilha*, que cria a aba com exemplos). O desenho fica em outra aba nova, *Prateleiras*, criada sozinha na primeira vez (uma linha por produto de cada quadrado).
 
 ---
 
@@ -63,7 +64,7 @@ Se algo der errado, a cópia tem tudo como estava antes.
 
 ## Parte A · Atualizar o **visualizador**
 
-O visualizador lê a planilha e grava só os comentários da validação (aba *Comentários*), as antecipações (aba *Antecipações*) e os ciclos montados no app (abas *Rascunho…*; quando o validador aprova, o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*). Ao atualizar, nada da planilha muda, e as posições das etiquetas que você já salvou também ficam.
+O visualizador lê a planilha e grava só os comentários da validação (aba *Comentários*), as antecipações (aba *Antecipações*), o desenho das prateleiras (aba *Prateleiras*, com os produtos da aba *Produtos*) e os ciclos montados no app (abas *Rascunho…*; quando o validador aprova, o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*). Ao atualizar, nada da planilha muda, e as posições das etiquetas que você já salvou também ficam.
 
 ### A1. Guarde o link da planilha, se ele estiver no código
 
@@ -220,6 +221,7 @@ Abra o link do app e confira:
 - [ ] As posições de etiquetas que você já tinha salvado continuam no lugar.
 - [ ] Entre na *Construção* (senha `construcao_exposicao`): o painel mostra **Ciclos em construção** com o botão *Novo ciclo*. Se quiser testar, crie um ciclo de teste, mude um espaço e depois clique em *Excluir* na faixa do ciclo.
 - [ ] Com um ciclo publicado na tela, a seção **Antecipações** aparece no mesmo painel. Se quiser testar, crie uma antecipação num espaço (o espaço ganha o ⏩) e depois clique em *Excluir*.
+- [ ] Com a aba **Produtos** preenchida, ainda na *Construção*, clique numa gôndola: a tela do móvel tem a seção **Construção das prateleiras**, com o botão *Desenhar* em cada espaço. Se quiser testar, arraste numa prateleira, escolha um produto e salve (o desenho aparece no planograma, no alto); depois use *Apagar o desenho*.
 
 Se tudo estiver certo, avise os usuários: o link é o mesmo.
 

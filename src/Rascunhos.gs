@@ -50,6 +50,8 @@ function abasRascunho_() {
     { campo: 'paineis', aba: CONFIG.ABAS.PAINEIS, colunas: colunasPaineis_(), publicada: true },
     { campo: 'tipos', aba: CONFIG.ABAS.TIPOS, colunas: colunasTipos_(), publicada: true },
     { campo: 'comentarios', aba: CONFIG.ABAS.COMENTARIOS, colunas: colunasComentarios_() },
+    // As prateleiras são gravadas por Prateleiras.gs; aqui só são copiadas (criar) e apagadas (excluir).
+    { campo: 'prateleiras', aba: CONFIG.ABAS.PRATELEIRAS, colunas: colunasPrateleiras_() },
   ];
 }
 
@@ -141,8 +143,8 @@ function listaCurta_(itens) {
  * três passos: (1) os Tipos de movimento, com o GMV de cada um; (2) os móveis, só com os movimentos
  * cadastrados nos tipos; (3) o envio para aprovação, que confere os dois.
  *  - criar:          { acao, ciclo, origem?, copiar? }  construtor; origem = ciclo (publicado ou em construção) a copiar;
- *                    copiar = 'tudo' (padrão: movimentos, comunicações e tipos) ou 'fixos' (só as linhas com 🔒 e os
- *                    tipos desses movimentos);
+ *                    copiar = 'tudo' (padrão: movimentos, comunicações, tipos e prateleiras) ou 'fixos' (só as linhas
+ *                    com 🔒, os tipos desses movimentos e as prateleiras desses espaços);
  *  - salvarTipos:    { acao, ciclo, linhas: [{etiqueta, classificacao, gmv, observacao}] }  construtor: os movimentos
  *                    que o ciclo pode usar (substitui a lista toda);
  *  - salvarEspaco:   { acao, ciclo, planta, movel, linha }  construtor; só com movimentos dos tipos; linha vazia apaga
@@ -209,6 +211,9 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
       let movimentos = daOrigem('movimentos', 'rMovimentos');
       if (!movimentos.length) throw new Error('O ciclo "' + origem + '" não foi encontrado.');
       let tipos = daOrigem('tipos', 'rTipos');
+      // As prateleiras ficam numa aba só (publicados e em construção): as do ciclo de origem, ou só as dos espaços fixos.
+      const prateleiras = prateleirasParaCopia_(objs('prateleiras'), origem, ciclo, soFixos ? movimentos.filter(function (o) { return normSimbolo_(o.simbolo) === 'FIXO'; }) : null);
+      if (prateleiras.length) trocar('prateleiras', objs('prateleiras').concat(prateleiras));
       if (soFixos) {
         // Só os espaços fixos (🔒), com os tipos dos movimentos deles; as comunicações ficam em branco.
         movimentos = movimentos.filter(function (o) { return normSimbolo_(o.simbolo) === 'FIXO'; });
@@ -304,6 +309,7 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     exigir('CONSTRUTOR', 'exclui um ciclo em construção');
     exigirRascunho();
     ['rMovimentos', 'rPaineis', 'rTipos'].forEach(function (c) { trocar(c, semCiclo(c)); });
+    if (objs('prateleiras').some(doCiclo)) trocar('prateleiras', semCiclo('prateleiras'));
     trocar('rascunhos', rascunhos.filter(function (r) { return r !== atual; }));
     return { abas: novas, gravar: gravar };
   }
