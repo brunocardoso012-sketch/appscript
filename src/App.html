@@ -1520,34 +1520,14 @@ const App = (() => {
   const chaveMovimento = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
 
   /**
-   * Células de uma coluna pelas prateleiras desenhadas (Prateleira.html): cada prateleira com o movimento do
-   * maior quadrado dela (prateleiras vizinhas com o mesmo movimento viram uma célula só).
-   * @param {Array<{texto, marca}>} etiquetas  as do espaço, para achar a marca do movimento
-   */
-  function celulasDoDetalhe(n, detalhe, etiquetas, marcaDaLinha) {
-    const porNumero = {};
-    detalhe.prateleiras.forEach((p) => { porNumero[p.numero] = p; });
-    const celulas = [];
-    for (let k = 0; k < n; k++) {
-      const mov = (porNumero[k + 1] || {}).movimento || '';
-      const chave = chaveMovimento(mov);
-      const ultima = celulas[celulas.length - 1];
-      if (ultima && ultima.chave === chave) { ultima.ate = k + 1; continue; }
-      const achada = etiquetas.find((e) => chaveMovimento(e.texto) === chave);
-      const marca = achada ? achada.marca : (marcaDaLinha && marcaDaLinha !== 'NEUTRO' ? marcaDaLinha : '');
-      celulas.push({ de: k, ate: k + 1, chave, etiquetas: mov ? [{ texto: mov, marca }] : [] });
-    }
-    return celulas;
-  }
-
-  /**
    * Colunas do planograma do móvel (mesmas regras da planta): uma por espaço da gôndola e por frente
    * da mesa, cada uma com as etiquetas da linha do próprio espaço; uma por bloco do balcão (Etiqueta N
    * da linha dele); o totem tem uma coluna com um painel por linha; o móvel make, as testeiras por
    * cima e o corpo sem marca; os demais, uma coluna só com a linha do móvel.
    * Cada coluna que leva produtos tem o id do espaço (o da aba Prateleiras) e as etiquetas dele; quando as
-   * prateleiras dela foram desenhadas (detalhe(id)), cada prateleira mostra o movimento do maior quadrado dela.
-   * @return {{n, rotulos, colunas: Array<{id, nome, peso, marca, etiquetas, celulas, detalhada}>, testeiras}|null}
+   * prateleiras dela foram desenhadas na construção (detalhe(id)), cada prateleira mostra os quadrados desenhados,
+   * com os produtos (celula.quadrados), no lugar da divisão automática pelas etiquetas.
+   * @return {{n, rotulos, colunas: Array<{id, nome, peso, marca, etiquetas, celulas, desenhada}>, testeiras}|null}
    */
   function planogramaDe(m, mov, linha, temLinha, detalhe) {
     const config = estado.dados.config || {};
@@ -1563,10 +1543,13 @@ const App = (() => {
     const coluna = (id, nome, peso, n, i, etiquetas, outras) => {
       const lista = etiquetas.map((e) => etq(e, i));
       const det = id && detalhe ? detalhe(id) : null;
-      const detalhada = !!(det && det.prateleiras.some((p) => p.movimento));
+      const desenhada = !!(det && det.prateleiras.some((p) => p.quadrados.length));
+      const quadradosDe = (k) => ((det.prateleiras.find((p) => p.numero === k + 1) || {}).quadrados || []);
       return {
-        id, nome, peso, marca: i ? i.marca : '', etiquetas: lista.length ? lista : outras || [], detalhada,
-        celulas: detalhada ? celulasDoDetalhe(n, det, lista.concat(outras || []), i ? i.marca : '') : dividirPrateleiras(n, lista),
+        id, nome, peso, marca: i ? i.marca : '', etiquetas: lista.length ? lista : outras || [], desenhada,
+        celulas: desenhada
+          ? Array.from({ length: n }, (_, k) => ({ de: k, ate: k + 1, etiquetas: [], quadrados: quadradosDe(k) }))
+          : dividirPrateleiras(n, lista),
       };
     };
     const doEspaco = (e) => {
@@ -1620,9 +1603,11 @@ const App = (() => {
     const fundo = (marca) => (marca && marca !== 'NEUTRO' ? corDaMarca(marca, 'etiqueta') : '');
     const caixa = novo('div', 'pg', null, sec);
     const grade = novo('div', 'pg-grade', null, caixa);
-    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(120px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
+    // Espaços desenhados na construção: colunas mais largas e prateleiras mais altas, para caberem os produtos.
+    const desenho = plano.colunas.some((c) => c.desenhada);
+    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(' + (c.desenhada ? 240 : 120) + 'px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
     const linhaTopo = plano.testeiras ? 1 : 0;
-    grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(58px, auto)) auto';
+    grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(' + (desenho ? 112 : 58) + 'px, auto)) auto';
     const pos = (n, col, row, rowFim) => {
       n.style.gridColumn = String(col);
       n.style.gridRow = row + (rowFim ? ' / ' + rowFim : '');
@@ -1653,6 +1638,15 @@ const App = (() => {
     plano.colunas.forEach((c, ci) => {
       const col = ci + 2;
       c.celulas.forEach((cel) => {
+        if (cel.quadrados) {
+          // Prateleira desenhada: os quadrados no lugar e no tamanho definidos, com os produtos (Prateleira.html).
+          const n = pos(novo('div', 'pg-celula pg-desenhada neutra', null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);
+          n.style.setProperty('--cor', '#F4F2EF');
+          n.dataset.espaco = c.id;
+          n.dataset.numero = String(cel.de + 1);
+          Prateleira.desenharQuadrados(novo('div', 'pg-quadrados', null, n), c, cel.quadrados);
+          return;
+        }
         const n = pos(novo('div', 'pg-celula', null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);
         const cor = fundo(cel.etiquetas.length ? cel.etiquetas[0].marca : cel.marca || c.marca);
         n.style.setProperty('--cor', cor || '#ECEAE6');
@@ -1663,8 +1657,10 @@ const App = (() => {
       for (let k = 0; k < plano.n; k++) pos(novo('i', 'pg-tabua', null, grade), col, linhaTopo + k + 1);
       pos(novo('span', 'pg-nome', c.nome, grade), col, linhaTopo + plano.n + 1);
     });
-    if (plano.colunas.some((c) => c.detalhada)) {
-      novo('p', 'pg-nota', 'Nos espaços com as prateleiras desenhadas, cada prateleira mostra o movimento do maior quadrado dela (veja os quadrados e os produtos abaixo).', sec);
+    if (desenho) {
+      Prateleira.ajustarTextos(grade);
+      novo('p', 'pg-nota', 'Nos espaços com as prateleiras definidas na construção, cada prateleira mostra os quadrados, cada um com o movimento e os produtos (×frentes); passe o mouse para ver os SKUs.'
+        + (plano.colunas.every((c) => !c.id || c.desenhada) ? '' : ' Nos outros espaços, as etiquetas dividem as prateleiras automaticamente.'), sec);
     }
     novo('p', 'pg-nota', plano.rotulos[0] === 'Painel 1'
       ? 'Painel 1 é o de cima. Cada painel tem a cor e a etiqueta da própria linha (ou da Etiqueta N do totem).'

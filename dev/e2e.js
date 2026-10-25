@@ -832,9 +832,10 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
     const g = [...document.querySelectorAll('#slide [data-movel]')].find((e) => /^GONDOLA 1(\/|$)/.test(e.getAttribute('data-movel')));
     g.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
-  // Sem login: a seção aparece, sem o botão de desenhar.
+  // Sem login: só o planograma; a construção das prateleiras fica no modo de construção.
   await abrirGondola();
-  await p.waitForSelector('#dlgMovel[open] .pr-secao');
+  await p.waitForSelector('#dlgMovel[open] .mv-plano');
+  assert.strictEqual(await p.locator('.pr-secao').count(), 0);
   assert.strictEqual(await p.locator('[data-acao="editar-prateleiras"]').count(), 0);
   await p.keyboard.press('Escape');
 
@@ -880,7 +881,10 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   assert.strictEqual(await card.locator('.pr-tela[data-numero="3"] .pr-quadrado').count(), 2);
   await card.locator('select[data-campo="vale"]').selectOption('TODAS');
   await card.locator('[data-acao="salvar-prateleiras"]').click();
-  await p.waitForSelector('.pr-espaco[data-espaco="GONDOLA 1/PONTA-A"]:not(.editando) .pr-quadrado');
+  // O que foi salvo aparece no planograma ("como as prateleiras estão divididas").
+  await p.waitForSelector('.mv-plano .pg-desenhada[data-espaco="GONDOLA 1/PONTA-A"] .pr-quadrado');
+  assert.strictEqual(await p.locator('.mv-plano .pg-desenhada[data-espaco="GONDOLA 1/PONTA-A"][data-numero="1"] .pr-quadrado').count(), 2);
+  assert.match(await p.textContent('.mv-plano .pg-desenhada[data-espaco="GONDOLA 1/PONTA-A"][data-numero="1"]'), /Egeo Dolce/);
   const g = await estado(p, () => App.estado.dados.prateleiras.filter((x) => x.espaco === 'GONDOLA 1/PONTA-A'));
   assert.deepStrictEqual(g.map((x) => x.planta), ['01', '02', '03', '04'], 'vale em todas as ERs que têm o espaço');
   const p1 = g[0].prateleiras[0];
@@ -889,7 +893,8 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   assert.strictEqual(p1.movimento, 'LÇTO EGEO');
   assert.deepStrictEqual(g[0].prateleiras[1].quadrados.map((q) => [q.x, q.w]), [[0, 50], [50, 50]]);
   assert.match(await p.textContent('.pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] .pr-resumo'), /2 produtos · 3 frentes/);
-  assert.match(await p.textContent('.mv-plano'), /prateleiras desenhadas/);
+  assert.match(await p.textContent('.mv-plano'), /definidas na construção/);
+  assert.ok(await p.locator('.mv-plano .pg-celula:not(.pg-desenhada)').count() > 0, 'os espaços sem desenho continuam com a divisão automática');
 
   // Mudança sem salvar: fechar pergunta (o teste aceita) e descarta.
   await p.locator('.pr-espaco[data-espaco="GONDOLA 1/MEIO-A"] [data-acao="editar-prateleiras"]').click();
@@ -897,14 +902,16 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   await p.keyboard.press('Escape');
   await p.waitForSelector('#dlgMovel:not([open])', { state: 'attached' });
 
-  // Continua salvo depois de recarregar e aparece também nas outras ERs.
+  // Continua salvo depois de recarregar e aparece também nas outras ERs, para quem não entrou na construção.
+  await p.evaluate(() => sessionStorage.clear());
   await p.reload();
   await p.waitForFunction(() => typeof App !== 'undefined' && App.estado.dados && App.estado.dados.ciclos.length);
   await escolherCiclo(p, 'Ciclo exemplo cheio');
   await abaPlanta(p, 'ER G').click();
   await abrirGondola();
-  await p.waitForSelector('#dlgMovel[open] .pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] .pr-quadrado');
-  assert.match(await p.textContent('#mvEstrategia'), /Egeo Dolce/);
+  await p.waitForSelector('#dlgMovel[open] .mv-plano .pg-desenhada[data-espaco="GONDOLA 1/PONTA-A"] .pr-quadrado');
+  assert.match(await p.textContent('.mv-plano'), /Egeo Dolce/);
+  assert.strictEqual(await p.locator('.pr-secao').count(), 0);
 });
 
 test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo ⏩', async (t) => {

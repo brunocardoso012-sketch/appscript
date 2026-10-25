@@ -8,9 +8,11 @@
  *  na altura, ou só uma parte, se arrastar também para cima ou para baixo),
  *  move e muda o tamanho dele, e escolhe o movimento e os produtos do quadrado
  *  no catálogo (aba Produtos da planilha: SKU, nome, marca, categoria e
- *  movimento). A seção "Prateleiras · produtos" da tela do móvel mostra o
- *  desenho para todo mundo; o construtor tem o botão "Desenhar" de cada espaço,
- *  que abre a edição ali mesmo. Cada ER tem as suas prateleiras; "Vale em todas
+ *  movimento). O que foi definido aparece para todo mundo no planograma da
+ *  tela do móvel ("como as prateleiras estão divididas", em App.html, com
+ *  desenharQuadrados). A edição fica só no modo de construção (login da
+ *  Construção, com senha): a seção "Construção das prateleiras", com o botão
+ *  "Desenhar" de cada espaço. Cada ER tem as suas prateleiras; "Vale em todas
  *  as ERs" grava as mesmas em cada ER que tem o espaço. As regras ficam em
  *  Prateleiras.gs (conferidas no servidor).
  */
@@ -102,31 +104,68 @@ const Prateleira = (() => {
       + (x.foraDoCatalogo ? ' (fora da aba Produtos)' : '')), q.observacao].filter(Boolean).join('\n');
   }
 
-  /* ------------------------------ leitura -------------------------------- */
+  /**
+   * Quadrados de uma prateleira, no lugar e no tamanho definidos (o planograma da tela do móvel usa esta função).
+   * @param {{etiquetas}} col  a coluna do planograma (as etiquetas do espaço dão a cor de cada movimento)
+   */
+  function desenharQuadrados(alvo, col, quadrados) {
+    if (!quadrados.length) { n('span', 'pr-tela-vazia', 'prateleira sem quadrados', alvo); return; }
+    quadrados.forEach((q) => {
+      const el = n('div', 'pr-quadrado', null, alvo);
+      posicionar(el, q);
+      conteudoQuadrado(el, col, q);
+    });
+  }
 
   /**
-   * Seção "Prateleiras · produtos" da tela do móvel: um cartão por espaço que leva produtos (as colunas do
-   * planograma com id), com o desenho de cada prateleira.
+   * Quadrado baixo ou estreito: os produtos que não cabem saem da lista e viram "+N" (todos continuam na dica do
+   * mouse). Mede depois que a tela aparece.
+   */
+  function ajustarTextos(raiz) {
+    requestAnimationFrame(() => raiz.querySelectorAll('.pr-quadrado').forEach((el) => {
+      const ul = el.querySelector('.pr-q-produtos');
+      if (!ul || !el.clientHeight) return;
+      const itens = Array.from(ul.children).filter((li) => !li.classList.contains('pr-q-mais'));
+      itens.forEach((li) => { li.hidden = false; });
+      const velho = ul.querySelector('.pr-q-mais');
+      if (velho) velho.remove();
+      const limite = el.getBoundingClientRect().bottom - 3;
+      const cabe = (li) => li.getBoundingClientRect().bottom <= limite;
+      if (itens.every(cabe)) return;
+      const mais = n('li', 'pr-q-mais', null, ul);
+      let escondidos = 0;
+      for (let i = itens.length - 1; i >= 0; i--) {
+        mais.textContent = '+' + (escondidos || 1) + (escondidos > 1 ? ' produtos' : ' produto');
+        if (cabe(itens[i]) && cabe(mais)) break;
+        itens[i].hidden = true;
+        escondidos++;
+        mais.textContent = '+' + escondidos + (escondidos > 1 ? ' produtos' : ' produto');
+        if (i === 0 || (cabe(itens[i - 1]) && cabe(mais))) break;
+      }
+    }));
+  }
+
+  /* ---------------------------- construção ------------------------------- */
+
+  /**
+   * Seção "Construção das prateleiras" da tela do móvel: só no modo de construção (login da Construção), com um
+   * cartão por espaço que leva produtos (as colunas do planograma com id) e o botão de desenhar. O desenho salvo
+   * aparece no planograma, acima.
    * @param {{ciclo, planta, movel, plano}} ctx  plano: o de planogramaDe (App.html)
    */
   function montarSecao(corpo, ctx) {
     const colunas = ctx.plano.colunas.filter((c) => c.id);
-    if (!colunas.length) return;
+    if (!colunas.length || !podeEditar(ctx.ciclo)) return;
     const sec = n('section', 'mv-bloco pr-secao', null, corpo);
-    n('h3', null, 'Prateleiras · produtos', sec);
-    const pode = podeEditar(ctx.ciclo);
-    const algum = colunas.some((c) => doEspaco(ctx.ciclo, ctx.planta.id, c.id));
-    if (!algum) {
-      n('p', 'pr-dica', pode
-        ? 'Nenhuma prateleira desenhada nesta ER. Clique em Desenhar no espaço: arraste em cada prateleira para criar os quadrados e escolha os produtos de cada um.'
-        : 'As prateleiras deste móvel ainda não foram desenhadas nesta ER.', sec);
-    }
+    n('h3', null, 'Construção das prateleiras', sec);
+    n('p', 'pr-dica', 'Clique em Desenhar (ou Editar) no espaço: arraste em cada prateleira para criar os quadrados e escolha o movimento e os produtos de cada um. '
+      + 'O que for salvo aparece no planograma, acima, para todo mundo.', sec);
     colunas.forEach((col) => {
       const card = n('div', 'pr-espaco', null, sec);
       card.dataset.espaco = col.id;
       const chave = ctx.ciclo + '|' + ctx.planta.id + '|' + col.id;
-      if (pode && editando && editando.chave === chave) montarEdicao(card, ctx, col);
-      else montarLeitura(card, ctx, col, pode);
+      if (editando && editando.chave === chave) montarEdicao(card, ctx, col);
+      else montarLeitura(card, ctx, col);
     });
   }
 
@@ -151,37 +190,16 @@ const Prateleira = (() => {
     return topo;
   }
 
-  function montarLeitura(card, ctx, col, pode) {
+  /** Cartão de um espaço fora da edição: o resumo e o botão de desenhar (o desenho fica no planograma). */
+  function montarLeitura(card, ctx, col) {
     const det = doEspaco(ctx.ciclo, ctx.planta.id, col.id);
     const topo = cabecalho(card, ctx, col, det);
-    if (pode) {
-      const b = botao(det ? 'Editar' : 'Desenhar', det ? '' : 'primario', () => {
-        editando = { chave: ctx.ciclo + '|' + ctx.planta.id + '|' + col.id, sujo: false };
-        app.abrirMovel(ctx.movel.id);
-      }, topo);
-      b.dataset.acao = 'editar-prateleiras';
-    }
-    if (!det) {
-      n('p', 'pr-vazio', 'Sem desenho nesta ER.', card);
-      return;
-    }
-    const porNumero = {};
-    det.prateleiras.forEach((p) => { porNumero[p.numero] = p; });
-    const estante = n('div', 'pr-estante', null, card);
-    for (let k = 0; k < ctx.plano.n; k++) {
-      const p = porNumero[k + 1] || { quadrados: [] };
-      const linha = n('div', 'pr-prateleira', null, estante);
-      n('span', 'pr-num', ctx.plano.rotulos[k], linha);
-      const tela = n('div', 'pr-tela', null, linha);
-      tela.dataset.numero = String(k + 1);
-      if (!p.quadrados.length) n('span', 'pr-tela-vazia', 'prateleira sem quadrados', tela);
-      p.quadrados.forEach((q) => {
-        const el = n('div', 'pr-quadrado', null, tela);
-        posicionar(el, q);
-        conteudoQuadrado(el, col, q);
-      });
-    }
-    if (det.autor) n('p', 'pr-meta', 'Atualizado por ' + det.autor + (det.data ? ' em ' + det.data : ''), card);
+    const b = botao(det ? 'Editar' : 'Desenhar', det ? '' : 'primario', () => {
+      editando = { chave: ctx.ciclo + '|' + ctx.planta.id + '|' + col.id, sujo: false };
+      app.abrirMovel(ctx.movel.id);
+    }, topo);
+    b.dataset.acao = 'editar-prateleiras';
+    n('p', det ? 'pr-meta' : 'pr-vazio', det ? (det.autor ? 'Atualizado por ' + det.autor + (det.data ? ' em ' + det.data : '') : 'Desenhado.') : 'Sem desenho nesta ER.', card);
   }
 
   /* ------------------------------- edição -------------------------------- */
@@ -400,6 +418,7 @@ const Prateleira = (() => {
         ['n', 's', 'e', 'w'].forEach((b) => { n('i', 'pr-borda ' + b, null, el).dataset.borda = b; });
         ligarQuadrado(el, numero, q);
       });
+      ajustarTextos(tela);
       montarPainel();
     }
     function redesenharTudo() { Object.keys(telas).forEach((k) => redesenhar(Number(k))); }
@@ -607,6 +626,6 @@ const Prateleira = (() => {
     });
   }
 
-  return { iniciar, doEspaco, montarSecao, podeFechar };
+  return { iniciar, doEspaco, montarSecao, desenharQuadrados, ajustarTextos, podeFechar };
 })();
 </script>

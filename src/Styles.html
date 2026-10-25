@@ -684,6 +684,11 @@
   .pr-q-nome { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
   .pr-q-fr { flex: 0 0 auto; color: #5B6068; font-variant-numeric: tabular-nums; }
   .pr-q-vazio { font-size: 11px; font-style: italic; color: #5B6068; }
+  .pr-q-produtos li.pr-q-mais { font-weight: 700; color: #5B6068; }
+  /* no planograma: a prateleira desenhada na construção, com os quadrados por cima da tábua */
+  .pg-celula.pg-desenhada { padding: 0; }
+  .pg-quadrados { position: absolute; inset: 4px 3px 10px; z-index: 2; }
+  .pg-quadrados .pr-tela-vazia { font-size: 11px; }
   .pr-borda { position: absolute; z-index: 1; }
   .pr-borda.e, .pr-borda.w { top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
   .pr-borda.e { right: -2px; }
@@ -1185,6 +1190,11 @@
   [data-tema="escuro"] .pr-quadrado { background: linear-gradient(rgba(27, 30, 34, .8), rgba(27, 30, 34, .8)), var(--cor, #9aa0a6); }
   [data-tema="escuro"] .pr-q-produtos li { color: #e8eaed; }
   [data-tema="escuro"] .pr-q-fr, [data-tema="escuro"] .pr-q-vazio { color: #aab0b8; }
+  [data-tema="escuro"] .pr-q-produtos li.pr-q-mais { color: #aab0b8; }
+  /* o planograma mantém as cores do slide: os quadrados dele também ficam claros */
+  [data-tema="escuro"] .pg-quadrados .pr-quadrado { background: linear-gradient(rgba(255, 255, 255, .84), rgba(255, 255, 255, .84)), var(--cor, #9aa0a6); }
+  [data-tema="escuro"] .pg-quadrados .pr-q-produtos li { color: #1C1F24; }
+  [data-tema="escuro"] .pg-quadrados .pr-q-fr, [data-tema="escuro"] .pg-quadrados .pr-q-vazio, [data-tema="escuro"] .pg-quadrados .pr-q-mais { color: #5B6068; }
   [data-tema="escuro"] .pr-resultado:hover { background: #23272c; }
   [data-tema="escuro"] .pr-ed-mov.fora { color: #ffb38a; }
   [data-tema="escuro"] .carregando { background: rgba(17, 19, 22, .72); }
