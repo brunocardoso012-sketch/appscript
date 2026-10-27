@@ -1789,10 +1789,16 @@ const App = (() => {
     const rotulos = Array.from({ length: n }, (_, k) => String(k + 1));
     if (m.tipo === 'CAIXA') return null;
     if (m.tipo === 'GONDOLA') {
-      const colunas = Render.caixasGondola(mov).map((b) => {
-        const { p, etiquetas } = doEspaco(b.espaco);
-        return coluna(m.id + '/' + b.espaco.id, b.espaco.nome, Math.max(b.w, b.d), n, p, etiquetas);
-      });
+      // Na ordem Ponta A, Meio A, Ponta B, Meio B; cada meio tem o dobro da largura de uma ponta (a metade de um
+      // meio dividido, a mesma da ponta).
+      const ordem = (id) => ['PONTA-A', 'MEIO-A', 'PONTA-B', 'MEIO-B'].indexOf(id.replace(/^(MEIO-[AB])-\d$/, '$1'));
+      const colunas = Render.caixasGondola(mov).slice()
+        .sort((a, b) => ordem(a.espaco.id) - ordem(b.espaco.id) || a.espaco.id.localeCompare(b.espaco.id))
+        .map((b) => {
+          const { p, etiquetas } = doEspaco(b.espaco);
+          const peso = /^MEIO-[AB]$/.test(b.espaco.id) ? 2 : 1;
+          return coluna(m.id + '/' + b.espaco.id, b.espaco.nome, peso, n, p, etiquetas);
+        });
       return { n, rotulos, colunas, testeiras: null };
     }
     if (m.tipo === 'TOTEM') {
@@ -1822,6 +1828,13 @@ const App = (() => {
     }
     const geral = linha(m.id);
     const lim = (config.etiquetasPorTipo || {})[m.tipo];
+    if (m.tipo === 'PIRAMIDE') {
+      // Os 4 lados, do mesmo tamanho, cada um com as 4 prateleiras e as etiquetas da pirâmide (um espaço de
+      // prateleira cada: PIRAMIDE 1/LADO-1…4).
+      const etiquetas = geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [];
+      const colunas = [1, 2, 3, 4].map((k) => coluna(m.id + '/LADO-' + k, 'Lado ' + k, 1, n, geral, etiquetas));
+      return { n, rotulos, colunas, testeiras: null };
+    }
     return { n, rotulos, colunas: [coluna(m.tipo === 'EXTRA' ? null : m.id, 'Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };
   }
 
@@ -1834,7 +1847,9 @@ const App = (() => {
     const grade = novo('div', 'pg-grade', null, caixa);
     // Espaços desenhados na construção: colunas mais largas e prateleiras mais altas, para caberem os produtos.
     const desenho = plano.colunas.some((c) => c.desenhada);
-    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(' + (c.desenhada ? 240 : 120) + 'px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
+    // A largura mínima segue o peso de cada coluna, para a proporção valer também em telas estreitas.
+    const base = desenho ? 150 : 90;
+    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(' + Math.round(base * c.peso) + 'px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
     const linhaTopo = plano.testeiras ? 1 : 0;
     grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(' + (desenho ? 112 : 58) + 'px, auto)) auto';
     const pos = (n, col, row, rowFim) => {
@@ -1886,16 +1901,7 @@ const App = (() => {
       for (let k = 0; k < plano.n; k++) pos(novo('i', 'pg-tabua', null, grade), col, linhaTopo + k + 1);
       pos(novo('span', 'pg-nome', c.nome, grade), col, linhaTopo + plano.n + 1);
     });
-    if (desenho) {
-      Prateleira.ajustarTextos(grade);
-      novo('p', 'pg-nota', 'Nos espaços com as prateleiras definidas na construção, cada prateleira mostra os quadrados, cada um com o movimento e os produtos (×frentes); passe o mouse para ver os SKUs.'
-        + (plano.colunas.every((c) => !c.id || c.desenhada) ? '' : ' Nos outros espaços, as etiquetas dividem as prateleiras automaticamente.'), sec);
-    }
-    novo('p', 'pg-nota', plano.rotulos[0] === 'Painel 1'
-      ? 'Painel 1 é o de cima. Cada painel tem a cor e a etiqueta da própria linha (ou da Etiqueta N do totem).'
-      : plano.n > 1
-        ? 'Prateleira 1 é a de cima. As etiquetas de cada espaço dividem as prateleiras na ordem (Etiqueta 1 em cima), cada uma com a cor da marca dela.' + (plano.testeiras ? ' As prateleiras do móvel make não levam marca: cada testeira tem a sua.' : '')
-        : 'As etiquetas de cada espaço, com a cor da marca de cada uma.', sec);
+    if (desenho) Prateleira.ajustarTextos(grade);
   }
 
   /** Desenho só do móvel (com as cores reais do ciclo, sem o filtro de marca), recortado nele. */
@@ -1966,14 +1972,25 @@ const App = (() => {
     });
   }
 
+  /**
+   * Planograma de um móvel numa ER e num ciclo (a tela do móvel e o briefing das gôndolas usam este): com os
+   * meios divididos da gôndola e as prateleiras desenhadas na construção.
+   */
+  function planogramaDoMovel(planta, m, ciclo) {
+    const linha = (x) => (ciclo ? movimentoDe(ciclo, planta.id, x) : null);
+    const temLinha = (x) => { const i = linha(x); return !!(i && (i.marca || i.etiquetas.length || i.simbolo)); };
+    // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
+    const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
+    const detalhe = (id) => Prateleira.doEspaco(ciclo, planta.id, id);
+    return planogramaDe(m, mov, linha, temLinha, detalhe);
+  }
+
   function abrirMovel(id) {
     const planta = plantaAtual();
     const m = planta && planta.moveis.find((x) => x.id === id);
     if (!m) return;
     const dlg = $('dlgMovel');
     const ciclo = estado.ciclo;
-    const linha = (x) => (ciclo ? movimentoDe(ciclo, planta.id, x) : null);
-    const temLinha = (x) => { const i = linha(x); return !!(i && (i.marca || i.etiquetas.length || i.simbolo)); };
     const tipo = (estado.dados.tipos && estado.dados.tipos[m.tipo]) || m.tipo;
 
     $('mvTitulo').textContent = m.id;
@@ -1988,15 +2005,14 @@ const App = (() => {
       novo('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver a estratégia deste móvel.', corpo);
     } else {
       const config = estado.dados.config || {};
-      // Gôndola: o meio também fica dividido quando o ciclo tem linha para uma das metades (como na planta).
-      const mov = m.tipo === 'GONDOLA' ? Object.assign({}, m, { dividido: meiosDivididos(planta, m, temLinha, ciclo) }) : m;
-      const detalhe = (id) => Prateleira.doEspaco(ciclo, planta.id, id);
-      const plano = planogramaDe(m, mov, linha, temLinha, detalhe);
-      if (plano) blocoPlanograma(corpo, plano);
-      // O desenho de cada prateleira, com os produtos (e, para o construtor, a edição).
-      if (plano) Prateleira.montarSecao(corpo, { ciclo, planta, movel: m, plano });
-      // Móvel com espaços (gôndola, mesas, totem, make): só as linhas dos espaços; os demais, a linha do móvel.
-      blocosDoMovel(planta, m, ciclo).forEach((b) => blocoEstrategia(corpo, b.titulo, b.info, {
+      const plano = planogramaDoMovel(planta, m, ciclo);
+      if (plano) {
+        // O planograma ocupa a tela (sem a lista dos espaços embaixo); para o construtor, a edição das prateleiras.
+        blocoPlanograma(corpo, plano);
+        Prateleira.montarSecao(corpo, { ciclo, planta, movel: m, plano });
+      }
+      // Móvel sem planograma (móvel de atendimento): a linha do móvel.
+      if (!plano) blocosDoMovel(planta, m, ciclo).forEach((b) => blocoEstrategia(corpo, b.titulo, b.info, {
         vazio: b.espaco ? 'Sem linha neste ciclo: o espaço fica branco (neutro).' : 'Sem linha neste ciclo: o móvel fica branco (neutro).',
         limite: b.espaco ? b.limite : (config.etiquetasPorTipo || {})[m.tipo],
       }));
@@ -2761,6 +2777,7 @@ const App = (() => {
     acesso: () => Validacao.acesso(),
     movimentoDaPlanilha,
   });
+  Briefing.iniciar({ estado, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca });
   Prateleira.iniciar({
     estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,
     acesso: () => Validacao.acesso(),

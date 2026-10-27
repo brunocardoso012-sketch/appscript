@@ -4,7 +4,8 @@
  * ============================================================================
  *  Depois da estratégia dos movimentos (que movimento fica em cada espaço), o
  *  construtor da estratégia desenha o planograma de cada prateleira: quadrados
- *  (posição e tamanho, em % da prateleira) e, em cada quadrado, o movimento e
+ *  lado a lado, na altura toda da prateleira (início e largura, em % dela; um
+ *  quadrado não fica em cima de outro) e, em cada quadrado, o movimento e
  *  os produtos, escolhidos na aba "Produtos" (o catálogo: SKU, nome, marca,
  *  categoria e movimento). Todo mundo vê na tela do móvel (Prateleira.html);
  *  só o construtor edita, num ciclo publicado ou num ciclo em construção que
@@ -97,8 +98,6 @@ function colunasPrateleiras_() {
     { titulo: 'Quadrado', chave: 'quadrado', texto: true },
     { titulo: 'X (%)', chave: 'x', texto: true, apelidos: ['X'] },
     { titulo: 'Largura (%)', chave: 'w', texto: true, apelidos: ['Largura'] },
-    { titulo: 'Y (%)', chave: 'y', texto: true, apelidos: ['Y'] },
-    { titulo: 'Altura (%)', chave: 'h', texto: true, apelidos: ['Altura'] },
     { titulo: 'Movimento (etiqueta)', chave: 'movimento', texto: true, apelidos: ['Movimento', 'Etiqueta'] },
     { titulo: 'SKU', chave: 'sku', texto: true, apelidos: ['Código', 'Cód. produto'] },
     { titulo: 'Produto', chave: 'produto', texto: true },
@@ -119,6 +118,7 @@ function valoresPrateleirasVazios_() {
  *  - gôndola: cada ponta e cada meio (ou metade do meio), com as prateleiras da gôndola;
  *  - mesas destaque: o nicho de cada frente (1 prateleira; o verso é comunicação);
  *  - móvel make: as prateleiras do corpo (o ID do móvel; as testeiras são comunicação);
+ *  - pirâmide: os 4 lados, do mesmo tamanho (PIRAMIDE 1/LADO-1 a LADO-4), cada um com as 4 prateleiras dela;
  *  - totem, móvel de atendimento e itens fora da planta: não levam produtos;
  *  - os demais: o móvel inteiro.
  * @return {{ids: string[], n: number}} ids: IDs completos ("GONDOLA 1/PONTA-A" ou "PIRAMIDE 1")
@@ -130,8 +130,12 @@ function espacosDePrateleira_(m) {
   if (m.tipo === 'MESA' || m.tipo === 'MESA_3') {
     return { ids: espacosDoMovel_(m).filter(function (e) { return !e.vm; }).map(function (e) { return m.id + '/' + e.id; }), n: 1 };
   }
+  if (m.tipo === 'PIRAMIDE') return { ids: LADOS_PIRAMIDE.map(function (e) { return m.id + '/' + e; }), n: n };
   return { ids: [m.id], n: n };
 }
+
+/** Os 4 lados da pirâmide nas prateleiras, do mesmo tamanho, cada um com as prateleiras dela. */
+const LADOS_PIRAMIDE = ['LADO-1', 'LADO-2', 'LADO-3', 'LADO-4'];
 
 /** Frentes de um produto: inteiro de 1 a LIMITES_PRATELEIRA.frentes (vazio ou inválido = 1). */
 function normFrentes_(v) {
@@ -145,15 +149,16 @@ function normPct_(v, padrao) {
   return Math.round(Math.max(0, Math.min(100, isFinite(n) ? n : padrao)) * 10) / 10;
 }
 
-/** Os dois quadrados se sobrepõem (encostar não conta)? */
+/** Os dois quadrados se sobrepõem na largura (encostar não conta)? Todos ocupam a altura toda da prateleira. */
 function quadradosSobrepostos_(a, b) {
   const folga = 0.05;
-  return a.x + a.w > b.x + folga && b.x + b.w > a.x + folga && a.y + a.h > b.y + folga && b.y + b.h > a.y + folga;
+  return a.x + a.w > b.x + folga && b.x + b.w > a.x + folga;
 }
 
 /**
  * Prateleiras da aba, agrupadas por espaço (ciclo, ER e espaço), com as prateleiras em ordem (1 = a de cima),
- * os quadrados de cada uma (posição em % da prateleira: x da esquerda, y de cima) e os produtos de cada
+ * os quadrados de cada uma, da esquerda para a direita (início x e largura w em % da prateleira; y = 0 e h = 100:
+ * todos ocupam a altura toda) e os produtos de cada
  * quadrado na ordem das linhas. O movimento da prateleira é o do maior quadrado (para o planograma).
  * Linha sem as medidas do quadrado vale como a prateleira inteira.
  * @return {Array<{ciclo, planta, espaco, prateleiras: Array<{numero, movimento, quadrados: Array<{x, y, w, h, movimento,
@@ -185,8 +190,7 @@ function prateleirasDeValores_(valores, produtos) {
     if (!q) {
       const temMedidas = texto_(l.w) !== '';
       q = p.porQuadrado[nq] = {
-        x: temMedidas ? normPct_(l.x, 0) : 0, y: temMedidas ? normPct_(l.y, 0) : 0,
-        w: temMedidas ? normPct_(l.w, 100) : 100, h: temMedidas ? normPct_(l.h, 100) : 100,
+        x: temMedidas ? normPct_(l.x, 0) : 0, y: 0, w: temMedidas ? normPct_(l.w, 100) : 100, h: 100,
         movimento: '', observacao: '', produtos: [],
       };
       p.ordem.push(nq);
@@ -229,27 +233,27 @@ function linhasDePrateleiras_(ciclo, planta, espaco, n, prateleiras, catalogo, q
     if (vistas[numero]) throw new Error('A prateleira ' + numero + ' veio duas vezes.');
     vistas[numero] = true;
     const quadrados = (Array.isArray(p.quadrados) ? p.quadrados : []).map(function (q) {
+      // Todo quadrado ocupa a altura toda da prateleira: só o início e a largura contam.
       const x = normPct_(q && q.x, 0);
-      const y = normPct_(q && q.y, 0);
       return {
-        x: x, y: y, w: Math.min(normPct_(q && q.w, 0), Math.round((100 - x) * 10) / 10), h: Math.min(normPct_(q && q.h, 0), Math.round((100 - y) * 10) / 10),
+        x: x, y: 0, w: Math.min(normPct_(q && q.w, 0), Math.round((100 - x) * 10) / 10), h: 100,
         movimento: texto_(q && q.movimento).slice(0, 200), observacao: texto_(q && q.observacao).slice(0, 500),
         produtos: (q && Array.isArray(q.produtos) ? q.produtos : []).filter(function (x) { return x && normSku_(x.sku); }),
       };
     });
     if (quadrados.length > lim.quadrados) throw new Error('A prateleira ' + numero + ' tem mais de ' + lim.quadrados + ' quadrados.');
     quadrados.forEach(function (q, i) {
-      if (q.w < lim.minimo || q.h < lim.minimo) throw new Error('Na prateleira ' + numero + ', um quadrado ficou pequeno demais (mínimo ' + lim.minimo + '% da prateleira).');
+      if (q.w < lim.minimo) throw new Error('Na prateleira ' + numero + ', um quadrado ficou pequeno demais (mínimo ' + lim.minimo + '% da prateleira).');
       if (q.produtos.length > lim.produtos) throw new Error('Na prateleira ' + numero + ', um quadrado tem mais de ' + lim.produtos + ' produtos.');
       quadrados.slice(0, i).forEach(function (o) {
-        if (quadradosSobrepostos_(o, q)) throw new Error('Na prateleira ' + numero + ', há quadrados um em cima do outro: ajuste para não se sobreporem.');
+        if (quadradosSobrepostos_(o, q)) throw new Error('Na prateleira ' + numero + ', há quadrados sobrepostos: ajuste para ficarem lado a lado.');
       });
     });
-    // Numerados de cima para baixo e da esquerda para a direita.
-    quadrados.sort(function (a, b) { return a.y - b.y || a.x - b.x; }).forEach(function (q, i) {
+    // Numerados da esquerda para a direita.
+    quadrados.sort(function (a, b) { return a.x - b.x; }).forEach(function (q, i) {
       const base = {
         ciclo: ciclo, planta: nomePlanta_(planta), espaco: espaco, prateleira: numero, quadrado: i + 1,
-        x: q.x, w: q.w, y: q.y, h: q.h, movimento: q.movimento, autor: quem.autor, data: quando,
+        x: q.x, w: q.w, movimento: q.movimento, autor: quem.autor, data: quando,
       };
       if (!q.produtos.length) {
         linhas.push(Object.assign({}, base, { sku: '', produto: '', frentes: '', observacao: q.observacao }));
@@ -273,9 +277,10 @@ function linhasDePrateleiras_(ciclo, planta, espaco, n, prateleiras, catalogo, q
 
 /**
  * Aplica uma ação às prateleiras e devolve a matriz nova da aba (sem gravar nada).
- *  - salvar: { acao, ciclo, planta, espaco, prateleiras: [{numero, quadrados: [{x, y, w, h, movimento, observacao,
+ *  - salvar: { acao, ciclo, planta, espaco, prateleiras: [{numero, quadrados: [{x, w, movimento, observacao,
  *            produtos: [{sku, frentes}]}]}] }  troca as prateleiras do espaço nessa ER (lista vazia apaga); planta = a
- *            ER ou "TODAS" (cada ER que tem o espaço recebe as mesmas prateleiras); x, y, w e h em % da prateleira.
+ *            ER ou "TODAS" (cada ER que tem o espaço recebe as mesmas prateleiras); x e w em % da prateleira (os
+ *            quadrados ficam lado a lado, na altura toda).
  * Só o construtor da estratégia, num ciclo publicado ou num ciclo em construção ainda não enviado.
  * @param {Array<Array>} valores  matriz atual da aba (com cabeçalho), ou vazia
  * @param {{plantas: Array, ciclos: Object, rascunhos: Object, produtos: Array}} contexto  plantas do layout
@@ -347,8 +352,9 @@ function prateleirasParaCopia_(prateleiras, origem, ciclo, fixos) {
     return fixos.some(function (f) {
       const pf = normPlanta_(f.planta);
       const mf = normIdEspaco_(f.movel);
-      // O meio inteiro fixo vale também para as metades dele.
-      const mesmo = mf === espaco || (/\/MEIO-[AB]$/.test(mf) && espaco.indexOf(mf + '-') === 0);
+      // O meio inteiro fixo vale também para as metades dele; o móvel inteiro fixo (a pirâmide), para os lados dele.
+      const mesmo = mf === espaco || (/\/MEIO-[AB]$/.test(mf) && espaco.indexOf(mf + '-') === 0)
+        || (mf.indexOf('/') < 0 && espaco.indexOf(mf + '/') === 0);
       return mesmo && (pf === CONFIG.PLANTA_TODAS || pf <= planta);
     });
   }).map(function (o) { return Object.assign({}, o, { ciclo: ciclo }); });

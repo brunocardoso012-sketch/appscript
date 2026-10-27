@@ -527,6 +527,22 @@ const Render = (() => {
   }
 
   /**
+   * Medidas de um espaço da gôndola pelo layout (em metros): a largura da frente (o que se vê de quem está diante
+   * dele: a ponta mostra a largura da gôndola; o meio, o comprimento entre as pontas, ou metade dele, quando
+   * dividido) e a altura. As mesmas contas de caixasGondola.
+   * @return {{largura: number, altura: number}|null}
+   */
+  function medidasGondola(m, idEspaco) {
+    if (!m || m.tipo !== 'GONDOLA') return null;
+    const L = Math.max(m.w, m.d);
+    const C = Math.min(m.w, m.d);
+    const p = Math.min(0.6, L * 0.18);
+    const meio = L - 2 * p;
+    const largura = /^PONTA-/.test(idEspaco) ? C : /^MEIO-[AB]-\d$/.test(idEspaco) ? meio / 2 : meio;
+    return { largura, altura: m.h };
+  }
+
+  /**
    * Espaços vizinhos com as mesmas etiquetas (texto e cor) viram uma linha só na ficha.
    * lista: itens { info, etiquetas, simbolo, espacos } ou null (espaço sem etiqueta, que separa os vizinhos).
    */
@@ -2300,6 +2316,6 @@ const Render = (() => {
     desenharMiniatura(svg, m, null, (e) => { const c = corDoEspaco(e); return c ? [c] : null; }, 1, 1, w - 2, h - 2, verso);
   }
 
-  return { desenhar, paleta, corDaTela, miniatura, miniaturaEspacos, espacos, caixasGondola, chaveEtiqueta, movimentoDaEtiqueta, obsDaEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
+  return { desenhar, paleta, corDaTela, miniatura, miniaturaEspacos, espacos, caixasGondola, medidasGondola, chaveEtiqueta, movimentoDaEtiqueta, obsDaEtiqueta, TELA, PRATELEIRAS, FONTE_ETQ };
 })();
 </script>

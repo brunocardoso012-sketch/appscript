@@ -846,8 +846,8 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
   const prateleiras = [
     { numero: 1, quadrados: [
       { x: 0, y: 0, w: 60, h: 100, movimento: 'LÇTO EGEO', observacao: 'altura dos olhos', produtos: [{ sku: '48211', frentes: 3 }, { sku: ' 48212 ', frentes: '2' }] },
-      { x: 60, y: 0, w: 40, h: 50, movimento: 'BOTIPROMO', produtos: [] },
-      { x: 60, y: 50, w: 40, h: 50, movimento: 'BOTIPROMO', produtos: [{ sku: '50110' }] },
+      { x: 60, y: 0, w: 20, h: 50, movimento: 'BOTIPROMO', produtos: [] }, // a altura é ignorada: todos na altura toda
+      { x: 80, w: 20, movimento: 'BOTIPROMO', produtos: [{ sku: '50110' }] },
     ] },
     { numero: 4, quadrados: [{ x: 10, y: 0, w: 30, h: 100, produtos: [{ sku: '90001', frentes: 0 }] }] },
   ];
@@ -859,7 +859,9 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
   assert.throws(() => salvar(C, Object.assign({}, base, { espaco: 'MESA DESTAQUE 1/VERSO' })), /não tem prateleiras/);
   assert.throws(() => salvar(C, Object.assign({}, base, { prateleiras: [{ numero: 5, quadrados: [] }] })), /vai de 1 a 4/);
   const comQuadrados = (q) => Object.assign({}, base, { prateleiras: [{ numero: 1, quadrados: q }] });
-  assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 50, h: 100 }, { x: 40, y: 0, w: 30, h: 100 }])), /um em cima do outro/);
+  assert.throws(() => salvar(C, comQuadrados([{ x: 0, w: 50 }, { x: 40, w: 30 }])), /sobrepostos/);
+  // Um quadrado não fica em cima do outro: as alturas não contam, então dois na mesma largura se sobrepõem.
+  assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 50, h: 50 }, { x: 0, y: 50, w: 50, h: 50 }])), /sobrepostos/);
   assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 1, h: 100 }])), /pequeno demais/);
   assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 50, h: 100, produtos: [{ sku: 'NAO-EXISTE' }] }])), /fora da aba Produtos: SKU "NAO-EXISTE"/);
 
@@ -869,13 +871,13 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
   const p1 = l[0].prateleiras[0];
   assert.equal(p1.movimento, 'LÇTO EGEO', 'o movimento da prateleira é o do maior quadrado');
   assert.deepEqual(p1.quadrados.map((q) => [q.x, q.y, q.w, q.h, q.movimento, q.produtos.length]),
-    [[0, 0, 60, 100, 'LÇTO EGEO', 2], [60, 0, 40, 50, 'BOTIPROMO', 0], [60, 50, 40, 50, 'BOTIPROMO', 1]]);
+    [[0, 0, 60, 100, 'LÇTO EGEO', 2], [60, 0, 20, 100, 'BOTIPROMO', 0], [80, 0, 20, 100, 'BOTIPROMO', 1]]);
   assert.deepEqual(p1.quadrados[0].produtos.map((x) => [x.sku, x.frentes, x.foraDoCatalogo]), [['48211', 3, false], ['48212', 2, false]]);
   assert.match(p1.quadrados[0].produtos[0].nome, /Egeo Dolce/, 'o nome vem do catálogo');
   assert.equal(p1.quadrados[0].observacao, 'altura dos olhos');
   assert.equal(l[0].prateleiras[1].quadrados[0].produtos[0].frentes, 1, 'frentes vazias ou inválidas = 1');
   const aba = run(`lerAba_(planilha_(), 'Prateleiras', true)`);
-  assert.deepEqual(aba[0].slice(0, 13), ['Ciclo', 'Planta', 'ID Móvel', 'Prateleira', 'Quadrado', 'X (%)', 'Largura (%)', 'Y (%)', 'Altura (%)', 'Movimento (etiqueta)', 'SKU', 'Produto', 'Frentes']);
+  assert.deepEqual(aba[0].slice(0, 11), ['Ciclo', 'Planta', 'ID Móvel', 'Prateleira', 'Quadrado', 'X (%)', 'Largura (%)', 'Movimento (etiqueta)', 'SKU', 'Produto', 'Frentes']);
   assert.equal(aba.length, 1 + 5, 'uma linha por produto e uma pelo quadrado sem produto');
 
   // Quem tira um produto da aba Produtos continua vendo o quadrado, com o produto marcado.
@@ -888,13 +890,17 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
   // Móveis de um espaço só usam o ID do móvel; o móvel make, as prateleiras do corpo; a mesa, o nicho de cada frente.
   salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'MOVEL MAKE 1', prateleiras: [{ numero: 5, quadrados: [{ x: 0, y: 0, w: 100, h: 100, produtos: [{ sku: '61030' }] }] }] });
   assert.throws(() => salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'MESA DESTAQUE 1/FRENTE-1', prateleiras: [{ numero: 2, quadrados: [] }] }), /vai de 1 a 1/);
+  // A pirâmide: os 4 lados, do mesmo tamanho, cada um com as 4 prateleiras.
+  assert.throws(() => salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1', prateleiras: [] }), /Escolha o espaço/);
+  assert.throws(() => salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-5', prateleiras: [] }), /não tem prateleiras/);
+  assert.throws(() => salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-2', prateleiras: [{ numero: 5, quadrados: [] }] }), /vai de 1 a 4/);
   // Todas as ERs: cada ER que tem o espaço recebe as mesmas prateleiras.
   const umQuadrado = [{ numero: 2, quadrados: [{ x: 0, y: 0, w: 100, h: 100, produtos: [{ sku: '50111' }] }] }];
-  l = salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'TODAS', espaco: 'PIRAMIDE 1', prateleiras: umQuadrado });
-  assert.deepEqual(l.filter((g) => g.espaco === 'PIRAMIDE 1').map((g) => g.planta), ['01', '02', '03', '04']);
+  l = salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'TODAS', espaco: 'piramide 1/lado 2', prateleiras: umQuadrado });
+  assert.deepEqual(l.filter((g) => g.espaco === 'PIRAMIDE 1/LADO-2').map((g) => g.planta), ['01', '02', '03', '04']);
   // Salvar de novo troca as prateleiras do espaço (só nessa ER); a lista vazia apaga.
-  l = salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1', prateleiras: [] });
-  assert.deepEqual(l.filter((g) => g.espaco === 'PIRAMIDE 1').map((g) => g.planta), ['02', '03', '04']);
+  l = salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-2', prateleiras: [] });
+  assert.deepEqual(l.filter((g) => g.espaco === 'PIRAMIDE 1/LADO-2').map((g) => g.planta), ['02', '03', '04']);
   assert.equal(run('getDados()').prateleiras.length, 5);
 
   // Ciclo em construção: copiar "tudo" leva as prateleiras; excluir apaga as do ciclo.
@@ -904,7 +910,7 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
   assert.equal(d.prateleiras.filter((g) => g.ciclo === 'C40').length, 5, 'a cópia leva as prateleiras');
   salvar(C, Object.assign({}, base, { ciclo: 'C40', prateleiras: umQuadrado }));
   d = run('getDados()');
-  assert.deepEqual(d.prateleiras.find((g) => g.ciclo === 'C40' && g.espaco === 'GONDOLA 1/PONTA-A').prateleiras.map((p) => p.numero), [2]);
+  assert.deepEqual(d.prateleiras.find((g) => g.ciclo === 'C40' && g.espaco === 'GONDOLA 1/PONTA-A').prateleiras.map((p) => p.quadrados[0].produtos[0].sku), ['50111']);
   assert.deepEqual(d.prateleiras.find((g) => g.ciclo === 'Ciclo exemplo' && g.espaco === 'GONDOLA 1/PONTA-A').prateleiras.map((p) => p.numero), [1, 4], 'o ciclo de origem não muda');
   rascunho({ acao: 'excluir', ciclo: 'C40' });
   assert.ok(!run('getDados()').prateleiras.some((g) => g.ciclo === 'C40'), 'excluir o ciclo em construção apaga as prateleiras dele');
@@ -924,12 +930,13 @@ test('prateleiras: a cópia "só os fixos" leva só as prateleiras dos espaços 
   const prat = [
     { ciclo: 'C1', planta: 'ER P', espaco: 'GONDOLA 1/MEIO-A-1', prateleira: 1, produto: 'A' },
     { ciclo: 'C1', planta: 'ER M', espaco: 'GONDOLA 1/PONTA-A', prateleira: 1, produto: 'B' },
-    { ciclo: 'C1', planta: 'ER P', espaco: 'PIRAMIDE 1', prateleira: 1, produto: 'C' },
-    { ciclo: 'C2', planta: 'ER P', espaco: 'PIRAMIDE 2', prateleira: 1, produto: 'D' },
+    { ciclo: 'C1', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-3', prateleira: 1, produto: 'C' },
+    { ciclo: 'C2', planta: 'ER P', espaco: 'PIRAMIDE 2/LADO-1', prateleira: 1, produto: 'D' },
   ];
-  const fixos = [{ planta: 'ER P', movel: 'GONDOLA 1/MEIO-A' }, { planta: 'ER G', movel: 'GONDOLA 1/PONTA-A' }];
+  const fixos = [{ planta: 'ER P', movel: 'GONDOLA 1/MEIO-A' }, { planta: 'ER G', movel: 'GONDOLA 1/PONTA-A' }, { planta: 'TODAS', movel: 'PIRAMIDE 1' }];
   const r = run(`prateleirasParaCopia_(${JSON.stringify(prat)}, 'C1', 'C9', ${JSON.stringify(fixos)})`);
-  assert.deepEqual(r.map((o) => [o.ciclo, o.produto]), [['C9', 'A']], 'a metade do meio fixo vai; a ponta fixa só a partir da ER G não vale na ER M');
+  assert.deepEqual(r.map((o) => [o.ciclo, o.produto]), [['C9', 'A'], ['C9', 'C']],
+    'a metade do meio fixo vai; a ponta fixa só a partir da ER G não vale na ER M; a pirâmide fixa leva os lados dela');
   assert.equal(run(`prateleirasParaCopia_(${JSON.stringify(prat)}, 'C1', 'C9', null)`).length, 3);
 });
 

@@ -4,9 +4,9 @@
  *  PRATELEIRAS (página): o planograma de cada prateleira, na tela do móvel
  * ============================================================================
  *  Depois da estratégia dos movimentos, o construtor desenha cada prateleira de
- *  cada espaço: arrasta na prateleira para criar um quadrado (de ponta a ponta
- *  na altura, ou só uma parte, se arrastar também para cima ou para baixo),
- *  move e muda o tamanho dele, e escolhe o movimento e os produtos do quadrado
+ *  cada espaço: arrasta na prateleira para criar um quadrado (sempre na altura
+ *  toda da prateleira, lado a lado com os outros: um não fica em cima do outro),
+ *  move e muda a largura dele, e escolhe o movimento e os produtos do quadrado
  *  no catálogo (aba Produtos da planilha: SKU, nome, marca, categoria e
  *  movimento). O que foi definido aparece para todo mundo no planograma da
  *  tela do móvel ("como as prateleiras estão divididas", em App.html, com
@@ -21,10 +21,8 @@ const Prateleira = (() => {
   // { estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento, acesso, rascunhos }
   let app = null;
   let editando = null; // { chave: "ciclo|planta|espaço", sujo } do espaço aberto na edição
-  /** Passo do desenho, em % da prateleira (na horizontal e na vertical). */
-  const PASSO = { x: 1, y: 5 };
-  /** Arrastar menos que isto na vertical faz o quadrado ocupar a altura toda da prateleira. */
-  const ALTURA_INTEIRA = 30;
+  /** Passo do desenho, em % da largura da prateleira. */
+  const PASSO = 1;
 
   function n(tag, classe, texto, pai) {
     const e = document.createElement(tag);
@@ -79,7 +77,8 @@ const Prateleira = (() => {
   const rotulo = (plano, k) => (/^\d+$/.test(plano.rotulos[k]) ? 'Prateleira ' + (k + 1) : plano.rotulos[k]);
   const produtosDe = (det) => [].concat(...det.prateleiras.map((p) => [].concat(...p.quadrados.map((q) => q.produtos))));
   const somaFrentes = (lista) => lista.reduce((s, x) => s + (Number(x.frentes) || 0), 0);
-  const sobrepoe = (a, b) => a.x + a.w > b.x + 0.05 && b.x + b.w > a.x + 0.05 && a.y + a.h > b.y + 0.05 && b.y + b.h > a.y + 0.05;
+  /** Os quadrados ocupam a altura toda: só a largura pode se sobrepor (encostar não conta). */
+  const sobrepoe = (a, b) => a.x + a.w > b.x + 0.05 && b.x + b.w > a.x + 0.05;
 
   /** Posição do quadrado no elemento (em % da prateleira). */
   function posicionar(el, q) {
@@ -133,13 +132,15 @@ const Prateleira = (() => {
       const cabe = (li) => li.getBoundingClientRect().bottom <= limite;
       if (itens.every(cabe)) return;
       const mais = n('li', 'pr-q-mais', null, ul);
+      // Num quadrado estreito, só "+N".
+      const texto = (k) => '+' + k + (el.clientWidth < 110 ? '' : k > 1 ? ' produtos' : ' produto');
       let escondidos = 0;
       for (let i = itens.length - 1; i >= 0; i--) {
-        mais.textContent = '+' + (escondidos || 1) + (escondidos > 1 ? ' produtos' : ' produto');
+        mais.textContent = texto(escondidos || 1);
         if (cabe(itens[i]) && cabe(mais)) break;
         itens[i].hidden = true;
         escondidos++;
-        mais.textContent = '+' + escondidos + (escondidos > 1 ? ' produtos' : ' produto');
+        mais.textContent = texto(escondidos);
         if (i === 0 || (cabe(itens[i - 1]) && cabe(mais))) break;
       }
     }));
@@ -252,8 +253,8 @@ const Prateleira = (() => {
         redesenharTudo();
       });
     }
-    n('p', 'pr-ed-dica', 'Arraste numa prateleira para desenhar um quadrado (arrastando também para cima ou para baixo, ele ocupa só uma parte da altura). '
-      + 'Clique num quadrado para escolher o movimento e os produtos; arraste para mover e puxe as bordas para mudar o tamanho. Delete apaga o quadrado escolhido.', card);
+    n('p', 'pr-ed-dica', 'Arraste para os lados numa prateleira para desenhar um quadrado (ele ocupa a altura toda da prateleira, lado a lado com os outros). '
+      + 'Clique num quadrado para escolher o movimento e os produtos; arraste para mover e puxe as bordas laterais para mudar a largura. Delete apaga o quadrado escolhido.', card);
     if (!catalogo().length) {
       n('p', 'pr-aviso', 'A aba Produtos da planilha está vazia: cadastre os produtos (SKU e nome) para escolher aqui.', card);
     }
@@ -308,18 +309,16 @@ const Prateleira = (() => {
         if (ev.target !== tela || ev.button !== 0) return;
         ev.preventDefault();
         const r = tela.getBoundingClientRect();
-        const pct = (e) => ({ x: limitar(((e.clientX - r.left) / r.width) * 100, 0, 100), y: limitar(((e.clientY - r.top) / r.height) * 100, 0, 100) });
+        const pct = (e) => limitar(((e.clientX - r.left) / r.width) * 100, 0, 100);
         const ini = pct(ev);
         const fantasma = n('div', 'pr-quadrado fantasma', null, tela);
         let atual = null;
+        // Só a horizontal conta: o quadrado ocupa a altura toda da prateleira.
         const medir = (e) => {
           const p = pct(e);
-          const x = arred(Math.min(ini.x, p.x), PASSO.x);
-          const w = arred(Math.max(ini.x, p.x), PASSO.x) - x;
-          const alto = Math.abs(p.y - ini.y) >= ALTURA_INTEIRA;
-          const y = alto ? arred(Math.min(ini.y, p.y), PASSO.y) : 0;
-          const h = alto ? arred(Math.max(ini.y, p.y), PASSO.y) - y : 100;
-          atual = { x, y, w, h };
+          const x = arred(Math.min(ini, p), PASSO);
+          const w = arred(Math.max(ini, p), PASSO) - x;
+          atual = { x, y: 0, w, h: 100 };
           posicionar(fantasma, atual);
           fantasma.classList.toggle('invalido', doNumero(numero).some((q) => sobrepoe(q, atual)));
         };
@@ -330,7 +329,7 @@ const Prateleira = (() => {
           tela.removeEventListener('pointercancel', soltar);
           medir(e);
           fantasma.remove();
-          if (!atual || atual.w < limites().minimo || atual.h < limites().minimo) {
+          if (!atual || atual.w < limites().minimo) {
             // Um clique no fundo só tira a escolha.
             if (selecionado) { selecionado = null; redesenharTudo(); }
             return;
@@ -365,25 +364,19 @@ const Prateleira = (() => {
         const tela = telas[numero].tela;
         const r = tela.getBoundingClientRect();
         const borda = ev.target.dataset.borda || '';
-        const ini = { cx: ev.clientX, cy: ev.clientY, x: q.x, y: q.y, w: q.w, h: q.h };
+        const ini = { cx: ev.clientX, x: q.x, w: q.w };
         let mexeu = false;
         const minimo = limites().minimo;
+        // Só para os lados: mover muda o início; as bordas laterais, a largura.
         const mover = (e) => {
           const dx = ((e.clientX - ini.cx) / r.width) * 100;
-          const dy = ((e.clientY - ini.cy) / r.height) * 100;
-          if (!mexeu && Math.abs(e.clientX - ini.cx) < 3 && Math.abs(e.clientY - ini.cy) < 3) return;
+          if (!mexeu && Math.abs(e.clientX - ini.cx) < 3) return;
           mexeu = true;
-          let c = { x: ini.x, y: ini.y, w: ini.w, h: ini.h };
-          if (!borda) {
-            c.x = limitar(arred(ini.x + dx, PASSO.x), 0, 100 - ini.w);
-            c.y = limitar(arred(ini.y + dy, PASSO.y), 0, 100 - ini.h);
-          } else {
-            if (borda.indexOf('e') >= 0) c.w = limitar(arred(ini.x + ini.w + dx, PASSO.x), ini.x + minimo, 100) - ini.x;
-            if (borda.indexOf('w') >= 0) { c.x = limitar(arred(ini.x + dx, PASSO.x), 0, ini.x + ini.w - minimo); c.w = ini.x + ini.w - c.x; }
-            if (borda.indexOf('s') >= 0) c.h = limitar(arred(ini.y + ini.h + dy, PASSO.y), ini.y + minimo, 100) - ini.y;
-            if (borda.indexOf('n') >= 0) { c.y = limitar(arred(ini.y + dy, PASSO.y), 0, ini.y + ini.h - minimo); c.h = ini.y + ini.h - c.y; }
-          }
-          c = { x: Math.round(c.x * 10) / 10, y: Math.round(c.y * 10) / 10, w: Math.round(c.w * 10) / 10, h: Math.round(c.h * 10) / 10 };
+          let c = { x: ini.x, w: ini.w };
+          if (!borda) c.x = limitar(arred(ini.x + dx, PASSO), 0, 100 - ini.w);
+          else if (borda === 'e') c.w = limitar(arred(ini.x + ini.w + dx, PASSO), ini.x + minimo, 100) - ini.x;
+          else { c.x = limitar(arred(ini.x + dx, PASSO), 0, ini.x + ini.w - minimo); c.w = ini.x + ini.w - c.x; }
+          c = { x: Math.round(c.x * 10) / 10, y: 0, w: Math.round(c.w * 10) / 10, h: 100 };
           if (doNumero(numero).some((o) => o !== q && sobrepoe(o, c))) return;
           Object.assign(q, c);
           posicionar(el, q);
@@ -415,7 +408,7 @@ const Prateleira = (() => {
         if (selecionado && selecionado.numero === numero && selecionado.id === q.id) el.classList.add('escolhido');
         posicionar(el, q);
         conteudoQuadrado(el, col, q);
-        ['n', 's', 'e', 'w'].forEach((b) => { n('i', 'pr-borda ' + b, null, el).dataset.borda = b; });
+        ['e', 'w'].forEach((b) => { n('i', 'pr-borda ' + b, null, el).dataset.borda = b; });
         ligarQuadrado(el, numero, q);
       });
       ajustarTextos(tela);
@@ -433,7 +426,7 @@ const Prateleira = (() => {
       painel.style.setProperty('--cor', corDoMovimento(col, q.movimento));
       const topo = n('div', 'pr-painel-topo', null, painel);
       n('strong', null, 'Quadrado · ' + rotulo(ctx.plano, selecionado.numero - 1).toLowerCase(), topo);
-      n('span', 'pr-resumo', Math.round(q.w) + '% da largura' + (q.h < 100 ? ' · ' + Math.round(q.h) + '% da altura' : ''), topo);
+      n('span', 'pr-resumo', Math.round(q.w) + '% da largura', topo);
       botao('Apagar quadrado', 'fantasma perigo', apagarSelecionado, topo).dataset.acao = 'apagar-quadrado';
 
       const campos = n('div', 'pr-painel-campos', null, painel);
@@ -566,7 +559,7 @@ const Prateleira = (() => {
       .map((numero) => ({
         numero,
         quadrados: trabalho[numero].map((q) => ({
-          x: q.x, y: q.y, w: q.w, h: q.h, movimento: q.movimento, observacao: (q.observacao || '').trim(),
+          x: q.x, w: q.w, movimento: q.movimento, observacao: (q.observacao || '').trim(),
           produtos: q.produtos.map((x) => ({ sku: x.sku, frentes: x.frentes })),
         })),
       }));

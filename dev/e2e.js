@@ -34,6 +34,12 @@ function excelLocal() {
   return null;
 }
 
+/** jsPDF local (o briefing em PDF): JSPDF_JS = caminho do jspdf.umd.min.js, ou o pacote jspdf instalado. */
+function jspdfLocal() {
+  if (process.env.JSPDF_JS && fs.existsSync(process.env.JSPDF_JS)) return process.env.JSPDF_JS;
+  try { return require.resolve('jspdf/dist/jspdf.umd.min.js', { paths: [RAIZ] }); } catch (e) { return null; }
+}
+
 const { chromium } = exigir('playwright');
 const { carregarGas } = require('./gas');
 
@@ -53,6 +59,7 @@ const SEMENTE = (() => {
   });
 })();
 const EXCEL_LOCAL = excelLocal();
+const JSPDF_LOCAL = jspdfLocal();
 const PASTA = fs.mkdtempSync(path.join(os.tmpdir(), 'plano-varejo-e2e-'));
 
 /*
@@ -96,6 +103,7 @@ async function abrir(t, opcoes) {
   // Fonte do Google: resposta vazia (sem depender da rede; o app usa a fonte de reserva).
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   if (EXCEL_LOCAL) await ctx.route('**/exceljs.min.js', (r) => r.fulfill({ path: EXCEL_LOCAL, contentType: 'text/javascript' }));
+  if (JSPDF_LOCAL) await ctx.route('**/jspdf.umd.min.js', (r) => r.fulfill({ path: JSPDF_LOCAL, contentType: 'text/javascript', headers: { 'Access-Control-Allow-Origin': '*' } }));
 
   const pagina = await ctx.newPage();
   const erros = [];
@@ -1141,20 +1149,20 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
     await p.mouse.move(r.x + r.width * x2, r.y + r.height * y2, { steps: 6 });
     await p.mouse.up();
   };
-  // Arrastar só na horizontal: o quadrado ocupa a altura toda; o painel dele abre com a busca no catálogo.
+  // Arrastar na prateleira cria um quadrado na altura toda; o painel dele abre com a busca no catálogo.
   await arrastar(1, 0.005, 0.5, 0.5, 0.55);
   await card.locator('.pr-painel .pr-ed-mov').selectOption('LÇTO EGEO');
   await card.locator('.pr-busca').fill('egeo dolce');
   await card.locator('.pr-resultado').first().click();
   await card.locator('.pr-resultado').first().click(); // de novo: soma uma frente
-  // Arrastar também na vertical: o quadrado ocupa só uma parte da altura.
+  // Arrastar também na vertical não muda nada: o quadrado continua na altura toda (não há quadrado em cima de outro).
   await arrastar(1, 0.6, 0.02, 0.9, 0.48);
   await card.locator('.pr-busca').fill('malbec gold');
   await card.locator('.pr-resultado').first().click();
-  // Em cima de outro quadrado não entra.
-  await arrastar(1, 0.7, 0.55, 0.98, 0.98);
+  // Sobre a largura de outro quadrado não entra; no espaço livre, entra.
   await arrastar(1, 0.55, 0.6, 0.62, 0.65);
-  assert.strictEqual(await card.locator('.pr-tela[data-numero="1"] .pr-quadrado').count(), 3, 'o 3º quadrado entra; o 4º, sobreposto, não');
+  await arrastar(1, 0.92, 0.5, 0.995, 0.5);
+  assert.strictEqual(await card.locator('.pr-tela[data-numero="1"] .pr-quadrado').count(), 3, 'o quadrado sobreposto não entra; o do espaço livre, sim');
   // Delete apaga o quadrado escolhido.
   await card.locator('.pr-tela[data-numero="1"] .pr-quadrado.escolhido').click();
   await p.keyboard.press('Delete');
@@ -1171,12 +1179,11 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   const g = await estado(p, () => App.estado.dados.prateleiras.filter((x) => x.espaco === 'GONDOLA 1/PONTA-A'));
   assert.deepStrictEqual(g.map((x) => x.planta), ['01', '02', '03', '04'], 'vale em todas as ERs que têm o espaço');
   const p1 = g[0].prateleiras[0];
-  assert.deepStrictEqual(p1.quadrados.map((q) => [q.x, q.y, q.w, q.h]), [[1, 0, 49, 100], [60, 0, 30, 50]]);
+  assert.deepStrictEqual(p1.quadrados.map((q) => [q.x, q.y, q.w, q.h]), [[1, 0, 49, 100], [60, 0, 30, 100]]);
   assert.deepStrictEqual(p1.quadrados.map((q) => q.produtos.map((x) => x.sku + '×' + x.frentes)), [['48211×2'], ['50111×1']]);
   assert.strictEqual(p1.movimento, 'LÇTO EGEO');
   assert.deepStrictEqual(g[0].prateleiras[1].quadrados.map((q) => [q.x, q.w]), [[0, 50], [50, 50]]);
   assert.match(await p.textContent('.pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] .pr-resumo'), /2 produtos · 3 frentes/);
-  assert.match(await p.textContent('.mv-plano'), /definidas na construção/);
   assert.ok(await p.locator('.mv-plano .pg-celula:not(.pg-desenhada)').count() > 0, 'os espaços sem desenho continuam com a divisão automática');
 
   // Mudança sem salvar: fechar pergunta (o teste aceita) e descarta.
@@ -1195,6 +1202,44 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   await p.waitForSelector('#dlgMovel[open] .mv-plano .pg-desenhada[data-espaco="GONDOLA 1/PONTA-A"] .pr-quadrado');
   assert.match(await p.textContent('.mv-plano'), /Egeo Dolce/);
   assert.strictEqual(await p.locator('.pr-secao').count(), 0);
+});
+
+test('briefing das gôndolas e pirâmides: PDF com o planograma desenhado de cada móvel', { skip: !JSPDF_LOCAL && 'sem o jsPDF local (JSPDF_JS ou npm i jspdf)' }, async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  await abaPlanta(p, 'ER P').click();
+  // Um espaço da gôndola e uma pirâmide desenhados (o mesmo que o editor grava).
+  await p.evaluate(async () => {
+    const C = { papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' };
+    const salvar = (pedido) => new Promise((ok, falha) => google.script.run.withSuccessHandler(ok).withFailureHandler(falha).salvarPrateleiras(C, pedido));
+    await salvar({
+      acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'GONDOLA 1/PONTA-A',
+      prateleiras: [{ numero: 1, quadrados: [{ x: 0, w: 60, movimento: 'LÇTO EGEO', produtos: [{ sku: '48211', frentes: 3 }] }] }],
+    });
+    await salvar({
+      acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-2',
+      prateleiras: [{ numero: 4, quadrados: [{ x: 0, w: 100, produtos: [{ sku: '50110', frentes: 4 }] }] }],
+    });
+    await App.carregar({ ciclo: 'Ciclo exemplo cheio' });
+  });
+  await abaPlanta(p, 'ER P').click();
+  await p.click('#btnBriefing');
+  await p.waitForSelector('#dlgBriefing[open]');
+  const naEr = await estado(p, () => App.estado.dados.plantas.find((x) => x.nome === 'ER P').moveis.filter((m) => m.tipo === 'PIRAMIDE').length);
+  assert.match(await p.textContent('#briefingResumo'), new RegExp('1 gôndola e ' + naEr + ' pirâmide'));
+  await p.check('input[name="briefingErs"][value="todas"]');
+  const conta = (tipo) => p.evaluate((t) => App.estado.dados.plantas.reduce((s, x) => s + x.moveis.filter((m) => m.tipo === t).length, 0), tipo);
+  const gondolas = await conta('GONDOLA');
+  const piramides = await conta('PIRAMIDE');
+  const n = gondolas + piramides;
+  assert.match(await p.textContent('#briefingResumo'), new RegExp(gondolas + ' gôndolas e ' + piramides + ' pirâmides'));
+  const d = await baixar(p, () => p.click('#briefingBaixar'));
+  assert.match(d.nome, /^briefing-planogramas-Ciclo-exemplo-cheio\.pdf$/);
+  assert.strictEqual(d.bytes.subarray(0, 5).toString(), '%PDF-');
+  // Capa + uma página por gôndola (no mínimo).
+  const paginas = (d.bytes.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  assert.ok(paginas >= n + 1, paginas + ' páginas para ' + n + ' gôndolas e pirâmides');
+  assert.match(await p.textContent('#toast'), new RegExp(gondolas + ' gôndolas e ' + piramides + ' pirâmides'));
 });
 
 test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo ⏩', async (t) => {
@@ -1233,11 +1278,10 @@ test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo
   const linha = await estado(p, () => App.resolver.movimento('Ciclo exemplo', '01', 'GONDOLA 1/PONTA-A'));
   assert.ok(!linha || !linha.etiquetas.some((e) => e.texto === 'LÇTO ANTECIPADO'), 'a planilha base não leva a antecipação');
 
-  // Tela do móvel: quando entra e o que tinha antes.
+  // Tela do móvel: o planograma já mostra o item antecipado no espaço (a data fica em Comunicações ER).
   await p.locator('#valCorpo .an-item .val-movel').first().click();
   await p.waitForSelector('#dlgMovel[open]');
-  assert.match(await p.textContent('#mvEstrategia'), /Entra em 25\/10\/2026/);
-  assert.match(await p.textContent('#mvEstrategia'), /Antes/);
+  assert.match(await p.textContent('.mv-plano'), /LÇTO ANTECIPADO/);
   await p.keyboard.press('Escape');
   await p.waitForSelector('#dlgMovel:not([open])', { state: 'attached' });
 
