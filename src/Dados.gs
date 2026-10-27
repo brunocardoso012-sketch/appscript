@@ -2,8 +2,7 @@
  * ============================================================================
  *  LEITURA DAS ABAS E NORMALIZAÇÃO (funções puras, sem I/O)
  * ============================================================================
- *  Usado pelo app completo (Code.gs), pela versão estática (web/) e pela versão
- *  só de visualização (visualizador/). Não acessa a planilha: recebe as matrizes
+ *  Usado pelo app (Code.gs) e pela versão estática (web/). Não acessa a planilha: recebe as matrizes
  *  [cabeçalho, ...linhas] e devolve o objeto que a página desenha.
  */
 
@@ -621,7 +620,7 @@ function normSecao_(v) {
  * Junta linhas existentes de uma aba com linhas importadas: remove as antigas
  * cujo (Ciclo, Planta) aparece na importação e acrescenta as novas (no Layout,
  * que não tem Ciclo, a chave é só a Planta). chaveDe(objeto) troca a chave (opcional).
- * Fica aqui (e não no Code.gs) porque o visualizador e os rascunhos também usam.
+ * Fica aqui (e não no Code.gs) porque a versão web e os rascunhos também usam.
  * @return {Array<Array<string>>} matriz completa (com cabeçalho) para gravar.
  */
 function mesclarLinhas_(existentes, novos, colunas, chaveDe) {

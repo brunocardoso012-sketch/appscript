@@ -10,7 +10,7 @@
  *
  *  Funções sem "_" no final podem ser chamadas pela página (google.script.run).
  *  A leitura das abas e as normalizações (sem I/O) ficam em Dados.gs, que também
- *  é usado pela versão só de visualização (pasta visualizador/).
+ *  é usado pela versão web (web/backend-local.js).
  */
 
 /* =============================== ENTRADA ================================== */
@@ -100,6 +100,14 @@ function urlDoApp_() {
   } catch (e) {
     return '';
   }
+}
+
+/* ============================= DESENVOLVEDOR ============================== */
+
+/** Confere a senha do módulo Desenvolvedor (Construir loja, Baixar / Importar planilha). */
+function entrarDesenvolvedor(acesso) {
+  conferirDesenvolvedor_(acesso);
+  return { ok: true };
 }
 
 /* ======================== VALIDAÇÃO DA ESTRATÉGIA ========================= */
@@ -222,10 +230,12 @@ function configurarPlanilha() {
  * antigas desse par são substituídas pelas novas; o restante é mantido.
  * Se o arquivo tiver a aba Layout, as plantas presentes nela são substituídas.
  *
+ * @param {{senha: string}} acesso  senha do módulo Desenvolvedor
  * @param {{movimentos?: Array<Array<*>>, paineis?: Array<Array<*>>, layout?: Array<Array<*>>}} payload
  *        Cada item é uma matriz [cabeçalho, ...linhas] com os valores das células.
  */
-function importarPlanilha(payload) {
+function importarPlanilha(acesso, payload) {
+  conferirDesenvolvedor_(acesso);
   const ss = planilha_();
   const prep = prepararImportacao_(payload); // valida tudo antes de gravar
 
@@ -391,10 +401,12 @@ function salvarAjustesEtiquetas(planta, ajustes) {
 /**
  * Grava uma planta inteira (dimensões da loja + móveis) na aba Layout,
  * substituindo as linhas dessa planta. Usado pelo modo "Construir loja".
+ * @param {{senha: string}} acesso  senha do módulo Desenvolvedor
  * @param {string} planta
  * @param {{loja: {largura, profundidade, alturaParede}, moveis: Array<Object>}} layout
  */
-function salvarLayout(planta, layout) {
+function salvarLayout(acesso, planta, layout) {
+  conferirDesenvolvedor_(acesso);
   const objetos = objetosLayoutDaPlanta_(planta, layout);
   const ss = planilha_();
   return comTrava_(function () {

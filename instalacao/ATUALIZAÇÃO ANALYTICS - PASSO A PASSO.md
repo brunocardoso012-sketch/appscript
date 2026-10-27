@@ -6,6 +6,8 @@ Esta atualização troca o painel **Espaço por marca** pelo **Analytics**: um d
 
 > Tempo estimado: 10 minutos.
 
+> **O visualizador não existe mais.** Este passo a passo vale só para o app completo. Quem usa o visualizador troca para o app completo pela **Parte A** do [GUIA DE INSTALAÇÃO E ATUALIZAÇÃO.md](GUIA%20DE%20INSTALA%C3%87%C3%83O%20E%20ATUALIZA%C3%87%C3%83O.md); o arquivo `Visualizador - Plano de Varejo.gs` citado abaixo saiu desta pasta.
+
 ## Antes de começar: esta é a atualização certa para você?
 
 Abra o app e olhe o topo:

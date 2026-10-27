@@ -85,7 +85,8 @@
       return { mensagem: 'Dados de exemplo restaurados.' };
     },
 
-    importarPlanilha(payload) {
+    importarPlanilha(acesso, payload) {
+      conferirDesenvolvedor_(acesso);
       const prep = prepararImportacao_(payload);
       const abas = ler();
       const resultado = { movimentos: 0, paineis: 0, tipos: 0, layout: 0, produtos: 0 };
@@ -100,12 +101,18 @@
       return resultado;
     },
 
-    salvarLayout(planta, layout) {
+    salvarLayout(acesso, planta, layout) {
+      conferirDesenvolvedor_(acesso);
       const objetos = objetosLayoutDaPlanta_(planta, layout);
       const abas = ler();
       abas.layout = mesclarLinhas_(abas.layout, objetos, colunasLayout_());
       gravar(abas);
       return { planta: normPlanta_(planta), moveis: objetos.length - 1 };
+    },
+
+    entrarDesenvolvedor(acesso) {
+      conferirDesenvolvedor_(acesso);
+      return { ok: true };
     },
 
     entrarValidacao(acesso) {

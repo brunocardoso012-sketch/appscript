@@ -6,11 +6,10 @@ Este guia é para quem **já usa o app no Apps Script e já tem a planilha com o
 
 | Arquivo | Para quê |
 |---|---|
-| `Visualizador - Plano de Varejo.gs` | O **visualizador** (só visualização) inteiro num arquivo. |
-| `App completo - Plano de Varejo.gs` | O **app completo** (com *Construir loja*, *Baixar planilha base* e *Importar planilha*) inteiro num arquivo. |
+| `App completo - Plano de Varejo.gs` | O **app completo** inteiro num arquivo. |
 | `appsscript.json` | O manifesto do projeto. Normalmente você **não** precisa mexer nele. |
 
-Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (passo 1).
+> **Não existe mais a versão "visualizador"** (só visualização). Agora há só o app completo: o módulo de construção da loja (*Construir loja*, *Baixar planilha base* e *Importar planilha*) fica dentro da engrenagem, em **Desenvolvedor**, protegido por senha. Quem ainda usa o visualizador troca para o app completo na **Parte A**.
 
 > **Já tem *Comunicações ER* e *Espaço por marca* no topo do app?** Então falta só a atualização do **Analytics**: use o passo a passo curto em [ATUALIZAÇÃO ANALYTICS - PASSO A PASSO.md](ATUALIZA%C3%87%C3%83O%20ANALYTICS%20-%20PASSO%20A%20PASSO.md).
 
@@ -22,6 +21,8 @@ Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (pas
 
 - **Analytics** (no lugar do antigo *Espaço por marca*): um dashboard do ciclo que compara as ERs — números principais, insights rápidos, o mapa movimento × ER, as marcas e as classificações em cada ER e o GMV esperado × espaço. Clicar numa célula ou num insight mostra na planta daquela ER só onde o movimento aparece.
 - **Aba nova na planilha, "Tipos de movimento":** nela você informa a classificação (lançamento, promoção…) e o GMV esperado de cada movimento.
+- **Só o app completo:** a versão *visualizador* deixou de existir. Quem usava o visualizador passa a usar o app completo (Parte A); a planilha e os ciclos continuam os mesmos.
+- **Desenvolvedor (com senha):** *Construir loja*, *Baixar planilha base* e *Importar planilha* saíram do topo e ficam na engrenagem, no item **Desenvolvedor**, que pede a senha `desenvolvedor_exposicao`. Com a senha, o item mostra os três botões (e *Sair do desenvolvedor*); a senha vale até fechar a aba do navegador e é conferida de novo no servidor a cada importação e a cada *Salvar planta*. Avise quem monta as plantas e importa as planilhas.
 - **Topo reorganizado:** *Comunicações ER* e *Analytics* ficam em destaque. *Validação*, *Construção*, *Ajustar etiquetas* e *Ver o tutorial* ficam na engrenagem. *Baixar PNG* fica no canto de baixo da planta.
 - **Ajustar etiquetas:** cada pilha de etiquetas se move sozinha, e dá para mudar o tamanho das etiquetas.
 - **Baixar PNG:** escolha o conteúdo (planta, visão simplificada ou **estratégia**, que é o espaço da ER em gráficos) e o formato (PNG recortado ou slide completo).
@@ -35,7 +36,6 @@ Você vai usar **só um** dos dois arquivos `.gs`: o da versão que já usa (pas
 - **Montar um ciclo novo no app:** com o login da *Construção* (engrenagem), o construtor da estratégia cria um ciclo (em branco, copiando outro ou só os espaços fixos 🔒 de outro) e monta em três passos, num painel na lateral: os Tipos de movimento com o GMV, depois os móveis (clicando na planta; ela pinta e mostra as etiquetas na hora, tudo é salvo sozinho e o painel mostra os números da ER), depois o envio para aprovação. O validador aprova (o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*) ou devolve com um comentário. Enquanto não é aprovado, o ciclo fica em quatro abas novas, criadas sozinhas na primeira vez: *Rascunhos*, *Rascunho Movimentos*, *Rascunho Painéis* e *Rascunho Tipos*. Não apague essas abas nem mexa nelas à mão.
 - **Construção do ciclo, novidades:** cada espaço começa com **uma etiqueta** e o botão **+ Adicionar etiqueta** põe outra (até 4); o **×** tira uma. Nos selects de marca, cada marca aparece com a **cor dela no fundo**. Na gôndola, cada meio tem **Dividir em 2** (e **Juntar metades**). Os espaços fixos (🔒) copiados de outro ciclo aparecem na planta mesmo com o *Comparar com* ligado: ao montar um ciclo, a comparação sai.
 - **Ordem das marcas:** em todas as listas do app (legenda, filtros, selects, Analytics, PNG), as marcas seguem a ordem **BOT | EUD | QDB | OUI | MM**.
-- **Visualizador sem a comparação de ciclos:** o seletor *Comparar com* fica só no app completo.
 - **Antecipações:** quando um item do próximo ciclo precisa entrar antes, quem entrou na validação cria uma *antecipação* (seção *Antecipações* do painel da validação): escolhe o espaço (na lista ou clicando na planta), o movimento, a marca, se ele substitui o espaço ou soma às etiquetas, e a data em que entra. A planta mostra o item no espaço com o símbolo ⏩ para todo mundo, e a data aparece na tela do móvel e em *Comunicações ER*. As antecipações ficam numa aba nova, *Antecipações*, criada sozinha na primeira vez; as abas *Movimentos* e *Painéis* não mudam.
 - **Prateleiras (o desenho de cada prateleira):** na tela do móvel, o *Planograma · como as prateleiras estão divididas* mostra cada prateleira com os quadrados desenhados e os produtos de cada um. Só com o login da *Construção* aparece a seção *Construção das prateleiras*: o construtor clica em *Desenhar* no espaço, arrasta na prateleira para criar os quadrados (move e muda o tamanho arrastando) e, em cada quadrado, escolhe o movimento e os produtos. Os produtos vêm de uma aba nova, **Produtos** (SKU, Produto, Marca, Categoria e Movimento): crie a aba com essas colunas e cole a lista de produtos (ou use *Configurar planilha*, que cria a aba com exemplos). O desenho fica em outra aba nova, *Prateleiras*, criada sozinha na primeira vez (uma linha por produto de cada quadrado).
 
@@ -47,11 +47,12 @@ Abra a planilha e vá em **Extensões › Apps Script**. Olhe a lista de arquivo
 
 | Se você vê… | Você usa o… | Siga |
 |---|---|---|
-| Só **um** arquivo `Código.gs` (no fim dele há `const PAGINA_ = [`) | Visualizador, em arquivo único | **Parte A** |
+| Só **um** arquivo `Código.gs`, que começa com `PLANO DE VAREJO · VISUALIZADOR` (ou tem `const VISUALIZADOR = {` no começo) | Visualizador, em arquivo único | **Parte A** |
 | `Código.gs` (ou `Codigo.gs`) **e** um `Index.html` | Visualizador, em arquivos separados | **Parte A** |
+| Só **um** arquivo `Código.gs`, que começa com `PLANO DE VAREJO · APP COMPLETO` | App completo, em arquivo único | **Parte B** |
 | Vários arquivos: `Code`, `Config`, `Dados`, `Layouts`, `Validacao`, `Index`, `Styles`, `Render`, `App`… | App completo | **Parte B** |
 
-Outra pista é a tela do app: se ela tem o botão **Construir loja**, é o app completo. Se não tem, é o visualizador.
+Outra pista é a tela do app: se ela tem o botão **Construir loja** (no topo ou em *engrenagem › Desenvolvedor*), é o app completo. Se não tem, é o visualizador.
 
 ## Passo 2 · Faça uma cópia de segurança (2 minutos)
 
@@ -62,11 +63,11 @@ Se algo der errado, a cópia tem tudo como estava antes.
 
 ---
 
-## Parte A · Atualizar o **visualizador**
+## Parte A · Trocar o **visualizador** pelo app completo
 
-O visualizador lê a planilha e grava só os comentários da validação (aba *Comentários*), as antecipações (aba *Antecipações*), o desenho das prateleiras (aba *Prateleiras*, com os produtos da aba *Produtos*) e os ciclos montados no app (abas *Rascunho…*; quando o validador aprova, o ciclo entra nas abas *Movimentos*, *Painéis* e *Tipos de movimento*). Ao atualizar, nada da planilha muda, e as posições das etiquetas que você já salvou também ficam.
+O visualizador deixou de existir: ele vira o app completo, na mesma planilha e com o mesmo link. Os seus ciclos (abas *Movimentos*, *Painéis* e *Tipos de movimento*), os comentários, as antecipações, as prateleiras e os ciclos em construção continuam como estão.
 
-### A1. Guarde o link da planilha, se ele estiver no código
+### A1. Veja onde está a planilha
 
 Abra o `Código.gs` atual e procure, logo no começo:
 
@@ -75,71 +76,22 @@ const VISUALIZADOR = {
   PLANILHA: '',
 ```
 
-- Se estiver vazio (`''`), o script está ligado à própria planilha. Não precisa fazer nada.
-- Se tiver um link ou ID entre as aspas, **copie e guarde** esse texto. Você vai colar de novo no passo A3.
+- Se estiver vazio (`''`), o script está ligado à própria planilha (o caso normal). Siga para o A2.
+- Se tiver um link ou ID entre as aspas, o script abre outra planilha. **Copie e guarde** o ID (o trecho do link entre `/d/` e `/edit`). No app completo, ele vai numa propriedade do script: em **Configurações do projeto** (engrenagem à esquerda) › **Propriedades do script** › **Adicionar propriedade**, com o nome `SPREADSHEET_ID` e o ID como valor. Faça isso depois do A2.
 
-### A2. Apague o `Index.html`, se ele existir
+### A2. Troque o código
 
-Se o projeto tem um arquivo `Index.html`, passe o mouse sobre ele, clique nos **⋮** e escolha **Excluir**. O arquivo novo já traz a página dentro dele.
+Siga os passos **B1 a B4** da Parte B (eles servem também para quem vem do visualizador): apague o `Código.gs` e o `Index.html` antigos, cole `App completo - Plano de Varejo.gs` e publique como **Nova versão** da mesma implantação.
 
-Apague também qualquer outro `.gs` que não seja o `Código.gs`, se houver. Mantenha só o **`Código.gs`** e o **`appsscript.json`** (se este aparecer).
+### A3. Crie a aba Layout
 
-### A3. Cole o código novo
+O visualizador guardava o layout das lojas no código; o app completo guarda na aba **Layout** da planilha (é nela que o *Construir loja* grava). Recarregue a planilha e use o menu **Plano de Varejo › Configurar planilha (criar abas que faltam)**: ele cria a aba *Layout* com as plantas padrão (as mesmas do visualizador) e as outras abas que faltarem, sem mexer nas que já existem.
 
-1. Abra o `Código.gs`, use <kbd>Ctrl</kbd>+<kbd>A</kbd> e apague tudo.
-2. Cole **o conteúdo inteiro** de `Visualizador - Plano de Varejo.gs`.
-3. Se você guardou um link no passo A1, cole-o de volta em `PLANILHA: '…'`.
-4. Salve com <kbd>Ctrl</kbd>+<kbd>S</kbd> ou no ícone de disquete. Não deve aparecer nenhuma mensagem de erro em vermelho.
+Se o script não está ligado à planilha (caso do `SPREADSHEET_ID`, no A1), esse menu não aparece nela. Sem problema: sem a aba *Layout*, o app usa as plantas padrão, e o primeiro *Salvar planta* do *Construir loja* cria a aba.
 
-### A4. Teste antes de publicar (opcional, recomendado)
+> Lembre do aviso do passo B1: o app completo **troca as linhas do "Ciclo exemplo"** pelas da versão nova. Se um ciclo de verdade se chama "Ciclo exemplo", renomeie antes.
 
-Vá em **Implantar › Testar implantações**, copie o link **App da Web** (termina em `/dev`) e abra-o. Esse link mostra o código salvo agora, antes de publicar. Confira se a planta abre e se os ciclos aparecem.
-
-### A5. Publique a nova versão (o link continua o mesmo)
-
-1. Vá em **Implantar › Gerenciar implantações**.
-2. Clique no **lápis** (Editar) da implantação ativa.
-3. Em **Versão**, escolha **Nova versão** e clique em **Implantar**.
-
-> ⚠️ **Não** use *Nova implantação*: ela cria um link novo, e quem usa o link antigo continuaria vendo a versão anterior.
-
-Se o Google pedir autorização, autorize com a mesma conta de sempre.
-
-### A6. Crie a aba "Tipos de movimento" (opcional)
-
-Sem esta aba o app funciona normalmente, e os movimentos aparecem como *Sem classificação*. Para mostrar a classificação e o GMV:
-
-1. Na planilha, clique no **+** (no canto de baixo à esquerda) e dê à aba o nome exato **`Tipos de movimento`**.
-2. Clique na célula **A1** e cole a linha abaixo. Ela já se divide nas 5 colunas.
-
-   ```
-   Ciclo	Movimento (etiqueta)	Classificação	GMV esperado (R$)	Observação
-   ```
-
-3. Preencha uma linha por movimento do ciclo:
-   - **Ciclo:** o mesmo nome usado na aba *Movimentos* (ex.: `C15/2026`).
-   - **Movimento (etiqueta):** o texto da etiqueta, igual ao da aba *Movimentos* (ex.: `LÇTO EGEO`). Maiúsculas e espaços a mais não importam.
-   - **Classificação:** `Lançamento`, `Promoção`, `Liquidação / outlet`, `Institucional / portfólio` ou `Outro`. Também aceita outro texto, que vira uma classificação própria.
-   - **GMV esperado (R$):** um número, como `1500000`, `R$ 1.500.000,00`, `1,5 mi` ou `250 mil`.
-   - **Observação:** opcional. Aparece ao passar o mouse no painel.
-4. (Opcional) Crie uma lista suspensa na coluna C: selecione a coluna, vá em **Dados › Validação de dados › Adicionar regra › Menu suspenso** e cadastre as 5 classificações acima.
-5. (Opcional) Formate a coluna D como moeda: selecione a coluna e vá em **Formatar › Número › Moeda**.
-6. No app, clique em **Atualizar**.
-
-Para um ciclo novo, copie as linhas do ciclo anterior (nesta aba e em *Movimentos* e *Painéis*), cole no fim e troque o nome do ciclo.
-
-Se um movimento aparecer como *Sem classificação* no Analytics, o texto da etiqueta nesta aba está diferente do texto da aba *Movimentos*.
-
-### A7. Gôndola 3 da ER G nos seus ciclos
-
-No *Ciclo exemplo*, o Lado A e o Meio A da Gôndola 3 (ER G) passaram a repetir o Lado B e o Meio B da Gôndola 2 da ER M. Como o visualizador lê os ciclos direto da sua planilha, faça isso nos **seus** ciclos, na aba *Movimentos*:
-
-- linha **ER G · `GONDOLA 3/LADO-A`**: copie a marca, as etiquetas e o símbolo da linha **ER M · `GONDOLA 2/LADO-B`**;
-- linha **ER G · `GONDOLA 3/MEIO-A`**: copie da linha **ER M · `GONDOLA 2/MEIO-B`**.
-
-Depois clique em **Atualizar** no app.
-
-Siga para a **Conferência final**.
+Depois siga para a **Conferência final**.
 
 ---
 
@@ -174,6 +126,7 @@ Também funciona. Substitua o conteúdo de cada arquivo pelo da pasta `src/` do 
 | HTML | `Estrategia` | `src/Estrategia.html` (novo) |
 | HTML | `Tutorial` | `src/Tutorial.html` (novo) |
 | HTML | `Analytics` | `src/Analytics.html` (novo) |
+| HTML | `Desenvolvedor` | `src/Desenvolvedor.html` (novo) |
 
 Os demais (`Code`, `Config`, `Dados`, `Layouts`, `Validacao`, `Index`, `Styles`, `Render`, `Planilha`, `Construtor`, `Validacao` html, `App`) recebem o conteúdo novo do arquivo de mesmo nome em `src/`. Sem os arquivos novos, a página não abre.
 </details>
@@ -190,15 +143,26 @@ Vá em **Implantar › Gerenciar implantações**, clique no **lápis** da impla
 
 ### B5. Preencha "Tipos de movimento" nos seus ciclos
 
-A aba é criada já com as colunas, as listas suspensas e o GMV em reais. Acrescente as linhas dos **seus** ciclos (o preenchimento de cada coluna está no passo A6, item 3).
+A aba é criada já com as colunas, as listas suspensas e o GMV em reais. Acrescente as linhas dos **seus** ciclos, uma por movimento:
 
-Atalho: no app, escolha o seu ciclo e clique em **Baixar planilha base › Copiar o ciclo selecionado**. A aba *Tipos de movimento* do arquivo já vem com todas as etiquetas do ciclo. Preencha a classificação e o GMV e use **Importar planilha**.
+- **Ciclo:** o mesmo nome usado na aba *Movimentos* (ex.: `C15/2026`).
+- **Movimento (etiqueta):** o texto da etiqueta, igual ao da aba *Movimentos* (ex.: `LÇTO EGEO`). Maiúsculas e espaços a mais não importam.
+- **Classificação:** `Lançamento`, `Promoção`, `Liquidação / outlet`, `Institucional / portfólio` ou `Outro`. Também aceita outro texto, que vira uma classificação própria.
+- **GMV esperado (R$):** um número, como `1500000`, `R$ 1.500.000,00`, `1,5 mi` ou `250 mil`.
+- **Observação:** opcional. Aparece ao passar o mouse no painel.
+
+Atalho: no app, entre em **engrenagem › Desenvolvedor** (senha `desenvolvedor_exposicao`), escolha o seu ciclo e clique em **Baixar planilha base › Copiar o ciclo selecionado**. A aba *Tipos de movimento* do arquivo já vem com todas as etiquetas do ciclo. Preencha a classificação e o GMV e use **Importar planilha**.
 
 Se a aba não aparecer, recarregue a planilha e use o menu **Plano de Varejo › Configurar planilha (criar abas que faltam)**. Ele só cria o que falta e não mexe no resto.
 
 ### B6. Gôndola 3 da ER G nos seus ciclos
 
-Faça o mesmo do passo **A7** na aba *Movimentos*. O *Ciclo exemplo* já vem atualizado.
+No *Ciclo exemplo*, o Lado A e o Meio A da Gôndola 3 (ER G) passaram a repetir o Lado B e o Meio B da Gôndola 2 da ER M. Se quiser o mesmo nos **seus** ciclos, na aba *Movimentos*:
+
+- linha **ER G · `GONDOLA 3/LADO-A`**: copie a marca, as etiquetas e o símbolo da linha **ER M · `GONDOLA 2/LADO-B`**;
+- linha **ER G · `GONDOLA 3/MEIO-A`**: copie da linha **ER M · `GONDOLA 2/MEIO-B`**.
+
+Depois clique em **Atualizar** no app. O *Ciclo exemplo* já vem atualizado.
 
 ### B7. Se você mudou o layout das plantas
 
@@ -209,13 +173,14 @@ Ao abrir, o app só troca o layout de uma planta quando o **modelo padrão** del
 
 ---
 
-## Conferência final (as duas versões)
+## Conferência final
 
 Abra o link do app e confira:
 
 - [ ] Aparece o convite **"Bem-vindo ao Plano de Varejo"**. Ele aparece uma vez por navegador. Faça o tour ou clique em *Agora não*.
 - [ ] O seletor de ciclo mostra os **seus** ciclos e a planta abre com as cores e as etiquetas.
-- [ ] O topo tem **Comunicações ER** e **Analytics** em destaque e a **engrenagem** com *Validação*, *Construção*, *Ajustar etiquetas* e *Ver o tutorial*.
+- [ ] O topo tem **Comunicações ER** e **Analytics** em destaque e a **engrenagem** com *Validação*, *Construção*, *Desenvolvedor*, *Ajustar etiquetas* e *Ver o tutorial*. *Construir loja*, *Baixar planilha base* e *Importar planilha* não aparecem no topo.
+- [ ] Em **engrenagem › Desenvolvedor**, a senha `desenvolvedor_exposicao` mostra *Baixar planilha base*, *Importar planilha* e *Construir loja* (e *Sair do desenvolvedor*). Outra senha não entra.
 - [ ] O **Analytics** mostra os números, os insights, o mapa movimento × ER e as marcas e classificações em cada ER. A classificação e o GMV só aparecem para os movimentos que estão na aba *Tipos de movimento*.
 - [ ] **Baixar PNG** (canto de baixo da planta) baixa a planta, a visão simplificada e a estratégia.
 - [ ] As posições de etiquetas que você já tinha salvado continuam no lugar.
@@ -232,8 +197,9 @@ Se tudo estiver certo, avise os usuários: o link é o mesmo.
 | Sintoma | O que fazer |
 |---|---|
 | Erro *"Identifier 'CONFIG' (ou outro nome) has already been declared"* ao salvar ou abrir | Sobrou um arquivo antigo no projeto. Deixe só o `Código.gs` (e o `appsscript.json`). |
-| A página continua igual à versão antiga | A implantação não foi atualizada (passo A5 / B4). Depois de atualizar, recarregue com <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. |
-| *"Não consegui abrir a planilha…"* (visualizador) | Cole de novo em `VISUALIZADOR.PLANILHA` o link guardado no passo A1. |
+| A página continua igual à versão antiga | A implantação não foi atualizada (passo B4). Depois de atualizar, recarregue com <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. |
+| *"Nenhuma planilha vinculada ao script"* (quem veio do visualizador com outra planilha) | Crie a propriedade do script `SPREADSHEET_ID` com o ID guardado no passo A1. |
+| *Senha incorreta* ao importar ou salvar a planta | A senha do *Desenvolvedor* mudou desde que você entrou: use *Sair do desenvolvedor* e entre de novo. |
 | A página fica em branco | Veja o erro em **Execuções** (menu da esquerda do Apps Script). Normalmente o arquivo não foi colado inteiro: copie e cole de novo. |
 | Os movimentos aparecem como *Sem classificação* | Confira o nome exato da aba (`Tipos de movimento`), o nome do ciclo e se o texto é igual ao da etiqueta. Depois clique em **Atualizar**. |
 | O convite do tutorial não aparece | Ele aparece só uma vez por navegador. Abra pela **engrenagem › Ver o tutorial**. |
@@ -243,12 +209,10 @@ Se tudo estiver certo, avise os usuários: o link é o mesmo.
 
 ## Instalação do zero (para outra pessoa ou outra planilha)
 
-1. **Planilha:**
-   - Visualizador: envie `visualizador/Planilha base - Visualizador.xlsx` para o Google Drive e abra como Planilhas Google.
-   - App completo: use uma planilha em branco. O app cria as abas.
-2. Na planilha, vá em **Extensões › Apps Script**. Apague o conteúdo do `Código.gs`, cole o arquivo da versão escolhida e salve.
+1. **Planilha:** use uma planilha em branco. O app cria as abas.
+2. Na planilha, vá em **Extensões › Apps Script**. Apague o conteúdo do `Código.gs`, cole `App completo - Plano de Varejo.gs` e salve.
 3. Vá em **Implantar › Nova implantação**, clique na engrenagem e escolha **App da Web**. Em *Executar como*, escolha **Eu**. Em *Quem pode acessar*, escolha quem vai usar. Clique em **Implantar** e autorize.
-4. **Só no app completo:** recarregue a planilha e use **Plano de Varejo › Configurar planilha**. Isso cria as abas *Layout*, *Movimentos*, *Painéis* e *Tipos de movimento* com o *Ciclo exemplo*.
+4. Recarregue a planilha e use **Plano de Varejo › Configurar planilha**. Isso cria as abas *Layout*, *Movimentos*, *Painéis* e *Tipos de movimento* com o *Ciclo exemplo*.
 5. Abra o link do App da Web.
 
 Estes arquivos são gerados a partir da pasta `src/` com `npm run build:instalacao`. Não edite os `.gs` desta pasta à mão: mude `src/` e gere de novo.

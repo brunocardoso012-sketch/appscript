@@ -6,6 +6,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { carregarGas, servicosFalsos } = require('./gas');
 
+/** Acesso do módulo Desenvolvedor (Construir loja, Baixar / Importar planilha). */
+const DEV = "{ senha: 'desenvolvedor_exposicao' }";
+
 test('normalizações', () => {
   const { run } = carregarGas();
   assert.equal(run('normPlanta_(1)'), '01');
@@ -77,7 +80,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
       ['C15/2026', 'TODAS', 'tv/rádio', 'GRADE NOVA', 'MULTI', ''],
     ],
   };
-  const r = run('importarPlanilha(__payload)');
+  const r = run(`importarPlanilha(${DEV}, __payload)`);
   assert.equal(r.movimentos, 2);
   assert.equal(r.paineis, 1);
 
@@ -128,8 +131,8 @@ test('importação com colunas obrigatórias faltando dá erro claro', () => {
   const { ctx, run } = carregarGas(f.globais);
   run('configurarPlanilha()');
   ctx.__ruim = { movimentos: [['Ciclo', 'Planta', 'Etiqueta 1'], ['C1', '01', 'x']] };
-  assert.throws(() => run('importarPlanilha(__ruim)'), /ID Móvel/);
-  assert.throws(() => run('importarPlanilha({})'), /Movimentos/);
+  assert.throws(() => run(`importarPlanilha(${DEV}, __ruim)`), /ID Móvel/);
+  assert.throws(() => run(`importarPlanilha(${DEV}, {})`), /Movimentos/);
 });
 
 test('modo standalone cria a planilha e guarda o ID', () => {
@@ -153,7 +156,7 @@ test('importar aba Layout substitui só as plantas presentes e mantém números'
       ['02', 'PIR-01', 'PIRAMIDE', 3, 15, 1.7, 1.7, 3.6],
     ],
   };
-  const r = run('importarPlanilha(__layout)');
+  const r = run(`importarPlanilha(${DEV}, __layout)`);
   assert.equal(r.layout, 2);
   const d = run('getDados()');
   const p2 = d.plantas.find((p) => p.id === '02');
@@ -335,6 +338,25 @@ test('gôndola, mesas, totem e móvel make: linha do móvel inteiro é ignorada 
   assert.ok(d.avisos.every((a) => /linha do móvel inteiro ignorada/.test(a)));
   assert.match(d.avisos[0], /GONDOLA 1\/PONTA-A/);
   assert.deepEqual(Object.keys(d.movimentos.C1['01']).sort(), ['GONDOLA 1/MEIO-B', 'PIRAMIDE 1']);
+});
+
+test('desenvolvedor: senha própria para importar a planilha e salvar o layout', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  assert.deepEqual(run(`entrarDesenvolvedor(${DEV})`), { ok: true });
+  assert.throws(() => run("entrarDesenvolvedor({ senha: 'errada' })"), /Senha incorreta/);
+  assert.throws(() => run('entrarDesenvolvedor()'), /Senha incorreta/);
+  // A senha de outro módulo não libera o desenvolvedor, e a do desenvolvedor não entra na validação.
+  assert.throws(() => run("entrarDesenvolvedor({ senha: 'construcao_exposicao' })"), /Senha incorreta/);
+  assert.throws(() => run("entrarValidacao({ papel: 'DESENVOLVEDOR', senha: 'desenvolvedor_exposicao', nome: 'Dev' })"), /validador ou construtor/);
+  const payload = "{ movimentos: [['Planta', 'Ciclo', 'ID Móvel', 'Marca do Móvel'], ['01', 'C1', 'PIRAMIDE 1', 'BOT']] }";
+  assert.throws(() => run(`importarPlanilha({ senha: 'x' }, ${payload})`), /Senha incorreta/);
+  assert.ok(!run('getDados()').ciclos.includes('C1'), 'nada gravado sem a senha');
+  assert.equal(run(`importarPlanilha(${DEV}, ${payload})`).movimentos, 1);
+  const layout = "{ loja: { largura: 10, profundidade: 8, alturaParede: 3 }, moveis: [{ id: 'PIRAMIDE 1', tipo: 'PIRAMIDE', x: 1, y: 1, w: 1, d: 1, h: 2 }] }";
+  assert.throws(() => run(`salvarLayout({ senha: '' }, '01', ${layout})`), /Senha incorreta/);
+  assert.deepEqual(run(`salvarLayout(${DEV}, '01', ${layout})`), { planta: '01', moveis: 1 });
 });
 
 test('validação: senha por papel, quem pode o quê e aba Comentários', () => {
@@ -536,7 +558,7 @@ test('importar aba Tipos de movimento substitui só o ciclo presente', () => {
     ['Ciclo', 'Movimento (etiqueta)', 'Classificação', 'GMV esperado (R$)'],
     ['C20', 'BOTIPROMO', 'Promoção', 300000],
   ] };
-  assert.equal(run('importarPlanilha(__tipos)').tipos, 1);
+  assert.equal(run(`importarPlanilha(${DEV}, __tipos)`).tipos, 1);
   const d = run('getDados()');
   assert.equal(d.tiposMovimento.C20.BOTIPROMO.gmv, 300000);
   assert.ok(Object.keys(d.tiposMovimento['Ciclo exemplo']).length > 10, 'exemplo mantido');
@@ -751,7 +773,7 @@ test('produtos: a aba Produtos da planilha importada substitui o catálogo', () 
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
   run('configurarPlanilha()');
-  const r = run(`importarPlanilha({ produtos: [['SKU', 'Nome', 'Marca', 'Categoria'], ['A1', 'Batom', 'qdb', 'Make'], ['', 'sem sku'], ['A2', 'Base', 'EUD', '']] })`);
+  const r = run(`importarPlanilha(${DEV}, { produtos: [['SKU', 'Nome', 'Marca', 'Categoria'], ['A1', 'Batom', 'qdb', 'Make'], ['', 'sem sku'], ['A2', 'Base', 'EUD', '']] })`);
   assert.equal(r.produtos, 2);
   assert.deepEqual(run('getDados()').produtos.map((p) => [p.sku, p.nome, p.marca]), [['A2', 'Base', 'EUD'], ['A1', 'Batom', 'QDB']]);
 });

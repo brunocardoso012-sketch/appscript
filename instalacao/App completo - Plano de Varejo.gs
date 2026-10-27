@@ -48,12 +48,14 @@ const CONFIG = {
 };
 
 /**
- * Senhas de acesso à validação da estratégia (botão "Validação"), uma por papel.
+ * Senhas de acesso aos módulos da engrenagem: Validação e Construção (uma por papel) e
+ * Desenvolvedor (Construir loja, Baixar planilha base e Importar planilha).
  * Provisórias: no futuro virão da planilha (troque em senhasDeAcesso_, Validacao.gs).
  */
 const SENHAS_ACESSO = {
   VALIDADOR: 'validacao_exposicao',
   CONSTRUTOR: 'construcao_exposicao',
+  DESENVOLVEDOR: 'desenvolvedor_exposicao',
 };
 
 /**
@@ -354,8 +356,7 @@ function colunasLayout_() {
  * ============================================================================
  *  LEITURA DAS ABAS E NORMALIZAÇÃO (funções puras, sem I/O)
  * ============================================================================
- *  Usado pelo app completo (Code.gs), pela versão estática (web/) e pela versão
- *  só de visualização (visualizador/). Não acessa a planilha: recebe as matrizes
+ *  Usado pelo app (Code.gs) e pela versão estática (web/). Não acessa a planilha: recebe as matrizes
  *  [cabeçalho, ...linhas] e devolve o objeto que a página desenha.
  */
 
@@ -973,7 +974,7 @@ function normSecao_(v) {
  * Junta linhas existentes de uma aba com linhas importadas: remove as antigas
  * cujo (Ciclo, Planta) aparece na importação e acrescenta as novas (no Layout,
  * que não tem Ciclo, a chave é só a Planta). chaveDe(objeto) troca a chave (opcional).
- * Fica aqui (e não no Code.gs) porque o visualizador e os rascunhos também usam.
+ * Fica aqui (e não no Code.gs) porque a versão web e os rascunhos também usam.
  * @return {Array<Array<string>>} matriz completa (com cabeçalho) para gravar.
  */
 function mesclarLinhas_(existentes, novos, colunas, chaveDe) {
@@ -1052,7 +1053,7 @@ function sanitizarMatriz_(valores) {
  *
  *  Funções sem "_" no final podem ser chamadas pela página (google.script.run).
  *  A leitura das abas e as normalizações (sem I/O) ficam em Dados.gs, que também
- *  é usado pela versão só de visualização (pasta visualizador/).
+ *  é usado pela versão web (web/backend-local.js).
  */
 
 /* =============================== ENTRADA ================================== */
@@ -1141,6 +1142,14 @@ function urlDoApp_() {
   } catch (e) {
     return '';
   }
+}
+
+/* ============================= DESENVOLVEDOR ============================== */
+
+/** Confere a senha do módulo Desenvolvedor (Construir loja, Baixar / Importar planilha). */
+function entrarDesenvolvedor(acesso) {
+  conferirDesenvolvedor_(acesso);
+  return { ok: true };
 }
 
 /* ======================== VALIDAÇÃO DA ESTRATÉGIA ========================= */
@@ -1263,10 +1272,12 @@ function configurarPlanilha() {
  * antigas desse par são substituídas pelas novas; o restante é mantido.
  * Se o arquivo tiver a aba Layout, as plantas presentes nela são substituídas.
  *
+ * @param {{senha: string}} acesso  senha do módulo Desenvolvedor
  * @param {{movimentos?: Array<Array<*>>, paineis?: Array<Array<*>>, layout?: Array<Array<*>>}} payload
  *        Cada item é uma matriz [cabeçalho, ...linhas] com os valores das células.
  */
-function importarPlanilha(payload) {
+function importarPlanilha(acesso, payload) {
+  conferirDesenvolvedor_(acesso);
   const ss = planilha_();
   const prep = prepararImportacao_(payload); // valida tudo antes de gravar
 
@@ -1432,10 +1443,12 @@ function salvarAjustesEtiquetas(planta, ajustes) {
 /**
  * Grava uma planta inteira (dimensões da loja + móveis) na aba Layout,
  * substituindo as linhas dessa planta. Usado pelo modo "Construir loja".
+ * @param {{senha: string}} acesso  senha do módulo Desenvolvedor
  * @param {string} planta
  * @param {{loja: {largura, profundidade, alturaParede}, moveis: Array<Object>}} layout
  */
-function salvarLayout(planta, layout) {
+function salvarLayout(acesso, planta, layout) {
+  conferirDesenvolvedor_(acesso);
   const objetos = objetosLayoutDaPlanta_(planta, layout);
   const ss = planilha_();
   return comTrava_(function () {
@@ -2240,8 +2253,8 @@ function valoresPaineisExemplo_() {
  *
  *  Os comentários ficam na aba "Comentários" (uma linha por mensagem; as
  *  respostas apontam para o comentário na coluna "Responde a"). Este arquivo só
- *  tem regras, sem ler nem gravar nada: quem lê e grava a aba é o Code.gs, o
- *  Visualizador.gs e, na versão web, o web/backend-local.js.
+ *  tem regras, sem ler nem gravar nada: quem lê e grava a aba é o Code.gs e, na
+ *  versão web, o web/backend-local.js.
  */
 
 const PAPEIS_ACESSO = {
@@ -2288,6 +2301,16 @@ function conferirAcesso_(acesso) {
   const autor = String(a.nome || '').trim().slice(0, 60);
   if (!autor) throw new Error('Informe o seu nome.');
   return { papel: papel, autor: autor };
+}
+
+/**
+ * Confere a senha do módulo Desenvolvedor (Construir loja, Baixar planilha base e Importar
+ * planilha). Não é um papel da validação: a senha dele não entra na Validação nem na Construção.
+ * @param {{senha: string}} acesso
+ */
+function conferirDesenvolvedor_(acesso) {
+  const senha = senhasDeAcesso_().DESENVOLVEDOR;
+  if (!senha || String((acesso && acesso.senha) || '') !== String(senha)) throw new Error('Senha incorreta.');
 }
 
 /** Matriz vazia da aba (só o cabeçalho). */
@@ -2431,7 +2454,7 @@ function formatarDataComentario_(d) {
 }
 
 /* ----------------------- leitura e gravação da aba ----------------------- */
-/* (Só no Apps Script: Code.gs e Visualizador.gs usam estas duas funções.)   */
+/* (Só no Apps Script: o Code.gs usa estas duas funções.)                    */
 
 /** Matriz da aba Comentários (valores exibidos), ou a matriz vazia se a aba não existe. */
 function lerComentariosDaPlanilha_(ss) {
@@ -2489,7 +2512,7 @@ function executarComentario_(ss, acesso, pedido) {
  *  "Rascunho Painéis" e "Rascunho Tipos", com as mesmas colunas das abas
  *  publicadas (as mesmas regras de cascata entre as ERs), e o status na aba
  *  "Rascunhos". Este arquivo só tem regras sobre matrizes: quem lê e grava as
- *  abas é o Code.gs, o Visualizador.gs e, na versão web, o web/backend-local.js
+ *  abas é o Code.gs e, na versão web, o web/backend-local.js
  *  (executarRascunho_, com o leitor / gravador de cada um).
  */
 
@@ -2887,7 +2910,7 @@ function executarRascunho_(io, acesso, pedido) {
  *  As antecipações ficam na aba "Antecipações" (uma linha por antecipação) e
  *  não mudam as linhas da aba Movimentos: a página junta as duas na hora de
  *  desenhar (Antecipacao.html). Este arquivo só tem regras sobre matrizes: quem
- *  lê e grava a aba é o Code.gs, o Visualizador.gs e, na versão web, o
+ *  lê e grava a aba é o Code.gs e, na versão web, o
  *  web/backend-local.js (executarAntecipacao_, com o leitor / gravador de cada um).
  */
 
@@ -3096,7 +3119,7 @@ function executarAntecipacao_(io, acesso, pedido) {
  *  quadrado sem produto tem uma linha sem SKU). Cada ER tem as suas linhas:
  *  "Vale em todas as ERs" grava as mesmas prateleiras em cada ER que tem o
  *  espaço. Este arquivo só tem regras sobre matrizes: quem lê e grava as abas é
- *  o Code.gs, o Visualizador.gs e, na versão web, o web/backend-local.js
+ *  o Code.gs e, na versão web, o web/backend-local.js
  *  (executarPrateleiras_, com o leitor / gravador de cada um).
  */
 
@@ -3470,7 +3493,6 @@ const PAGINA_ = [
   "<!DOCTYPE html>",
   "<html lang=\"pt-BR\">",
   "  <head>",
-  "    <!-- Trechos entre \"so-app-completo\" ficam fora da versão só de visualização (dev/build-visualizador.js). -->",
   "    <base target=\"_top\">",
   "    <meta charset=\"utf-8\">",
   "    <title>Plano de Varejo · Plantas</title>",
@@ -3645,7 +3667,7 @@ const PAGINA_ = [
   "  .btn.icone svg { width: 18px; height: 18px; }",
   "  .btn.icone .badge { position: absolute; top: -4px; right: -4px; }",
   "",
-  "  /* Menu de configurações (ícone de engrenagem): validação e ajuste das etiquetas. */",
+  "  /* Menu de configurações (ícone de engrenagem): validação, construção, desenvolvedor, ajuste das etiquetas… */",
   "  .menu-config { position: relative; }",
   "  .menu-config:has(.menu-item[aria-pressed=\"true\"]:not(#btnTema)) #btnConfig { color: var(--texto); background: var(--destaque); }",
   "  .menu-lista {",
@@ -3663,6 +3685,12 @@ const PAGINA_ = [
   "  .menu-item:disabled { opacity: .5; cursor: default; background: transparent; }",
   "  .menu-item[aria-pressed=\"true\"] { background: var(--destaque); }",
   "  .menu-item svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }",
+  "  /* Desenvolvedor: o grupo do módulo de construção da loja, recuado embaixo do item. */",
+  "  .menu-item .menu-seta { margin-left: auto; width: 14px; height: 14px; transition: transform .15s; }",
+  "  .menu-item[aria-expanded=\"true\"] .menu-seta { transform: rotate(90deg); }",
+  "  .menu-grupo { display: flex; flex-direction: column; gap: 2px; margin: 0 0 4px 14px; padding-left: 6px; border-left: 2px solid var(--borda); }",
+  "  .menu-grupo[hidden] { display: none; }",
+  "  .menu-grupo .menu-item { white-space: nowrap; }",
   "  .menu-item .badge {",
   "    margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #E8590C; color: #fff;",
   "    font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;",
@@ -4735,12 +4763,10 @@ const PAGINA_ = [
   "          <span>Ciclo</span>",
   "          <select id=\"selCiclo\" aria-label=\"Ciclo\"></select>",
   "        </label>",
-  "        <!-- so-app-completo -->",
   "        <label class=\"campo\" id=\"campoComparar\" hidden title=\"Só os espaços que mudaram em relação ao outro ciclo ficam coloridos\">",
   "          <span>Comparar com</span>",
   "          <select id=\"selComparar\" aria-label=\"Comparar com o ciclo\"></select>",
   "        </label>",
-  "        <!-- /so-app-completo -->",
   "        <div class=\"abas\" id=\"abasPlanta\" role=\"tablist\" aria-label=\"Plantas\"></div>",
   "        <div class=\"abas\" id=\"abasVisao\" role=\"tablist\" aria-label=\"Como mostrar as etiquetas\">",
   "          <button class=\"aba\" type=\"button\" role=\"tab\" data-visao=\"planta\" aria-selected=\"true\" title=\"Etiquetas junto de cada espaço do móvel, na planta\">Na planta</button>",
@@ -4761,20 +4787,6 @@ const PAGINA_ = [
   "          </button>",
   "        </div>",
   "        <span class=\"acoes-divisor\" aria-hidden=\"true\"></span>",
-  "        <!-- so-app-completo -->",
-  "        <button id=\"btnModelo\" class=\"btn\" type=\"button\">",
-  "          <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3v12m0 0-5-5m5 5 5-5M4 19h16\"/></svg>",
-  "          Baixar planilha base",
-  "        </button>",
-  "        <button id=\"btnImportar\" class=\"btn\" type=\"button\">",
-  "          <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 16V4m0 0-5 5m5-5 5 5M4 19h16\"/></svg>",
-  "          Importar planilha",
-  "        </button>",
-  "        <button id=\"btnConstruir\" class=\"btn\" type=\"button\" aria-pressed=\"false\">",
-  "          <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6\"/></svg>",
-  "          Construir loja",
-  "        </button>",
-  "        <!-- /so-app-completo -->",
   "        <button id=\"btnAtualizar\" class=\"btn fantasma\" type=\"button\" title=\"Ler a planilha de novo\">",
   "          <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6\"/></svg>",
   "          Atualizar",
@@ -4789,7 +4801,7 @@ const PAGINA_ = [
   "        <button id=\"btnApresentar\" class=\"btn fantasma icone\" type=\"button\" aria-label=\"Apresentar\" title=\"Apresentar: só a planta, em tela cheia (F)\">",
   "          <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"1.5\"/><path d=\"M12 16v4M8 20h8M10 8.2v4.6l4-2.3z\"/></svg>",
   "        </button>",
-  "        <!-- Configurações: só o ícone; abre o menu com a validação, a construção, o ajuste das etiquetas, o modo noturno e a planilha. -->",
+  "        <!-- Configurações: só o ícone; abre o menu com a validação, a construção, o desenvolvedor (construção da loja), o ajuste das etiquetas, o modo noturno e a planilha. -->",
   "        <div class=\"menu-config\" id=\"menuConfig\">",
   "          <button id=\"btnConfig\" class=\"btn fantasma icone\" type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" aria-controls=\"menuConfigLista\" aria-label=\"Configurações\" title=\"Configurações\">",
   "            <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z\"/></svg>",
@@ -4806,6 +4818,30 @@ const PAGINA_ = [
   "              Construção",
   "              <span class=\"badge\" id=\"consBadge\" hidden></span>",
   "            </button>",
+  "            <!-- Desenvolvedor: pede a senha e mostra o módulo de construção da loja (Desenvolvedor.html). -->",
+  "            <button id=\"btnDesenvolvedor\" class=\"menu-item\" type=\"button\" role=\"menuitem\" aria-expanded=\"false\" aria-controls=\"grupoDesenvolvedor\">",
+  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m8 8-5 4 5 4M16 8l5 4-5 4M13.5 5l-3 14\"/></svg>",
+  "              Desenvolvedor",
+  "              <svg class=\"menu-seta\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m9 6 6 6-6 6\"/></svg>",
+  "            </button>",
+  "            <div class=\"menu-grupo\" id=\"grupoDesenvolvedor\" role=\"group\" aria-label=\"Construção da loja\" hidden>",
+  "              <button id=\"btnModelo\" class=\"menu-item\" type=\"button\" role=\"menuitem\" title=\"Planilha com uma linha por móvel de cada planta, para preencher e importar\">",
+  "                <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3v12m0 0-5-5m5 5 5-5M4 19h16\"/></svg>",
+  "                Baixar planilha base",
+  "              </button>",
+  "              <button id=\"btnImportar\" class=\"menu-item\" type=\"button\" role=\"menuitem\" title=\"Lê a planilha preenchida e grava os ciclos\">",
+  "                <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 16V4m0 0-5 5m5-5 5 5M4 19h16\"/></svg>",
+  "                Importar planilha",
+  "              </button>",
+  "              <button id=\"btnConstruir\" class=\"menu-item\" type=\"button\" role=\"menuitem\" aria-pressed=\"false\" title=\"Editor do layout: posição e tamanho dos móveis de cada planta\">",
+  "                <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6\"/></svg>",
+  "                Construir loja",
+  "              </button>",
+  "              <button id=\"btnSairDesenvolvedor\" class=\"menu-item\" type=\"button\" role=\"menuitem\">",
+  "                <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10\"/></svg>",
+  "                Sair do desenvolvedor",
+  "              </button>",
+  "            </div>",
   "            <button id=\"btnEditar\" class=\"menu-item\" type=\"button\" role=\"menuitem\" aria-pressed=\"false\">",
   "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3\"/></svg>",
   "              Ajustar etiquetas",
@@ -4824,9 +4860,7 @@ const PAGINA_ = [
   "            </button>",
   "          </div>",
   "        </div>",
-  "        <!-- so-app-completo -->",
   "        <input type=\"file\" id=\"arquivo\" accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" hidden>",
-  "        <!-- /so-app-completo -->",
   "      </div>",
   "    </header>",
   "",
@@ -4925,7 +4959,6 @@ const PAGINA_ = [
   "          <section class=\"pc-secao\" id=\"pcStats\" aria-label=\"Números da ER\"></section>",
   "        </div>",
   "      </aside>",
-  "      <!-- so-app-completo -->",
   "      <aside class=\"construtor\" id=\"painelConstrutor\" hidden aria-label=\"Construir loja\">",
   "        <header class=\"cns-topo\">",
   "          <div>",
@@ -5047,17 +5080,13 @@ const PAGINA_ = [
   "        <button type=\"button\" data-acao=\"duplicar\" title=\"Duplicar (Ctrl+D)\">Duplicar</button>",
   "        <button type=\"button\" data-acao=\"excluir\" title=\"Excluir (Delete)\">Excluir</button>",
   "      </div>",
-  "      <!-- /so-app-completo -->",
   "      <section class=\"vazio\" id=\"telaConfig\" hidden>",
   "        <h2>Planilha ainda não configurada</h2>",
   "        <p id=\"msgConfig\"></p>",
-  "        <!-- so-app-completo -->",
   "        <button id=\"btnConfigurar\" class=\"btn primario\" type=\"button\">Configurar agora</button>",
-  "        <!-- /so-app-completo -->",
   "      </section>",
   "    </main>",
   "",
-  "    <!-- so-app-completo -->",
   "    <dialog id=\"dlgModelo\" class=\"dialogo\">",
   "      <form method=\"dialog\" id=\"formModelo\">",
   "        <h2>Baixar planilha base</h2>",
@@ -5082,7 +5111,6 @@ const PAGINA_ = [
   "        </div>",
   "      </form>",
   "    </dialog>",
-  "    <!-- /so-app-completo -->",
   "",
   "    <dialog id=\"dlgPng\" class=\"dialogo\">",
   "      <form method=\"dialog\">",
@@ -5128,7 +5156,6 @@ const PAGINA_ = [
   "      </form>",
   "    </dialog>",
   "",
-  "    <!-- so-app-completo -->",
   "    <dialog id=\"dlgResultado\" class=\"dialogo\">",
   "      <form method=\"dialog\">",
   "        <h2 id=\"resTitulo\"></h2>",
@@ -5139,7 +5166,6 @@ const PAGINA_ = [
   "        </div>",
   "      </form>",
   "    </dialog>",
-  "    <!-- /so-app-completo -->",
   "",
   "    <dialog id=\"dlgBusca\" class=\"dialogo busca\" aria-label=\"Buscar\">",
   "      <div class=\"busca-campo\">",
@@ -5175,6 +5201,19 @@ const PAGINA_ = [
   "        <div class=\"rodape-dialogo\">",
   "          <button class=\"btn\" id=\"acessoCancelar\" type=\"button\">Cancelar</button>",
   "          <button class=\"btn primario\" id=\"acessoEntrar\" type=\"submit\">Entrar</button>",
+  "        </div>",
+  "      </form>",
+  "    </dialog>",
+  "",
+  "    <dialog id=\"dlgDesenvolvedor\" class=\"dialogo\">",
+  "      <form id=\"formDesenvolvedor\">",
+  "        <h2>Desenvolvedor</h2>",
+  "        <p class=\"sub\">Módulo de construção da loja: Baixar planilha base, Importar planilha e Construir loja.</p>",
+  "        <label class=\"acesso-campo\">Senha <input type=\"password\" id=\"devSenha\" autocomplete=\"current-password\" required></label>",
+  "        <p class=\"acesso-erro\" id=\"devErro\" role=\"alert\" hidden></p>",
+  "        <div class=\"rodape-dialogo\">",
+  "          <button class=\"btn\" id=\"devCancelar\" type=\"button\">Cancelar</button>",
+  "          <button class=\"btn primario\" id=\"devEntrar\" type=\"submit\">Entrar</button>",
   "        </div>",
   "      </form>",
   "    </dialog>",
@@ -7523,7 +7562,6 @@ const PAGINA_ = [
   "})();",
   "</script>",
   "",
-  "    <!-- so-app-completo -->",
   "    <script>",
   "/**",
   " * ============================================================================",
@@ -7698,14 +7736,9 @@ const PAGINA_ = [
   "      '6.3 Mesa destaque (FRENTE-1 e 2, e VERSO, atrás das lâminas), mesa 3 frentes (FRENTE-1 a 3 e VERSO), totem (PAINEL-1 a 3; o 1 é o de cima) e móvel make (TESTEIRA-1 a 4): uma linha por bloco, com cor e etiqueta próprias. Cada frente e o verso das mesas mostram até 4 etiquetas; cada painel e cada testeira, 1. Blocos vizinhos com as mesmas etiquetas e cor ficam com uma pilha só.',",
   "      '6.4 Móveis de um espaço só (pirâmide, móvel de fila, móvel de parede, PDV, O.U.i…) têm uma linha. O balcão recepção também: um espaço só, com uma cor e até 3 etiquetas.',",
   "      '7. Na coluna \"Planta\" vale o nome (ex.: ER P) ou o número (01). Cascata: o que é definido numa planta vale também para as seguintes (ER P → ER M → ER G → ER GG), por isso cada móvel aparece uma vez só, na primeira planta que o tem (\"vale para…\" na coluna Móvel). Para mudar um móvel só a partir de uma planta, acrescente uma linha com o mesmo ID Móvel e essa planta. Planta = TODAS vale para todas.',",
-  "    ].concat(op.visualizador ? [",
-  "      // Versão só de visualização (Apps Script): o app lê esta planilha direto, sem importar.",
-  "      '8. Todos os ciclos ficam nesta mesma planilha. Para criar um ciclo novo, copie as linhas de um ciclo existente (nas abas \"' + abas.MOVIMENTOS + '\", \"' + abas.PAINEIS + '\" e \"' + abas.TIPOS + '\"), cole no fim e troque o \"Ciclo\". Cada nome diferente de ciclo aparece no seletor do visualizador.',",
-  "      '9. O visualizador lê esta planilha diretamente: depois de editar, clique em \"Atualizar\" no app. Não renomeie as abas nem os títulos das colunas. Os avisos do app (marca desconhecida, ID inexistente…) indicam a linha da planilha a corrigir.',",
-  "    ] : [",
-  "      '8. Salve o arquivo e use o botão \"Importar planilha\" no visualizador. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',",
+  "      '8. Salve o arquivo e use o botão \"Importar planilha\" (Configurações › Desenvolvedor) no app. As linhas do mesmo Ciclo + Planta que já existirem serão substituídas.',",
   "      '9. Aba \"' + abas.LAYOUT + '\" (opcional): posição e tamanho dos móveis (X, Y, Largura, Profundidade, Altura). Ao importar, as plantas presentes nela são substituídas por inteiro.',",
-  "    ]).forEach(paragrafo);",
+  "    ].forEach(paragrafo);",
   "    r++;",
   "",
   "    titulo('Marcas (cores)');",
@@ -7973,8 +8006,7 @@ const PAGINA_ = [
   "  /**",
   "   * Gera e baixa a planilha base.",
   "   * @param {Object} dados    retorno de getDados()",
-  "   * @param {{ciclo: string, origem: string, plantas: string[], incluirLayout: boolean, visualizador?: boolean}} op",
-  "   *   visualizador: instruções para a versão só de visualização (lê a planilha direto, sem importar).",
+  "   * @param {{ciclo: string, origem: string, plantas: string[], incluirLayout: boolean}} op",
   "   * @param {{movimento: Function, linhasPaineis: Function, linhasTipos?: Function}} resolver",
   "   */",
   "  async function baixarModelo(dados, op, resolver) {",
@@ -8487,7 +8519,7 @@ const PAGINA_ = [
   "          ajustesEspacos: m.ajustesEspacos || {},",
   "        })),",
   "      };",
-  "      const r = await app.chamar('salvarLayout', p.id, layout);",
+  "      const r = await app.chamar('salvarLayout', app.acesso(), p.id, layout);",
   "      c.historico = [];",
   "      c.nova = false;",
   "      c.vazia = false;",
@@ -8550,13 +8582,13 @@ const PAGINA_ = [
   "    if (!arquivo) return;",
   "    try {",
   "      const json = JSON.parse(await arquivo.text());",
-  "      if (!json || json.formato !== 'plano-varejo-layout' || !json.plantas) throw new Error('Arquivo não é um código de loja deste visualizador.');",
+  "      if (!json || json.formato !== 'plano-varejo-layout' || !json.plantas) throw new Error('Arquivo não é um código de loja deste app.');",
   "      const ids = Object.keys(json.plantas);",
   "      if (!window.confirm('Substituir o layout de: ' + ids.map(nomePlanta).join(', ') + '?')) return;",
   "      app.carregando(true, 'Carregando layout…');",
   "      for (const id of ids) {",
   "        const p = json.plantas[id];",
-  "        await app.chamar('salvarLayout', id, {",
+  "        await app.chamar('salvarLayout', app.acesso(), id, {",
   "          loja: { largura: p.loja[0], profundidade: p.loja[1], alturaParede: p.loja[2], escalaEtiquetas: p.loja[3] || 100, slide: p.loja[4] || 0 },",
   "          moveis: p.moveis.map((t) => ({",
   "            id: t[0], descricao: t[1], tipo: t[2], x: t[3], y: t[4], w: t[5], d: t[6], h: t[7], z: t[8] || 0,",
@@ -8862,7 +8894,96 @@ const PAGINA_ = [
   "})();",
   "</script>",
   "",
-  "    <!-- /so-app-completo -->",
+  "    <script>",
+  "/**",
+  " * ============================================================================",
+  " *  DESENVOLVEDOR (módulo de construção da loja)",
+  " * ============================================================================",
+  " *  O item \"Desenvolvedor\" da engrenagem pede uma senha (SENHAS_ACESSO.DESENVOLVEDOR,",
+  " *  em Config.gs) e, com ela, mostra no mesmo menu o módulo de construção da loja:",
+  " *  Baixar planilha base, Importar planilha e Construir loja. Depois de entrar, o item",
+  " *  abre e fecha esse grupo; \"Sair do desenvolvedor\" esconde de novo.",
+  " *  A senha fica só nesta aba do navegador (sessionStorage) e é conferida no servidor",
+  " *  a cada gravação (importarPlanilha e salvarLayout, em Code.gs).",
+  " */",
+  "const Desenvolvedor = (() => {",
+  "  const CHAVE = 'planoVarejo.desenvolvedor';",
+  "  const $ = (id) => document.getElementById(id);",
+  "  let app = null; // { chamar, toast, aoSair }",
+  "  let acesso = null; // { senha }",
+  "  let aberto = true; // grupo do módulo aberto no menu",
+  "",
+  "  const sessao = {",
+  "    ler() { try { return JSON.parse(window.sessionStorage.getItem(CHAVE)); } catch (e) { return null; } },",
+  "    gravar(v) { try { if (v) window.sessionStorage.setItem(CHAVE, JSON.stringify(v)); else window.sessionStorage.removeItem(CHAVE); } catch (e) { /* sem armazenamento */ } },",
+  "  };",
+  "",
+  "  /** Mostra (ou esconde) o grupo do módulo no menu, conforme o acesso. */",
+  "  function atualizar() {",
+  "    const dentro = !!acesso;",
+  "    $('btnDesenvolvedor').setAttribute('aria-expanded', String(dentro && aberto));",
+  "    $('btnDesenvolvedor').title = dentro ? 'Módulo de construção da loja (clique para mostrar ou esconder)' : 'Módulo de construção da loja (pede senha)';",
+  "    $('grupoDesenvolvedor').hidden = !(dentro && aberto);",
+  "  }",
+  "",
+  "  function abrirAcesso() {",
+  "    $('devErro').hidden = true;",
+  "    $('devSenha').value = '';",
+  "    $('dlgDesenvolvedor').showModal();",
+  "    $('devSenha').focus();",
+  "  }",
+  "",
+  "  async function entrar(ev) {",
+  "    ev.preventDefault();",
+  "    const pedido = { senha: $('devSenha').value };",
+  "    const botao = $('devEntrar');",
+  "    botao.disabled = true;",
+  "    try {",
+  "      await app.chamar('entrarDesenvolvedor', pedido);",
+  "      acesso = pedido;",
+  "      aberto = true;",
+  "      sessao.gravar(acesso);",
+  "      $('dlgDesenvolvedor').close();",
+  "      atualizar();",
+  "      app.toast('Módulo desenvolvedor liberado: abra a engrenagem para construir a loja.');",
+  "    } catch (e) {",
+  "      $('devErro').textContent = (e && e.message) || String(e);",
+  "      $('devErro').hidden = false;",
+  "    } finally {",
+  "      botao.disabled = false;",
+  "    }",
+  "  }",
+  "",
+  "  function sair() {",
+  "    if (app.aoSair && app.aoSair() === false) return; // ex.: o Construir loja tem alterações e a pessoa cancelou",
+  "    acesso = null;",
+  "    sessao.gravar(null);",
+  "    atualizar();",
+  "    app.toast('Você saiu do módulo desenvolvedor.');",
+  "  }",
+  "",
+  "  function iniciar(contexto) {",
+  "    app = contexto;",
+  "    // Sem acesso, o item pede a senha (e o menu fecha); com acesso, abre e fecha o grupo sem fechar o menu.",
+  "    $('btnDesenvolvedor').addEventListener('click', (e) => {",
+  "      if (!acesso) { abrirAcesso(); return; }",
+  "      e.stopPropagation();",
+  "      aberto = !aberto;",
+  "      atualizar();",
+  "    });",
+  "    $('btnSairDesenvolvedor').addEventListener('click', sair);",
+  "    $('formDesenvolvedor').addEventListener('submit', entrar);",
+  "    $('devCancelar').addEventListener('click', () => $('dlgDesenvolvedor').close());",
+  "    // Mesma aba: continua entrado depois de recarregar a página.",
+  "    const salvo = sessao.ler();",
+  "    if (salvo && salvo.senha) acesso = salvo;",
+  "    atualizar();",
+  "  }",
+  "",
+  "  return { iniciar, ativo: () => !!acesso, acesso: () => acesso };",
+  "})();",
+  "</script>",
+  "",
   "    <script>",
   "/**",
   " * ============================================================================",
@@ -12392,7 +12513,7 @@ const PAGINA_ = [
   " *  ela serve, com Voltar / Próximo / Pular. Pode ser refeito pelo menu de configurações (engrenagem),",
   " *  em \"Ver o tutorial\".",
   " *",
-  " *  Passos cujo alvo não existe nesta versão (ex.: Construir loja no visualizador) ou está escondido",
+  " *  Passos cujo alvo não existe nesta tela ou está escondido",
   " *  são pulados sozinhos. O tour é curto (só o essencial) e não grava nada na planilha: só fecha o",
   " *  Analytics e escolhe um ciclo, se nenhum estiver escolhido, para a tela ter o que mostrar.",
   " */",
@@ -12481,7 +12602,7 @@ const PAGINA_ = [
   "      {",
   "        alvo: '#btnConfig',",
   "        titulo: 'Engrenagem',",
-  "        texto: 'Validação e Construção (cada uma com a sua senha), ajuste das etiquetas, planilha e este tutorial.',",
+  "        texto: 'Validação, Construção e Desenvolvedor (cada um com a sua senha), ajuste das etiquetas, planilha e este tutorial.',",
   "      },",
   "    ];",
   "  }",
@@ -12740,14 +12861,8 @@ const PAGINA_ = [
   "  const $ = (id) => document.getElementById(id);",
   "  const svg = $('slide');",
   "",
-  "  /**",
-  "   * Modo \"Construir loja\". A versão só de visualização (pasta visualizador/) não inclui",
-  "   * o Construtor.html: no lugar dele entra este substituto, que nunca está ativo.",
-  "   */",
-  "  const Editor = typeof Construtor !== 'undefined' ? Construtor : {",
-  "    iniciar() {}, sincronizar() {}, aposDesenhar() {}, fechar() {}, abrir() {}, tecla() {},",
-  "    contexto: () => null, ativo: () => false, podeSair: () => true,",
-  "  };",
+  "  /** Modo \"Construir loja\" (Construtor.html), aberto pelo módulo Desenvolvedor da engrenagem. */",
+  "  const Editor = Construtor;",
   "",
   "  /* ------------------------------ utilidades ------------------------------ */",
   "",
@@ -14541,7 +14656,7 @@ const PAGINA_ = [
   "    try {",
   "      const payload = await Planilha.ler(arquivo, estado.dados);",
   "      carregando(true, 'Gravando na planilha…');",
-  "      const r = await chamar('importarPlanilha', payload);",
+  "      const r = await chamar('importarPlanilha', Desenvolvedor.acesso(), payload);",
   "      await carregar({ ciclo: r.ciclos.length ? r.ciclos[r.ciclos.length - 1] : '' });",
   "      mostrarResultado(r);",
   "    } catch (e) {",
@@ -15094,8 +15209,7 @@ const PAGINA_ = [
   "  /* -------------------------------- início -------------------------------- */",
   "",
   "  function ligarEventos() {",
-  "    // Botões que só existem em uma das versões (ex.: a de visualização não tem Construir loja",
-  "    // nem Baixar / Importar planilha) são ignorados quando não estão na página.",
+  "    // Botões que não estão na página são ignorados.",
   "    const ao = (id, evento, fn) => { if ($(id)) $(id).addEventListener(evento, fn); };",
   "    ao('selCiclo', 'change', (e) => {",
   "      estado.ciclo = e.target.value;",
@@ -15109,9 +15223,10 @@ const PAGINA_ = [
   "      montarComparar();",
   "      desenhar();",
   "    });",
-  "    ao('btnModelo', 'click', () => estado.dados && abrirDialogoModelo());",
+  "    // Baixar planilha base, Importar planilha e Construir loja: só com o módulo Desenvolvedor liberado.",
+  "    ao('btnModelo', 'click', () => estado.dados && Desenvolvedor.ativo() && abrirDialogoModelo());",
   "    ao('dlgModelo', 'close', baixarModelo);",
-  "    ao('btnImportar', 'click', () => estado.dados && $('arquivo').click());",
+  "    ao('btnImportar', 'click', () => estado.dados && Desenvolvedor.ativo() && $('arquivo').click());",
   "    ao('arquivo', 'change', (e) => importar(e.target.files[0]));",
   "    ao('btnPng', 'click', () => estado.dados && abrirDialogoPng());",
   "    ao('dlgPng', 'close', baixarPng);",
@@ -15168,7 +15283,7 @@ const PAGINA_ = [
   "    ao('btnBaixarPosicoes', 'click', baixarPosicoes);",
   "    ao('btnConfigurar', 'click', configurar);",
   "    ao('btnConstruir', 'click', () => {",
-  "      if (!estado.dados) return;",
+  "      if (!estado.dados || !Desenvolvedor.ativo()) return;",
   "      if (Editor.ativo()) { Editor.fechar(); return; }",
   "      if (estado.edicao) alternarEdicao();",
   "      if (estado.edicao) return; // usuário cancelou a saída do modo ajuste",
@@ -15233,7 +15348,12 @@ const PAGINA_ = [
   "      .then(() => { if (estado.dados) desenhar(); })",
   "      .catch(() => { /* sem a fonte: as etiquetas usam a reserva (Segoe UI / Arial) */ });",
   "  }",
-  "  Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });",
+  "  Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual, acesso: () => Desenvolvedor.acesso() });",
+  "  Desenvolvedor.iniciar({",
+  "    chamar, toast,",
+  "    // Sair do módulo fecha o Construir loja (que pergunta antes, se houver alterações não salvas).",
+  "    aoSair: () => { if (Editor.ativo()) Editor.fechar(); return !Editor.ativo(); },",
+  "  });",
   "  Validacao.iniciar({",
   "    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta,",
   "    abrirMovel: (id) => abrirMovel(id),",
@@ -15273,7 +15393,7 @@ const PAGINA_ = [
   "    Tutorial.oferecer();",
   "  });",
   "",
-  "  // resolver: usado também para gerar a planilha base da versão de visualização (dev/).",
+  "  // resolver: usado também pelos testes end to end (dev/e2e.js).",
   "  return { estado, carregar, resolver: { movimento: movimentoDaPlanilha, linhasPaineis, linhasTipos } };",
   "})();",
   "</script>",

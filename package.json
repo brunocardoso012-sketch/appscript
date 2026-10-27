@@ -8,7 +8,6 @@
     "test:e2e": "node --test dev/e2e.js",
     "build:web": "node dev/build-web.js",
     "push": "clasp push",
-    "build:visualizador": "node dev/build-visualizador.js",
     "build:instalacao": "node dev/build-instalacao.js"
   }
 }

@@ -12,7 +12,7 @@
  *  "Rascunho Painéis" e "Rascunho Tipos", com as mesmas colunas das abas
  *  publicadas (as mesmas regras de cascata entre as ERs), e o status na aba
  *  "Rascunhos". Este arquivo só tem regras sobre matrizes: quem lê e grava as
- *  abas é o Code.gs, o Visualizador.gs e, na versão web, o web/backend-local.js
+ *  abas é o Code.gs e, na versão web, o web/backend-local.js
  *  (executarRascunho_, com o leitor / gravador de cada um).
  */
 

@@ -165,7 +165,7 @@
   .btn.icone svg { width: 18px; height: 18px; }
   .btn.icone .badge { position: absolute; top: -4px; right: -4px; }
 
-  /* Menu de configurações (ícone de engrenagem): validação e ajuste das etiquetas. */
+  /* Menu de configurações (ícone de engrenagem): validação, construção, desenvolvedor, ajuste das etiquetas… */
   .menu-config { position: relative; }
   .menu-config:has(.menu-item[aria-pressed="true"]:not(#btnTema)) #btnConfig { color: var(--texto); background: var(--destaque); }
   .menu-lista {
@@ -183,6 +183,12 @@
   .menu-item:disabled { opacity: .5; cursor: default; background: transparent; }
   .menu-item[aria-pressed="true"] { background: var(--destaque); }
   .menu-item svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  /* Desenvolvedor: o grupo do módulo de construção da loja, recuado embaixo do item. */
+  .menu-item .menu-seta { margin-left: auto; width: 14px; height: 14px; transition: transform .15s; }
+  .menu-item[aria-expanded="true"] .menu-seta { transform: rotate(90deg); }
+  .menu-grupo { display: flex; flex-direction: column; gap: 2px; margin: 0 0 4px 14px; padding-left: 6px; border-left: 2px solid var(--borda); }
+  .menu-grupo[hidden] { display: none; }
+  .menu-grupo .menu-item { white-space: nowrap; }
   .menu-item .badge {
     margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #E8590C; color: #fff;
     font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;

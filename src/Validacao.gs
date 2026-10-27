@@ -9,8 +9,8 @@
  *
  *  Os comentários ficam na aba "Comentários" (uma linha por mensagem; as
  *  respostas apontam para o comentário na coluna "Responde a"). Este arquivo só
- *  tem regras, sem ler nem gravar nada: quem lê e grava a aba é o Code.gs, o
- *  Visualizador.gs e, na versão web, o web/backend-local.js.
+ *  tem regras, sem ler nem gravar nada: quem lê e grava a aba é o Code.gs e, na
+ *  versão web, o web/backend-local.js.
  */
 
 const PAPEIS_ACESSO = {
@@ -57,6 +57,16 @@ function conferirAcesso_(acesso) {
   const autor = String(a.nome || '').trim().slice(0, 60);
   if (!autor) throw new Error('Informe o seu nome.');
   return { papel: papel, autor: autor };
+}
+
+/**
+ * Confere a senha do módulo Desenvolvedor (Construir loja, Baixar planilha base e Importar
+ * planilha). Não é um papel da validação: a senha dele não entra na Validação nem na Construção.
+ * @param {{senha: string}} acesso
+ */
+function conferirDesenvolvedor_(acesso) {
+  const senha = senhasDeAcesso_().DESENVOLVEDOR;
+  if (!senha || String((acesso && acesso.senha) || '') !== String(senha)) throw new Error('Senha incorreta.');
 }
 
 /** Matriz vazia da aba (só o cabeçalho). */
@@ -200,7 +210,7 @@ function formatarDataComentario_(d) {
 }
 
 /* ----------------------- leitura e gravação da aba ----------------------- */
-/* (Só no Apps Script: Code.gs e Visualizador.gs usam estas duas funções.)   */
+/* (Só no Apps Script: o Code.gs usa estas duas funções.)                    */
 
 /** Matriz da aba Comentários (valores exibidos), ou a matriz vazia se a aba não existe. */
 function lerComentariosDaPlanilha_(ss) {

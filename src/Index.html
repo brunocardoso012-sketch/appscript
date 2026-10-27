@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
-    <!-- Trechos entre "so-app-completo" ficam fora da versão só de visualização (dev/build-visualizador.js). -->
     <base target="_top">
     <meta charset="utf-8">
     <title>Plano de Varejo · Plantas</title>
@@ -38,12 +37,10 @@
           <span>Ciclo</span>
           <select id="selCiclo" aria-label="Ciclo"></select>
         </label>
-        <!-- so-app-completo -->
         <label class="campo" id="campoComparar" hidden title="Só os espaços que mudaram em relação ao outro ciclo ficam coloridos">
           <span>Comparar com</span>
           <select id="selComparar" aria-label="Comparar com o ciclo"></select>
         </label>
-        <!-- /so-app-completo -->
         <div class="abas" id="abasPlanta" role="tablist" aria-label="Plantas"></div>
         <div class="abas" id="abasVisao" role="tablist" aria-label="Como mostrar as etiquetas">
           <button class="aba" type="button" role="tab" data-visao="planta" aria-selected="true" title="Etiquetas junto de cada espaço do móvel, na planta">Na planta</button>
@@ -64,20 +61,6 @@
           </button>
         </div>
         <span class="acoes-divisor" aria-hidden="true"></span>
-        <!-- so-app-completo -->
-        <button id="btnModelo" class="btn" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
-          Baixar planilha base
-        </button>
-        <button id="btnImportar" class="btn" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-5 5m5-5 5 5M4 19h16"/></svg>
-          Importar planilha
-        </button>
-        <button id="btnConstruir" class="btn" type="button" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
-          Construir loja
-        </button>
-        <!-- /so-app-completo -->
         <button id="btnAtualizar" class="btn fantasma" type="button" title="Ler a planilha de novo">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
           Atualizar
@@ -92,7 +75,7 @@
         <button id="btnApresentar" class="btn fantasma icone" type="button" aria-label="Apresentar" title="Apresentar: só a planta, em tela cheia (F)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8.2v4.6l4-2.3z"/></svg>
         </button>
-        <!-- Configurações: só o ícone; abre o menu com a validação, a construção, o ajuste das etiquetas, o modo noturno e a planilha. -->
+        <!-- Configurações: só o ícone; abre o menu com a validação, a construção, o desenvolvedor (construção da loja), o ajuste das etiquetas, o modo noturno e a planilha. -->
         <div class="menu-config" id="menuConfig">
           <button id="btnConfig" class="btn fantasma icone" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menuConfigLista" aria-label="Configurações" title="Configurações">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
@@ -109,6 +92,30 @@
               Construção
               <span class="badge" id="consBadge" hidden></span>
             </button>
+            <!-- Desenvolvedor: pede a senha e mostra o módulo de construção da loja (Desenvolvedor.html). -->
+            <button id="btnDesenvolvedor" class="menu-item" type="button" role="menuitem" aria-expanded="false" aria-controls="grupoDesenvolvedor">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M13.5 5l-3 14"/></svg>
+              Desenvolvedor
+              <svg class="menu-seta" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+            </button>
+            <div class="menu-grupo" id="grupoDesenvolvedor" role="group" aria-label="Construção da loja" hidden>
+              <button id="btnModelo" class="menu-item" type="button" role="menuitem" title="Planilha com uma linha por móvel de cada planta, para preencher e importar">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
+                Baixar planilha base
+              </button>
+              <button id="btnImportar" class="menu-item" type="button" role="menuitem" title="Lê a planilha preenchida e grava os ciclos">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-5 5m5-5 5 5M4 19h16"/></svg>
+                Importar planilha
+              </button>
+              <button id="btnConstruir" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Editor do layout: posição e tamanho dos móveis de cada planta">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
+                Construir loja
+              </button>
+              <button id="btnSairDesenvolvedor" class="menu-item" type="button" role="menuitem">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10"/></svg>
+                Sair do desenvolvedor
+              </button>
+            </div>
             <button id="btnEditar" class="menu-item" type="button" role="menuitem" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
               Ajustar etiquetas
@@ -127,9 +134,7 @@
             </button>
           </div>
         </div>
-        <!-- so-app-completo -->
         <input type="file" id="arquivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
-        <!-- /so-app-completo -->
       </div>
     </header>
 
@@ -228,7 +233,6 @@
           <section class="pc-secao" id="pcStats" aria-label="Números da ER"></section>
         </div>
       </aside>
-      <!-- so-app-completo -->
       <aside class="construtor" id="painelConstrutor" hidden aria-label="Construir loja">
         <header class="cns-topo">
           <div>
@@ -350,17 +354,13 @@
         <button type="button" data-acao="duplicar" title="Duplicar (Ctrl+D)">Duplicar</button>
         <button type="button" data-acao="excluir" title="Excluir (Delete)">Excluir</button>
       </div>
-      <!-- /so-app-completo -->
       <section class="vazio" id="telaConfig" hidden>
         <h2>Planilha ainda não configurada</h2>
         <p id="msgConfig"></p>
-        <!-- so-app-completo -->
         <button id="btnConfigurar" class="btn primario" type="button">Configurar agora</button>
-        <!-- /so-app-completo -->
       </section>
     </main>
 
-    <!-- so-app-completo -->
     <dialog id="dlgModelo" class="dialogo">
       <form method="dialog" id="formModelo">
         <h2>Baixar planilha base</h2>
@@ -385,7 +385,6 @@
         </div>
       </form>
     </dialog>
-    <!-- /so-app-completo -->
 
     <dialog id="dlgPng" class="dialogo">
       <form method="dialog">
@@ -431,7 +430,6 @@
       </form>
     </dialog>
 
-    <!-- so-app-completo -->
     <dialog id="dlgResultado" class="dialogo">
       <form method="dialog">
         <h2 id="resTitulo"></h2>
@@ -442,7 +440,6 @@
         </div>
       </form>
     </dialog>
-    <!-- /so-app-completo -->
 
     <dialog id="dlgBusca" class="dialogo busca" aria-label="Buscar">
       <div class="busca-campo">
@@ -478,6 +475,19 @@
         <div class="rodape-dialogo">
           <button class="btn" id="acessoCancelar" type="button">Cancelar</button>
           <button class="btn primario" id="acessoEntrar" type="submit">Entrar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="dlgDesenvolvedor" class="dialogo">
+      <form id="formDesenvolvedor">
+        <h2>Desenvolvedor</h2>
+        <p class="sub">Módulo de construção da loja: Baixar planilha base, Importar planilha e Construir loja.</p>
+        <label class="acesso-campo">Senha <input type="password" id="devSenha" autocomplete="current-password" required></label>
+        <p class="acesso-erro" id="devErro" role="alert" hidden></p>
+        <div class="rodape-dialogo">
+          <button class="btn" id="devCancelar" type="button">Cancelar</button>
+          <button class="btn primario" id="devEntrar" type="submit">Entrar</button>
         </div>
       </form>
     </dialog>
@@ -519,10 +529,9 @@
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
     <?!= include('Render'); ?>
-    <!-- so-app-completo -->
     <?!= include('Planilha'); ?>
     <?!= include('Construtor'); ?>
-    <!-- /so-app-completo -->
+    <?!= include('Desenvolvedor'); ?>
     <?!= include('Validacao'); ?>
     <?!= include('Rascunho'); ?>
     <?!= include('Antecipacao'); ?>

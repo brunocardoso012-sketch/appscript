@@ -1,0 +1,89 @@
+<script>
+/**
+ * ============================================================================
+ *  DESENVOLVEDOR (módulo de construção da loja)
+ * ============================================================================
+ *  O item "Desenvolvedor" da engrenagem pede uma senha (SENHAS_ACESSO.DESENVOLVEDOR,
+ *  em Config.gs) e, com ela, mostra no mesmo menu o módulo de construção da loja:
+ *  Baixar planilha base, Importar planilha e Construir loja. Depois de entrar, o item
+ *  abre e fecha esse grupo; "Sair do desenvolvedor" esconde de novo.
+ *  A senha fica só nesta aba do navegador (sessionStorage) e é conferida no servidor
+ *  a cada gravação (importarPlanilha e salvarLayout, em Code.gs).
+ */
+const Desenvolvedor = (() => {
+  const CHAVE = 'planoVarejo.desenvolvedor';
+  const $ = (id) => document.getElementById(id);
+  let app = null; // { chamar, toast, aoSair }
+  let acesso = null; // { senha }
+  let aberto = true; // grupo do módulo aberto no menu
+
+  const sessao = {
+    ler() { try { return JSON.parse(window.sessionStorage.getItem(CHAVE)); } catch (e) { return null; } },
+    gravar(v) { try { if (v) window.sessionStorage.setItem(CHAVE, JSON.stringify(v)); else window.sessionStorage.removeItem(CHAVE); } catch (e) { /* sem armazenamento */ } },
+  };
+
+  /** Mostra (ou esconde) o grupo do módulo no menu, conforme o acesso. */
+  function atualizar() {
+    const dentro = !!acesso;
+    $('btnDesenvolvedor').setAttribute('aria-expanded', String(dentro && aberto));
+    $('btnDesenvolvedor').title = dentro ? 'Módulo de construção da loja (clique para mostrar ou esconder)' : 'Módulo de construção da loja (pede senha)';
+    $('grupoDesenvolvedor').hidden = !(dentro && aberto);
+  }
+
+  function abrirAcesso() {
+    $('devErro').hidden = true;
+    $('devSenha').value = '';
+    $('dlgDesenvolvedor').showModal();
+    $('devSenha').focus();
+  }
+
+  async function entrar(ev) {
+    ev.preventDefault();
+    const pedido = { senha: $('devSenha').value };
+    const botao = $('devEntrar');
+    botao.disabled = true;
+    try {
+      await app.chamar('entrarDesenvolvedor', pedido);
+      acesso = pedido;
+      aberto = true;
+      sessao.gravar(acesso);
+      $('dlgDesenvolvedor').close();
+      atualizar();
+      app.toast('Módulo desenvolvedor liberado: abra a engrenagem para construir a loja.');
+    } catch (e) {
+      $('devErro').textContent = (e && e.message) || String(e);
+      $('devErro').hidden = false;
+    } finally {
+      botao.disabled = false;
+    }
+  }
+
+  function sair() {
+    if (app.aoSair && app.aoSair() === false) return; // ex.: o Construir loja tem alterações e a pessoa cancelou
+    acesso = null;
+    sessao.gravar(null);
+    atualizar();
+    app.toast('Você saiu do módulo desenvolvedor.');
+  }
+
+  function iniciar(contexto) {
+    app = contexto;
+    // Sem acesso, o item pede a senha (e o menu fecha); com acesso, abre e fecha o grupo sem fechar o menu.
+    $('btnDesenvolvedor').addEventListener('click', (e) => {
+      if (!acesso) { abrirAcesso(); return; }
+      e.stopPropagation();
+      aberto = !aberto;
+      atualizar();
+    });
+    $('btnSairDesenvolvedor').addEventListener('click', sair);
+    $('formDesenvolvedor').addEventListener('submit', entrar);
+    $('devCancelar').addEventListener('click', () => $('dlgDesenvolvedor').close());
+    // Mesma aba: continua entrado depois de recarregar a página.
+    const salvo = sessao.ler();
+    if (salvo && salvo.senha) acesso = salvo;
+    atualizar();
+  }
+
+  return { iniciar, ativo: () => !!acesso, acesso: () => acesso };
+})();
+</script>

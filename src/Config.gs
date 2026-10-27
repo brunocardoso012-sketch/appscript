@@ -37,12 +37,14 @@ const CONFIG = {
 };
 
 /**
- * Senhas de acesso à validação da estratégia (botão "Validação"), uma por papel.
+ * Senhas de acesso aos módulos da engrenagem: Validação e Construção (uma por papel) e
+ * Desenvolvedor (Construir loja, Baixar planilha base e Importar planilha).
  * Provisórias: no futuro virão da planilha (troque em senhasDeAcesso_, Validacao.gs).
  */
 const SENHAS_ACESSO = {
   VALIDADOR: 'validacao_exposicao',
   CONSTRUTOR: 'construcao_exposicao',
+  DESENVOLVEDOR: 'desenvolvedor_exposicao',
 };
 
 /**

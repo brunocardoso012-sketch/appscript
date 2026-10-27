@@ -1,5 +1,5 @@
 /**
- * Gera index.html (na raiz do projeto): a versão estática do visualizador (um único arquivo),
+ * Gera index.html (na raiz do projeto): a versão estática do app (um único arquivo),
  * para publicar no netli.fyi / Netlify ou abrir direto no navegador.
  *
  * Usa os mesmos arquivos de src/ (nada é duplicado):

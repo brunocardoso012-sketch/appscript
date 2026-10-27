@@ -1,25 +1,21 @@
 /**
- * Gera a pasta instalacao/: os arquivos para colar no Google Apps Script, um ARQUIVO SÓ por versão.
+ * Gera a pasta instalacao/: os arquivos para colar no Google Apps Script.
  *
- *   - Visualizador - Plano de Varejo.gs  = a versão só de visualização (o mesmo arquivo único de
- *                                           visualizador/, gerado por build-visualizador.js);
- *   - App completo - Plano de Varejo.gs  = o app completo (Construir loja, Baixar / Importar planilha):
- *                                           src/*.gs com a página (src/Index.html e os HTML incluídos)
- *                                           embutida como texto, servida sem o Index.html;
- *   - appsscript.json                    = o manifesto (o mesmo das duas versões).
+ *   - App completo - Plano de Varejo.gs  = o app inteiro num ARQUIVO SÓ: src/*.gs com a página
+ *                                           (src/Index.html e os HTML incluídos) embutida como texto,
+ *                                           servida sem o Index.html;
+ *   - appsscript.json                    = o manifesto.
  *
  * O passo a passo está em instalacao/GUIA DE INSTALAÇÃO E ATUALIZAÇÃO.md (escrito à mão).
  * Usa os mesmos arquivos de src/ (nada é duplicado). Rodar:  npm run build:instalacao
  */
 const fs = require('fs');
 const path = require('path');
-const visualizador = require('./build-visualizador');
 
 const RAIZ = path.join(__dirname, '..');
 const SRC = path.join(RAIZ, 'src');
 const DESTINO = path.join(RAIZ, 'instalacao');
 const ARQUIVOS = {
-  visualizador: path.join(DESTINO, 'Visualizador - Plano de Varejo.gs'),
   completo: path.join(DESTINO, 'App completo - Plano de Varejo.gs'),
   manifesto: path.join(DESTINO, 'appsscript.json'),
 };
@@ -68,7 +64,6 @@ function gerarCompleto() {
 function gerar() {
   fs.mkdirSync(DESTINO, { recursive: true });
   const arquivos = {
-    [ARQUIVOS.visualizador]: visualizador.gerarArquivoUnico(),
     [ARQUIVOS.completo]: gerarCompleto(),
     [ARQUIVOS.manifesto]: ler(SRC, 'appsscript.json'),
   };

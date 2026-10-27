@@ -98,7 +98,7 @@ async function abrir(t, opcoes) {
 const estado = (p, expr) => p.evaluate(expr);
 // Validação e Construção: um item na engrenagem e uma senha para cada papel (SENHAS_ACESSO, em Config.gs).
 const MENU = { VALIDADOR: 'btnValidacao', CONSTRUTOR: 'btnConstrucao' };
-const SENHA = { VALIDADOR: 'validacao_exposicao', CONSTRUTOR: 'construcao_exposicao' };
+const SENHA = { VALIDADOR: 'validacao_exposicao', CONSTRUTOR: 'construcao_exposicao', DESENVOLVEDOR: 'desenvolvedor_exposicao' };
 const escolherCiclo = (p, ciclo) => p.selectOption('#selCiclo', ciclo);
 const abaPlanta = (p, nome) => p.locator('#abasPlanta .aba', { hasText: new RegExp('^' + nome + '$') });
 
@@ -106,6 +106,15 @@ const abaPlanta = (p, nome) => p.locator('#abasPlanta .aba', { hasText: new RegE
 async function menuConfig(p, id) {
   await p.click('#btnConfig');
   await p.click('#' + id);
+}
+
+/** Entra no módulo Desenvolvedor da engrenagem (Baixar / Importar planilha e Construir loja). */
+async function entrarDesenvolvedor(p) {
+  await menuConfig(p, 'btnDesenvolvedor');
+  await p.waitForSelector('#dlgDesenvolvedor[open]');
+  await p.fill('#devSenha', SENHA.DESENVOLVEDOR);
+  await p.click('#devEntrar');
+  await p.waitForSelector('#dlgDesenvolvedor:not([open])', { state: 'attached' });
 }
 
 /** Espera um download disparado por `acao` e devolve { nome, bytes }. */
@@ -292,10 +301,46 @@ test('todas as ERs num PowerPoint: um slide por ER', async (t) => {
   assert.ok(!nomes.includes('ppt/slides/slide' + (nPlantas + 1) + '.xml'), 'slide a mais');
 });
 
+test('desenvolvedor: o módulo de construção da loja fica na engrenagem, com senha', async (t) => {
+  const p = await abrir(t);
+  await p.click('#btnConfig');
+  for (const id of ['btnModelo', 'btnImportar', 'btnConstruir']) {
+    assert.strictEqual(await p.isVisible('#' + id), false, id + ' aparece sem a senha');
+  }
+  await p.click('#btnDesenvolvedor');
+  await p.waitForSelector('#dlgDesenvolvedor[open]');
+  await p.fill('#devSenha', SENHA.CONSTRUTOR);
+  await p.click('#devEntrar');
+  await p.waitForSelector('#devErro:not([hidden])');
+  assert.match(await p.textContent('#devErro'), /Senha incorreta/);
+  await p.click('#devCancelar');
+
+  await entrarDesenvolvedor(p);
+  await p.click('#btnConfig');
+  for (const id of ['btnModelo', 'btnImportar', 'btnConstruir']) assert.ok(await p.isVisible('#' + id), id + ' não aparece com a senha');
+  // Com a senha, o item abre e fecha o grupo sem fechar o menu.
+  await p.click('#btnDesenvolvedor');
+  assert.ok(await p.isVisible('#menuConfigLista'));
+  assert.strictEqual(await p.isVisible('#btnConstruir'), false);
+  await p.click('#btnDesenvolvedor');
+  assert.ok(await p.isVisible('#btnConstruir'));
+
+  // Continua liberado depois de recarregar (mesma aba); "Sair do desenvolvedor" esconde de novo.
+  await p.reload();
+  await p.waitForFunction(() => App.estado.dados);
+  await menuConfig(p, 'btnConstruir');
+  assert.ok(await p.isVisible('#painelConstrutor'));
+  await p.click('#cnsFechar');
+  await menuConfig(p, 'btnSairDesenvolvedor');
+  await p.click('#btnConfig');
+  assert.strictEqual(await p.isVisible('#btnConstruir'), false);
+});
+
 test('planilha base: baixar e importar de volta como ciclo novo', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo');
-  await p.click('#btnModelo');
+  await entrarDesenvolvedor(p);
+  await menuConfig(p, 'btnModelo');
   await p.waitForSelector('#dlgModelo[open]');
   await p.fill('#mdCiclo', 'C99/2026');
   await p.check('#dlgModelo input[name="mdConteudo"][value="copiar"]');
@@ -322,7 +367,8 @@ test('planilha base: baixar e importar de volta como ciclo novo', async (t) => {
 
 test('planilha base em branco, só uma planta', async (t) => {
   const p = await abrir(t);
-  await p.click('#btnModelo');
+  await entrarDesenvolvedor(p);
+  await menuConfig(p, 'btnModelo');
   await p.waitForSelector('#dlgModelo[open]');
   await p.check('#dlgModelo input[name="mdConteudo"][value="branco"]');
   const opcoes = await p.locator('#mdPlantas option').evaluateAll((os) => os.map((o) => o.value));
@@ -365,7 +411,8 @@ test('Construir loja: adicionar, desfazer e salvar um móvel', async (t) => {
   const p = await abrir(t);
   await abaPlanta(p, 'ER M').click();
   const antes = await estado(p, () => App.estado.dados.plantas.find((x) => x.id === '02').moveis.length);
-  await p.click('#btnConstruir');
+  await entrarDesenvolvedor(p);
+  await menuConfig(p, 'btnConstruir');
   assert.ok(await p.isVisible('#painelConstrutor'));
 
   await p.locator('#cnsPaleta button', { hasText: 'Gôndola' }).first().click();
@@ -377,13 +424,14 @@ test('Construir loja: adicionar, desfazer e salvar um móvel', async (t) => {
   await p.click('#cnsSalvar');
   await p.waitForFunction((n) => App.estado.dados.plantas.find((x) => x.id === '02').moveis.length === n + 1, antes);
 
-  await p.click('#btnConstruir');
+  await menuConfig(p, 'btnConstruir');
   assert.strictEqual(await p.isVisible('#painelConstrutor'), false);
 });
 
 test('Construir loja: baixar o código da loja', async (t) => {
   const p = await abrir(t);
-  await p.click('#btnConstruir');
+  await entrarDesenvolvedor(p);
+  await menuConfig(p, 'btnConstruir');
   const d = await baixar(p, () => p.click('#cnsBaixarCodigo'));
   const json = JSON.parse(d.bytes.toString('utf8'));
   assert.ok(Object.keys(json).length > 0, 'código da loja vazio');

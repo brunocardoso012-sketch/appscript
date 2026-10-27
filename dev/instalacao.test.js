@@ -8,7 +8,6 @@ const fs = require('fs');
 const vm = require('vm');
 const { servicosFalsos, carregarGas } = require('./gas');
 const { gerarCompleto, gerarPaginaCompleta, ARQUIVOS } = require('./build-instalacao');
-const { gerarArquivoUnico } = require('./build-visualizador');
 
 function carregar(codigo, falsos) {
   const ctx = vm.createContext(Object.assign({ console }, falsos.globais));
@@ -21,7 +20,6 @@ function carregar(codigo, falsos) {
 
 test('instalacao/ está atualizada com src/ (rode npm run build:instalacao)', () => {
   assert.equal(fs.readFileSync(ARQUIVOS.completo, 'utf8'), gerarCompleto(), 'App completo desatualizado');
-  assert.equal(fs.readFileSync(ARQUIVOS.visualizador, 'utf8'), gerarArquivoUnico(), 'Visualizador desatualizado');
   assert.equal(fs.readFileSync(ARQUIVOS.manifesto, 'utf8'), fs.readFileSync(require('path').join(__dirname, '..', 'src', 'appsscript.json'), 'utf8'));
 });
 
@@ -29,7 +27,7 @@ test('app completo em arquivo único: serve a página embutida, sem Index.html n
   const codigo = gerarCompleto();
   assert.ok(!/createTemplateFromFile|createHtmlOutputFromFile\('Index'\)/.test(codigo), 'não depende do Index.html');
   const pagina = gerarPaginaCompleta();
-  ['const Construtor', 'const Planilha', 'const Estrategia', 'const Tutorial', 'const Analytics', 'const App', 'id="btnConstruir"', 'id="btnAnalytics"']
+  ['const Construtor', 'const Planilha', 'const Estrategia', 'const Tutorial', 'const Analytics', 'const App', 'const Desenvolvedor', 'id="btnConstruir"', 'id="btnDesenvolvedor"', 'id="btnAnalytics"']
     .forEach((x) => assert.ok(pagina.includes(x), x));
   const falsos = servicosFalsos({ vinculada: true });
   const run = carregar(codigo, falsos);

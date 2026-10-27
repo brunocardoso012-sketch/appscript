@@ -11,7 +11,7 @@
  *  As antecipações ficam na aba "Antecipações" (uma linha por antecipação) e
  *  não mudam as linhas da aba Movimentos: a página junta as duas na hora de
  *  desenhar (Antecipacao.html). Este arquivo só tem regras sobre matrizes: quem
- *  lê e grava a aba é o Code.gs, o Visualizador.gs e, na versão web, o
+ *  lê e grava a aba é o Code.gs e, na versão web, o
  *  web/backend-local.js (executarAntecipacao_, com o leitor / gravador de cada um).
  */
 

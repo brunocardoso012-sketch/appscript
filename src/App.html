@@ -26,14 +26,8 @@ const App = (() => {
   const $ = (id) => document.getElementById(id);
   const svg = $('slide');
 
-  /**
-   * Modo "Construir loja". A versão só de visualização (pasta visualizador/) não inclui
-   * o Construtor.html: no lugar dele entra este substituto, que nunca está ativo.
-   */
-  const Editor = typeof Construtor !== 'undefined' ? Construtor : {
-    iniciar() {}, sincronizar() {}, aposDesenhar() {}, fechar() {}, abrir() {}, tecla() {},
-    contexto: () => null, ativo: () => false, podeSair: () => true,
-  };
+  /** Modo "Construir loja" (Construtor.html), aberto pelo módulo Desenvolvedor da engrenagem. */
+  const Editor = Construtor;
 
   /* ------------------------------ utilidades ------------------------------ */
 
@@ -1827,7 +1821,7 @@ const App = (() => {
     try {
       const payload = await Planilha.ler(arquivo, estado.dados);
       carregando(true, 'Gravando na planilha…');
-      const r = await chamar('importarPlanilha', payload);
+      const r = await chamar('importarPlanilha', Desenvolvedor.acesso(), payload);
       await carregar({ ciclo: r.ciclos.length ? r.ciclos[r.ciclos.length - 1] : '' });
       mostrarResultado(r);
     } catch (e) {
@@ -2380,8 +2374,7 @@ const App = (() => {
   /* -------------------------------- início -------------------------------- */
 
   function ligarEventos() {
-    // Botões que só existem em uma das versões (ex.: a de visualização não tem Construir loja
-    // nem Baixar / Importar planilha) são ignorados quando não estão na página.
+    // Botões que não estão na página são ignorados.
     const ao = (id, evento, fn) => { if ($(id)) $(id).addEventListener(evento, fn); };
     ao('selCiclo', 'change', (e) => {
       estado.ciclo = e.target.value;
@@ -2395,9 +2388,10 @@ const App = (() => {
       montarComparar();
       desenhar();
     });
-    ao('btnModelo', 'click', () => estado.dados && abrirDialogoModelo());
+    // Baixar planilha base, Importar planilha e Construir loja: só com o módulo Desenvolvedor liberado.
+    ao('btnModelo', 'click', () => estado.dados && Desenvolvedor.ativo() && abrirDialogoModelo());
     ao('dlgModelo', 'close', baixarModelo);
-    ao('btnImportar', 'click', () => estado.dados && $('arquivo').click());
+    ao('btnImportar', 'click', () => estado.dados && Desenvolvedor.ativo() && $('arquivo').click());
     ao('arquivo', 'change', (e) => importar(e.target.files[0]));
     ao('btnPng', 'click', () => estado.dados && abrirDialogoPng());
     ao('dlgPng', 'close', baixarPng);
@@ -2454,7 +2448,7 @@ const App = (() => {
     ao('btnBaixarPosicoes', 'click', baixarPosicoes);
     ao('btnConfigurar', 'click', configurar);
     ao('btnConstruir', 'click', () => {
-      if (!estado.dados) return;
+      if (!estado.dados || !Desenvolvedor.ativo()) return;
       if (Editor.ativo()) { Editor.fechar(); return; }
       if (estado.edicao) alternarEdicao();
       if (estado.edicao) return; // usuário cancelou a saída do modo ajuste
@@ -2519,7 +2513,12 @@ const App = (() => {
       .then(() => { if (estado.dados) desenhar(); })
       .catch(() => { /* sem a fonte: as etiquetas usam a reserva (Segoe UI / Arial) */ });
   }
-  Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual });
+  Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual, acesso: () => Desenvolvedor.acesso() });
+  Desenvolvedor.iniciar({
+    chamar, toast,
+    // Sair do módulo fecha o Construir loja (que pergunta antes, se houver alterações não salvas).
+    aoSair: () => { if (Editor.ativo()) Editor.fechar(); return !Editor.ativo(); },
+  });
   Validacao.iniciar({
     estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta,
     abrirMovel: (id) => abrirMovel(id),
@@ -2559,7 +2558,7 @@ const App = (() => {
     Tutorial.oferecer();
   });
 
-  // resolver: usado também para gerar a planilha base da versão de visualização (dev/).
+  // resolver: usado também pelos testes end to end (dev/e2e.js).
   return { estado, carregar, resolver: { movimento: movimentoDaPlanilha, linhasPaineis, linhasTipos } };
 })();
 </script>
