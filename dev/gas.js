@@ -28,7 +28,7 @@ function encadeavel(alvo) {
 }
 
 function criarAba(nome) {
-  const aba = { grade: [], maxLinhas: 1000, maxColunas: 26, formatos: {}, filtro: null, congeladas: 0 };
+  const aba = { grade: [], maxLinhas: 1000, maxColunas: 26, formatos: {}, filtro: null, congeladas: 0, validacoes: [] };
   const vazio = (v) => v === '' || v === null || v === undefined;
   const ultimaLinha = () => {
     for (let r = aba.grade.length - 1; r >= 0; r--) if ((aba.grade[r] || []).some((v) => !vazio(v))) return r + 1;
@@ -48,6 +48,15 @@ function criarAba(nome) {
       if (vals.length !== nr || vals.some((l) => l.length !== nc)) {
         throw new Error('setValues: dimensões ' + vals.length + 'x' + vals[0].length + ' != ' + nr + 'x' + nc);
       }
+      // Como o Sheets: uma regra de validação que rejeita valores fora da lista barra a gravação.
+      vals.forEach((l, i) => l.forEach((v, j) => {
+        const lin = r + i;
+        const col = c + j;
+        const regra = aba.validacoes.find((x) => !x.permite && lin >= x.r && lin < x.r + x.nr && col >= x.c && col < x.c + x.nc);
+        if (regra && !vazio(v) && regra.lista.indexOf(String(v)) < 0) {
+          throw new Error('Os dados inseridos na célula ' + String.fromCharCode(64 + col) + lin + ' violam o respectivo conjunto de regras de validação de dados.');
+        }
+      }));
       vals.forEach((l, i) => l.forEach((v, j) => {
         const lin = r - 1 + i;
         aba.grade[lin] = aba.grade[lin] || [];
@@ -59,6 +68,15 @@ function criarAba(nome) {
     },
     setValue(v) { return this.setValues([[v]]); },
     setNumberFormat(f) { for (let j = 0; j < nc; j++) aba.formatos[c + j] = f; return this; },
+    setDataValidation(regra) {
+      aba.validacoes = aba.validacoes.filter((x) => !(x.c >= c && x.c < c + nc));
+      aba.validacoes.push(Object.assign({ r, c, nr, nc }, regra));
+      return this;
+    },
+    clearDataValidations() {
+      aba.validacoes = aba.validacoes.filter((x) => x.c + x.nc <= c || x.c >= c + nc || x.r + x.nr <= r || x.r >= r + nr);
+      return this;
+    },
     createFilter() { aba.filtro = { remove() { aba.filtro = null; } }; return aba.filtro; },
   });
   return encadeavel({
@@ -102,6 +120,16 @@ function servicosFalsos(opcoes) {
   const outras = {};
   let principalCriada = op.vinculada;
   const construtor = () => encadeavel({ build: () => ({}) });
+  // Regra de validação: guarda a lista e se aceita valores fora dela (setAllowInvalid).
+  const validacao = () => {
+    const regra = { lista: [], permite: true };
+    const b = encadeavel({
+      requireValueInList: (lista) => { regra.lista = lista.map(String); return b; },
+      setAllowInvalid: (v) => { regra.permite = !!v; return b; },
+      build: () => regra,
+    });
+    return b;
+  };
   return {
     planilha,
     propriedades,
@@ -121,7 +149,7 @@ function servicosFalsos(opcoes) {
           throw new Error('Planilha não encontrada: ' + id);
         },
         newConditionalFormatRule: construtor,
-        newDataValidation: construtor,
+        newDataValidation: validacao,
       },
       LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
       PropertiesService: {

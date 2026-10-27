@@ -1882,12 +1882,16 @@ function escreverAba_(ss, nome, colunas, valores) {
     const i = acharColuna_(cab, c);
     if (i >= 0 && c.texto) sh.getRange(1, i + 1, maxLinhas, 1).setNumberFormat('@');
   });
+  // Regras de validação criadas à mão na planilha com "rejeitar entrada" barrariam a gravação (ex.: uma
+  // classificação fora da lista delas). Saem antes; formatarAba_ põe as do app, que só avisam e mantêm
+  // na lista os valores que já estão na coluna.
+  sh.getRange(1, 1, maxLinhas, largura).clearDataValidations();
   sh.getRange(1, 1, linhas.length, largura).setValues(linhas);
-  formatarAba_(sh, colunas, cab, maxLinhas);
+  formatarAba_(sh, colunas, cab, maxLinhas, linhas);
   return sh;
 }
 
-function formatarAba_(sh, colunas, cab, maxLinhas) {
+function formatarAba_(sh, colunas, cab, maxLinhas, linhas) {
   const largura = cab.length;
   sh.setFrozenRows(1);
   // Na aba Movimentos, congela até a coluna "ID Móvel" (Ciclo, Planta, ID sempre visíveis).
@@ -1942,6 +1946,11 @@ function formatarAba_(sh, colunas, cab, maxLinhas) {
     } else if (c.chave === 'classificacao') {
       lista = Object.keys(CLASSIFICACOES).map(function (k) { return CLASSIFICACOES[k].nome; });
       ajuda = 'Tipo do movimento: ' + lista.join(', ') + '. Também aceita outro texto.';
+      // Classificações próprias já usadas na planilha (ex.: Exaustão) continuam na lista suspensa.
+      (linhas || []).slice(1).forEach(function (l) {
+        const v = texto_(l[i]);
+        if (v && lista.indexOf(v) < 0 && lista.length < 40) lista.push(v);
+      });
     } else if (c.chave === 'gmv') {
       coluna.setNumberFormat('"R$" #,##0');
     }

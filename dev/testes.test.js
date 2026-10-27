@@ -478,6 +478,26 @@ test('planilha separada para o layout: criar, ler e gravar nela, vincular e volt
   assert.equal(run('getDados()').plantas.find((p) => p.id === '01').moveis.length, 1);
 });
 
+test('regra de validação da planilha que rejeita valores não impede o app de gravar', () => {
+  // Planilha com a coluna Classificação validada à mão ("rejeitar entrada"), com outra lista de valores.
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  const aba = f.planilha.getSheetByName('Tipos de movimento');
+  const lista = ['Promoção', 'Exaustão', 'Institucional', 'Lançamento'];
+  aba.getRange(2, 3, 500, 1).setDataValidation(f.globais.SpreadsheetApp.newDataValidation().requireValueInList(lista).setAllowInvalid(false).build());
+  aba.getRange(2, 3).setValue('Exaustão');
+  assert.throws(() => aba.getRange(3, 3).setValue('Baseline'), /violam/, 'a planilha falsa barra como o Sheets');
+  // O app regrava a aba inteira (ex.: ao importar ou aprovar um ciclo) com outras classificações.
+  const r = run(`importarPlanilha(${DEV}, { tipos: [['Ciclo', 'Movimento (etiqueta)', 'Classificação', 'GMV esperado (R$)'], ['C1', 'LÇTO X', 'Liquidação / outlet', '100']] })`);
+  assert.equal(r.tipos, 1);
+  const regra = aba._aba.validacoes.find((x) => x.c === 3);
+  assert.ok(regra && regra.permite, 'a regra da coluna passa a só avisar');
+  assert.ok(regra.lista.includes('Exaustão'), 'a lista mantém as classificações já usadas na coluna');
+  assert.ok(regra.lista.includes('Liquidação / outlet'));
+  assert.equal(run('getDados()').tiposMovimento.C1['LÇTO X'].classificacao, 'LIQUIDACAO');
+});
+
 test('validação: senha por papel, quem pode o quê e aba Comentários', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
