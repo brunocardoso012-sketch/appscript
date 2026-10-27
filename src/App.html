@@ -2139,46 +2139,30 @@ const App = (() => {
   }
 
   /**
-   * Dados do slide da estratégia (o espaço da ER por marca, movimento e classificação), já com nomes,
-   * cores e formatos, para o Estrategia.desenhar. Não usa os filtros da tela: é o ciclo inteiro na ER.
+   * Dados do slide da estratégia: um resumo do Analytics (Estrategia.desenhar) com a ER do slide em destaque —
+   * os principais movimentos em cada ER, as marcas e as classificações em cada ER e os números da ER.
+   * Não usa os filtros da tela: é o ciclo inteiro.
    */
   function dadosEstrategia(planta, ciclo) {
+    const d = dadosAnalytics(ciclo);
     const r = resumoDeEspaco(partesDeEspaco(planta, ciclo).filter((p) => !p.vm));
-    const marcas = ordemDasMarcas().filter((c) => r.porMarca[c]);
-    const grupos = Object.values(r.porEtiqueta).sort((a, b) => b.espacos - a.espacos || a.texto.localeCompare(b.texto, 'pt-BR'));
-    const gmvDe = (g) => (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0);
-    const gmvTotal = grupos.reduce((s, g) => s + gmvDe(g), 0);
-    const classes = ordemDasClassificacoes(Object.keys(r.porClassificacao));
+    const daEr = d.movimentos.filter((m) => m.porEr[planta.id]);
     return {
       er: planta.nome,
+      erId: planta.id,
       ciclo,
-      total: r.total,
-      moveis: r.moveis.size,
-      gmvTotal,
-      marcas: marcas.map((c) => ({ nome: nomeMarcaPainel(c), cor: corMarcaPainel(c), valor: r.porMarca[c] })),
-      movimentos: grupos.map((g) => ({
-        texto: g.texto,
-        espacos: g.espacos,
-        gmv: gmvDe(g),
-        classificacao: g.classificacao === SEM_CLASSIFICACAO ? null : { nome: nomeClassificacao(g.classificacao), cor: corClassificacao(g.classificacao) },
-        marcas: marcas.filter((c) => g.marcas[c]).map((c) => ({ cor: corMarcaPainel(c), valor: g.marcas[c] })),
-      })),
-      movimentosOcultos: 0,
-      classificacoes: classes.map((c) => {
-        const doTipo = grupos.filter((g) => g.classificacao === c);
-        return {
-          nome: nomeClassificacao(c), cor: corClassificacao(c), sem: c === SEM_CLASSIFICACAO,
-          espacos: r.porClassificacao[c] || 0, movimentos: doTipo.length, gmv: doTipo.reduce((s, g) => s + gmvDe(g), 0),
-        };
-      }),
-      nota: 'Espaços de exposição: na gôndola, cada ponta e cada meio (meio dividido: ½ para cada metade); na mesa, cada frente; '
-        + 'na pirâmide, o espaço se divide entre as etiquetas; os demais móveis, um espaço. Espaços de VM (PDV móvel, verso da mesa, totem e balcão recepção), '
-        + 'móvel de atendimento, itens fora da planta, móveis de parede e móvel make não contam. GMV esperado: o do movimento no ciclo (aba Tipos de movimento).',
+      ers: d.ers,
+      movimentos: d.movimentos,
+      marcas: d.marcas,
+      classes: d.classes,
+      numeros: { total: r.total, moveis: r.moveis.size, movimentos: daEr.length, gmv: daEr.reduce((t, m) => t + (m.gmv || 0), 0) },
+      nota: 'Espaço de exposição: na gôndola, cada ponta e cada meio; na mesa, cada frente; na pirâmide, o espaço se divide entre as etiquetas. '
+        + 'Espaços de VM ficam de fora. Cada ER é um tamanho médio da rede: nenhuma conta soma ERs. GMV esperado: aba Tipos de movimento.',
       fmt: {
         espacos: qtdEspacos,
         pct: porcento,
+        num: (v) => (Math.round(v * 10) / 10).toLocaleString('pt-BR'),
         gmvCurto,
-        gmvCompleto: (v) => formatoGmvCompleto.format(v),
       },
     };
   }
