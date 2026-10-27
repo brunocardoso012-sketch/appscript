@@ -484,24 +484,73 @@ const App = (() => {
       });
       box.appendChild(chip);
     });
-    if (estado.filtroEtiqueta || estado.filtroClassificacao) {
-      // Etiqueta (ou classificação) escolhida no Analytics: chip para voltar a ver todas.
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'chip chip-etiqueta';
-      chip.setAttribute('aria-pressed', 'true');
-      chip.title = 'Voltar a mostrar todas as etiquetas';
-      chip.textContent = (estado.filtroEtiqueta ? 'Só a etiqueta: ' + estado.filtroEtiqueta
-        : 'Só ' + nomeClassificacao(estado.filtroClassificacao)) + ' ✕';
-      chip.addEventListener('click', () => (estado.filtroEtiqueta
-        ? alternarFiltroEtiqueta(estado.filtroEtiqueta) : alternarFiltroClassificacao(estado.filtroClassificacao)));
-      box.appendChild(chip);
-    } else if (estado.filtro) {
+    montarFiltrosMovimento(box);
+    if (estado.filtro) {
       const dica = document.createElement('span');
       dica.className = 'dica';
       dica.textContent = 'Clique de novo para ver todas as marcas.';
       box.appendChild(dica);
     }
+  }
+
+  /** Movimentos (texto das etiquetas, sem a observação depois do "|") do ciclo da tela, com a classificação. */
+  function movimentosDoCiclo() {
+    const vistos = {};
+    const c = (estado.ciclo && estado.dados.movimentos[estado.ciclo]) || {};
+    Object.keys(c).forEach((p) => Object.keys(c[p]).forEach((id) => (c[p][id].etiquetas || []).forEach((e) => {
+      const texto = Render.movimentoDaEtiqueta(e.texto);
+      const k = chaveEtiqueta(texto);
+      if (k && !vistos[k]) vistos[k] = { texto, classificacao: classificacaoDe(texto) };
+    })));
+    return Object.values(vistos).sort((a, b) => a.texto.localeCompare(b.texto, 'pt-BR'));
+  }
+
+  /**
+   * Ao lado das marcas: dois menus suspensos, "Tipo de movimento" (lançamento, promoção, Baseline…) e
+   * "Movimento" (o texto das etiquetas; com um tipo escolhido, só os movimentos dele). Na planta, só os
+   * espaços com o tipo / movimento ficam coloridos. Escolher uma marca limpa os dois.
+   */
+  function montarFiltrosMovimento(box) {
+    const movimentos = movimentosDoCiclo();
+    const filtro = (rotulo, id, todos, opcoes, valor, aoMudar) => {
+      const campo = document.createElement('label');
+      campo.className = 'filtro-mov';
+      const span = document.createElement('span');
+      span.className = 'rotulo';
+      span.textContent = rotulo;
+      campo.appendChild(span);
+      const sel = document.createElement('select');
+      sel.id = id;
+      sel.appendChild(new Option(todos, ''));
+      opcoes.forEach(([v, nome]) => sel.appendChild(new Option(nome, v)));
+      sel.value = valor;
+      sel.disabled = !opcoes.length;
+      sel.classList.toggle('ativo', !!valor);
+      sel.addEventListener('change', () => aoMudar(sel.value));
+      campo.appendChild(sel);
+      box.appendChild(campo);
+      return sel;
+    };
+    const presentes = movimentos.map((m) => m.classificacao).filter((c, i, l) => l.indexOf(c) === i);
+    filtro('Tipo de movimento', 'filtroTipo', 'Todos os tipos', ordemDasClassificacoes(presentes).map((c) => [c, nomeClassificacao(c)]),
+      estado.filtroClassificacao, (v) => {
+        estado.filtroClassificacao = v;
+        estado.filtroEtiqueta = '';
+        estado.filtro = '';
+        montarLegenda();
+        desenhar();
+      });
+    const doTipo = movimentos.filter((m) => !estado.filtroClassificacao || m.classificacao === estado.filtroClassificacao);
+    const opcoes = doTipo.map((m) => [m.texto, m.texto]);
+    // Movimento escolhido em outro lugar (Analytics, busca, link): a opção dele, com o mesmo texto.
+    const achado = estado.filtroEtiqueta ? doTipo.find((m) => chaveEtiqueta(m.texto) === chaveEtiqueta(estado.filtroEtiqueta)) : null;
+    if (estado.filtroEtiqueta && !achado) opcoes.unshift([estado.filtroEtiqueta, estado.filtroEtiqueta]);
+    filtro('Movimento', 'filtroMovimento', 'Todos os movimentos', opcoes, achado ? achado.texto : estado.filtroEtiqueta, (v) => {
+      estado.filtroEtiqueta = v;
+      estado.filtro = '';
+      montarLegenda();
+      desenhar();
+    });
   }
 
   function montarAvisos(avisos) {
@@ -594,9 +643,12 @@ const App = (() => {
     };
   }
 
+  let cicloDaLegenda = null; // os filtros de tipo e de movimento mostram os movimentos deste ciclo
+
   function desenhar() {
     const ctx = contextoDesenho();
     if (!ctx) return;
+    if (estado.ciclo !== cicloDaLegenda) { cicloDaLegenda = estado.ciclo; montarLegenda(); }
     svg.classList.toggle('construindo', !!Editor.contexto());
     // Marcadores dos comentários abertos (só na validação e fora da construção).
     if (!Editor.contexto()) ctx.comentarios = Validacao.marcadores();
@@ -639,6 +691,11 @@ const App = (() => {
     svg.style.setProperty('--zoom', z.k);
     svg.classList.toggle('com-zoom', z.k > 1);
     const s = 1 / z.k;
+    // A legenda dos símbolos e as notas ficam paradas na tela (do tamanho de sempre), com qualquer zoom.
+    svg.querySelectorAll('.fixo-zoom').forEach((g) => {
+      if (z.k === 1) g.removeAttribute('transform');
+      else g.setAttribute('transform', 'translate(' + z.x + ',' + z.y + ') scale(' + s + ')');
+    });
     svg.querySelectorAll('.etq-zoom').forEach((g) => {
       if (z.k === 1) { g.removeAttribute('transform'); return; }
       const px = +g.getAttribute('data-px');
@@ -1422,9 +1479,11 @@ const App = (() => {
     atualizarAnalytics();
   }
 
-  /** Fecha o Analytics e mostra na planta da ER só a etiqueta, a marca ou a classificação escolhida. */
+  /**
+   * Mostra na planta da ER (ao lado do Analytics, que continua aberto) só a etiqueta, a marca ou a
+   * classificação escolhida.
+   */
   function verNaPlanta(o) {
-    estado.analytics = false;
     estado.filtro = o.marca || '';
     estado.filtroEtiqueta = o.etiqueta ? String(o.etiqueta).trim() : '';
     estado.filtroClassificacao = o.classificacao || '';
@@ -2640,11 +2699,8 @@ const App = (() => {
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.key === 'f' || e.key === 'F') { alternarApresentacao(); return; }
       if (e.key === 'Escape' && document.body.classList.contains('apresentando')) { alternarApresentacao(false); return; }
-      if (estado.analytics) {
-        // No Analytics, Esc volta para a planta; as setas continuam trocando a ER em destaque.
-        if (e.key === 'Escape' && !document.querySelector('.tut-foco')) { alternarAnalytics(false); return; }
-        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      }
+      // Com o Analytics aberto (meia tela), Esc fecha ele; o zoom e as setas continuam valendo na planta.
+      if (estado.analytics && e.key === 'Escape' && !document.querySelector('.tut-foco')) { alternarAnalytics(false); return; }
       if (e.key === '+' || e.key === '=') { zoomPara(estado.zoom.k * 1.5); return; }
       if (e.key === '-' || e.key === '_') { zoomPara(estado.zoom.k / 1.5); return; }
       if (e.key === '0') { zoomPara(1); return; }

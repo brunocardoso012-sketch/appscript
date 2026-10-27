@@ -294,16 +294,54 @@ test('Analytics: cartões, mapa, "Sobre a análise" e "ver na planta"', async (t
   assert.ok(await p.locator('#anInfoCorpo svg').count() > 0, 'legenda dos espaços sem miniaturas');
   await p.click('#dlgAnInfo button[value="ok"]');
 
-  // Setas trocam a ER em destaque; clicar numa célula leva para a planta filtrada.
+  // Meia tela: a planta continua visível à esquerda.
+  const [planta, painel] = await Promise.all(['#slide', '#painelAnalytics'].map((s) => p.locator(s).boundingBox()));
+  assert.ok(planta.width > 300 && planta.x + planta.width <= painel.x + 1, 'a planta fica à esquerda do Analytics');
+  assert.ok(Math.abs(painel.width - 1440 / 2) < 20, 'o Analytics ocupa metade da tela: ' + painel.width);
+  // Marcas: bolinhas ao lado do nome do movimento (sem a coluna Marcas); gráficos de marcas e classificação empilhados.
+  assert.strictEqual(await p.locator('#anCorpo th.an-col-marcas').count(), 0);
+  assert.ok(await p.locator('#anCorpo .an-mov-nome .an-marcas-mov i').count() > 0, 'sem as bolinhas das marcas');
+  const barras = await p.locator('#anCorpo .an-cartao', { hasText: /em cada ER/ }).evaluateAll((cs) => cs.map((c) => c.getBoundingClientRect().top));
+  assert.ok(barras.length >= 2 && barras[1] > barras[0] + 40, 'os gráficos de marcas e classificação ficam um em cima do outro');
+
+  // Setas trocam a ER em destaque; clicar numa célula filtra a planta ao lado (o Analytics continua aberto).
   await p.locator('body').press('ArrowRight');
   await p.locator('#anCorpo .an-celula button').first().click();
-  assert.strictEqual(await p.isVisible('#painelAnalytics'), false);
+  assert.ok(await p.isVisible('#painelAnalytics'));
   assert.ok(await estado(p, () => App.estado.filtroEtiqueta), 'filtro da etiqueta não foi ligado');
+  assert.ok(await p.inputValue('#filtroMovimento'), 'o menu de movimento mostra a etiqueta escolhida');
 
   // Esc fecha o Analytics.
-  await p.click('#btnAnalytics');
   await p.locator('body').press('Escape');
   assert.strictEqual(await p.isVisible('#painelAnalytics'), false);
+});
+
+test('filtros por tipo de movimento e por movimento (menus ao lado das marcas); legenda e notas paradas com zoom', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  const tipos = await p.locator('#filtroTipo option').allTextContents();
+  assert.strictEqual(tipos[0], 'Todos os tipos');
+  assert.ok(tipos.includes('Promoção') && tipos.includes('Baseline'), tipos.join(', '));
+  const todos = await p.locator('#filtroMovimento option').count();
+  await p.selectOption('#filtroTipo', { label: 'Promoção' });
+  assert.strictEqual(await estado(p, () => App.estado.filtroClassificacao), 'PROMOCAO');
+  const daPromo = await p.locator('#filtroMovimento option').allTextContents();
+  assert.ok(daPromo.length > 1 && daPromo.length < todos, 'com um tipo, o menu de movimento só tem os dele');
+  await p.selectOption('#filtroMovimento', daPromo[1]);
+  assert.strictEqual(await estado(p, () => App.estado.filtroEtiqueta), daPromo[1]);
+  // Escolher uma marca limpa os dois.
+  await p.locator('#legenda .chip').first().click();
+  assert.deepStrictEqual(await estado(p, () => [App.estado.filtroClassificacao, App.estado.filtroEtiqueta]), ['', '']);
+  assert.strictEqual(await p.inputValue('#filtroTipo'), '');
+
+  // Zoom: a caixa das notas e a legenda dos símbolos ficam no mesmo lugar da tela.
+  const lugar = () => p.locator('#slide .fixo-zoom').boundingBox();
+  const antes = await lugar();
+  await p.click('#zoomMais');
+  await p.click('#zoomMais');
+  const depois = await lugar();
+  assert.ok(Math.abs(antes.x - depois.x) < 2 && Math.abs(antes.y - depois.y) < 2 && Math.abs(antes.width - depois.width) < 2,
+    'a legenda mexeu com o zoom: ' + JSON.stringify([antes, depois]));
 });
 
 test('cascata ER M → ER G: o lado B da gôndola 2 vira o lado A da gôndola 3 e é definido de novo; a gôndola 1 segue a cascata', async (t) => {
@@ -377,16 +415,17 @@ test('Inventario: o mouse no móvel mostra as lojas da rede; o Analytics, a pres
 
   // Analytics: coluna "Na rede" com a presença de cada movimento.
   await p.click('#btnAnalytics');
-  assert.match(await p.textContent('#anCorpo th.an-col-rede'), /Na rede.*% das lojas · espaços/);
+  assert.match(await p.textContent('#anCorpo th.an-col-rede'), /Na rede.*% das lojas · lojas · espaços/);
   assert.match(await p.getAttribute('#anCorpo th.an-col-rede', 'title'), /1\.000 lojas/);
   assert.deepStrictEqual((await p.locator('#anCorpo .an-mapa').first().locator('thead th').allTextContents()).slice(0, 4).map((x) => x.split(/\d/)[0].trim()),
-    ['Movimento', 'Móveis', 'Na rede% das lojas · espaços', 'ER P'], 'Móveis e Na rede antes das ERs');
+    ['Movimento', 'Móveis', 'Na rede% das lojas · lojas · espaços', 'ER P'], 'Móveis e Na rede antes das ERs');
   const linha = (texto) => p.locator('#anCorpo tbody tr', { has: p.locator('.an-mov-nome', { hasText: new RegExp('^' + texto + '$') }) }).first();
   // Móveis: um ícone por tipo de móvel em que o movimento está.
   assert.deepStrictEqual(await linha('EXAUSTÃO OUI').locator('.an-movel-icone').evaluateAll((s) => s.map((x) => x.getAttribute('aria-label'))), ['Gôndola']);
   assert.ok(await linha('BOTIPROMO').locator('.an-movel-icone').count() >= 2, 'BOTIPROMO está em mais de um tipo de móvel');
   // Espaços na rede: soma todos os espaços do movimento (EXAUSTÃO OUI: ponta A da gôndola 4, nas 130 lojas da ER GG).
   assert.match(await linha('EXAUSTÃO OUI').locator('td.an-col-rede small').textContent(), /≈ 130 espaços/);
+  assert.match(await linha('EXAUSTÃO OUI').locator('td.an-col-rede .an-rede-lojas').textContent(), /≈ 130 lojas/, 'as lojas ao lado do %');
   const pct = (texto) => p.locator('#anCorpo tbody tr', { has: p.locator('.an-mov-nome', { hasText: new RegExp('^' + texto + '$') }) })
     .first().locator('td.an-col-rede strong').textContent();
   assert.strictEqual(await pct('EXAUSTÃO OUI'), '13%', 'só na gôndola 4 (só ER GG)');

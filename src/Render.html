@@ -2187,9 +2187,11 @@ const Render = (() => {
       });
     }
 
-    // Painéis (lateral, legenda, notas, extras e caixas de destaque).
-    const topoLegenda = desenharLegendaSimbolos(camadaSobre, simbolosUsados, ctx.dados.simbolos);
-    if (medNotas) desenharNotas(camadaSobre, medNotas, 15, Math.min(topoLegenda, TELA.h - 8) - 28 - medNotas.h);
+    // Painéis (lateral, legenda, notas, extras e caixas de destaque). A legenda e as notas ficam num grupo
+    // que a aplicação mantém parado na tela com o zoom (.fixo-zoom; no PNG não há zoom).
+    const fixos = el('g', { class: 'fixo-zoom' }, camadaSobre);
+    const topoLegenda = desenharLegendaSimbolos(fixos, simbolosUsados, ctx.dados.simbolos);
+    if (medNotas) desenharNotas(fixos, medNotas, 15, Math.min(topoLegenda, TELA.h - 8) - 28 - medNotas.h);
     if (comPaineis) {
       desenharLateral(el('g', null, camadaSobre), planta, ctx.ciclo, pain);
       desenharExtras(camadaSobre, extras, (m) => info[m.id]);

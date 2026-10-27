@@ -131,7 +131,7 @@ const Analytics = (() => {
       const thR = novo('th', 'an-col-rede', null, trh);
       thR.scope = 'col';
       novo('span', null, 'Na rede', thR);
-      novo('small', null, '% das lojas · espaços', thR);
+      novo('small', null, '% das lojas · lojas · espaços', thR);
       thR.title = '% das ' + fmtNum(d.inventario.total) + ' lojas da rede com o movimento e os espaços dele na rede (todos os espaços, em todas as lojas)';
     }
     ers.forEach((e) => {
@@ -145,7 +145,6 @@ const Analytics = (() => {
       novo('small', null, espacos(e.total), b);
       b.addEventListener('click', () => { vista.ordem = e.id; redesenhar(); });
     });
-    novo('th', 'an-col-marcas', 'Marcas', trh).scope = 'col';
 
     const tbody = novo('tbody', null, null, tab);
     const filtrada = d.filtroEtiqueta;
@@ -154,12 +153,19 @@ const Analytics = (() => {
       const th = novo('th', 'an-col-mov', null, tr);
       th.scope = 'row';
       const nome = novo('div', 'an-mov-nome', null, th);
-      const ponto = novo('i', null, null, nome);
-      ponto.style.background = m.classe ? m.classe.cor : 'transparent';
-      if (!m.classe) ponto.className = 'sem';
       novo('span', null, m.texto, nome);
+      // As marcas do movimento: uma bolinha na cor de cada uma (no lugar da antiga coluna Marcas).
+      const somaM = m.marcas.reduce((s, x) => s + x.valor, 0);
+      const bolinhas = novo('span', 'an-marcas-mov', null, nome);
+      m.marcas.forEach((x) => {
+        const b = novo('i', null, null, bolinhas);
+        b.style.background = x.cor;
+        b.title = x.nome + ': ' + fmtPct(x.valor, somaM) + ' do espaço do movimento (média das ERs onde aparece)';
+      });
       const info = novo('div', 'an-mov-info', null, th);
-      novo('span', null, m.classe ? m.classe.nome : 'Sem classificação', info);
+      const classe = novo('span', 'an-mov-classe', m.classe ? m.classe.nome : 'Sem classificação', info);
+      if (m.classe) classe.style.setProperty('--cor-classe', m.classe.cor);
+      else classe.classList.add('sem');
       if (m.gmv > 0) novo('span', 'an-gmv', 'GMV ' + gmvCurto.format(m.gmv), info);
       // Tipos de móvel em que o movimento está: a miniatura de cada um.
       const tdMv = novo('td', 'an-col-moveis', null, tr);
@@ -181,8 +187,10 @@ const Analytics = (() => {
         } else {
           tdR.title = m.texto + ': em cerca de ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas (' + fmtPctNum(m.rede.pct) + ' da rede), em '
             + fmtNum(Math.round(m.rede.espacos)) + ' espaços na rede, somando todos os espaços dele em todas as lojas (aba "' + d.inventario.aba + '")';
+          // % das lojas, o número de lojas ao lado e, depois, os espaços na rede.
           const topo = novo('span', 'an-rede-num', null, tdR);
           novo('strong', null, fmtPctNum(m.rede.pct), topo);
+          novo('span', 'an-rede-lojas', '≈ ' + fmtNum(Math.round(m.rede.lojas)) + ' lojas', topo);
           novo('small', null, '≈ ' + fmtNum(Math.round(m.rede.espacos)) + ' espaços', topo);
           const trilho = novo('span', 'an-rede-trilho', null, tdR);
           novo('span', null, null, trilho).style.width = Math.min(100, m.rede.pct * 100) + '%';
@@ -208,15 +216,6 @@ const Analytics = (() => {
         novo('small', null, vista.medida === 'pct' ? fmtNum(n) : fmtPct(n, e.total), b);
         b.addEventListener('click', () => acoes.verNaPlanta({ er: e.id, etiqueta: m.texto }));
       });
-      const tdM = novo('td', 'an-col-marcas', null, tr);
-      const pilha = novo('span', 'an-pilha', null, tdM);
-      const somaM = m.marcas.reduce((s, x) => s + x.valor, 0);
-      m.marcas.forEach((x) => {
-        const s = novo('span', null, null, pilha);
-        s.style.flexGrow = x.valor;
-        s.style.background = x.cor;
-        s.title = m.texto + ' · ' + x.nome + ': ' + fmtPct(x.valor, somaM) + ' (média das ERs onde aparece)';
-      });
     });
     // Linha dos espaços sem movimento, para fechar a conta de cada ER.
     const tr = novo('tr', 'an-linha-livre', null, tbody);
@@ -231,7 +230,6 @@ const Analytics = (() => {
       novo('strong', null, vista.medida === 'pct' ? fmtPct(e.semMovimento, e.total) : fmtNum(e.semMovimento), sp);
       sp.title = e.nome + ': ' + espacos(e.semMovimento) + ' sem etiqueta';
     });
-    novo('td', 'an-col-marcas', null, tr);
   }
 
   /** Barras 100% por ER (marcas ou classificações), com a legenda em cima. */
@@ -489,13 +487,13 @@ const Analytics = (() => {
       sub: 'Quanto mais escuro, maior a fatia da ER. Um espaço com dois movimentos conta nos dois (na pirâmide, as etiquetas dividem o espaço). Clique no nome de uma ER para ordenar por ela e numa célula para ver na planta.',
       vista,
     });
-    const dupla = novo('div', 'an-dupla', null, grade);
+    // Marcas e classificação: um gráfico em cima do outro (o Analytics ocupa meia tela).
     const legMarcas = d.marcas.map((m) => ({ cod: m.cod, nome: m.nome, cor: m.cor, borda: m.cod === 'NEUTRO', filtravel: m.filtravel }));
-    barrasPorEr(dupla, 'Marcas em cada ER', 'Fatia do espaço de cada ER por marca. Combinações de marcas dividem o espaço igualmente.',
+    barrasPorEr(grade, 'Marcas em cada ER', 'Fatia do espaço de cada ER por marca. Combinações de marcas dividem o espaço igualmente.',
       d, 'porMarca', legMarcas, (x) => (x.filtravel ? { marca: x.cod } : null), acoes);
     const legClasses = d.classes.map((c) => ({ cod: c.cod, nome: c.nome, cor: c.cor, filtravel: true }))
       .concat([{ cod: '__LIVRE__', nome: 'Sem movimento', cor: COR_SEM_MOVIMENTO, borda: true }]);
-    barrasPorEr(dupla, 'Classificação em cada ER', 'Fatia do espaço de cada ER por tipo de movimento (aba "' + d.abaTipos + '"). Um espaço com movimentos de dois tipos se divide entre eles.',
+    barrasPorEr(grade, 'Classificação em cada ER', 'Fatia do espaço de cada ER por tipo de movimento (aba "' + d.abaTipos + '"). Um espaço com movimentos de dois tipos se divide entre eles.',
       d, 'porClasse', legClasses, (x) => (x.cod === '__LIVRE__' ? null : { classificacao: x.cod }), acoes);
     gmvEspaco(grade, d, acoes, redesenhar);
     secaoVm(grade, d, acoes, redesenhar);

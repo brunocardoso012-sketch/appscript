@@ -131,6 +131,11 @@
   .chip.inativo { opacity: .6; }
   .chip.inativo .cor { filter: grayscale(1); }
   .legenda .dica { font-size: 12px; color: var(--texto-2); }
+  /* Filtros por tipo de movimento e por movimento (menus suspensos, ao lado das marcas). */
+  .filtro-mov { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding-left: 12px; border-left: 1px solid var(--borda); }
+  .filtro-mov .rotulo { margin-right: 0; }
+  .filtro-mov select { min-width: 0; max-width: 240px; padding: 5px 8px; font-size: 13px; border-radius: 999px; }
+  .filtro-mov select.ativo { border-color: #3346b8; box-shadow: inset 0 0 0 1px #3346b8; font-weight: 600; }
 
   .avisos { font-size: 12px; color: #7a4b00; background: #fff8e6; border: 1px solid #f1d58a; border-radius: var(--raio); padding: 4px 10px; max-width: 640px; }
   .avisos summary { cursor: pointer; font-weight: 600; }
@@ -397,14 +402,14 @@
   .esp-corpo { padding: 4px 18px 24px; }
   .esp-corpo h3 { margin: 20px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--texto-2); }
 
-  /* ---------- Analytics (dashboard no lugar da planta) ---------- */
-  /* Cobre a planta e os painéis laterais; a planta continua desenhada por baixo. */
-  body.com-analytics .palco { position: relative; }
+  /* ---------- Analytics (meia tela, à direita da planta) ---------- */
+  /* A planta continua na metade esquerda (com zoom e filtros); os painéis da direita saem enquanto ele está aberto. */
   .analytics {
-    position: absolute; inset: 8px 0 0; z-index: 8;
-    display: flex; flex-direction: column; min-height: 0;
-    background: var(--fundo); border-top: 1px solid var(--borda);
+    flex: 0 0 50%; width: 50%; min-width: 0; min-height: 0;
+    display: flex; flex-direction: column;
+    background: var(--fundo); border-left: 1px solid var(--borda); box-shadow: -8px 0 24px -18px rgba(0, 0, 0, .35);
   }
+  body.com-analytics .painel-validacao, body.com-analytics .painel-construcao { display: none; }
   .analytics[hidden] { display: none; }
   .an-topo {
     display: flex; justify-content: space-between; align-items: center; gap: 12px;
@@ -430,7 +435,6 @@
   .an-nota { margin: 14px 0 0; color: var(--texto-2); font-size: 11.5px; line-height: 1.5; max-width: 980px; }
 
   .an-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .an-dupla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .an-cartao { background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; padding: 14px 16px 16px; min-width: 0; }
   .an-cartao-topo { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 16px; margin-bottom: 12px; }
   .an-cartao-topo h3 { margin: 0; font-size: 14px; flex: 0 0 auto; }
@@ -448,7 +452,7 @@
   .an-mapa { width: 100%; border-collapse: separate; border-spacing: 2px; font-variant-numeric: tabular-nums; }
   .an-mapa th, .an-mapa td { padding: 0; font-weight: normal; }
   .an-mapa thead th { color: var(--texto-2); font-size: 12px; text-align: center; vertical-align: bottom; padding-bottom: 4px; }
-  .an-mapa thead th.an-col-mov, .an-mapa thead th.an-col-marcas { text-align: left; font-weight: 600; }
+  .an-mapa thead th.an-col-mov { text-align: left; font-weight: 600; }
   .an-mapa thead button {
     display: inline-flex; flex-direction: column; align-items: center; gap: 0; border: 0; background: none;
     padding: 2px 6px; border-radius: 6px; font: 600 12px var(--fonte); color: var(--texto); cursor: pointer;
@@ -456,45 +460,44 @@
   .an-mapa thead button:hover { background: var(--fundo); }
   .an-mapa thead button small { font-weight: 400; color: var(--texto-2); font-size: 11px; }
   .an-mapa thead th.atual button > span:first-child { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
-  .an-mapa th.an-col-mov { width: 26%; min-width: 190px; text-align: left; padding: 5px 10px 5px 0; }
+  .an-mapa th.an-col-mov { width: 30%; min-width: 160px; text-align: left; padding: 4px 8px 4px 0; }
   .an-mov-nome { display: flex; align-items: center; gap: 8px; font-weight: 600; font-family: var(--fonte-etq); }
-  .an-mov-nome i { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
-  .an-mov-nome i.sem { border: 1.5px dashed var(--borda-forte); }
-  .an-mov-info { display: flex; gap: 8px; margin: 1px 0 0 18px; font-size: 11px; color: var(--texto-2); }
+  /* Bolinhas das marcas do movimento, ao lado do nome. */
+  .an-marcas-mov { display: inline-flex; gap: 3px; flex: 0 0 auto; }
+  .an-marcas-mov i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, .12); }
+  .an-mov-info { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: 1px 0 0; font-size: 11px; color: var(--texto-2); }
+  .an-mov-classe { display: inline-flex; align-items: center; gap: 4px; }
+  .an-mov-classe::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: var(--cor-classe, transparent); }
+  .an-mov-classe.sem::before { border: 1px dashed var(--borda-forte); }
   .an-gmv { font-weight: 600; color: var(--texto); }
-  .an-celula { min-width: 64px; height: 40px; }
+  .an-celula { min-width: 44px; width: 50px; height: 30px; vertical-align: middle; }
   .an-celula > * {
-    display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 40px;
-    border: 0; border-radius: 6px; font: inherit; color: var(--texto); background: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 30px;
+    border: 0; border-radius: 5px; font: inherit; line-height: 1.1; color: var(--texto); background: none;
   }
   .an-celula button { cursor: pointer; }
   .an-celula button:hover { box-shadow: inset 0 0 0 2px var(--texto); }
   .an-celula button.escuro { color: #FFFFFF; }
-  .an-celula strong { font-size: 13px; }
-  .an-celula small { font-size: 10.5px; opacity: .75; }
+  .an-celula strong { font-size: 11.5px; }
+  .an-celula small { font-size: 9.5px; opacity: .75; }
   .an-cel-vazia { color: var(--borda-forte); }
   .an-mapa tbody td.atual > * { outline: 1.5px solid #27367a; outline-offset: -1px; }
   .an-mapa tbody tr.ativo th { box-shadow: inset 3px 0 0 #27367a; padding-left: 8px; }
   .an-mapa td.an-col-total { text-align: center; min-width: 70px; padding: 0 6px; border-left: 1px solid var(--borda); }
   .an-mapa td.an-col-total strong { display: block; font-size: 13px; }
   .an-mapa td.an-col-total small { color: var(--texto-2); font-size: 10.5px; }
-  .an-mapa .an-col-marcas { width: 16%; min-width: 110px; padding-left: 8px; }
   .an-mapa .an-col-moveis { width: 1%; padding: 0 8px; white-space: nowrap; }
   .an-mapa thead th.an-col-moveis { text-align: left; font-weight: 600; }
   .an-movel-icone { width: 34px; height: 26px; vertical-align: middle; margin-right: 2px; }
   .an-mapa .an-col-rede { width: 11%; min-width: 120px; padding: 0 10px 0 8px; border-right: 1px solid var(--borda); }
   .an-mapa thead th.an-col-rede { color: var(--texto); font-weight: 600; }
   .an-mapa thead th.an-col-rede small { display: block; font-weight: 400; color: var(--texto-2); font-size: 11px; }
-  .an-rede-num { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+  .an-rede-num { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
   .an-rede-num strong { font-size: 13px; }
-  .an-rede-num small { font-size: 10.5px; color: var(--texto-2); white-space: nowrap; }
+  .an-rede-lojas { font-size: 11px; font-weight: 600; color: var(--texto); white-space: nowrap; }
+  .an-rede-num small { flex: 1 0 100%; font-size: 10.5px; color: var(--texto-2); white-space: nowrap; }
   .an-rede-trilho { display: block; height: 4px; margin-top: 3px; border-radius: 2px; background: var(--fundo); }
   .an-rede-trilho span { display: block; height: 100%; border-radius: 2px; background: #3346B8; }
-  .an-pilha { display: flex; gap: 2px; height: 10px; }
-  .an-pilha span { display: block; min-width: 2px; height: 100%; }
-  .an-pilha span:first-child { border-radius: 4px 0 0 4px; }
-  .an-pilha span:last-child { border-radius: 0 4px 4px 0; }
-  .an-pilha span:only-child { border-radius: 4px; }
   .an-linha-livre th, .an-linha-livre td { border-top: 1px solid var(--borda); }
   .an-linha-livre .an-mov-nome { font-family: var(--fonte); color: var(--texto-2); font-style: italic; font-weight: 600; }
   .an-cel-livre { background: repeating-linear-gradient(135deg, #f1f2f4 0 6px, #e8eaed 6px 12px); color: var(--texto-2); }
@@ -572,12 +575,10 @@
   .an-disp-idx.alto { color: #1d6b47; }
   .an-disp-idx.baixo { color: #8a4510; }
 
-  @media (max-width: 1000px) {
-    .an-dupla { grid-template-columns: minmax(0, 1fr); }
-  }
-  /* Telas estreitas: a página rola; o Analytics entra no fluxo e a planta fica invisível por baixo. */
+  /* Telas estreitas: a página rola; o Analytics ocupa a largura toda e a planta fica invisível por baixo. */
   @media (max-width: 900px) {
-    .analytics { position: static; flex: 1 1 auto; border-top: 0; }
+    body.com-analytics .palco { position: relative; }
+    .analytics { flex: 1 1 auto; width: auto; border-left: 0; box-shadow: none; }
     .an-corpo { overflow: visible; }
     body.com-analytics .area-planta { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
     body.com-analytics .painel-loja, body.com-analytics .painel-validacao, body.com-analytics .painel-construcao { display: none; }
