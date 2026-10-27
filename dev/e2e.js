@@ -332,6 +332,117 @@ test('Analytics: cartões, mapa, "Sobre a análise" e "ver na planta"', async (t
   assert.strictEqual(await p.isVisible('#painelAnalytics'), false);
 });
 
+test('calendário dos ciclos: o desenvolvedor cadastra Boticário, Eudora e feriados; a aba empilha os movimentos', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  // Sem calendário: a aba explica onde cadastrar.
+  await p.click('#btnCalendario');
+  assert.ok(await p.isVisible('#painelCalendario'));
+  assert.match(await p.textContent('#calCorpo'), /Nenhum ciclo no calendário/);
+  assert.match(await p.textContent('#calCorpo .cal-aviso'), /Ciclo exemplo/, 'avisa os ciclos do app sem datas');
+  await p.click('#calFechar');
+  assert.strictEqual(await p.isVisible('#painelCalendario'), false);
+
+  // Desenvolvedor › Calendário: colar do Excel (Boticário), gerar ciclos (Eudora) e feriados nacionais.
+  await abrirPainelDev(p);
+  await p.click('#dlgDev [data-dev-aba="calendario"]');
+  const bot = p.locator('#devCalendario .dev-bloco[data-calendario="BOT"]');
+  await bot.locator('summary', { hasText: 'Colar do Excel' }).click();
+  await bot.locator('textarea').fill('Ciclo exemplo\t02/10/2026\t22/10/2026\nCiclo exemplo cheio\t23/10/2026\t12/11/2026');
+  await bot.locator('button', { hasText: 'Usar as linhas coladas' }).click();
+  assert.strictEqual(await bot.locator('tbody tr').count(), 2);
+  assert.match(await bot.locator('tbody tr').first().textContent(), /Ciclo exemplo/);
+  assert.match(await p.textContent('#devCalEstado'), /mudanças não salvas/);
+  const eud = p.locator('#devCalendario .dev-bloco[data-calendario="EUD"]');
+  await eud.locator('summary', { hasText: 'Gerar ciclos seguidos' }).click();
+  const campoEud = (rotulo) => eud.locator('.dev-campo', { hasText: rotulo }).locator('input');
+  await campoEud('Primeiro ciclo').fill('C01/2026');
+  await campoEud('Início do primeiro').fill('2026-10-06');
+  await campoEud('Duração').fill('21');
+  await campoEud('Quantidade').fill('2');
+  await eud.locator('button', { hasText: /^Gerar$/ }).click();
+  assert.strictEqual(await eud.locator('tbody tr').count(), 2);
+  // Os nomes da Eudora ligam aos ciclos do app.
+  const nomesEud = eud.locator('tbody tr input.dev-cal-nome');
+  await nomesEud.nth(0).fill('Ciclo exemplo');
+  await nomesEud.nth(1).fill('ciclo EXEMPLO cheio');
+  assert.match(await eud.locator('tbody tr').nth(1).textContent(), /✓ Ciclo exemplo cheio/, 'liga sem diferença de maiúsculas');
+  await p.locator('#devCalendario .dev-bloco[data-feriados] button', { hasText: 'Feriados nacionais' }).click();
+  assert.ok(await p.locator('#devCalendario .dev-bloco[data-feriados] tbody tr').count() >= 12);
+  await p.click('#devCalendario button:has-text("Salvar calendário e feriados")');
+  await p.waitForFunction(() => App.estado.dados.config.calendario.ciclos.EUD.length === 2);
+  assert.match(await p.textContent('#devMsg'), /Calendário e feriados salvos/);
+  const cal = await estado(p, () => App.estado.dados.config.calendario);
+  assert.deepStrictEqual(cal.ciclos.EUD.map((c) => [c.ciclo, c.inicio, c.fim]),
+    [['Ciclo exemplo', '2026-10-06', '2026-10-26'], ['ciclo EXEMPLO cheio', '2026-10-27', '2026-11-16']]);
+  assert.ok(cal.feriados.some((f) => f.data === '2026-10-12'));
+  // Erro do servidor (ciclos sobrepostos) aparece no painel e não grava.
+  await bot.locator('tbody tr').nth(1).locator('input[type="date"]').first().fill('2026-10-20');
+  await p.click('#devCalendario button:has-text("Salvar calendário e feriados")');
+  await p.waitForSelector('#devMsg.erro');
+  assert.match(await p.textContent('#devMsg'), /se sobrepõe/);
+  await p.click('#devCalendario button:has-text("Descartar mudanças")');
+  await p.click('#devFechar');
+
+  // A aba: uma coluna por calendário, uma ficha por ciclo e os movimentos empilhados.
+  await p.click('#btnCalendario');
+  await p.waitForSelector('#calCorpo .cal-mov');
+  assert.deepStrictEqual(await p.locator('#calCorpo .cal-coluna').evaluateAll((cs) => cs.map((c) => c.dataset.calendario)), ['BOT', 'EUD']);
+  assert.strictEqual(await p.locator('#calCorpo .cal-ciclo').count(), 4);
+  const ordem = (cal) => p.locator('#calCorpo .cal-coluna[data-calendario="' + cal + '"] .cal-mov').evaluateAll((ms) => ms.map((m) => m.dataset.movimento));
+  // Os movimentos da Eudora vão para o calendário dela; os das outras marcas, para o do Boticário.
+  const movsEud = await ordem('EUD');
+  assert.ok(movsEud.length > 0 && movsEud.every((m) => /EUD|SIÀGE|PERFUMARIA|CUIDADOS|EXAUSTÃO/.test(m)), movsEud.join(', '));
+  assert.ok((await ordem('BOT')).indexOf('LIQUIDA QDB') >= 0, 'QDB segue o calendário do Boticário');
+  // Equilíbrio é o padrão; só GMV e só exposição mudam a ordem.
+  assert.strictEqual(await p.getAttribute('#calCorpo .cal-controle button[data-valor="equilibrio"]', 'aria-pressed'), 'true');
+  const equilibrio = await ordem('BOT');
+  await p.click('#calCorpo .cal-controle button[data-valor="gmv"]');
+  const porGmv = await ordem('BOT');
+  await p.click('#calCorpo .cal-controle button[data-valor="exposicao"]');
+  const porExpo = await ordem('BOT');
+  assert.notDeepStrictEqual(porGmv, porExpo, 'GMV e exposição dão ordens diferentes');
+  assert.strictEqual(porGmv[0], 'BOTIPROMO', 'o maior GMV do Ciclo exemplo vem primeiro');
+  // A ordem por GMV segue o GMV esperado dos tipos de movimento.
+  await p.click('#calCorpo .cal-controle button[data-valor="gmv"]');
+  const gmvs = await estado(p, () => {
+    const t = App.estado.dados.tiposMovimento['Ciclo exemplo'];
+    const gmv = (m) => { const x = Object.values(t).find((y) => y.texto === m); return (x && x.gmv) || 0; };
+    return Array.from(document.querySelectorAll('#calCorpo .cal-coluna[data-calendario="BOT"] .cal-mov[data-ciclo="Ciclo exemplo"]')).map((m) => gmv(m.dataset.movimento));
+  });
+  assert.ok(gmvs.length >= 4 && gmvs.every((v, i) => !i || v <= gmvs[i - 1]), 'GMV em ordem: ' + gmvs.join(', '));
+  // Só um calendário, escala e limite de movimentos.
+  await p.click('#calCorpo .cal-controle button[data-valor="EUD"]');
+  assert.deepStrictEqual(await p.locator('#calCorpo .cal-coluna').evaluateAll((cs) => cs.map((c) => c.dataset.calendario)), ['EUD']);
+  await p.click('#calCorpo .cal-controle button[data-valor=""]');
+  await p.click('#calCorpo .cal-controle button[data-valor="compacta"]');
+  await p.locator('#calCorpo .cal-controle', { hasText: 'Movimentos por ciclo' }).locator('select').selectOption('5');
+  assert.ok(await p.locator('#calCorpo .cal-mais').count() > 0, 'mostra quantos movimentos ficaram de fora');
+  await p.locator('#calCorpo .cal-mais').first().click();
+  assert.strictEqual(await p.locator('#calCorpo .cal-mais').count(), 0, '+N mostra todos');
+  assert.ok(equilibrio.length > 0);
+
+  // Clicar num movimento fecha o calendário e mostra o movimento na planta, no ciclo dele.
+  await p.click('#calCorpo .cal-controle button[data-valor="equilibrio"]');
+  const mov = p.locator('#calCorpo .cal-coluna[data-calendario="EUD"] .cal-mov').first();
+  const texto = await mov.getAttribute('data-movimento');
+  await mov.click();
+  assert.strictEqual(await p.isVisible('#painelCalendario'), false);
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), 'Ciclo exemplo');
+  assert.strictEqual(await estado(p, () => App.estado.filtroEtiqueta), texto);
+  // A ficha do ciclo abre o ciclo; Esc fecha o calendário.
+  await p.click('#btnCalendario');
+  await p.locator('#calCorpo .cal-ciclo[data-ciclo="Ciclo exemplo cheio"]').click();
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), 'Ciclo exemplo cheio');
+  await p.click('#btnCalendario');
+  await p.click('#btnAnalytics');
+  assert.strictEqual(await p.isVisible('#painelCalendario'), false, 'o Analytics fecha o calendário');
+  await p.click('#btnCalendario');
+  assert.strictEqual(await p.isVisible('#painelAnalytics'), false, 'o calendário fecha o Analytics');
+  await p.locator('body').press('Escape');
+  assert.strictEqual(await p.isVisible('#painelCalendario'), false);
+});
+
 test('filtros por tipo de movimento e por movimento (menus ao lado das marcas); legenda e notas paradas com zoom', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo cheio');

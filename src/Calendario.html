@@ -1,0 +1,419 @@
+<script>
+/**
+ * ============================================================================
+ *  CALENDÁRIO DOS CICLOS (botão "Calendário" no topo)
+ * ============================================================================
+ *  Um calendário vertical (o tempo corre para baixo), com uma coluna por calendário de ciclos: a do
+ *  Boticário (que vale para todas as marcas, menos a Eudora) e a da Eudora. Em cada coluna, cada ciclo
+ *  tem a sua faixa, do dia do início ao dia do fim, e cada movimento do ciclo é um retângulo que começa
+ *  no início e termina no fim do ciclo. Um movimento entra no calendário da marca que tem mais espaço
+ *  nele: Eudora vai para a coluna da Eudora; as outras marcas (e o movimento sem marca), para a do
+ *  Boticário.
+ *
+ *  Os retângulos de um ciclo são empilhados lado a lado, do mais importante (junto do ciclo) para o
+ *  menos importante, por uma de três ordens:
+ *   - equilíbrio (a principal): a média entre a fatia do movimento na exposição do ciclo e a fatia
+ *     dele no GMV esperado do ciclo;
+ *   - só GMV esperado;
+ *   - só exposição (quantos espaços de exposição o movimento tem no ciclo).
+ *  As contas vêm prontas da aplicação (App.dadosCalendario); aqui só o desenho. Os dias, os fins de
+ *  semana, os feriados (Desenvolvedor › Calendário) e o dia de hoje ficam no eixo da esquerda.
+ *
+ *  Calendario.datas: as contas de datas ('AAAA-MM-DD' ↔ dia corrido, dias úteis…), usadas também pelo
+ *  painel do Desenvolvedor.
+ */
+const Calendario = (() => {
+  /* -------------------------------- datas ---------------------------------- */
+
+  const DIA_MS = 86400000;
+  const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  const p2 = (n) => (n < 10 ? '0' : '') + n;
+
+  const datas = {
+    /** 'AAAA-MM-DD' → dia corrido (sem fuso nem horário de verão); NaN se inválida. */
+    dia(iso) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+      return m ? Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DIA_MS) : NaN;
+    },
+    iso(dia) { return new Date(dia * DIA_MS).toISOString().slice(0, 10); },
+    /** Dia da semana (0 = domingo). */
+    semana(dia) { return new Date(dia * DIA_MS).getUTCDay(); },
+    hoje() { const d = new Date(); return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DIA_MS); },
+    /** '2026-10-25' → '25/10/2026' (curta: '25/10'). */
+    br(iso, curta) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+      return m ? m[3] + '/' + m[2] + (curta ? '' : '/' + m[1]) : '';
+    },
+    /** Lê '25/10/2026', '25/10/26', '25-10-2026' ou '2026-10-25' → '2026-10-25' ('' se não for data). */
+    ler(texto) {
+      const s = String(texto || '').trim();
+      let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+      let a, mes, d;
+      if (m) { a = +m[1]; mes = +m[2]; d = +m[3]; } else {
+        m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/.exec(s);
+        if (!m) return '';
+        d = +m[1]; mes = +m[2]; a = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+      }
+      const t = new Date(Date.UTC(a, mes - 1, d));
+      if (t.getUTCFullYear() !== a || t.getUTCMonth() !== mes - 1 || t.getUTCDate() !== d) return '';
+      return a + '-' + p2(mes) + '-' + p2(d);
+    },
+    /** Dias úteis entre duas datas (inclusive): de segunda a sexta, menos os feriados. */
+    uteis(inicio, fim, feriados) {
+      const fer = {};
+      (feriados || []).forEach((f) => { fer[f.data] = true; });
+      let n = 0;
+      for (let d = datas.dia(inicio); d <= datas.dia(fim); d++) {
+        const s = datas.semana(d);
+        if (s !== 0 && s !== 6 && !fer[datas.iso(d)]) n++;
+      }
+      return n;
+    },
+    /** Primeiro dia útil a partir do dia (ele mesmo, se for útil). */
+    proximoUtil(dia, feriados) {
+      const fer = {};
+      (feriados || []).forEach((f) => { fer[f.data] = true; });
+      let d = dia;
+      while (datas.semana(d) === 0 || datas.semana(d) === 6 || fer[datas.iso(d)]) d++;
+      return d;
+    },
+    /**
+     * Feriados nacionais do ano (com a Páscoa pelo algoritmo de Meeus): os fixos, a Sexta-feira Santa e,
+     * como ponto facultativo, o Carnaval e o Corpus Christi.
+     */
+    nacionais(ano) {
+      const a = ano % 19; const b = Math.floor(ano / 100); const c = ano % 100;
+      const d = Math.floor(b / 4); const e = b % 4; const f = Math.floor((b + 8) / 25); const g = Math.floor((b - f + 1) / 3);
+      const h = (19 * a + b - d - g + 15) % 30; const i = Math.floor(c / 4); const k = c % 4;
+      const l = (32 + 2 * e + 2 * i - h - k) % 7; const m = Math.floor((a + 11 * h + 22 * l) / 451);
+      const mes = Math.floor((h + l - 7 * m + 114) / 31); const dia = ((h + l - 7 * m + 114) % 31) + 1;
+      const pascoa = Math.round(Date.UTC(ano, mes - 1, dia) / DIA_MS);
+      const fixo = (mm, dd, nome) => ({ data: ano + '-' + p2(mm) + '-' + p2(dd), nome });
+      const movel = (delta, nome) => ({ data: datas.iso(pascoa + delta), nome });
+      return [
+        fixo(1, 1, 'Confraternização Universal'),
+        movel(-48, 'Carnaval (ponto facultativo)'),
+        movel(-47, 'Carnaval (ponto facultativo)'),
+        movel(-2, 'Sexta-feira Santa'),
+        fixo(4, 21, 'Tiradentes'),
+        fixo(5, 1, 'Dia do Trabalho'),
+        movel(60, 'Corpus Christi (ponto facultativo)'),
+        fixo(9, 7, 'Independência do Brasil'),
+        fixo(10, 12, 'Nossa Senhora Aparecida'),
+        fixo(11, 2, 'Finados'),
+        fixo(11, 15, 'Proclamação da República'),
+        fixo(11, 20, 'Dia da Consciência Negra'),
+        fixo(12, 25, 'Natal'),
+      ].sort((x, y) => (x.data < y.data ? -1 : 1));
+    },
+  };
+
+  /** Mesmo nome de ciclo, sem diferença de maiúsculas, acentos e espaços (como o chave_ do servidor). */
+  const chaveCiclo = (v) => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  /* ------------------------------- desenho --------------------------------- */
+
+  // Escolhas da tela (valem até recarregar a página).
+  const vista = { ordem: 'equilibrio', er: '', limite: 8, escala: 'normal', calendario: '' };
+  const ORDENS = [
+    ['equilibrio', 'Equilíbrio GMV × exposição', 'Média entre a fatia do movimento no GMV esperado do ciclo e a fatia dele no espaço de exposição'],
+    ['gmv', 'Só GMV', 'Só o GMV esperado (aba Tipos de movimento)'],
+    ['exposicao', 'Só exposição', 'Só a quantidade de espaços de exposição do movimento no ciclo'],
+  ];
+  const ESCALAS = { compacta: 9, normal: 16, ampla: 28 }; // px por dia
+  const LARGURA = { eixo: 112, ciclo: 128, raia: 156, vao: 8, topo: 52 };
+
+  const fmtPct = (v) => (v > 0 && v < 0.005 ? '<1%' : Math.round(v * 100) + '%');
+  const fmtNum = (n) => (Math.round(n * 10) / 10).toLocaleString('pt-BR');
+  const gmvCurto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 });
+  const gmvCompleto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
+  function novo(tag, classe, conteudo, pai) {
+    const n = document.createElement(tag);
+    if (classe) n.className = classe;
+    if (conteudo !== undefined && conteudo !== null) n.textContent = conteudo;
+    if (pai) pai.appendChild(n);
+    return n;
+  }
+
+  /** '#RRGGBB' + transparência → 'rgba(…)' (o fundo do retângulo, na cor da marca). */
+  function transparente(hex, alfa) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+    if (!m) return 'rgba(128, 128, 128, ' + alfa + ')';
+    const n = parseInt(m[1], 16);
+    return 'rgba(' + (n >> 16) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ', ' + alfa + ')';
+  }
+
+  /** Valor de cada movimento na ordem escolhida (maior = mais perto do ciclo). */
+  const valorNaOrdem = (m) => (vista.ordem === 'gmv' ? m.fatiaGmv : vista.ordem === 'exposicao' ? m.fatiaExposicao : m.equilibrio);
+  /** Empate: a outra medida, depois o nome. */
+  function ordenar(movs) {
+    const desempate = (m) => (vista.ordem === 'gmv' ? m.fatiaExposicao : vista.ordem === 'exposicao' ? m.fatiaGmv : m.fatiaGmv);
+    return movs.slice().sort((a, b) => valorNaOrdem(b) - valorNaOrdem(a) || desempate(b) - desempate(a) || a.texto.localeCompare(b.texto, 'pt-BR'));
+  }
+
+  function segmentado(pai, rotulo, opcoes, atual, aoEscolher) {
+    const box = novo('div', 'cal-controle', null, pai);
+    novo('span', 'cal-rotulo', rotulo, box);
+    const seg = novo('div', 'an-segmentado', null, box);
+    seg.setAttribute('role', 'group');
+    seg.setAttribute('aria-label', rotulo);
+    opcoes.forEach(([v, texto, dica]) => {
+      const b = novo('button', null, texto, seg);
+      b.type = 'button';
+      b.dataset.valor = v;
+      if (dica) b.title = dica;
+      b.setAttribute('aria-pressed', String(atual === v));
+      b.addEventListener('click', () => aoEscolher(v));
+    });
+    return box;
+  }
+
+  function seletor(pai, rotulo, opcoes, atual, aoEscolher) {
+    const box = novo('label', 'cal-controle', null, pai);
+    novo('span', 'cal-rotulo', rotulo, box);
+    const sel = novo('select', null, null, box);
+    opcoes.forEach(([v, texto]) => sel.add(new Option(texto, v, false, String(v) === String(atual))));
+    sel.addEventListener('change', () => aoEscolher(sel.value));
+    return sel;
+  }
+
+  /**
+   * Desenha o calendário em `corpo`.
+   * acoes: { dados(er) → dados (App.dadosCalendario), abrirCiclo(ciclo), verMovimento({ ciclo, texto, er }) }
+   */
+  function desenhar(corpo, acoes) {
+    const rolagemAntes = corpo.querySelector('.cal-rolagem');
+    const posAntes = rolagemAntes ? { top: rolagemAntes.scrollTop, left: rolagemAntes.scrollLeft, px: ESCALAS[vista.escala] } : null;
+    const d = acoes.dados(vista.er);
+    corpo.innerHTML = '';
+    // Ao redesenhar, a rolagem continua no mesmo dia (mesmo mudando a escala).
+    const redesenhar = (mudanca) => { Object.assign(vista, mudanca); desenhar(corpo, acoes); };
+
+    // Controles.
+    const barra = novo('div', 'cal-barra', null, corpo);
+    segmentado(barra, 'Empilhar por', ORDENS, vista.ordem, (v) => redesenhar({ ordem: v }));
+    seletor(barra, 'Exposição', [['', 'Média das ERs']].concat(d.ers.map((e) => [e.id, 'Só na ' + e.nome])), vista.er, (v) => redesenhar({ er: v }));
+    seletor(barra, 'Movimentos por ciclo', [[5, '5 primeiros'], [8, '8 primeiros'], [12, '12 primeiros'], [20, '20 primeiros'], [0, 'Todos']], vista.limite, (v) => redesenhar({ limite: +v }));
+    segmentado(barra, 'Calendários', [['', 'Os dois']].concat(d.calendarios.map((c) => [c.cod, c.nome])), vista.calendario, (v) => redesenhar({ calendario: v }));
+    segmentado(barra, 'Escala', [['compacta', 'Compacta'], ['normal', 'Normal'], ['ampla', 'Ampla']], vista.escala, (v) => redesenhar({ escala: v }));
+    const bHoje = novo('button', 'btn pequeno cal-hoje', 'Hoje', barra);
+    bHoje.type = 'button';
+    bHoje.title = 'Rolar até o dia de hoje';
+
+    const nota = novo('p', 'cal-nota', null, corpo);
+    const explicacao = {
+      equilibrio: 'Em cada ciclo, os movimentos estão empilhados do mais importante (junto do ciclo) para o menos importante, pelo equilíbrio entre o GMV esperado e a exposição: a média da fatia do movimento no GMV esperado do ciclo com a fatia dele no espaço de exposição.',
+      gmv: 'Em cada ciclo, os movimentos estão empilhados pelo GMV esperado (aba Tipos de movimento), do maior (junto do ciclo) para o menor; os sem GMV ficam por último.',
+      exposicao: 'Em cada ciclo, os movimentos estão empilhados pela exposição (a fatia do espaço de exposição que o movimento ocupa), da maior (junto do ciclo) para a menor.',
+    }[vista.ordem];
+    nota.textContent = explicacao + ' Exposição: a fatia do espaço de exposição ' + (vista.er ? 'da ER escolhida' : '(média das ERs)')
+      + ' que o movimento ocupa; as barras comparam cada medida com a maior do ciclo. Eudora tem o calendário dela; todas as outras marcas seguem o do Boticário. Clique num movimento para vê-lo na planta.';
+
+    if (d.semDatas.length) {
+      const av = novo('p', 'cal-aviso', null, corpo);
+      av.textContent = (d.semDatas.length === 1 ? 'Ciclo do app sem datas no calendário: ' : 'Ciclos do app sem datas no calendário: ')
+        + d.semDatas.join(', ') + '. Cadastre em engrenagem › Modo desenvolvedor › Calendário.';
+    }
+
+    const todos = [].concat.apply([], d.calendarios.map((c) => c.ciclos));
+    if (!todos.length) {
+      novo('p', 'an-vazio', 'Nenhum ciclo no calendário ainda. O desenvolvedor cadastra o início e o fim de cada ciclo (Boticário e Eudora) e os feriados em engrenagem › Modo desenvolvedor › Calendário.', corpo);
+      bHoje.disabled = true;
+      return;
+    }
+
+    const px = ESCALAS[vista.escala];
+    const hoje = datas.hoje();
+    const inicio = Math.min.apply(null, todos.map((c) => datas.dia(c.inicio))) - 2;
+    const fim = Math.max.apply(null, todos.map((c) => datas.dia(c.fim))) + 2;
+    const y = (dia) => (dia - inicio) * px;
+    const altura = (fim - inicio + 1) * px;
+    const feriados = {};
+    d.feriados.forEach((f) => { feriados[f.data] = f.nome; });
+
+    const rolagem = novo('div', 'cal-rolagem', null, corpo);
+    const tabela = novo('div', 'cal-tabela', null, rolagem);
+
+    // Eixo dos dias (fixo à esquerda): meses, dias, fins de semana, feriados e hoje.
+    const eixo = novo('div', 'cal-eixo', null, tabela);
+    eixo.style.width = LARGURA.eixo + 'px';
+    novo('div', 'cal-eixo-topo', 'Dia', eixo).style.height = LARGURA.topo + 'px';
+    const dias = novo('div', 'cal-eixo-dias', null, eixo);
+    dias.style.height = altura + 'px';
+    for (let dia = inicio; dia <= fim; dia++) {
+      const iso = datas.iso(dia);
+      const s = datas.semana(dia);
+      const linha = novo('div', 'cal-dia' + (s === 0 || s === 6 ? ' fds' : '') + (feriados[iso] ? ' feriado' : '') + (dia === hoje ? ' hoje' : ''), null, dias);
+      linha.style.top = y(dia) + 'px';
+      linha.style.height = px + 'px';
+      const dd = +iso.slice(8);
+      // Na escala compacta, só as segundas, os feriados e o começo do mês (hoje fica só com o selo).
+      const mostrar = px >= 14 || ((dd === 1 || s === 1 || feriados[iso]) && Math.abs(dia - hoje) > 1);
+      if (dd === 1 || dia === inicio) {
+        novo('span', 'cal-mes', MESES[+iso.slice(5, 7) - 1] + (px >= 14 ? ' ' + iso.slice(0, 4) : ''), linha);
+        if (dd === 1) linha.classList.add('inicio-mes');
+      }
+      if (mostrar && !(px < 14 && (dd === 1 || dia === inicio))) {
+        novo('span', 'cal-dia-num', p2(dd) + (px >= 14 ? ' ' + SEMANA[s] : ''), linha);
+      }
+      if (feriados[iso]) {
+        linha.title = 'Feriado: ' + feriados[iso] + ' (' + datas.br(iso) + ')';
+        if (px >= 14) novo('span', 'cal-feriado-nome', feriados[iso], linha);
+      }
+      if (dia === hoje) novo('span', 'cal-hoje-rotulo', 'hoje', linha);
+    }
+
+    // Uma coluna por calendário (Boticário e Eudora), ou só a escolhida.
+    let alvoRolagem = null;
+    d.calendarios.filter((cal) => !vista.calendario || cal.cod === vista.calendario).forEach((cal) => {
+      const raias = cal.ciclos.reduce((n, c) => {
+        const qtd = c.movimentos.length;
+        const vis = vista.limite ? Math.min(qtd, vista.limite) + (qtd > vista.limite ? 1 : 0) : qtd;
+        return Math.max(n, vis);
+      }, 1);
+      const largura = LARGURA.ciclo + LARGURA.vao + raias * (LARGURA.raia + LARGURA.vao) + LARGURA.vao;
+      const col = novo('section', 'cal-coluna', null, tabela);
+      col.dataset.calendario = cal.cod;
+      col.style.width = largura + 'px';
+      col.setAttribute('aria-label', 'Calendário ' + cal.nome);
+      const topo = novo('header', 'cal-col-topo', null, col);
+      topo.style.height = LARGURA.topo + 'px';
+      const pinta = novo('span', 'cal-col-cor', null, topo);
+      pinta.style.background = cal.cor;
+      const tt = novo('div', null, null, topo);
+      novo('strong', null, 'Calendário ' + cal.nome, tt);
+      novo('small', null, cal.descricao + ' · ' + cal.ciclos.length + (cal.ciclos.length === 1 ? ' ciclo' : ' ciclos'), tt);
+
+      const area = novo('div', 'cal-col-corpo', null, col);
+      area.style.height = altura + 'px';
+      // Linhas dos feriados e de hoje atravessam a coluna.
+      d.feriados.forEach((f) => {
+        const dia = datas.dia(f.data);
+        if (dia < inicio || dia > fim) return;
+        const l = novo('div', 'cal-faixa-feriado', null, area);
+        l.style.top = y(dia) + 'px';
+        l.style.height = px + 'px';
+        l.title = 'Feriado: ' + f.nome + ' (' + datas.br(f.data) + ')';
+      });
+      if (!cal.ciclos.length) {
+        const v = novo('p', 'cal-col-vazia', 'Sem ciclos no calendário ' + cal.nome + '.', area);
+        v.style.top = '12px';
+      }
+      cal.ciclos.forEach((c, i) => {
+        const d0 = datas.dia(c.inicio);
+        const d1 = datas.dia(c.fim);
+        const topoC = y(d0);
+        const alturaC = (d1 - d0 + 1) * px;
+        const atual = c.cicloApp && c.cicloApp === d.cicloAtual;
+        // Faixa do ciclo (fundo alternado) e a ficha dele, à esquerda.
+        const faixa = novo('div', 'cal-faixa' + (i % 2 ? ' impar' : '') + (atual ? ' atual' : ''), null, area);
+        faixa.style.top = topoC + 'px';
+        faixa.style.height = alturaC + 'px';
+        const ficha = novo(c.cicloApp ? 'button' : 'div', 'cal-ciclo' + (c.cicloApp ? '' : ' sem-app') + (atual ? ' atual' : ''), null, area);
+        if (c.cicloApp) {
+          ficha.type = 'button';
+          ficha.title = 'Abrir o ' + c.cicloApp + ' na planta';
+          ficha.addEventListener('click', () => acoes.abrirCiclo(c.cicloApp));
+        } else {
+          ficha.title = 'Nenhum ciclo do app com este nome: confira o nome no Desenvolvedor › Calendário.';
+        }
+        ficha.dataset.ciclo = c.ciclo;
+        ficha.style.top = topoC + 2 + 'px';
+        ficha.style.height = Math.max(alturaC - 4, 18) + 'px';
+        ficha.style.left = LARGURA.vao + 'px';
+        ficha.style.width = LARGURA.ciclo + 'px';
+        novo('strong', 'cal-ciclo-nome', c.ciclo, ficha);
+        novo('span', null, datas.br(c.inicio, true) + ' → ' + datas.br(c.fim, true), ficha);
+        novo('span', null, c.dias + (c.dias === 1 ? ' dia' : ' dias') + ' · ' + c.uteis + (c.uteis === 1 ? ' útil' : ' úteis'), ficha);
+        if (c.feriados.length) {
+          const fz = novo('span', 'cal-ciclo-feriados', '★ ' + c.feriados.length + (c.feriados.length === 1 ? ' feriado' : ' feriados'), ficha);
+          fz.title = c.feriados.map((f) => datas.br(f.data, true) + ' ' + f.nome).join('\n');
+        }
+        if (!c.cicloApp) novo('em', null, 'sem ciclo no app', ficha);
+        else if (!c.movimentos.length) novo('em', null, 'sem movimentos', ficha);
+        if (atual && !alvoRolagem) alvoRolagem = topoC;
+
+        // Movimentos do ciclo, lado a lado, do mais importante para o menos importante.
+        const ordem = ordenar(c.movimentos);
+        const visiveis = vista.limite ? ordem.slice(0, vista.limite) : ordem;
+        // As barras são do tamanho de cada medida em relação ao maior movimento do ciclo (os números são os reais).
+        const maior = (k) => Math.max.apply(null, c.movimentos.map((m) => m[k]).concat([0]));
+        const maiores = { exposicao: maior('exposicao'), fatiaGmv: maior('fatiaGmv'), equilibrio: maior('equilibrio') };
+        const x0 = LARGURA.vao + LARGURA.ciclo + LARGURA.vao;
+        visiveis.forEach((m, k) => {
+          const r = novo('button', 'cal-mov', null, area);
+          r.type = 'button';
+          r.dataset.movimento = m.texto;
+          r.dataset.ciclo = c.cicloApp;
+          r.dataset.posicao = String(k + 1);
+          r.style.top = topoC + 2 + 'px';
+          r.style.height = Math.max(alturaC - 4, 18) + 'px';
+          r.style.left = x0 + k * (LARGURA.raia + LARGURA.vao) + 'px';
+          r.style.width = LARGURA.raia + 'px';
+          r.style.background = transparente(m.cor, 0.16);
+          r.style.borderLeftColor = m.cor;
+          const cab = novo('span', 'cal-mov-cab', null, r);
+          novo('span', 'cal-mov-pos', String(k + 1), cab);
+          novo('span', 'cal-mov-nome', m.texto, cab);
+          const marcas = novo('span', 'cal-mov-marcas', null, r);
+          m.marcas.forEach((mc) => {
+            const b = novo('span', 'cal-bolinha', null, marcas);
+            b.style.background = mc.cor;
+            b.title = mc.nome + ' · ' + fmtPct(mc.valor);
+          });
+          if (m.classe) novo('span', 'cal-mov-classe', m.classe.nome, marcas).style.borderColor = m.classe.cor;
+          const barra = (rotulo, chave, texto, classe) => {
+            const valor = maiores[chave] ? m[chave] / maiores[chave] : 0;
+            const l = novo('span', 'cal-mov-medida ' + classe, null, r);
+            const t = novo('span', 'cal-mov-medida-txt', null, l);
+            novo('span', null, rotulo, t);
+            novo('b', null, texto, t);
+            const trilho = novo('span', 'cal-mov-trilho', null, l);
+            const enchimento = novo('span', null, null, trilho);
+            enchimento.style.width = Math.min(100, Math.round(valor * 100)) + '%';
+          };
+          barra('Exposição', 'exposicao', fmtPct(m.exposicao), 'expo');
+          barra('GMV', 'fatiaGmv', m.gmv ? gmvCurto.format(m.gmv) + ' · ' + fmtPct(m.fatiaGmv) : 'sem GMV', 'gmv');
+          if (vista.ordem === 'equilibrio') barra('Equilíbrio', 'equilibrio', fmtPct(m.equilibrio), 'equi');
+          r.title = [
+            (k + 1) + 'º · ' + m.texto + ' (' + c.ciclo + ', calendário ' + cal.nome + ')',
+            m.marcas.map((mc) => mc.nome + ' ' + fmtPct(mc.valor)).join(' · ') + (m.classe ? ' · ' + m.classe.nome : ''),
+            'Exposição: ' + fmtPct(m.exposicao) + ' do espaço de exposição' + (vista.er ? '' : ' (média das ERs)') + ' · ' + fmtNum(m.espacos) + (m.espacos === 1 ? ' espaço' : ' espaços')
+              + ' · ' + fmtPct(m.fatiaExposicao) + ' da exposição do ciclo',
+            'GMV esperado: ' + (m.gmv ? gmvCompleto.format(m.gmv) + ' · ' + fmtPct(m.fatiaGmv) + ' do GMV do ciclo' : 'sem GMV'),
+            'Equilíbrio (média das duas fatias): ' + fmtPct(m.equilibrio),
+            m.espacos ? 'Clique para ver na planta' : 'Sem espaço de exposição no ciclo',
+          ].join('\n');
+          r.addEventListener('click', () => acoes.verMovimento({ ciclo: c.cicloApp, texto: m.texto, er: m.er }));
+        });
+        if (visiveis.length < ordem.length) {
+          const mais = novo('button', 'cal-mais', '+' + (ordem.length - visiveis.length) + ' movimentos', area);
+          mais.type = 'button';
+          mais.title = 'Mostrar todos os movimentos de cada ciclo';
+          mais.style.top = topoC + 2 + 'px';
+          mais.style.left = x0 + visiveis.length * (LARGURA.raia + LARGURA.vao) + 'px';
+          mais.addEventListener('click', () => redesenhar({ limite: 0 }));
+        }
+      });
+      if (hoje >= inicio && hoje <= fim) {
+        const l = novo('div', 'cal-linha-hoje', null, area);
+        l.style.top = y(hoje) + px / 2 + 'px';
+      }
+    });
+
+    const irPara = (topoPx) => { rolagem.scrollTop = Math.max(0, topoPx - 24); };
+    bHoje.disabled = hoje < inicio || hoje > fim;
+    bHoje.addEventListener('click', () => irPara(y(hoje)));
+    // Rolagem: a mesma de antes (ao redesenhar) ou, ao abrir, o ciclo da tela; sem ele, hoje.
+    if (posAntes) {
+      rolagem.scrollTop = (posAntes.top / posAntes.px) * px;
+      rolagem.scrollLeft = posAntes.left;
+    } else if (alvoRolagem !== null) irPara(alvoRolagem);
+    else if (hoje >= inicio && hoje <= fim) irPara(y(hoje));
+  }
+
+  return { desenhar, datas, chaveCiclo };
+})();
+</script>

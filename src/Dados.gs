@@ -190,6 +190,8 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       limitesPrateleira: LIMITES_PRATELEIRA,
       espacosPorEr: ESPACOS_POR_ER,
       herancaEntreErs: HERANCA_ENTRE_ERS,
+      // Calendário dos ciclos e feriados (Desenvolvedor › Calendário), para a aba Calendário.
+      calendario: { calendarios: CALENDARIOS, ciclos: CALENDARIO_CICLOS, feriados: FERIADOS },
     },
   };
 }

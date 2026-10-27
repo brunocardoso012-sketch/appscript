@@ -100,6 +100,22 @@ const HERANCA_ENTRE_ERS = [
 ];
 
 /**
+ * Calendário dos ciclos (Desenvolvedor › Calendário): o início e o fim de cada ciclo, por calendário.
+ * Só a Eudora tem calendário próprio; todas as outras marcas (Boticário, QDB, O.U.i, multimarca…) seguem
+ * o do Boticário (calendarioDaMarca_). O nome do ciclo liga a linha ao ciclo do app (o do seletor), sem
+ * diferença de maiúsculas, acentos e espaços. Datas em 'AAAA-MM-DD'.
+ * Começa vazio: o Desenvolvedor preenche, e o que ele grava fica na aba "Config do app".
+ */
+const CALENDARIOS = {
+  BOT: { nome: 'Boticário', descricao: 'Boticário e todas as outras marcas' },
+  EUD: { nome: 'Eudora', descricao: 'Só a Eudora' },
+};
+/** { BOT: [{ ciclo, inicio, fim }], EUD: [...] }, cada lista na ordem do início. */
+const CALENDARIO_CICLOS = { BOT: [], EUD: [] };
+/** Feriados: [{ data: 'AAAA-MM-DD', nome }], na ordem da data. Entram na conta dos dias úteis de cada ciclo. */
+const FERIADOS = [];
+
+/**
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
  * "Etiqueta N" são ignoradas). Tipos que não aparecem aqui mostram até
  * CONFIG.MAX_ETIQUETAS (pirâmide: até 4, empilhadas).

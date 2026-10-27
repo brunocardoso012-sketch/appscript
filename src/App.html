@@ -16,6 +16,7 @@ const App = (() => {
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}; LOJA → {escala} (tamanho, em %)
     grupos: [],
     analytics: false, // dashboard "Analytics" aberto (no lugar da planta)
+    calendario: false, // calendário dos ciclos aberto (no lugar da planta, na largura toda)
     painelLoja: false, // menu da esquerda (nome da ER, TV / rádio, A, C, notas, símbolos, itens extras) aberto
     tela: { w: 1920, h: 1080 }, // tamanho do slide do último desenho (cresce em 16:9 quando as etiquetas pedem)
     simbolos: [], // símbolos usados na planta (legenda do menu da esquerda)
@@ -660,6 +661,7 @@ const App = (() => {
     atualizarCanto(!ctx.paineis);
     aplicarZoom();
     atualizarAnalytics();
+    if (estado.calendario) atualizarCalendario(); // dados novos (Atualizar, Desenvolvedor): redesenha
     atualizarPainelLoja();
     Validacao.atualizar();
     Rascunho.atualizar();
@@ -1498,6 +1500,7 @@ const App = (() => {
 
   function alternarAnalytics(aberto) {
     estado.analytics = aberto === undefined ? !estado.analytics : !!aberto;
+    if (estado.analytics && estado.calendario) alternarCalendario(false);
     esconderBalao();
     atualizarAnalytics();
   }
@@ -1514,6 +1517,142 @@ const App = (() => {
     const antes = estado.planta;
     if (o.er && o.er !== antes) trocarPlanta(o.er);
     if (estado.planta === antes) desenhar();
+  }
+
+  /* ------------------------- calendário dos ciclos -------------------------- */
+
+  /**
+   * Dados do calendário dos ciclos (Calendario.desenhar): os ciclos de cada calendário (Boticário e Eudora,
+   * do Desenvolvedor › Calendário), cada um ligado ao ciclo do app de mesmo nome e com os movimentos dele
+   * que seguem aquele calendário. Um movimento segue o calendário da marca que tem mais espaço nele: só a
+   * Eudora tem calendário próprio; as outras marcas (e o movimento sem marca) seguem o do Boticário.
+   * Exposição: a fatia do espaço de exposição (sem VM) da ER que vai para o movimento; sem `er`, a média das
+   * ERs (cada ER é um tamanho médio da rede: nada soma ERs). GMV: o esperado, da aba Tipos de movimento.
+   * Em cada ciclo, fatiaExposicao e fatiaGmv são a parte do movimento na exposição e no GMV do ciclo (somam
+   * 100% entre os movimentos) e o equilíbrio é a média das duas.
+   */
+  function dadosCalendario(er) {
+    const cal = estado.dados.config.calendario || { calendarios: {}, ciclos: {}, feriados: [] };
+    const feriados = cal.feriados || [];
+    const doApp = {};
+    todosOsCiclos().forEach((c) => { doApp[Calendario.chaveCiclo(c)] = c; });
+    const plantas = er ? estado.dados.plantas.filter((p) => p.id === er) : estado.dados.plantas;
+    const ordemM = ordemDasMarcas();
+    const porCiclo = {};
+    const movimentosDoCiclo = (ciclo) => {
+      if (porCiclo[ciclo]) return porCiclo[ciclo];
+      const movs = {};
+      const daChave = (k, texto) => movs[k] || (movs[k] = { chave: k, texto: Render.movimentoDaEtiqueta(texto), porEr: {}, marcas: {}, espacos: 0 });
+      const ers = plantas.map((p) => {
+        const partes = partesDeEspaco(p, ciclo).filter((pt) => !pt.vm);
+        const total = partes.reduce((s, pt) => s + pt.peso, 0);
+        partes.forEach((pt) => movimentosDaParte(pt).forEach((g) => {
+          const m = daChave(g.chave, g.etiquetas[0].texto);
+          m.porEr[p.id] = (m.porEr[p.id] || 0) + g.valor;
+          m.espacos += g.valor;
+          const codigos = g.etiquetas.map((x) => x.marca).filter(Boolean)
+            .reduce((l, x) => l.concat(String(x).split('+').map((c) => c.trim())), [])
+            .map((c) => (estado.dados.marcas[c] ? c : 'OUTRA'));
+          const unicos = (codigos.length ? codigos : ['NEUTRO']).filter((c, i, l) => l.indexOf(c) === i);
+          unicos.forEach((c) => { m.marcas[c] = (m.marcas[c] || 0) + g.valor / unicos.length; });
+        }));
+        return { id: p.id, total };
+      });
+      // Movimentos cadastrados nos tipos sem espaço no ciclo também entram (só com o GMV).
+      Object.values((estado.dados.tiposMovimento || {})[ciclo] || {}).forEach((t) => daChave(chaveEtiqueta(t.texto), t.texto));
+      const comEspaco = ers.filter((e) => e.total);
+      const lista = Object.values(movs).map((m) => {
+        const tipo = tipoDe(ciclo, m.texto);
+        const soma = Object.values(m.marcas).reduce((a, b) => a + b, 0);
+        const marcas = ordemM.filter((c) => m.marcas[c]).map((c) => ({ cod: c, nome: nomeMarcaPainel(c), cor: corMarcaPainel(c), valor: m.marcas[c] / soma }));
+        const principal = marcas.slice().sort((a, b) => b.valor - a.valor)[0];
+        const classe = tipo && tipo.classificacao ? tipo.classificacao : SEM_CLASSIFICACAO;
+        // ER para ver o movimento na planta: a da tela, se ele estiver nela; senão, a ER com mais espaço dele.
+        const ersDoMov = Object.keys(m.porEr).sort((a, b) => m.porEr[b] - m.porEr[a]);
+        return {
+          texto: m.texto,
+          calendario: principal && principal.cod === 'EUD' ? 'EUD' : 'BOT',
+          marcas,
+          cor: principal && principal.cod !== 'NEUTRO' ? principal.cor : COR_SEM_MARCA,
+          classe: classe === SEM_CLASSIFICACAO ? null : { cod: classe, nome: nomeClassificacao(classe), cor: corClassificacao(classe) },
+          gmv: tipo && typeof tipo.gmv === 'number' && tipo.gmv > 0 ? tipo.gmv : 0,
+          espacos: comEspaco.length ? m.espacos / comEspaco.length : 0,
+          exposicao: comEspaco.length ? comEspaco.reduce((s, e) => s + (m.porEr[e.id] || 0) / e.total, 0) / comEspaco.length : 0,
+          er: ersDoMov.indexOf(estado.planta) >= 0 ? estado.planta : ersDoMov[0] || estado.planta,
+        };
+      });
+      const totalExpo = lista.reduce((s, m) => s + m.exposicao, 0);
+      const totalGmv = lista.reduce((s, m) => s + m.gmv, 0);
+      lista.forEach((m) => {
+        m.fatiaExposicao = totalExpo ? m.exposicao / totalExpo : 0;
+        m.fatiaGmv = totalGmv ? m.gmv / totalGmv : 0;
+        // Sem GMV no ciclo (ou sem exposição), o equilíbrio fica com a medida que existe.
+        m.equilibrio = totalExpo && totalGmv ? (m.fatiaExposicao + m.fatiaGmv) / 2 : m.fatiaExposicao || m.fatiaGmv;
+      });
+      porCiclo[ciclo] = lista;
+      return lista;
+    };
+    const corDoCalendario = (k) => (estado.dados.marcas[k] ? estado.dados.marcas[k].etiqueta : COR_SEM_MARCA);
+    const ligados = {};
+    const calendarios = Object.keys(cal.calendarios || {}).map((k) => ({
+      cod: k,
+      nome: cal.calendarios[k].nome,
+      descricao: cal.calendarios[k].descricao,
+      cor: corDoCalendario(k),
+      ciclos: ((cal.ciclos || {})[k] || []).map((c) => {
+        const app = doApp[Calendario.chaveCiclo(c.ciclo)] || '';
+        if (app) ligados[app] = true;
+        const d0 = Calendario.datas.dia(c.inicio);
+        const d1 = Calendario.datas.dia(c.fim);
+        return {
+          ciclo: c.ciclo, inicio: c.inicio, fim: c.fim, cicloApp: app,
+          dias: d1 - d0 + 1,
+          uteis: Calendario.datas.uteis(c.inicio, c.fim, feriados),
+          feriados: feriados.filter((f) => f.data >= c.inicio && f.data <= c.fim),
+          movimentos: app ? movimentosDoCiclo(app).filter((m) => m.calendario === k) : [],
+        };
+      }),
+    }));
+    return {
+      calendarios,
+      feriados,
+      ers: estado.dados.plantas.map((p) => ({ id: p.id, nome: p.nome })),
+      cicloAtual: estado.ciclo,
+      semDatas: todosOsCiclos().filter((c) => !ligados[c]),
+    };
+  }
+
+  /** Calendário dos ciclos: ocupa a área da planta inteira (a planta continua desenhada por baixo). */
+  function atualizarCalendario() {
+    const painel = $('painelCalendario');
+    if (!painel) return;
+    const aberto = estado.calendario && !!estado.dados && !Editor.contexto();
+    painel.hidden = !aberto;
+    document.body.classList.toggle('com-calendario', aberto);
+    if ($('btnCalendario')) $('btnCalendario').setAttribute('aria-pressed', String(aberto));
+    if (!aberto) { $('calCorpo').innerHTML = ''; return; } // ao abrir de novo, rola até o ciclo da tela
+    const cal = estado.dados.config.calendario || { ciclos: {} };
+    const n = Object.keys(cal.ciclos || {}).reduce((s, k) => s + cal.ciclos[k].length, 0);
+    $('calSub').textContent = n ? n + (n === 1 ? ' ciclo' : ' ciclos') + ' no calendário' + (estado.ciclo ? ' · na tela: ' + estado.ciclo : '') : '';
+    Calendario.desenhar($('calCorpo'), {
+      dados: dadosCalendario,
+      abrirCiclo: (ciclo) => {
+        alternarCalendario(false);
+        if (ciclo !== estado.ciclo) { estado.ciclo = ciclo; montarCiclos(); desenhar(); }
+      },
+      verMovimento: (o) => {
+        alternarCalendario(false);
+        if (o.ciclo !== estado.ciclo) { estado.ciclo = o.ciclo; montarCiclos(); }
+        verNaPlanta({ etiqueta: o.texto, er: o.er });
+      },
+    });
+  }
+
+  function alternarCalendario(aberto) {
+    estado.calendario = aberto === undefined ? !estado.calendario : !!aberto;
+    if (estado.calendario && estado.analytics) alternarAnalytics(false);
+    esconderBalao();
+    atualizarCalendario();
   }
 
   /* -------------------- estatísticas da construção do ciclo ------------------- */
@@ -2484,6 +2623,7 @@ const App = (() => {
     ligar = ligar === undefined ? !ativo : ligar;
     if (ligar === ativo || (ligar && (!estado.dados || Editor.ativo()))) return;
     if (ligar && estado.analytics) alternarAnalytics(false);
+    if (ligar && estado.calendario) alternarCalendario(false);
     document.body.classList.toggle('apresentando', ligar);
     if (ligar) {
       const el = document.documentElement;
@@ -2600,6 +2740,7 @@ const App = (() => {
       if (it.er !== estado.planta) trocarPlanta(it.er);
       if (estado.planta === it.er) {
         if (estado.analytics) alternarAnalytics(false);
+        if (estado.calendario) alternarCalendario(false);
         abrirMovel(it.id);
       }
       return;
@@ -2657,6 +2798,8 @@ const App = (() => {
     ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
     ao('btnAnalytics', 'click', () => estado.dados && alternarAnalytics());
     ao('anFechar', 'click', () => alternarAnalytics(false));
+    ao('btnCalendario', 'click', () => estado.dados && alternarCalendario());
+    ao('calFechar', 'click', () => alternarCalendario(false));
     ao('anInfo', 'click', () => {
       if (!estado.dados || !estado.ciclo) return;
       Analytics.desenharInfo($('anInfoCorpo'), dadosAnalytics(estado.ciclo), { miniatura: Render.miniaturaEspacos });
@@ -2664,8 +2807,9 @@ const App = (() => {
     });
     ao('btnLoja', 'click', () => {
       // Com o Analytics aberto, o botão volta para a planta com o menu da ER aberto.
-      estado.painelLoja = estado.analytics ? true : !estado.painelLoja;
+      estado.painelLoja = estado.analytics || estado.calendario ? true : !estado.painelLoja;
       if (estado.analytics) alternarAnalytics(false);
+      if (estado.calendario) alternarCalendario(false);
       memoria.gravar('painelLoja', estado.painelLoja ? '1' : '0');
       atualizarPainelLoja();
     });
@@ -2734,6 +2878,8 @@ const App = (() => {
       if (e.key === 'Escape' && document.body.classList.contains('apresentando')) { alternarApresentacao(false); return; }
       // Com o Analytics aberto (meia tela), Esc fecha ele; o zoom e as setas continuam valendo na planta.
       if (estado.analytics && e.key === 'Escape' && !document.querySelector('.tut-foco')) { alternarAnalytics(false); return; }
+      // O calendário cobre a planta: Esc fecha; o zoom e as setas não valem enquanto ele está aberto.
+      if (estado.calendario) { if (e.key === 'Escape' && !document.querySelector('.tut-foco')) alternarCalendario(false); return; }
       if (e.key === '+' || e.key === '=') { zoomPara(estado.zoom.k * 1.5); return; }
       if (e.key === '-' || e.key === '_') { zoomPara(estado.zoom.k / 1.5); return; }
       if (e.key === '0') { zoomPara(1); return; }
@@ -2776,6 +2922,7 @@ const App = (() => {
   Desenvolvedor.iniciar({
     estado, chamar, toast, erro, carregar, carregando, plantaAtual, trocarPlanta,
     espacos: (m) => Render.espacos(m),
+    ciclos: () => todosOsCiclos(),
     layoutDe: (p) => Editor.layoutDe(p),
     // Nova planta: abre o Construir loja com uma planta em branco (o Salvar planta pergunta o nome).
     novaPlanta: () => { if (!Editor.ativo()) $('btnConstruir').click(); if (Editor.ativo()) Editor.novaPlanta(); },
@@ -2790,7 +2937,7 @@ const App = (() => {
   Validacao.iniciar({
     estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta,
     abrirMovel: (id) => abrirMovel(id),
-    fecharAnalytics: () => alternarAnalytics(false),
+    fecharAnalytics: () => { alternarAnalytics(false); alternarCalendario(false); },
     montarRascunhos: (corpo) => { Rascunho.montarSecao(corpo); Antecipacao.montarSecao(corpo); },
     construindo: () => Rascunho.painelVisivel(),
     aoEntrar: () => Rascunho.recarregar(),

@@ -7,7 +7,9 @@
  *     criar (Construir loja › Salvar planta › Criar nova) e apagar;
  *   - espacosPorEr: espaços fixos de uma marca em algumas ERs e livres nas outras (ESPACOS_POR_ER);
  *   - herancaEntreErs: espaços que mudam de nome de uma ER para a seguinte (HERANCA_ENTRE_ERS);
- *   - senhas: as do Desenvolvedor, da Validação e da Construção.
+ *   - senhas: as do Desenvolvedor, da Validação e da Construção;
+ *   - calendarioCiclos e feriados: o início e o fim de cada ciclo no calendário do Boticário (que vale para
+ *     todas as marcas, menos a Eudora) e no da Eudora, e os feriados (CALENDARIO_CICLOS e FERIADOS).
  *  O que muda fica na aba "Config do app" (uma linha por chave, o valor em JSON); o que não está nela
  *  vale como no código (Config.gs). aplicarConfigApp_ põe a configuração nas constantes de Config.gs.
  *
@@ -21,6 +23,8 @@ const CHAVES_CONFIG_APP = {
   espacosPorEr: 'Espaços fixos de uma marca em algumas ERs e livres nas outras.',
   herancaEntreErs: 'Espaços que mudam de nome de uma ER para a seguinte (cascata).',
   senhas: 'Senhas do Desenvolvedor, da Validação e da Construção.',
+  calendarioCiclos: 'Início e fim de cada ciclo: calendário do Boticário (vale para todas as marcas, menos a Eudora) e da Eudora.',
+  feriados: 'Feriados (data e nome): entram na conta dos dias úteis de cada ciclo.',
 };
 
 function colunasConfigApp_() {
@@ -42,6 +46,8 @@ function configAppPadrao_() {
       espacosPorEr: ESPACOS_POR_ER,
       herancaEntreErs: HERANCA_ENTRE_ERS,
       senhas: SENHAS_ACESSO,
+      calendarioCiclos: CALENDARIO_CICLOS,
+      feriados: FERIADOS,
     });
   }
   return padraoConfigApp_;
@@ -70,6 +76,8 @@ function aplicarConfigApp_(cfg) {
   reporObjeto_(ESPACOS_POR_ER, clonarJson_(c.espacosPorEr || p.espacosPorEr));
   reporLista_(HERANCA_ENTRE_ERS, clonarJson_(c.herancaEntreErs || p.herancaEntreErs));
   reporObjeto_(SENHAS_ACESSO, Object.assign({}, p.senhas, c.senhas || {}));
+  reporObjeto_(CALENDARIO_CICLOS, Object.assign(clonarJson_(p.calendarioCiclos), clonarJson_(c.calendarioCiclos || {})));
+  reporLista_(FERIADOS, clonarJson_(c.feriados || p.feriados));
 }
 
 /** Configuração gravada na aba (só as chaves que o Desenvolvedor mudou). */
@@ -190,6 +198,121 @@ function normalizarSenhas_(valor) {
   return s;
 }
 
+/* ------------------------- calendário dos ciclos --------------------------- */
+
+/** Calendário dos ciclos que a marca segue: só a Eudora tem o dela; todas as outras seguem o do Boticário. */
+function calendarioDaMarca_(marca) {
+  return normMarca_(marca) === 'EUD' ? 'EUD' : 'BOT';
+}
+
+/** "2026-10-25" → dia corrido (para contar dias sem fuso nem horário de verão). */
+function diaDaData_(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000) : NaN;
+}
+
+function dataDoDia_(dia) {
+  return new Date(dia * 86400000).toISOString().slice(0, 10);
+}
+
+/** Dias úteis entre duas datas (inclusive): de segunda a sexta, menos os feriados. */
+function diasUteis_(inicio, fim, feriados) {
+  const fer = {};
+  (feriados || []).forEach(function (f) { fer[f.data] = true; });
+  let n = 0;
+  for (let d = diaDaData_(inicio); d <= diaDaData_(fim); d++) {
+    const semana = new Date(d * 86400000).getUTCDay();
+    if (semana !== 0 && semana !== 6 && !fer[dataDoDia_(d)]) n++;
+  }
+  return n;
+}
+
+/** O JSON de cada chave fica numa célula da aba "Config do app" (até 50 mil caracteres no Sheets). */
+function conferirTamanhoConfig_(valor, oQue) {
+  if (JSON.stringify(valor).length > 45000) throw new Error(oQue + ' ficou grande demais para a aba "' + CONFIG.ABAS.CONFIG_APP + '": apague os anos que já passaram.');
+  return valor;
+}
+
+/**
+ * Calendário dos ciclos: { BOT: [{ ciclo, inicio, fim }], EUD: [...] }. Cada ciclo precisa de nome e das
+ * duas datas (fim no mesmo dia do início ou depois, até um ano); num mesmo calendário, um nome aparece uma
+ * vez e os ciclos não se sobrepõem. Sai na ordem do início.
+ */
+function normalizarCalendarioCiclos_(valor) {
+  const saida = {};
+  Object.keys(CALENDARIOS).forEach(function (cal) {
+    const nomeCal = CALENDARIOS[cal].nome;
+    const vistos = {};
+    const lista = (Array.isArray((valor || {})[cal]) ? valor[cal] : []).map(function (c, i) {
+      const onde = 'Calendário ' + nomeCal + ', linha ' + (i + 1);
+      const ciclo = texto_(c && c.ciclo).replace(/\s+/g, ' ').slice(0, 40);
+      const inicio = dataAntecipacao_(c && c.inicio);
+      const fim = dataAntecipacao_(c && c.fim);
+      if (!ciclo && !inicio && !fim) return null;
+      if (!ciclo) throw new Error(onde + ': dê o nome do ciclo (o mesmo do app, ex.: C15/2026).');
+      if (!inicio || !fim) throw new Error(onde + ' (' + ciclo + '): preencha o início e o fim com datas válidas.');
+      const dias = diaDaData_(fim) - diaDaData_(inicio) + 1;
+      if (dias < 1) throw new Error(onde + ' (' + ciclo + '): o fim (' + dataAntecipacaoTexto_(fim) + ') vem antes do início (' + dataAntecipacaoTexto_(inicio) + ').');
+      if (dias > 366) throw new Error(onde + ' (' + ciclo + '): o ciclo passa de um ano. Confira as datas.');
+      const k = chave_(ciclo);
+      if (vistos[k]) throw new Error('Calendário ' + nomeCal + ': o ciclo ' + ciclo + ' aparece duas vezes.');
+      vistos[k] = true;
+      return { ciclo: ciclo, inicio: inicio, fim: fim };
+    }).filter(Boolean).sort(function (a, b) { return a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : 0; });
+    lista.forEach(function (c, i) {
+      const ant = lista[i - 1];
+      if (ant && c.inicio <= ant.fim) {
+        throw new Error('Calendário ' + nomeCal + ': o ' + c.ciclo + ' (começa em ' + dataAntecipacaoTexto_(c.inicio) + ') se sobrepõe ao ' +
+          ant.ciclo + ' (termina em ' + dataAntecipacaoTexto_(ant.fim) + ').');
+      }
+    });
+    saida[cal] = lista;
+  });
+  return conferirTamanhoConfig_(saida, 'O calendário dos ciclos');
+}
+
+/** Feriados: [{ data, nome }] na ordem da data, uma vez cada data. */
+function normalizarFeriados_(valor) {
+  const vistos = {};
+  const lista = (Array.isArray(valor) ? valor : []).map(function (f, i) {
+    const onde = 'Feriado ' + (i + 1);
+    const data = dataAntecipacao_(f && f.data);
+    const nome = texto_(f && f.nome).replace(/\s+/g, ' ').slice(0, 60);
+    if (!data && !nome) return null;
+    if (!data) throw new Error(onde + (nome ? ' (' + nome + ')' : '') + ': a data não é válida (use dd/mm/aaaa).');
+    if (vistos[data]) throw new Error('O feriado de ' + dataAntecipacaoTexto_(data) + ' aparece duas vezes.');
+    vistos[data] = true;
+    return { data: data, nome: nome || 'Feriado' };
+  }).filter(Boolean).sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+  return conferirTamanhoConfig_(lista, 'A lista de feriados');
+}
+
+/**
+ * Avisos do calendário (não impedem de salvar): dias sem ciclo entre um ciclo e o seguinte e ciclos que
+ * começam num feriado ou num fim de semana.
+ */
+function avisosCalendario_(calendario, feriados) {
+  const fer = {};
+  (feriados || []).forEach(function (f) { fer[f.data] = f.nome; });
+  const avisos = [];
+  Object.keys(CALENDARIOS).forEach(function (cal) {
+    const nomeCal = CALENDARIOS[cal].nome;
+    const lista = (calendario || {})[cal] || [];
+    lista.forEach(function (c, i) {
+      const ant = lista[i - 1];
+      const buraco = ant ? diaDaData_(c.inicio) - diaDaData_(ant.fim) - 1 : 0;
+      if (buraco > 0) {
+        avisos.push(nomeCal + ': ' + buraco + (buraco === 1 ? ' dia' : ' dias') + ' sem ciclo entre o ' + ant.ciclo + ' e o ' + c.ciclo + '.');
+      }
+      if (fer[c.inicio]) avisos.push(nomeCal + ': o ' + c.ciclo + ' começa num feriado (' + fer[c.inicio] + ', ' + dataAntecipacaoTexto_(c.inicio) + ').');
+      else if ([0, 6].indexOf(new Date(diaDaData_(c.inicio) * 86400000).getUTCDay()) >= 0) {
+        avisos.push(nomeCal + ': o ' + c.ciclo + ' começa num fim de semana (' + dataAntecipacaoTexto_(c.inicio) + ').');
+      }
+    });
+  });
+  return avisos;
+}
+
 /** Tira as linhas de uma planta de uma aba (as de "TODAS" ficam). */
 function semLinhasDaPlanta_(valores, colunas, planta) {
   if (!valores || valores.length < 2) return valores;
@@ -202,7 +325,9 @@ function semLinhasDaPlanta_(valores, colunas, planta) {
 
 /**
  * Aplica um pedido do Desenvolvedor. A configuração (cfg) muda no lugar; as abas que mudam são gravadas pelo io.
- *  - config:          { chave, valor }   troca uma chave inteira (espacosPorEr, herancaEntreErs, senhas);
+ *  - config:          { chave, valor }   troca uma chave inteira (espacosPorEr, herancaEntreErs, senhas,
+ *                                        calendarioCiclos, feriados);
+ *  - calendario:      { calendarioCiclos, feriados } troca os dois (seção Calendário do painel);
  *  - padrao:          { chave }          volta a chave ao que está no código;
  *  - renomearPlanta:  { planta, nome }   o nome antigo continua valendo como apelido;
  *  - ordemPlantas:    { ordem: [ids] }   ordem das plantas (é a ordem da cascata);
@@ -233,7 +358,13 @@ function aplicarAcaoConfigDev_(cfg, pedido, io) {
     if (p.chave === 'espacosPorEr') cfg.espacosPorEr = normalizarEspacosPorEr_(p.valor, ordenar(ids));
     else if (p.chave === 'herancaEntreErs') cfg.herancaEntreErs = normalizarHeranca_(p.valor, ordenar(ids));
     else if (p.chave === 'senhas') cfg.senhas = normalizarSenhas_(p.valor);
+    else if (p.chave === 'calendarioCiclos') cfg.calendarioCiclos = normalizarCalendarioCiclos_(p.valor);
+    else if (p.chave === 'feriados') cfg.feriados = normalizarFeriados_(p.valor);
     else throw new Error('Configuração desconhecida: ' + p.chave + '.');
+  } else if (p.acao === 'calendario') {
+    // O calendário dos ciclos e os feriados juntos (a seção Calendário do painel salva os dois de uma vez).
+    cfg.calendarioCiclos = normalizarCalendarioCiclos_(p.calendarioCiclos);
+    cfg.feriados = normalizarFeriados_(p.feriados);
   } else if (p.acao === 'padrao') {
     if (!CHAVES_CONFIG_APP[p.chave] || p.chave === 'plantas') throw new Error('Configuração desconhecida: ' + p.chave + '.');
     delete cfg[p.chave];
@@ -288,6 +419,10 @@ function respostaConfigDev_(cfg, layout) {
     espacosPorEr: clonarJson_(ESPACOS_POR_ER),
     herancaEntreErs: clonarJson_(HERANCA_ENTRE_ERS),
     senhas: clonarJson_(SENHAS_ACESSO),
+    calendarios: clonarJson_(CALENDARIOS),
+    calendarioCiclos: clonarJson_(CALENDARIO_CICLOS),
+    feriados: clonarJson_(FERIADOS),
+    calendarioAvisos: avisosCalendario_(CALENDARIO_CICLOS, FERIADOS),
     mudou: Object.keys(CHAVES_CONFIG_APP).filter(function (k) { return cfg[k] !== undefined; }),
     padrao: { espacosPorEr: padrao.espacosPorEr, herancaEntreErs: padrao.herancaEntreErs },
   };

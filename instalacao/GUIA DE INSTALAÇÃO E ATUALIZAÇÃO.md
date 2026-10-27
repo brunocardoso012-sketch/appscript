@@ -45,6 +45,7 @@ Este guia é para quem **já usa o app no Apps Script e já tem a planilha com o
 - **Antecipações:** quando um item do próximo ciclo precisa entrar antes, quem entrou na validação cria uma *antecipação* (seção *Antecipações* do painel da validação): escolhe o espaço (na lista ou clicando na planta), o movimento, a marca, se ele substitui o espaço ou soma às etiquetas, e a data em que entra. A planta mostra o item no espaço com o símbolo ⏩ para todo mundo, e a data aparece na tela do móvel e em *Comunicações ER*. As antecipações ficam numa aba nova, *Antecipações*, criada sozinha na primeira vez; as abas *Movimentos* e *Painéis* não mudam.
 - **Prateleiras (o desenho de cada prateleira):** na tela do móvel, o *Planograma · como as prateleiras estão divididas* mostra cada prateleira com os quadrados desenhados e os produtos de cada um. Só com o login da *Construção* aparece a seção *Construção das prateleiras*: o construtor clica em *Desenhar* no espaço, arrasta na prateleira para criar os quadrados (na altura toda da prateleira, lado a lado; move e muda a largura arrastando) e, em cada quadrado, escolhe o movimento e os produtos. Os produtos vêm de uma aba nova, **Produtos** (SKU, Produto, Marca, Categoria e Movimento): crie a aba com essas colunas e cole a lista de produtos (ou use *Configurar planilha*, que cria a aba com exemplos). O desenho fica em outra aba nova, *Prateleiras*, criada sozinha na primeira vez (uma linha por produto de cada quadrado).
 - **Briefing das gôndolas e pirâmides (PDF):** o botão *Briefing (PDF)*, ao lado do *Baixar PNG*, baixa um PDF com uma página por gôndola e por pirâmide (da ER da tela ou de todas; a pirâmide com os 4 lados, do mesmo tamanho, cada um com as 4 prateleiras): o planograma desenhado, com um código em cada quadrado, e a tabela com a posição e o tamanho de cada quadrado (em % e em cm) e os produtos na ordem (SKU, nome e frentes), para reproduzir no programa de planograma.
+- **Calendário dos ciclos:** o botão *Calendário* (ao lado do *Analytics*) mostra um calendário vertical com os ciclos do **Boticário** (que valem para todas as marcas, menos a Eudora) e da **Eudora**, do dia do início ao dia do fim, e os movimentos de cada ciclo em retângulos empilhados pelo equilíbrio entre o GMV esperado e a exposição (ou só por um dos dois). As datas dos ciclos e os feriados são cadastrados pelo desenvolvedor em **Desenvolvedor › Calendário** (digitando, gerando ciclos seguidos ou colando do Excel; o nome do ciclo é o mesmo do app). Ficam na aba *Config do app*.
 
 ---
 
@@ -133,6 +134,7 @@ Também funciona. Substitua o conteúdo de cada arquivo pelo da pasta `src/` do 
 | HTML | `Estrategia` | `src/Estrategia.html` (novo) |
 | HTML | `Tutorial` | `src/Tutorial.html` (novo) |
 | HTML | `Analytics` | `src/Analytics.html` (novo) |
+| HTML | `Calendario` | `src/Calendario.html` (novo) |
 | HTML | `Desenvolvedor` | `src/Desenvolvedor.html` (novo) |
 | Script | `Desenvolvedor` | `src/Desenvolvedor.gs` (novo) |
 
@@ -187,10 +189,11 @@ Abra o link do app e confira:
 
 - [ ] Aparece o convite **"Bem-vindo ao Plano de Varejo"**. Ele aparece uma vez por navegador. Faça o tour ou clique em *Agora não*.
 - [ ] O seletor de ciclo mostra os **seus** ciclos e a planta abre com as cores e as etiquetas.
-- [ ] O topo tem **Comunicações ER** e **Analytics** em destaque. A **engrenagem** mostra *Validação*, *Construção*, *Ajustar etiquetas*, *Modo noturno*, *Ver o tutorial* e *Modo desenvolvedor*. O *Modo desenvolvedor* pede a senha `desenvolvedor_exposicao` (outra senha não entra) e abre o painel, com a faixa *Modo desenvolvedor* no alto da tela.
+- [ ] O topo tem **Comunicações ER**, **Analytics** e **Calendário** em destaque. A **engrenagem** mostra *Validação*, *Construção*, *Ajustar etiquetas*, *Modo noturno*, *Ver o tutorial* e *Modo desenvolvedor*. O *Modo desenvolvedor* pede a senha `desenvolvedor_exposicao` (outra senha não entra) e abre o painel, com a faixa *Modo desenvolvedor* no alto da tela.
 - [ ] O seletor de ciclo não tem mais *Ciclo exemplo*, *Ciclo exemplo cheio* nem *Sem ciclo (planta limpa)*.
 - [ ] No painel, *Construção da loja* tem *Construir loja*, *Baixar planilha base* e *Importar planilha*; *Plantas* mostra as suas plantas na ordem da cascata; *Cascata entre ERs* mostra as regras da ponta B da gôndola 1 e da gôndola 2 → gôndola 3.
 - [ ] O **Analytics** mostra o mapa movimento × ER e as marcas e classificações em cada ER. A classificação e o GMV só aparecem para os movimentos que estão na aba *Tipos de movimento*.
+- [ ] No painel do desenvolvedor, a seção **Calendário** mostra o calendário do Boticário, o da Eudora e os feriados (vazios na primeira vez). Cadastre os ciclos (o nome igual ao do seletor), salve e abra o botão **Calendário** no topo: cada ciclo aparece do início ao fim, com os movimentos empilhados.
 - [ ] **Baixar PNG** (canto de baixo da planta) baixa a planta, a visão simplificada e a estratégia.
 - [ ] As posições de etiquetas que você já tinha salvado continuam no lugar.
 - [ ] Na engrenagem, entre na *Construção* (senha `construcao_exposicao`): o painel mostra **Ciclos em construção** com o botão *Novo ciclo*. Se quiser testar, crie um ciclo de teste, mude um espaço e depois clique em *Excluir* na faixa do ciclo.

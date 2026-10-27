@@ -327,6 +327,27 @@
   .dev-selo-estado { font: 700 10px var(--dev-mono); letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--dev-borda); color: var(--dev-texto-2); }
   .dev-selo-estado.mudou { color: var(--dev-ambar-2); border-color: #5a4410; background: #1f1708; }
 
+  /* Calendário dos ciclos e feriados. */
+  .dev-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .dev-tabela th { text-align: left; font: 700 11px var(--dev-mono); letter-spacing: .6px; text-transform: uppercase; color: var(--dev-texto-2); padding: 4px 6px 6px; border-bottom: 1px solid var(--dev-borda); }
+  .dev-tabela td { padding: 4px 6px; border-bottom: 1px solid #1a2230; vertical-align: middle; }
+  .dev-tabela td input { width: 100%; }
+  .dev-tabela td:last-child { width: 40px; }
+  .dev-console input[type="date"], .dev-console textarea {
+    font: inherit; font-size: 13px; color: var(--dev-texto); background: var(--dev-fundo); border: 1px solid var(--dev-borda);
+    border-radius: 7px; padding: 6px 8px; min-width: 0;
+  }
+  .dev-console textarea { width: 100%; font-family: var(--dev-mono); resize: vertical; box-sizing: border-box; }
+  .dev-cal-dias { font: 12px var(--dev-mono); color: var(--dev-texto-2); white-space: nowrap; }
+  .dev-cal-dias.erro { color: var(--dev-perigo); }
+  .dev-chip.ok { color: var(--dev-verde); border-color: #1f5a43; }
+  .dev-cal-ferramenta { border: 1px solid var(--dev-borda); border-radius: 10px; background: var(--dev-painel); padding: 8px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .dev-cal-ferramenta[open] { padding-bottom: 12px; }
+  .dev-cal-ferramenta > summary { cursor: pointer; font: 600 13px var(--fonte); color: var(--dev-ambar-2); }
+  .dev-cal-ferramenta > * + * { margin-top: 10px; }
+  .dev-cal-avisos { margin: 0; padding-left: 18px; color: var(--dev-ambar-2); font-size: 13px; display: grid; gap: 4px; }
+  .dev-cal-estado { color: var(--dev-ambar-2); }
+
   @media (max-width: 760px) {
     .dev-console { width: 100vw; height: 100vh; border-radius: 0; }
     .dev-meio { flex-direction: column; }
@@ -594,6 +615,110 @@
   .an-disp-idx { margin-top: 2px; color: var(--texto); }
   .an-disp-idx.alto { color: #1d6b47; }
   .an-disp-idx.baixo { color: #8a4510; }
+
+  /* ---------- Calendário dos ciclos (no lugar da planta, na largura toda) ---------- */
+  .calendario { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fundo); }
+  .calendario[hidden] { display: none; }
+  body.com-calendario .palco { position: relative; }
+  body.com-calendario .area-planta { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
+  body.com-calendario .painel-loja, body.com-calendario .painel-validacao, body.com-calendario .painel-construcao { display: none; }
+  body.apresentando .calendario { display: none !important; }
+  .cal-corpo { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 12px clamp(16px, 2.5vw, 32px) 16px; gap: 8px; font-size: 13px; }
+  .cal-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+  .cal-controle { display: inline-flex; align-items: center; gap: 8px; }
+  .cal-controle select { min-width: 0; padding: 4px 8px; font-size: 12px; }
+  .cal-rotulo { font-weight: 600; text-transform: uppercase; letter-spacing: .4px; font-size: 11px; color: var(--texto-2); }
+  .cal-hoje { margin-left: auto; }
+  .cal-nota { margin: 0; color: var(--texto-2); font-size: 12px; line-height: 1.45; max-width: 1100px; }
+  .cal-aviso { margin: 0; padding: 6px 10px; border-radius: 8px; font-size: 12px; color: #7A4A00; background: #FFF4D6; border: 1px solid #F2D58A; }
+  [data-tema="escuro"] .cal-aviso { color: #FFD98A; background: #3A2E12; border-color: #5C4A1E; }
+
+  .cal-rolagem { flex: 1 1 auto; min-height: 0; overflow: auto; border: 1px solid var(--borda); border-radius: 10px; background: var(--superficie); }
+  .cal-tabela { display: flex; width: max-content; min-width: 100%; }
+  .cal-eixo { position: sticky; left: 0; z-index: 3; flex: 0 0 auto; background: var(--superficie); border-right: 1px solid var(--borda); }
+  .cal-eixo-topo, .cal-col-topo {
+    position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 0 12px;
+    background: var(--superficie); border-bottom: 1px solid var(--borda); box-sizing: border-box;
+  }
+  .cal-eixo-topo { z-index: 4; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--texto-2); }
+  .cal-eixo-dias { position: relative; }
+  .cal-dia {
+    position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 8px; box-sizing: border-box;
+    font-size: 10.5px; color: var(--texto-2); white-space: nowrap; overflow: visible; font-variant-numeric: tabular-nums;
+  }
+  .cal-dia.fds { background: rgba(120, 128, 140, .09); }
+  .cal-dia.feriado { background: rgba(214, 51, 51, .12); color: #b42318; font-weight: 600; }
+  [data-tema="escuro"] .cal-dia.feriado { color: #ff8f86; }
+  .cal-dia.hoje { color: var(--texto); font-weight: 700; }
+  .cal-mes {
+    padding: 0 4px; border-radius: 4px; line-height: 1.3;
+    font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--superficie); background: var(--texto-2);
+  }
+  .cal-dia.inicio-mes { border-top: 1px solid var(--borda-forte); }
+  .cal-feriado-nome { overflow: hidden; text-overflow: ellipsis; max-width: 64px; font-size: 9.5px; }
+  .cal-hoje-rotulo { margin-left: auto; padding: 0 5px; border-radius: 999px; background: #E8590C; color: #fff; font-size: 9.5px; font-weight: 700; }
+
+  .cal-coluna { flex: 0 0 auto; border-right: 1px solid var(--borda); }
+  .cal-col-topo { gap: 8px; }
+  .cal-col-topo strong { display: block; font-size: 13px; }
+  .cal-col-topo small { display: block; font-size: 11px; color: var(--texto-2); }
+  .cal-col-cor { flex: 0 0 auto; width: 10px; height: 26px; border-radius: 3px; }
+  .cal-col-corpo { position: relative; }
+  .cal-col-vazia { position: absolute; left: 12px; margin: 0; color: var(--texto-2); font-style: italic; }
+  .cal-faixa { position: absolute; left: 0; right: 0; background: rgba(120, 128, 140, .05); border-top: 1px solid var(--borda); }
+  .cal-faixa.impar { background: rgba(120, 128, 140, .1); }
+  .cal-faixa.atual { box-shadow: inset 3px 0 0 #3346b8; }
+  .cal-faixa-feriado { position: absolute; left: 0; right: 0; background: rgba(214, 51, 51, .07); border-top: 1px dashed rgba(214, 51, 51, .35); pointer-events: none; z-index: 1; }
+  .cal-linha-hoje { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid #E8590C; z-index: 2; pointer-events: none; }
+  .cal-ciclo {
+    position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; box-sizing: border-box;
+    text-align: left; font: 12px var(--fonte); color: var(--texto-2); background: var(--superficie); border: 1px solid var(--borda-forte);
+    border-radius: 8px; overflow: hidden; z-index: 1;
+  }
+  button.cal-ciclo { cursor: pointer; }
+  button.cal-ciclo:hover, button.cal-ciclo:focus-visible { border-color: #3346b8; outline: none; }
+  .cal-ciclo.atual { border-color: #3346b8; box-shadow: inset 0 0 0 1px #3346b8; }
+  .cal-ciclo.sem-app { border-style: dashed; }
+  .cal-ciclo-nome { font-size: 14px; color: var(--texto); overflow-wrap: anywhere; }
+  .cal-ciclo em { font-size: 11px; }
+  .cal-ciclo-feriados { color: #b42318; font-weight: 600; }
+  [data-tema="escuro"] .cal-ciclo-feriados { color: #ff8f86; }
+  .cal-mov {
+    position: absolute; display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 7px 8px 8px 9px; box-sizing: border-box;
+    text-align: left; font: 12px var(--fonte); color: var(--texto); border: 1px solid var(--borda); border-left: 5px solid; border-radius: 8px;
+    overflow: hidden; cursor: pointer; z-index: 1;
+  }
+  .cal-mov:hover, .cal-mov:focus-visible { box-shadow: 0 2px 10px rgba(0, 0, 0, .18); border-color: var(--borda-forte); outline: none; z-index: 2; }
+  .cal-mov-cab { display: flex; align-items: flex-start; gap: 6px; }
+  .cal-mov-pos {
+    flex: 0 0 auto; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; display: grid; place-items: center; box-sizing: border-box;
+    background: var(--texto); color: var(--superficie); font-size: 11px; font-weight: 800;
+  }
+  .cal-mov-nome {
+    font: 800 12.5px/1.25 var(--fonte-etq); overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .cal-mov-marcas { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .cal-bolinha { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); }
+  .cal-mov-classe { font-size: 10.5px; padding: 0 6px; border: 1px solid; border-radius: 999px; color: var(--texto-2); }
+  .cal-mov-medida { display: flex; flex-direction: column; gap: 2px; }
+  .cal-mov-medida-txt { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--texto-2); }
+  .cal-mov-medida-txt b { color: var(--texto); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cal-mov-trilho { display: block; height: 5px; border-radius: 3px; background: rgba(120, 128, 140, .22); overflow: hidden; }
+  .cal-mov-trilho > span { display: block; height: 100%; border-radius: 3px; }
+  .cal-mov-medida.expo .cal-mov-trilho > span { background: #3346b8; }
+  .cal-mov-medida.gmv .cal-mov-trilho > span { background: #1d8a5a; }
+  .cal-mov-medida.equi .cal-mov-trilho > span { background: #E8590C; }
+  [data-tema="escuro"] .cal-mov-medida.expo .cal-mov-trilho > span { background: #7d8ff0; }
+  [data-tema="escuro"] .cal-mov-medida.gmv .cal-mov-trilho > span { background: #4cc38a; }
+  .cal-mais {
+    position: absolute; padding: 6px 10px; border: 1px dashed var(--borda-forte); border-radius: 8px; background: var(--superficie);
+    font: 600 12px var(--fonte); color: var(--texto-2); cursor: pointer; z-index: 1;
+  }
+  .cal-mais:hover, .cal-mais:focus-visible { color: var(--texto); border-color: #3346b8; outline: none; }
+  @media (max-width: 600px) {
+    .cal-hoje { margin-left: 0; }
+  }
 
   /* Telas estreitas: a página rola; o Analytics ocupa a largura toda e a planta fica invisível por baixo. */
   @media (max-width: 900px) {
@@ -1517,6 +1642,22 @@ const HERANCA_ENTRE_ERS = [
 ];
 
 /**
+ * Calendário dos ciclos (Desenvolvedor › Calendário): o início e o fim de cada ciclo, por calendário.
+ * Só a Eudora tem calendário próprio; todas as outras marcas (Boticário, QDB, O.U.i, multimarca…) seguem
+ * o do Boticário (calendarioDaMarca_). O nome do ciclo liga a linha ao ciclo do app (o do seletor), sem
+ * diferença de maiúsculas, acentos e espaços. Datas em 'AAAA-MM-DD'.
+ * Começa vazio: o Desenvolvedor preenche, e o que ele grava fica na aba "Config do app".
+ */
+const CALENDARIOS = {
+  BOT: { nome: 'Boticário', descricao: 'Boticário e todas as outras marcas' },
+  EUD: { nome: 'Eudora', descricao: 'Só a Eudora' },
+};
+/** { BOT: [{ ciclo, inicio, fim }], EUD: [...] }, cada lista na ordem do início. */
+const CALENDARIO_CICLOS = { BOT: [], EUD: [] };
+/** Feriados: [{ data: 'AAAA-MM-DD', nome }], na ordem da data. Entram na conta dos dias úteis de cada ciclo. */
+const FERIADOS = [];
+
+/**
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
  * "Etiqueta N" são ignoradas). Tipos que não aparecem aqui mostram até
  * CONFIG.MAX_ETIQUETAS (pirâmide: até 4, empilhadas).
@@ -1988,6 +2129,8 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
       limitesPrateleira: LIMITES_PRATELEIRA,
       espacosPorEr: ESPACOS_POR_ER,
       herancaEntreErs: HERANCA_ENTRE_ERS,
+      // Calendário dos ciclos e feriados (Desenvolvedor › Calendário), para a aba Calendário.
+      calendario: { calendarios: CALENDARIOS, ciclos: CALENDARIO_CICLOS, feriados: FERIADOS },
     },
   };
 }
@@ -5176,7 +5319,9 @@ function executarPrateleiras_(io, acesso, pedido) {
  *     criar (Construir loja › Salvar planta › Criar nova) e apagar;
  *   - espacosPorEr: espaços fixos de uma marca em algumas ERs e livres nas outras (ESPACOS_POR_ER);
  *   - herancaEntreErs: espaços que mudam de nome de uma ER para a seguinte (HERANCA_ENTRE_ERS);
- *   - senhas: as do Desenvolvedor, da Validação e da Construção.
+ *   - senhas: as do Desenvolvedor, da Validação e da Construção;
+ *   - calendarioCiclos e feriados: o início e o fim de cada ciclo no calendário do Boticário (que vale para
+ *     todas as marcas, menos a Eudora) e no da Eudora, e os feriados (CALENDARIO_CICLOS e FERIADOS).
  *  O que muda fica na aba "Config do app" (uma linha por chave, o valor em JSON); o que não está nela
  *  vale como no código (Config.gs). aplicarConfigApp_ põe a configuração nas constantes de Config.gs.
  *
@@ -5190,6 +5335,8 @@ const CHAVES_CONFIG_APP = {
   espacosPorEr: 'Espaços fixos de uma marca em algumas ERs e livres nas outras.',
   herancaEntreErs: 'Espaços que mudam de nome de uma ER para a seguinte (cascata).',
   senhas: 'Senhas do Desenvolvedor, da Validação e da Construção.',
+  calendarioCiclos: 'Início e fim de cada ciclo: calendário do Boticário (vale para todas as marcas, menos a Eudora) e da Eudora.',
+  feriados: 'Feriados (data e nome): entram na conta dos dias úteis de cada ciclo.',
 };
 
 function colunasConfigApp_() {
@@ -5211,6 +5358,8 @@ function configAppPadrao_() {
       espacosPorEr: ESPACOS_POR_ER,
       herancaEntreErs: HERANCA_ENTRE_ERS,
       senhas: SENHAS_ACESSO,
+      calendarioCiclos: CALENDARIO_CICLOS,
+      feriados: FERIADOS,
     });
   }
   return padraoConfigApp_;
@@ -5239,6 +5388,8 @@ function aplicarConfigApp_(cfg) {
   reporObjeto_(ESPACOS_POR_ER, clonarJson_(c.espacosPorEr || p.espacosPorEr));
   reporLista_(HERANCA_ENTRE_ERS, clonarJson_(c.herancaEntreErs || p.herancaEntreErs));
   reporObjeto_(SENHAS_ACESSO, Object.assign({}, p.senhas, c.senhas || {}));
+  reporObjeto_(CALENDARIO_CICLOS, Object.assign(clonarJson_(p.calendarioCiclos), clonarJson_(c.calendarioCiclos || {})));
+  reporLista_(FERIADOS, clonarJson_(c.feriados || p.feriados));
 }
 
 /** Configuração gravada na aba (só as chaves que o Desenvolvedor mudou). */
@@ -5359,6 +5510,121 @@ function normalizarSenhas_(valor) {
   return s;
 }
 
+/* ------------------------- calendário dos ciclos --------------------------- */
+
+/** Calendário dos ciclos que a marca segue: só a Eudora tem o dela; todas as outras seguem o do Boticário. */
+function calendarioDaMarca_(marca) {
+  return normMarca_(marca) === 'EUD' ? 'EUD' : 'BOT';
+}
+
+/** "2026-10-25" → dia corrido (para contar dias sem fuso nem horário de verão). */
+function diaDaData_(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000) : NaN;
+}
+
+function dataDoDia_(dia) {
+  return new Date(dia * 86400000).toISOString().slice(0, 10);
+}
+
+/** Dias úteis entre duas datas (inclusive): de segunda a sexta, menos os feriados. */
+function diasUteis_(inicio, fim, feriados) {
+  const fer = {};
+  (feriados || []).forEach(function (f) { fer[f.data] = true; });
+  let n = 0;
+  for (let d = diaDaData_(inicio); d <= diaDaData_(fim); d++) {
+    const semana = new Date(d * 86400000).getUTCDay();
+    if (semana !== 0 && semana !== 6 && !fer[dataDoDia_(d)]) n++;
+  }
+  return n;
+}
+
+/** O JSON de cada chave fica numa célula da aba "Config do app" (até 50 mil caracteres no Sheets). */
+function conferirTamanhoConfig_(valor, oQue) {
+  if (JSON.stringify(valor).length > 45000) throw new Error(oQue + ' ficou grande demais para a aba "' + CONFIG.ABAS.CONFIG_APP + '": apague os anos que já passaram.');
+  return valor;
+}
+
+/**
+ * Calendário dos ciclos: { BOT: [{ ciclo, inicio, fim }], EUD: [...] }. Cada ciclo precisa de nome e das
+ * duas datas (fim no mesmo dia do início ou depois, até um ano); num mesmo calendário, um nome aparece uma
+ * vez e os ciclos não se sobrepõem. Sai na ordem do início.
+ */
+function normalizarCalendarioCiclos_(valor) {
+  const saida = {};
+  Object.keys(CALENDARIOS).forEach(function (cal) {
+    const nomeCal = CALENDARIOS[cal].nome;
+    const vistos = {};
+    const lista = (Array.isArray((valor || {})[cal]) ? valor[cal] : []).map(function (c, i) {
+      const onde = 'Calendário ' + nomeCal + ', linha ' + (i + 1);
+      const ciclo = texto_(c && c.ciclo).replace(/\s+/g, ' ').slice(0, 40);
+      const inicio = dataAntecipacao_(c && c.inicio);
+      const fim = dataAntecipacao_(c && c.fim);
+      if (!ciclo && !inicio && !fim) return null;
+      if (!ciclo) throw new Error(onde + ': dê o nome do ciclo (o mesmo do app, ex.: C15/2026).');
+      if (!inicio || !fim) throw new Error(onde + ' (' + ciclo + '): preencha o início e o fim com datas válidas.');
+      const dias = diaDaData_(fim) - diaDaData_(inicio) + 1;
+      if (dias < 1) throw new Error(onde + ' (' + ciclo + '): o fim (' + dataAntecipacaoTexto_(fim) + ') vem antes do início (' + dataAntecipacaoTexto_(inicio) + ').');
+      if (dias > 366) throw new Error(onde + ' (' + ciclo + '): o ciclo passa de um ano. Confira as datas.');
+      const k = chave_(ciclo);
+      if (vistos[k]) throw new Error('Calendário ' + nomeCal + ': o ciclo ' + ciclo + ' aparece duas vezes.');
+      vistos[k] = true;
+      return { ciclo: ciclo, inicio: inicio, fim: fim };
+    }).filter(Boolean).sort(function (a, b) { return a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : 0; });
+    lista.forEach(function (c, i) {
+      const ant = lista[i - 1];
+      if (ant && c.inicio <= ant.fim) {
+        throw new Error('Calendário ' + nomeCal + ': o ' + c.ciclo + ' (começa em ' + dataAntecipacaoTexto_(c.inicio) + ') se sobrepõe ao ' +
+          ant.ciclo + ' (termina em ' + dataAntecipacaoTexto_(ant.fim) + ').');
+      }
+    });
+    saida[cal] = lista;
+  });
+  return conferirTamanhoConfig_(saida, 'O calendário dos ciclos');
+}
+
+/** Feriados: [{ data, nome }] na ordem da data, uma vez cada data. */
+function normalizarFeriados_(valor) {
+  const vistos = {};
+  const lista = (Array.isArray(valor) ? valor : []).map(function (f, i) {
+    const onde = 'Feriado ' + (i + 1);
+    const data = dataAntecipacao_(f && f.data);
+    const nome = texto_(f && f.nome).replace(/\s+/g, ' ').slice(0, 60);
+    if (!data && !nome) return null;
+    if (!data) throw new Error(onde + (nome ? ' (' + nome + ')' : '') + ': a data não é válida (use dd/mm/aaaa).');
+    if (vistos[data]) throw new Error('O feriado de ' + dataAntecipacaoTexto_(data) + ' aparece duas vezes.');
+    vistos[data] = true;
+    return { data: data, nome: nome || 'Feriado' };
+  }).filter(Boolean).sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+  return conferirTamanhoConfig_(lista, 'A lista de feriados');
+}
+
+/**
+ * Avisos do calendário (não impedem de salvar): dias sem ciclo entre um ciclo e o seguinte e ciclos que
+ * começam num feriado ou num fim de semana.
+ */
+function avisosCalendario_(calendario, feriados) {
+  const fer = {};
+  (feriados || []).forEach(function (f) { fer[f.data] = f.nome; });
+  const avisos = [];
+  Object.keys(CALENDARIOS).forEach(function (cal) {
+    const nomeCal = CALENDARIOS[cal].nome;
+    const lista = (calendario || {})[cal] || [];
+    lista.forEach(function (c, i) {
+      const ant = lista[i - 1];
+      const buraco = ant ? diaDaData_(c.inicio) - diaDaData_(ant.fim) - 1 : 0;
+      if (buraco > 0) {
+        avisos.push(nomeCal + ': ' + buraco + (buraco === 1 ? ' dia' : ' dias') + ' sem ciclo entre o ' + ant.ciclo + ' e o ' + c.ciclo + '.');
+      }
+      if (fer[c.inicio]) avisos.push(nomeCal + ': o ' + c.ciclo + ' começa num feriado (' + fer[c.inicio] + ', ' + dataAntecipacaoTexto_(c.inicio) + ').');
+      else if ([0, 6].indexOf(new Date(diaDaData_(c.inicio) * 86400000).getUTCDay()) >= 0) {
+        avisos.push(nomeCal + ': o ' + c.ciclo + ' começa num fim de semana (' + dataAntecipacaoTexto_(c.inicio) + ').');
+      }
+    });
+  });
+  return avisos;
+}
+
 /** Tira as linhas de uma planta de uma aba (as de "TODAS" ficam). */
 function semLinhasDaPlanta_(valores, colunas, planta) {
   if (!valores || valores.length < 2) return valores;
@@ -5371,7 +5637,9 @@ function semLinhasDaPlanta_(valores, colunas, planta) {
 
 /**
  * Aplica um pedido do Desenvolvedor. A configuração (cfg) muda no lugar; as abas que mudam são gravadas pelo io.
- *  - config:          { chave, valor }   troca uma chave inteira (espacosPorEr, herancaEntreErs, senhas);
+ *  - config:          { chave, valor }   troca uma chave inteira (espacosPorEr, herancaEntreErs, senhas,
+ *                                        calendarioCiclos, feriados);
+ *  - calendario:      { calendarioCiclos, feriados } troca os dois (seção Calendário do painel);
  *  - padrao:          { chave }          volta a chave ao que está no código;
  *  - renomearPlanta:  { planta, nome }   o nome antigo continua valendo como apelido;
  *  - ordemPlantas:    { ordem: [ids] }   ordem das plantas (é a ordem da cascata);
@@ -5402,7 +5670,13 @@ function aplicarAcaoConfigDev_(cfg, pedido, io) {
     if (p.chave === 'espacosPorEr') cfg.espacosPorEr = normalizarEspacosPorEr_(p.valor, ordenar(ids));
     else if (p.chave === 'herancaEntreErs') cfg.herancaEntreErs = normalizarHeranca_(p.valor, ordenar(ids));
     else if (p.chave === 'senhas') cfg.senhas = normalizarSenhas_(p.valor);
+    else if (p.chave === 'calendarioCiclos') cfg.calendarioCiclos = normalizarCalendarioCiclos_(p.valor);
+    else if (p.chave === 'feriados') cfg.feriados = normalizarFeriados_(p.valor);
     else throw new Error('Configuração desconhecida: ' + p.chave + '.');
+  } else if (p.acao === 'calendario') {
+    // O calendário dos ciclos e os feriados juntos (a seção Calendário do painel salva os dois de uma vez).
+    cfg.calendarioCiclos = normalizarCalendarioCiclos_(p.calendarioCiclos);
+    cfg.feriados = normalizarFeriados_(p.feriados);
   } else if (p.acao === 'padrao') {
     if (!CHAVES_CONFIG_APP[p.chave] || p.chave === 'plantas') throw new Error('Configuração desconhecida: ' + p.chave + '.');
     delete cfg[p.chave];
@@ -5457,6 +5731,10 @@ function respostaConfigDev_(cfg, layout) {
     espacosPorEr: clonarJson_(ESPACOS_POR_ER),
     herancaEntreErs: clonarJson_(HERANCA_ENTRE_ERS),
     senhas: clonarJson_(SENHAS_ACESSO),
+    calendarios: clonarJson_(CALENDARIOS),
+    calendarioCiclos: clonarJson_(CALENDARIO_CICLOS),
+    feriados: clonarJson_(FERIADOS),
+    calendarioAvisos: avisosCalendario_(CALENDARIO_CICLOS, FERIADOS),
     mudou: Object.keys(CHAVES_CONFIG_APP).filter(function (k) { return cfg[k] !== undefined; }),
     padrao: { espacosPorEr: padrao.espacosPorEr, herancaEntreErs: padrao.herancaEntreErs },
   };
@@ -5808,6 +6086,10 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7H3"/></svg>
             Analytics
           </button>
+          <button id="btnCalendario" class="btn painel-botao" type="button" aria-pressed="false" title="Calendário dos ciclos: quando cada ciclo (Boticário e Eudora) começa e termina, com os movimentos empilhados por GMV esperado e exposição">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 13.5h3v4H8z"/></svg>
+            Calendário
+          </button>
         </div>
         <span class="acoes-divisor" aria-hidden="true"></span>
         <button id="btnAtualizar" class="btn fantasma" type="button" title="Ler a planilha de novo">
@@ -5863,7 +6145,7 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
               Ver o tutorial
             </button>
             <span class="menu-divisor" aria-hidden="true"></span>
-            <button id="btnDesenvolvedor" class="menu-item menu-dev" type="button" role="menuitem" aria-pressed="false" aria-haspopup="dialog" aria-controls="dlgDev" title="Construir loja, planilha base, plantas, regras da cascata, senhas e planilhas (pede senha)">
+            <button id="btnDesenvolvedor" class="menu-item menu-dev" type="button" role="menuitem" aria-pressed="false" aria-haspopup="dialog" aria-controls="dlgDev" title="Construir loja, planilha base, plantas, regras da cascata, calendário dos ciclos, senhas e planilhas (pede senha)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M13.5 5l-3 14"/></svg>
               Modo desenvolvedor
             </button>
@@ -5946,6 +6228,19 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
           <strong>Página em construção</strong> | pode conter erros nos dados e cálculos
         </p>
         <div id="anCorpo" class="an-corpo"></div>
+      </section>
+      <!-- Calendário dos ciclos (Calendario.html): no lugar da planta, na largura toda. -->
+      <section class="calendario" id="painelCalendario" hidden aria-label="Calendário dos ciclos">
+        <header class="an-topo">
+          <div>
+            <h2>Calendário dos ciclos</h2>
+            <span id="calSub"></span>
+          </div>
+          <div class="an-topo-acoes">
+            <button id="calFechar" class="btn" type="button" title="Fechar o calendário (Esc)">Fechar ✕</button>
+          </div>
+        </header>
+        <div id="calCorpo" class="cal-corpo"></div>
       </section>
       <aside class="painel-espaco painel-validacao" id="painelValidacao" hidden aria-label="Validação da estratégia">
         <header class="esp-topo">
@@ -6240,7 +6535,7 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
             <span class="dev-selo" aria-hidden="true">&lt;/&gt;</span>
             <div>
               <h2 id="devTitulo">Painel do desenvolvedor</h2>
-              <p>Construção da loja, plantas, regras da cascata, senhas e planilhas</p>
+              <p>Construção da loja, plantas, regras da cascata, calendário dos ciclos, senhas e planilhas</p>
             </div>
           </div>
           <div class="dev-topo-acoes">
@@ -6253,8 +6548,9 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
             <button class="dev-aba" type="button" role="tab" data-dev-aba="modulos" aria-selected="true"><span>01</span>Construção da loja</button>
             <button class="dev-aba" type="button" role="tab" data-dev-aba="plantas" aria-selected="false"><span>02</span>Plantas</button>
             <button class="dev-aba" type="button" role="tab" data-dev-aba="cascata" aria-selected="false"><span>03</span>Cascata entre ERs</button>
-            <button class="dev-aba" type="button" role="tab" data-dev-aba="senhas" aria-selected="false"><span>04</span>Senhas</button>
-            <button class="dev-aba" type="button" role="tab" data-dev-aba="planilhas" aria-selected="false"><span>05</span>Planilhas</button>
+            <button class="dev-aba" type="button" role="tab" data-dev-aba="calendario" aria-selected="false"><span>04</span>Calendário</button>
+            <button class="dev-aba" type="button" role="tab" data-dev-aba="senhas" aria-selected="false"><span>05</span>Senhas</button>
+            <button class="dev-aba" type="button" role="tab" data-dev-aba="planilhas" aria-selected="false"><span>06</span>Planilhas</button>
           </nav>
           <div class="dev-corpo">
             <p class="dev-msg" id="devMsg" role="status" hidden></p>
@@ -6280,6 +6576,7 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
             </section>
             <section class="dev-painel" data-dev-painel="plantas" id="devPlantas" aria-label="Plantas" hidden></section>
             <section class="dev-painel" data-dev-painel="cascata" id="devCascata" aria-label="Cascata entre ERs" hidden></section>
+            <section class="dev-painel" data-dev-painel="calendario" id="devCalendario" aria-label="Calendário dos ciclos e feriados" hidden></section>
             <section class="dev-painel" data-dev-painel="senhas" id="devSenhas" aria-label="Senhas" hidden></section>
             <section class="dev-painel" data-dev-painel="planilhas" id="devPlanilhas" aria-label="Planilhas" hidden></section>
           </div>
@@ -6308,7 +6605,7 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
     <dialog id="dlgDesenvolvedor" class="dialogo dev-acesso">
       <form id="formDesenvolvedor">
         <h2>Desenvolvedor</h2>
-        <p class="sub">Digite a senha para abrir o painel do desenvolvedor: construção da loja, plantas, regras da cascata, senhas e planilhas.</p>
+        <p class="sub">Digite a senha para abrir o painel do desenvolvedor: construção da loja, plantas, regras da cascata, calendário dos ciclos, senhas e planilhas.</p>
         <label class="acesso-campo">Senha <input type="password" id="devSenha" autocomplete="current-password" required></label>
         <p class="acesso-erro" id="devErro" role="alert" hidden></p>
         <div class="rodape-dialogo">
@@ -10174,12 +10471,15 @@ const Construtor = (() => {
  *  DESENVOLVEDOR (item "Modo desenvolvedor" da engrenagem)
  * ============================================================================
  *  O item pede a senha do Desenvolvedor (SENHAS_ACESSO.DESENVOLVEDOR, trocável aqui mesmo), como a
- *  Validação e a Construção pedem a delas, e abre o painel do desenvolvedor, com cinco seções:
+ *  Validação e a Construção pedem a delas, e abre o painel do desenvolvedor, com seis seções:
  *   - Construção da loja: Construir loja, Baixar planilha base e Importar planilha; escolher um fecha o painel;
  *   - Plantas: o painel de controle de cada planta (nome, ordem da cascata, tamanho da loja e das
  *     etiquetas, abrir no Construir loja, duplicar e apagar);
  *   - Cascata entre ERs: espaços fixos de uma marca em algumas ERs e livres nas outras e espaços que mudam
  *     de nome de uma ER para a seguinte;
+ *   - Calendário: o início e o fim de cada ciclo no calendário do Boticário (que vale para todas as marcas,
+ *     menos a Eudora) e no da Eudora, ligados aos ciclos do app pelo nome, e os feriados (a aba Calendário
+ *     do topo mostra os ciclos e os movimentos num calendário vertical);
  *   - Senhas: as do Desenvolvedor, da Validação e da Construção;
  *   - Planilhas: onde ficam as abas; o layout (aba Layout) pode ficar numa planilha separada (Code.gs).
  *  Enquanto a sessão está aberta, a faixa "Modo desenvolvedor" fica no alto da tela. A senha fica só nesta
@@ -10188,12 +10488,15 @@ const Construtor = (() => {
 const Desenvolvedor = (() => {
   const CHAVE = 'planoVarejo.desenvolvedor';
   const $ = (id) => document.getElementById(id);
-  let app = null; // { estado, chamar, toast, erro, carregar, carregando, plantaAtual, trocarPlanta, espacos, layoutDe, novaPlanta, aoSair }
+  let app = null; // { estado, chamar, toast, erro, carregar, carregando, plantaAtual, trocarPlanta, espacos, ciclos, layoutDe, novaPlanta, aoSair }
   let acesso = null; // { senha }
   let aba = 'modulos';
   let config = null; // resposta de getConfigDev (Desenvolvedor.gs)
   let edEspacos = null; // regras em edição (espaços fixos numa ER e livres nas outras)
   let edHeranca = null; // regras em edição (mudanças de espaço entre ERs)
+  let edCalendario = null; // calendário dos ciclos em edição: { BOT: [{ ciclo, inicio, fim }], EUD: [...] }
+  let edFeriados = null; // feriados em edição: [{ data, nome }]
+  let calSujo = false; // o calendário ou os feriados em edição mudaram e não foram salvos
   let planilhas = null; // resposta de getPlanilhas (Code.gs)
 
   const sessao = {
@@ -10245,7 +10548,7 @@ const Desenvolvedor = (() => {
     document.body.classList.toggle('modo-dev', dentro);
     $('devFaixa').hidden = !dentro;
     $('btnDesenvolvedor').setAttribute('aria-pressed', String(dentro));
-    $('btnDesenvolvedor').title = dentro ? 'Abrir o painel do desenvolvedor' : 'Construir loja, planilha base, plantas, regras da cascata, senhas e planilhas (pede senha)';
+    $('btnDesenvolvedor').title = dentro ? 'Abrir o painel do desenvolvedor' : 'Construir loja, planilha base, plantas, regras da cascata, calendário dos ciclos, senhas e planilhas (pede senha)';
   }
 
   function abrirAcesso() {
@@ -10324,6 +10627,8 @@ const Desenvolvedor = (() => {
       config = await app.chamar('getConfigDev', acesso);
       edEspacos = null;
       edHeranca = null;
+      edCalendario = null;
+      edFeriados = null;
       desenharTudo();
       recarregarPlanilhas();
     } catch (e) {
@@ -10348,6 +10653,8 @@ const Desenvolvedor = (() => {
       config = await app.chamar('salvarConfigDev', acesso, pedido);
       edEspacos = null;
       edHeranca = null;
+      edCalendario = null;
+      edFeriados = null;
       await app.carregar({ planta: app.estado.planta });
       desenharTudo();
       mensagem(ok);
@@ -10364,6 +10671,7 @@ const Desenvolvedor = (() => {
     if (!config) return;
     desenharPlantas();
     desenharCascata();
+    desenharCalendario();
     desenharSenhas();
   }
 
@@ -10694,6 +11002,275 @@ const Desenvolvedor = (() => {
   function selo(pai, chave) {
     const mudou = config.mudou.indexOf(chave) >= 0;
     n('span', 'dev-selo-estado' + (mudou ? ' mudou' : ''), mudou ? 'personalizado' : 'padrão do código', pai);
+  }
+
+  /* ------------------------------ calendário ------------------------------- */
+
+  const Datas = () => Calendario.datas;
+
+  function edicaoCalendario() {
+    if (!edCalendario) {
+      edCalendario = {};
+      Object.keys(config.calendarioCiclos).forEach((k) => { edCalendario[k] = config.calendarioCiclos[k].map((c) => Object.assign({}, c)); });
+    }
+    if (!edFeriados) { edFeriados = config.feriados.map((f) => Object.assign({}, f)); calSujo = false; }
+    return edCalendario;
+  }
+
+  /** "C01/2027" → "C02/2027"; "Ciclo 9" → "Ciclo 10" (o primeiro número do nome, com os mesmos zeros). */
+  function proximoNome(nome, passo) {
+    const m = /^(\D*)(\d+)(.*)$/.exec(String(nome || '').trim());
+    if (!m) return '';
+    const n = String(+m[2] + (passo || 1));
+    return m[1] + (n.length < m[2].length ? '0'.repeat(m[2].length - n.length) : '') + n + m[3];
+  }
+
+  /** Linhas coladas do Excel (colunas separadas por tabulação ou ";"): as células que são datas e as que não são. */
+  function linhasColadas(texto) {
+    return String(texto || '').split(/\r?\n/).map((l) => l.split(/\t|;/).map((c) => c.trim()).filter(Boolean)).filter((l) => l.length)
+      .map((cels) => ({ datas: cels.map((c) => Datas().ler(c)).filter(Boolean), textos: cels.filter((c) => !Datas().ler(c)) }));
+  }
+
+  /** Junta ciclos novos aos da lista (o mesmo nome é substituído) e ordena pelo início. */
+  function juntarCiclos(lista, novos) {
+    const k = (c) => Calendario.chaveCiclo(c.ciclo);
+    novos.forEach((c) => {
+      const i = lista.findIndex((x) => k(x) === k(c));
+      if (i >= 0) lista[i] = c; else lista.push(c);
+    });
+    lista.sort((a, b) => (a.inicio || '9') < (b.inicio || '9') ? -1 : (a.inicio || '9') > (b.inicio || '9') ? 1 : 0);
+  }
+
+  function desenharCalendario() {
+    const corpo = $('devCalendario');
+    corpo.innerHTML = '';
+    const cal = edicaoCalendario();
+    const feriados = edFeriados;
+    const doApp = {};
+    (app.ciclos ? app.ciclos() : app.estado.dados.ciclos).forEach((c) => { doApp[Calendario.chaveCiclo(c)] = c; });
+
+    const topo = n('div', 'dev-secao-topo', null, corpo);
+    const t = n('div', null, null, topo);
+    n('h3', 'dev-titulo', 'Calendário dos ciclos', t);
+    n('p', 'dev-nota', 'O início e o fim de cada ciclo, em dois calendários: o do Boticário, que vale para todas as marcas (QDB, O.U.i, multimarca…), e o da Eudora, a única com calendário próprio. O nome liga a linha ao ciclo do app (o do seletor; maiúsculas e acentos não importam). Os feriados entram na conta dos dias úteis. A aba Calendário, no topo do app, mostra os ciclos e os movimentos de cada um.', t);
+    selo(topo, 'calendarioCiclos');
+
+    // Ciclos do app: sugestões do nome.
+    const lista = n('datalist', null, null, corpo);
+    lista.id = 'devCiclosApp';
+    Object.values(doApp).forEach((c) => { n('option', null, null, lista).value = c; });
+
+    const estado = n('p', 'dev-resumo dev-cal-estado', null);
+    estado.id = 'devCalEstado';
+    const sujo = () => {
+      calSujo = true;
+      const e = $('devCalEstado');
+      if (e) e.textContent = 'Há mudanças não salvas: clique em Salvar calendário e feriados.';
+    };
+    if (calSujo) estado.textContent = 'Há mudanças não salvas: clique em Salvar calendário e feriados.';
+    const resumoCiclos = () => {
+      const ligados = {};
+      Object.keys(cal).forEach((k) => cal[k].forEach((c) => { const a = doApp[Calendario.chaveCiclo(c.ciclo)]; if (a) ligados[a] = true; }));
+      return Object.values(doApp).filter((c) => !ligados[c]);
+    };
+
+    Object.keys(config.calendarios || {}).forEach((k) => {
+      const info = config.calendarios[k];
+      const ciclos = cal[k] = cal[k] || [];
+      const bloco = n('section', 'dev-bloco', null, corpo);
+      bloco.dataset.calendario = k;
+      const tb = n('div', 'dev-secao-topo', null, bloco);
+      const dt = n('div', null, null, tb);
+      n('h3', 'dev-titulo', 'Calendário ' + info.nome, dt);
+      n('p', 'dev-nota', info.descricao + '. ' + ciclos.length + (ciclos.length === 1 ? ' ciclo.' : ' ciclos.'), dt);
+
+      const tabela = n('table', 'dev-tabela', null, bloco);
+      const cab = n('tr', null, null, n('thead', null, null, tabela));
+      ['Ciclo (nome no app)', 'Início', 'Fim', 'Dias', 'No app', ''].forEach((x) => { n('th', null, x, cab).scope = 'col'; });
+      const tbody = n('tbody', null, null, tabela);
+      if (!ciclos.length) {
+        const tr = n('tr', null, null, tbody);
+        const td = n('td', 'dev-vazio', 'Nenhum ciclo. Use + Ciclo, Gerar ciclos ou Colar do Excel.', tr);
+        td.colSpan = 6;
+      }
+      ciclos.forEach((c, i) => {
+        const tr = n('tr', null, null, tbody);
+        const nome = entrada(n('td', null, null, tr), c.ciclo, 'text', { maxLength: 40, placeholder: 'C01/2027', className: 'dev-cal-nome' });
+        nome.setAttribute('list', 'devCiclosApp');
+        nome.setAttribute('aria-label', 'Nome do ciclo');
+        const ini = entrada(n('td', null, null, tr), c.inicio, 'date');
+        ini.setAttribute('aria-label', 'Início do ' + (c.ciclo || 'ciclo'));
+        const fim = entrada(n('td', null, null, tr), c.fim, 'date');
+        fim.setAttribute('aria-label', 'Fim do ' + (c.ciclo || 'ciclo'));
+        const dias = n('td', 'dev-cal-dias', null, tr);
+        const noApp = n('td', null, null, tr);
+        const atualizar = () => {
+          const d0 = Datas().dia(c.inicio);
+          const d1 = Datas().dia(c.fim);
+          dias.textContent = isNaN(d0) || isNaN(d1) ? '—' : d1 < d0 ? 'fim antes do início'
+            : (d1 - d0 + 1) + ' (' + Datas().uteis(c.inicio, c.fim, feriados) + ' úteis)';
+          dias.classList.toggle('erro', !isNaN(d0) && !isNaN(d1) && d1 < d0);
+          noApp.innerHTML = '';
+          const a = doApp[Calendario.chaveCiclo(c.ciclo)];
+          const chip = n('span', 'dev-chip' + (a ? ' ok' : ''), a ? '✓ ' + a : c.ciclo ? 'não existe no app' : '—', noApp);
+          chip.title = a ? 'Ligado ao ciclo ' + a + ' do app' : 'Nenhum ciclo do app com este nome (pode ser um ciclo futuro)';
+        };
+        nome.addEventListener('input', () => { c.ciclo = nome.value; atualizar(); sujo(); });
+        ini.addEventListener('change', () => { c.inicio = ini.value; atualizar(); sujo(); });
+        fim.addEventListener('change', () => { c.fim = fim.value; atualizar(); sujo(); });
+        atualizar();
+        botao('×', 'icone', () => { ciclos.splice(i, 1); desenharCalendario(); sujo(); }, n('td', null, null, tr)).title = 'Tirar o ciclo';
+      });
+
+      const acoes = n('div', 'dev-planta-acoes', null, bloco);
+      botao('+ Ciclo', '', () => {
+        const ult = ciclos[ciclos.length - 1];
+        const d0 = ult ? Datas().dia(ult.inicio) : NaN;
+        const d1 = ult ? Datas().dia(ult.fim) : NaN;
+        if (ult && !isNaN(d0) && !isNaN(d1) && d1 >= d0) {
+          ciclos.push({ ciclo: proximoNome(ult.ciclo), inicio: Datas().iso(d1 + 1), fim: Datas().iso(d1 + 1 + (d1 - d0)) });
+        } else {
+          ciclos.push({ ciclo: '', inicio: '', fim: '' });
+        }
+        desenharCalendario();
+        sujo();
+      }, acoes).title = 'Um ciclo depois do último, com a mesma duração';
+
+      // Gerar vários ciclos seguidos.
+      const gerar = n('details', 'dev-cal-ferramenta', null, bloco);
+      n('summary', null, 'Gerar ciclos seguidos', gerar);
+      const g = n('div', 'dev-campos', null, gerar);
+      const ult = ciclos[ciclos.length - 1];
+      const dUlt = ult ? Datas().dia(ult.fim) : NaN;
+      const gNome = entrada(campo('Primeiro ciclo', g), ult ? proximoNome(ult.ciclo) : 'C01/' + new Date().getFullYear(), 'text', { maxLength: 40 });
+      const gIni = entrada(campo('Início do primeiro', g), isNaN(dUlt) ? '' : Datas().iso(dUlt + 1), 'date');
+      const gDur = entrada(campo('Duração (dias)', g), 21, 'number', { min: 1, max: 120, step: 1 });
+      const gQtd = entrada(campo('Quantidade', g), 17, 'number', { min: 1, max: 60, step: 1 });
+      const gUtil = n('label', 'dev-opcao', null, gerar);
+      const cUtil = entrada(gUtil, '', 'checkbox');
+      n('span', null, 'Se um ciclo começar num feriado ou fim de semana, ele começa no próximo dia útil (e o anterior termina na véspera)', gUtil);
+      const gAcoes = n('div', 'dev-planta-acoes', null, gerar);
+      botao('Gerar', 'pequeno', () => {
+        const qtd = Math.min(60, Math.max(1, Math.round(+gQtd.value) || 0));
+        const dur = Math.min(120, Math.max(1, Math.round(+gDur.value) || 0));
+        const d0 = Datas().dia(gIni.value);
+        if (!gNome.value.trim() || !/\d/.test(gNome.value)) { mensagem('Gerar ciclos: dê o nome do primeiro ciclo com um número (ex.: C01/2027).', true); return; }
+        if (isNaN(d0)) { mensagem('Gerar ciclos: escolha o início do primeiro ciclo.', true); return; }
+        const ajusta = (d) => (cUtil.checked ? Datas().proximoUtil(d, feriados) : d);
+        const inicios = [ajusta(d0)];
+        for (let i = 1; i <= qtd; i++) inicios.push(ajusta(inicios[i - 1] + dur));
+        const novos = [];
+        for (let i = 0; i < qtd; i++) {
+          novos.push({ ciclo: i ? proximoNome(gNome.value.trim(), i) : gNome.value.trim(), inicio: Datas().iso(inicios[i]), fim: Datas().iso(i === qtd - 1 ? inicios[i] + dur - 1 : inicios[i + 1] - 1) });
+        }
+        juntarCiclos(ciclos, novos);
+        desenharCalendario();
+        sujo();
+        mensagem(qtd + (qtd === 1 ? ' ciclo gerado' : ' ciclos gerados') + ' no calendário ' + info.nome + ' (' + novos[0].ciclo + ' a ' + novos[novos.length - 1].ciclo + '). Confira e salve.');
+      }, gAcoes);
+
+      // Colar do Excel: ciclo, início e fim (o fim pode faltar: vai até a véspera do seguinte).
+      const colar = n('details', 'dev-cal-ferramenta', null, bloco);
+      n('summary', null, 'Colar do Excel', colar);
+      n('p', 'dev-nota', 'Uma linha por ciclo, com as colunas Ciclo, Início e Fim (copie as células da planilha e cole aqui). Sem o fim, o ciclo vai até a véspera do seguinte. Um ciclo que já está na lista é substituído.', colar);
+      const area = n('textarea', 'dev-cal-colar', null, colar);
+      area.rows = 4;
+      area.placeholder = 'C01/2027\t02/01/2027\t22/01/2027\nC02/2027\t23/01/2027\t12/02/2027';
+      area.setAttribute('aria-label', 'Ciclos colados do Excel (calendário ' + info.nome + ')');
+      botao('Usar as linhas coladas', 'pequeno', () => {
+        const novos = linhasColadas(area.value).filter((l) => l.textos.length && l.datas.length)
+          .map((l) => ({ ciclo: l.textos[0], inicio: l.datas[0], fim: l.datas[1] || '' }));
+        if (!novos.length) { mensagem('Colar do Excel: nenhuma linha com o nome do ciclo e uma data (dd/mm/aaaa).', true); return; }
+        novos.sort((a, b) => (a.inicio < b.inicio ? -1 : 1));
+        novos.forEach((c, i) => { if (!c.fim && novos[i + 1]) c.fim = Datas().iso(Datas().dia(novos[i + 1].inicio) - 1); });
+        juntarCiclos(ciclos, novos);
+        desenharCalendario();
+        sujo();
+        mensagem(novos.length + (novos.length === 1 ? ' ciclo colado' : ' ciclos colados') + ' no calendário ' + info.nome + '. Confira e salve.');
+      }, n('div', 'dev-planta-acoes', null, colar));
+    });
+
+    // Feriados.
+    const bf = n('section', 'dev-bloco', null, corpo);
+    bf.dataset.feriados = '';
+    const tf = n('div', 'dev-secao-topo', null, bf);
+    const df = n('div', null, null, tf);
+    n('h3', 'dev-titulo', 'Feriados', df);
+    n('p', 'dev-nota', 'Os dias úteis de cada ciclo são de segunda a sexta, menos os feriados. No calendário do app, os feriados aparecem em vermelho.', df);
+    selo(tf, 'feriados');
+    const tabF = n('table', 'dev-tabela', null, bf);
+    const cabF = n('tr', null, null, n('thead', null, null, tabF));
+    ['Data', 'Dia', 'Feriado', ''].forEach((x) => { n('th', null, x, cabF).scope = 'col'; });
+    const corpoF = n('tbody', null, null, tabF);
+    if (!feriados.length) { const td = n('td', 'dev-vazio', 'Nenhum feriado.', n('tr', null, null, corpoF)); td.colSpan = 4; }
+    feriados.forEach((f, i) => {
+      const tr = n('tr', null, null, corpoF);
+      const data = entrada(n('td', null, null, tr), f.data, 'date');
+      data.setAttribute('aria-label', 'Data do feriado');
+      const dia = n('td', 'dev-cal-dias', null, tr);
+      const nome = entrada(n('td', null, null, tr), f.nome, 'text', { maxLength: 60, placeholder: 'Nome do feriado', className: 'dev-cal-feriado' });
+      nome.setAttribute('aria-label', 'Nome do feriado');
+      const atualizar = () => {
+        const d = Datas().dia(f.data);
+        dia.textContent = isNaN(d) ? '—' : ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'][Datas().semana(d)];
+      };
+      data.addEventListener('change', () => { f.data = data.value; atualizar(); sujo(); });
+      nome.addEventListener('input', () => { f.nome = nome.value; sujo(); });
+      atualizar();
+      botao('×', 'icone', () => { feriados.splice(i, 1); desenharCalendario(); sujo(); }, n('td', null, null, tr)).title = 'Tirar o feriado';
+    });
+    const af = n('div', 'dev-planta-acoes', null, bf);
+    botao('+ Feriado', '', () => { feriados.push({ data: '', nome: '' }); desenharCalendario(); sujo(); }, af);
+    const ano = n('select', null, null, af);
+    ano.setAttribute('aria-label', 'Ano dos feriados nacionais');
+    const agora = new Date().getFullYear();
+    for (let a = agora - 1; a <= agora + 3; a++) ano.add(new Option(String(a), String(a), false, a === agora));
+    botao('+ Feriados nacionais do ano', '', () => {
+      const novos = Datas().nacionais(+ano.value).filter((x) => !feriados.some((f) => f.data === x.data));
+      novos.forEach((x) => feriados.push(x));
+      feriados.sort((a, b) => ((a.data || '9') < (b.data || '9') ? -1 : 1));
+      desenharCalendario();
+      if (novos.length) sujo();
+      mensagem(novos.length ? novos.length + ' feriados nacionais de ' + ano.value + ' entraram na lista (Carnaval e Corpus Christi são ponto facultativo: tire se não valerem). Confira e salve.'
+        : 'Os feriados nacionais de ' + ano.value + ' já estão na lista.');
+    }, af).title = 'Fixos, Sexta-feira Santa e, como ponto facultativo, Carnaval e Corpus Christi';
+    const colarF = n('details', 'dev-cal-ferramenta', null, bf);
+    n('summary', null, 'Colar do Excel', colarF);
+    n('p', 'dev-nota', 'Uma linha por feriado, com a data e o nome (ex.: 20/01/2027 e São Sebastião). Uma data que já está na lista tem o nome trocado.', colarF);
+    const areaF = n('textarea', 'dev-cal-colar', null, colarF);
+    areaF.rows = 3;
+    areaF.placeholder = '20/01/2027\tSão Sebastião';
+    areaF.setAttribute('aria-label', 'Feriados colados do Excel');
+    botao('Usar as linhas coladas', 'pequeno', () => {
+      const novos = linhasColadas(areaF.value).filter((l) => l.datas.length).map((l) => ({ data: l.datas[0], nome: l.textos.join(' ') || 'Feriado' }));
+      if (!novos.length) { mensagem('Colar do Excel: nenhuma linha com uma data (dd/mm/aaaa).', true); return; }
+      novos.forEach((x) => {
+        const f = feriados.find((y) => y.data === x.data);
+        if (f) f.nome = x.nome; else feriados.push(x);
+      });
+      feriados.sort((a, b) => ((a.data || '9') < (b.data || '9') ? -1 : 1));
+      desenharCalendario();
+      sujo();
+      mensagem(novos.length + (novos.length === 1 ? ' feriado colado' : ' feriados colados') + '. Confira e salve.');
+    }, n('div', 'dev-planta-acoes', null, colarF));
+
+    // Salvar, avisos e os ciclos do app sem datas.
+    const fim = n('section', 'dev-bloco', null, corpo);
+    const semDatas = resumoCiclos();
+    if (semDatas.length) n('p', 'dev-nota', 'Ciclos do app sem datas: ' + semDatas.join(', ') + '.', fim);
+    if (config.calendarioAvisos && config.calendarioAvisos.length) {
+      n('span', 'dev-rotulo', 'Avisos do calendário salvo', fim);
+      const ul = n('ul', 'dev-cal-avisos', null, fim);
+      config.calendarioAvisos.forEach((a) => n('li', null, a, ul));
+    }
+    const acoes = n('div', 'dev-planta-acoes', null, fim);
+    botao('Salvar calendário e feriados', 'primario', () => mudar({
+      acao: 'calendario',
+      calendarioCiclos: cal,
+      feriados: feriados,
+    }, 'Calendário e feriados salvos.'), acoes);
+    botao('Descartar mudanças', '', () => { edCalendario = null; edFeriados = null; desenharCalendario(); mensagem(''); }, acoes);
+    fim.appendChild(estado);
   }
 
   /* -------------------------------- senhas --------------------------------- */
@@ -14811,6 +15388,426 @@ const Analytics = (() => {
     <script>
 /**
  * ============================================================================
+ *  CALENDÁRIO DOS CICLOS (botão "Calendário" no topo)
+ * ============================================================================
+ *  Um calendário vertical (o tempo corre para baixo), com uma coluna por calendário de ciclos: a do
+ *  Boticário (que vale para todas as marcas, menos a Eudora) e a da Eudora. Em cada coluna, cada ciclo
+ *  tem a sua faixa, do dia do início ao dia do fim, e cada movimento do ciclo é um retângulo que começa
+ *  no início e termina no fim do ciclo. Um movimento entra no calendário da marca que tem mais espaço
+ *  nele: Eudora vai para a coluna da Eudora; as outras marcas (e o movimento sem marca), para a do
+ *  Boticário.
+ *
+ *  Os retângulos de um ciclo são empilhados lado a lado, do mais importante (junto do ciclo) para o
+ *  menos importante, por uma de três ordens:
+ *   - equilíbrio (a principal): a média entre a fatia do movimento na exposição do ciclo e a fatia
+ *     dele no GMV esperado do ciclo;
+ *   - só GMV esperado;
+ *   - só exposição (quantos espaços de exposição o movimento tem no ciclo).
+ *  As contas vêm prontas da aplicação (App.dadosCalendario); aqui só o desenho. Os dias, os fins de
+ *  semana, os feriados (Desenvolvedor › Calendário) e o dia de hoje ficam no eixo da esquerda.
+ *
+ *  Calendario.datas: as contas de datas ('AAAA-MM-DD' ↔ dia corrido, dias úteis…), usadas também pelo
+ *  painel do Desenvolvedor.
+ */
+const Calendario = (() => {
+  /* -------------------------------- datas ---------------------------------- */
+
+  const DIA_MS = 86400000;
+  const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  const p2 = (n) => (n < 10 ? '0' : '') + n;
+
+  const datas = {
+    /** 'AAAA-MM-DD' → dia corrido (sem fuso nem horário de verão); NaN se inválida. */
+    dia(iso) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+      return m ? Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DIA_MS) : NaN;
+    },
+    iso(dia) { return new Date(dia * DIA_MS).toISOString().slice(0, 10); },
+    /** Dia da semana (0 = domingo). */
+    semana(dia) { return new Date(dia * DIA_MS).getUTCDay(); },
+    hoje() { const d = new Date(); return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DIA_MS); },
+    /** '2026-10-25' → '25/10/2026' (curta: '25/10'). */
+    br(iso, curta) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+      return m ? m[3] + '/' + m[2] + (curta ? '' : '/' + m[1]) : '';
+    },
+    /** Lê '25/10/2026', '25/10/26', '25-10-2026' ou '2026-10-25' → '2026-10-25' ('' se não for data). */
+    ler(texto) {
+      const s = String(texto || '').trim();
+      let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+      let a, mes, d;
+      if (m) { a = +m[1]; mes = +m[2]; d = +m[3]; } else {
+        m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/.exec(s);
+        if (!m) return '';
+        d = +m[1]; mes = +m[2]; a = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+      }
+      const t = new Date(Date.UTC(a, mes - 1, d));
+      if (t.getUTCFullYear() !== a || t.getUTCMonth() !== mes - 1 || t.getUTCDate() !== d) return '';
+      return a + '-' + p2(mes) + '-' + p2(d);
+    },
+    /** Dias úteis entre duas datas (inclusive): de segunda a sexta, menos os feriados. */
+    uteis(inicio, fim, feriados) {
+      const fer = {};
+      (feriados || []).forEach((f) => { fer[f.data] = true; });
+      let n = 0;
+      for (let d = datas.dia(inicio); d <= datas.dia(fim); d++) {
+        const s = datas.semana(d);
+        if (s !== 0 && s !== 6 && !fer[datas.iso(d)]) n++;
+      }
+      return n;
+    },
+    /** Primeiro dia útil a partir do dia (ele mesmo, se for útil). */
+    proximoUtil(dia, feriados) {
+      const fer = {};
+      (feriados || []).forEach((f) => { fer[f.data] = true; });
+      let d = dia;
+      while (datas.semana(d) === 0 || datas.semana(d) === 6 || fer[datas.iso(d)]) d++;
+      return d;
+    },
+    /**
+     * Feriados nacionais do ano (com a Páscoa pelo algoritmo de Meeus): os fixos, a Sexta-feira Santa e,
+     * como ponto facultativo, o Carnaval e o Corpus Christi.
+     */
+    nacionais(ano) {
+      const a = ano % 19; const b = Math.floor(ano / 100); const c = ano % 100;
+      const d = Math.floor(b / 4); const e = b % 4; const f = Math.floor((b + 8) / 25); const g = Math.floor((b - f + 1) / 3);
+      const h = (19 * a + b - d - g + 15) % 30; const i = Math.floor(c / 4); const k = c % 4;
+      const l = (32 + 2 * e + 2 * i - h - k) % 7; const m = Math.floor((a + 11 * h + 22 * l) / 451);
+      const mes = Math.floor((h + l - 7 * m + 114) / 31); const dia = ((h + l - 7 * m + 114) % 31) + 1;
+      const pascoa = Math.round(Date.UTC(ano, mes - 1, dia) / DIA_MS);
+      const fixo = (mm, dd, nome) => ({ data: ano + '-' + p2(mm) + '-' + p2(dd), nome });
+      const movel = (delta, nome) => ({ data: datas.iso(pascoa + delta), nome });
+      return [
+        fixo(1, 1, 'Confraternização Universal'),
+        movel(-48, 'Carnaval (ponto facultativo)'),
+        movel(-47, 'Carnaval (ponto facultativo)'),
+        movel(-2, 'Sexta-feira Santa'),
+        fixo(4, 21, 'Tiradentes'),
+        fixo(5, 1, 'Dia do Trabalho'),
+        movel(60, 'Corpus Christi (ponto facultativo)'),
+        fixo(9, 7, 'Independência do Brasil'),
+        fixo(10, 12, 'Nossa Senhora Aparecida'),
+        fixo(11, 2, 'Finados'),
+        fixo(11, 15, 'Proclamação da República'),
+        fixo(11, 20, 'Dia da Consciência Negra'),
+        fixo(12, 25, 'Natal'),
+      ].sort((x, y) => (x.data < y.data ? -1 : 1));
+    },
+  };
+
+  /** Mesmo nome de ciclo, sem diferença de maiúsculas, acentos e espaços (como o chave_ do servidor). */
+  const chaveCiclo = (v) => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  /* ------------------------------- desenho --------------------------------- */
+
+  // Escolhas da tela (valem até recarregar a página).
+  const vista = { ordem: 'equilibrio', er: '', limite: 8, escala: 'normal', calendario: '' };
+  const ORDENS = [
+    ['equilibrio', 'Equilíbrio GMV × exposição', 'Média entre a fatia do movimento no GMV esperado do ciclo e a fatia dele no espaço de exposição'],
+    ['gmv', 'Só GMV', 'Só o GMV esperado (aba Tipos de movimento)'],
+    ['exposicao', 'Só exposição', 'Só a quantidade de espaços de exposição do movimento no ciclo'],
+  ];
+  const ESCALAS = { compacta: 9, normal: 16, ampla: 28 }; // px por dia
+  const LARGURA = { eixo: 112, ciclo: 128, raia: 156, vao: 8, topo: 52 };
+
+  const fmtPct = (v) => (v > 0 && v < 0.005 ? '<1%' : Math.round(v * 100) + '%');
+  const fmtNum = (n) => (Math.round(n * 10) / 10).toLocaleString('pt-BR');
+  const gmvCurto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 });
+  const gmvCompleto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
+  function novo(tag, classe, conteudo, pai) {
+    const n = document.createElement(tag);
+    if (classe) n.className = classe;
+    if (conteudo !== undefined && conteudo !== null) n.textContent = conteudo;
+    if (pai) pai.appendChild(n);
+    return n;
+  }
+
+  /** '#RRGGBB' + transparência → 'rgba(…)' (o fundo do retângulo, na cor da marca). */
+  function transparente(hex, alfa) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+    if (!m) return 'rgba(128, 128, 128, ' + alfa + ')';
+    const n = parseInt(m[1], 16);
+    return 'rgba(' + (n >> 16) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ', ' + alfa + ')';
+  }
+
+  /** Valor de cada movimento na ordem escolhida (maior = mais perto do ciclo). */
+  const valorNaOrdem = (m) => (vista.ordem === 'gmv' ? m.fatiaGmv : vista.ordem === 'exposicao' ? m.fatiaExposicao : m.equilibrio);
+  /** Empate: a outra medida, depois o nome. */
+  function ordenar(movs) {
+    const desempate = (m) => (vista.ordem === 'gmv' ? m.fatiaExposicao : vista.ordem === 'exposicao' ? m.fatiaGmv : m.fatiaGmv);
+    return movs.slice().sort((a, b) => valorNaOrdem(b) - valorNaOrdem(a) || desempate(b) - desempate(a) || a.texto.localeCompare(b.texto, 'pt-BR'));
+  }
+
+  function segmentado(pai, rotulo, opcoes, atual, aoEscolher) {
+    const box = novo('div', 'cal-controle', null, pai);
+    novo('span', 'cal-rotulo', rotulo, box);
+    const seg = novo('div', 'an-segmentado', null, box);
+    seg.setAttribute('role', 'group');
+    seg.setAttribute('aria-label', rotulo);
+    opcoes.forEach(([v, texto, dica]) => {
+      const b = novo('button', null, texto, seg);
+      b.type = 'button';
+      b.dataset.valor = v;
+      if (dica) b.title = dica;
+      b.setAttribute('aria-pressed', String(atual === v));
+      b.addEventListener('click', () => aoEscolher(v));
+    });
+    return box;
+  }
+
+  function seletor(pai, rotulo, opcoes, atual, aoEscolher) {
+    const box = novo('label', 'cal-controle', null, pai);
+    novo('span', 'cal-rotulo', rotulo, box);
+    const sel = novo('select', null, null, box);
+    opcoes.forEach(([v, texto]) => sel.add(new Option(texto, v, false, String(v) === String(atual))));
+    sel.addEventListener('change', () => aoEscolher(sel.value));
+    return sel;
+  }
+
+  /**
+   * Desenha o calendário em `corpo`.
+   * acoes: { dados(er) → dados (App.dadosCalendario), abrirCiclo(ciclo), verMovimento({ ciclo, texto, er }) }
+   */
+  function desenhar(corpo, acoes) {
+    const rolagemAntes = corpo.querySelector('.cal-rolagem');
+    const posAntes = rolagemAntes ? { top: rolagemAntes.scrollTop, left: rolagemAntes.scrollLeft, px: ESCALAS[vista.escala] } : null;
+    const d = acoes.dados(vista.er);
+    corpo.innerHTML = '';
+    // Ao redesenhar, a rolagem continua no mesmo dia (mesmo mudando a escala).
+    const redesenhar = (mudanca) => { Object.assign(vista, mudanca); desenhar(corpo, acoes); };
+
+    // Controles.
+    const barra = novo('div', 'cal-barra', null, corpo);
+    segmentado(barra, 'Empilhar por', ORDENS, vista.ordem, (v) => redesenhar({ ordem: v }));
+    seletor(barra, 'Exposição', [['', 'Média das ERs']].concat(d.ers.map((e) => [e.id, 'Só na ' + e.nome])), vista.er, (v) => redesenhar({ er: v }));
+    seletor(barra, 'Movimentos por ciclo', [[5, '5 primeiros'], [8, '8 primeiros'], [12, '12 primeiros'], [20, '20 primeiros'], [0, 'Todos']], vista.limite, (v) => redesenhar({ limite: +v }));
+    segmentado(barra, 'Calendários', [['', 'Os dois']].concat(d.calendarios.map((c) => [c.cod, c.nome])), vista.calendario, (v) => redesenhar({ calendario: v }));
+    segmentado(barra, 'Escala', [['compacta', 'Compacta'], ['normal', 'Normal'], ['ampla', 'Ampla']], vista.escala, (v) => redesenhar({ escala: v }));
+    const bHoje = novo('button', 'btn pequeno cal-hoje', 'Hoje', barra);
+    bHoje.type = 'button';
+    bHoje.title = 'Rolar até o dia de hoje';
+
+    const nota = novo('p', 'cal-nota', null, corpo);
+    const explicacao = {
+      equilibrio: 'Em cada ciclo, os movimentos estão empilhados do mais importante (junto do ciclo) para o menos importante, pelo equilíbrio entre o GMV esperado e a exposição: a média da fatia do movimento no GMV esperado do ciclo com a fatia dele no espaço de exposição.',
+      gmv: 'Em cada ciclo, os movimentos estão empilhados pelo GMV esperado (aba Tipos de movimento), do maior (junto do ciclo) para o menor; os sem GMV ficam por último.',
+      exposicao: 'Em cada ciclo, os movimentos estão empilhados pela exposição (a fatia do espaço de exposição que o movimento ocupa), da maior (junto do ciclo) para a menor.',
+    }[vista.ordem];
+    nota.textContent = explicacao + ' Exposição: a fatia do espaço de exposição ' + (vista.er ? 'da ER escolhida' : '(média das ERs)')
+      + ' que o movimento ocupa; as barras comparam cada medida com a maior do ciclo. Eudora tem o calendário dela; todas as outras marcas seguem o do Boticário. Clique num movimento para vê-lo na planta.';
+
+    if (d.semDatas.length) {
+      const av = novo('p', 'cal-aviso', null, corpo);
+      av.textContent = (d.semDatas.length === 1 ? 'Ciclo do app sem datas no calendário: ' : 'Ciclos do app sem datas no calendário: ')
+        + d.semDatas.join(', ') + '. Cadastre em engrenagem › Modo desenvolvedor › Calendário.';
+    }
+
+    const todos = [].concat.apply([], d.calendarios.map((c) => c.ciclos));
+    if (!todos.length) {
+      novo('p', 'an-vazio', 'Nenhum ciclo no calendário ainda. O desenvolvedor cadastra o início e o fim de cada ciclo (Boticário e Eudora) e os feriados em engrenagem › Modo desenvolvedor › Calendário.', corpo);
+      bHoje.disabled = true;
+      return;
+    }
+
+    const px = ESCALAS[vista.escala];
+    const hoje = datas.hoje();
+    const inicio = Math.min.apply(null, todos.map((c) => datas.dia(c.inicio))) - 2;
+    const fim = Math.max.apply(null, todos.map((c) => datas.dia(c.fim))) + 2;
+    const y = (dia) => (dia - inicio) * px;
+    const altura = (fim - inicio + 1) * px;
+    const feriados = {};
+    d.feriados.forEach((f) => { feriados[f.data] = f.nome; });
+
+    const rolagem = novo('div', 'cal-rolagem', null, corpo);
+    const tabela = novo('div', 'cal-tabela', null, rolagem);
+
+    // Eixo dos dias (fixo à esquerda): meses, dias, fins de semana, feriados e hoje.
+    const eixo = novo('div', 'cal-eixo', null, tabela);
+    eixo.style.width = LARGURA.eixo + 'px';
+    novo('div', 'cal-eixo-topo', 'Dia', eixo).style.height = LARGURA.topo + 'px';
+    const dias = novo('div', 'cal-eixo-dias', null, eixo);
+    dias.style.height = altura + 'px';
+    for (let dia = inicio; dia <= fim; dia++) {
+      const iso = datas.iso(dia);
+      const s = datas.semana(dia);
+      const linha = novo('div', 'cal-dia' + (s === 0 || s === 6 ? ' fds' : '') + (feriados[iso] ? ' feriado' : '') + (dia === hoje ? ' hoje' : ''), null, dias);
+      linha.style.top = y(dia) + 'px';
+      linha.style.height = px + 'px';
+      const dd = +iso.slice(8);
+      // Na escala compacta, só as segundas, os feriados e o começo do mês (hoje fica só com o selo).
+      const mostrar = px >= 14 || ((dd === 1 || s === 1 || feriados[iso]) && Math.abs(dia - hoje) > 1);
+      if (dd === 1 || dia === inicio) {
+        novo('span', 'cal-mes', MESES[+iso.slice(5, 7) - 1] + (px >= 14 ? ' ' + iso.slice(0, 4) : ''), linha);
+        if (dd === 1) linha.classList.add('inicio-mes');
+      }
+      if (mostrar && !(px < 14 && (dd === 1 || dia === inicio))) {
+        novo('span', 'cal-dia-num', p2(dd) + (px >= 14 ? ' ' + SEMANA[s] : ''), linha);
+      }
+      if (feriados[iso]) {
+        linha.title = 'Feriado: ' + feriados[iso] + ' (' + datas.br(iso) + ')';
+        if (px >= 14) novo('span', 'cal-feriado-nome', feriados[iso], linha);
+      }
+      if (dia === hoje) novo('span', 'cal-hoje-rotulo', 'hoje', linha);
+    }
+
+    // Uma coluna por calendário (Boticário e Eudora), ou só a escolhida.
+    let alvoRolagem = null;
+    d.calendarios.filter((cal) => !vista.calendario || cal.cod === vista.calendario).forEach((cal) => {
+      const raias = cal.ciclos.reduce((n, c) => {
+        const qtd = c.movimentos.length;
+        const vis = vista.limite ? Math.min(qtd, vista.limite) + (qtd > vista.limite ? 1 : 0) : qtd;
+        return Math.max(n, vis);
+      }, 1);
+      const largura = LARGURA.ciclo + LARGURA.vao + raias * (LARGURA.raia + LARGURA.vao) + LARGURA.vao;
+      const col = novo('section', 'cal-coluna', null, tabela);
+      col.dataset.calendario = cal.cod;
+      col.style.width = largura + 'px';
+      col.setAttribute('aria-label', 'Calendário ' + cal.nome);
+      const topo = novo('header', 'cal-col-topo', null, col);
+      topo.style.height = LARGURA.topo + 'px';
+      const pinta = novo('span', 'cal-col-cor', null, topo);
+      pinta.style.background = cal.cor;
+      const tt = novo('div', null, null, topo);
+      novo('strong', null, 'Calendário ' + cal.nome, tt);
+      novo('small', null, cal.descricao + ' · ' + cal.ciclos.length + (cal.ciclos.length === 1 ? ' ciclo' : ' ciclos'), tt);
+
+      const area = novo('div', 'cal-col-corpo', null, col);
+      area.style.height = altura + 'px';
+      // Linhas dos feriados e de hoje atravessam a coluna.
+      d.feriados.forEach((f) => {
+        const dia = datas.dia(f.data);
+        if (dia < inicio || dia > fim) return;
+        const l = novo('div', 'cal-faixa-feriado', null, area);
+        l.style.top = y(dia) + 'px';
+        l.style.height = px + 'px';
+        l.title = 'Feriado: ' + f.nome + ' (' + datas.br(f.data) + ')';
+      });
+      if (!cal.ciclos.length) {
+        const v = novo('p', 'cal-col-vazia', 'Sem ciclos no calendário ' + cal.nome + '.', area);
+        v.style.top = '12px';
+      }
+      cal.ciclos.forEach((c, i) => {
+        const d0 = datas.dia(c.inicio);
+        const d1 = datas.dia(c.fim);
+        const topoC = y(d0);
+        const alturaC = (d1 - d0 + 1) * px;
+        const atual = c.cicloApp && c.cicloApp === d.cicloAtual;
+        // Faixa do ciclo (fundo alternado) e a ficha dele, à esquerda.
+        const faixa = novo('div', 'cal-faixa' + (i % 2 ? ' impar' : '') + (atual ? ' atual' : ''), null, area);
+        faixa.style.top = topoC + 'px';
+        faixa.style.height = alturaC + 'px';
+        const ficha = novo(c.cicloApp ? 'button' : 'div', 'cal-ciclo' + (c.cicloApp ? '' : ' sem-app') + (atual ? ' atual' : ''), null, area);
+        if (c.cicloApp) {
+          ficha.type = 'button';
+          ficha.title = 'Abrir o ' + c.cicloApp + ' na planta';
+          ficha.addEventListener('click', () => acoes.abrirCiclo(c.cicloApp));
+        } else {
+          ficha.title = 'Nenhum ciclo do app com este nome: confira o nome no Desenvolvedor › Calendário.';
+        }
+        ficha.dataset.ciclo = c.ciclo;
+        ficha.style.top = topoC + 2 + 'px';
+        ficha.style.height = Math.max(alturaC - 4, 18) + 'px';
+        ficha.style.left = LARGURA.vao + 'px';
+        ficha.style.width = LARGURA.ciclo + 'px';
+        novo('strong', 'cal-ciclo-nome', c.ciclo, ficha);
+        novo('span', null, datas.br(c.inicio, true) + ' → ' + datas.br(c.fim, true), ficha);
+        novo('span', null, c.dias + (c.dias === 1 ? ' dia' : ' dias') + ' · ' + c.uteis + (c.uteis === 1 ? ' útil' : ' úteis'), ficha);
+        if (c.feriados.length) {
+          const fz = novo('span', 'cal-ciclo-feriados', '★ ' + c.feriados.length + (c.feriados.length === 1 ? ' feriado' : ' feriados'), ficha);
+          fz.title = c.feriados.map((f) => datas.br(f.data, true) + ' ' + f.nome).join('\n');
+        }
+        if (!c.cicloApp) novo('em', null, 'sem ciclo no app', ficha);
+        else if (!c.movimentos.length) novo('em', null, 'sem movimentos', ficha);
+        if (atual && !alvoRolagem) alvoRolagem = topoC;
+
+        // Movimentos do ciclo, lado a lado, do mais importante para o menos importante.
+        const ordem = ordenar(c.movimentos);
+        const visiveis = vista.limite ? ordem.slice(0, vista.limite) : ordem;
+        // As barras são do tamanho de cada medida em relação ao maior movimento do ciclo (os números são os reais).
+        const maior = (k) => Math.max.apply(null, c.movimentos.map((m) => m[k]).concat([0]));
+        const maiores = { exposicao: maior('exposicao'), fatiaGmv: maior('fatiaGmv'), equilibrio: maior('equilibrio') };
+        const x0 = LARGURA.vao + LARGURA.ciclo + LARGURA.vao;
+        visiveis.forEach((m, k) => {
+          const r = novo('button', 'cal-mov', null, area);
+          r.type = 'button';
+          r.dataset.movimento = m.texto;
+          r.dataset.ciclo = c.cicloApp;
+          r.dataset.posicao = String(k + 1);
+          r.style.top = topoC + 2 + 'px';
+          r.style.height = Math.max(alturaC - 4, 18) + 'px';
+          r.style.left = x0 + k * (LARGURA.raia + LARGURA.vao) + 'px';
+          r.style.width = LARGURA.raia + 'px';
+          r.style.background = transparente(m.cor, 0.16);
+          r.style.borderLeftColor = m.cor;
+          const cab = novo('span', 'cal-mov-cab', null, r);
+          novo('span', 'cal-mov-pos', String(k + 1), cab);
+          novo('span', 'cal-mov-nome', m.texto, cab);
+          const marcas = novo('span', 'cal-mov-marcas', null, r);
+          m.marcas.forEach((mc) => {
+            const b = novo('span', 'cal-bolinha', null, marcas);
+            b.style.background = mc.cor;
+            b.title = mc.nome + ' · ' + fmtPct(mc.valor);
+          });
+          if (m.classe) novo('span', 'cal-mov-classe', m.classe.nome, marcas).style.borderColor = m.classe.cor;
+          const barra = (rotulo, chave, texto, classe) => {
+            const valor = maiores[chave] ? m[chave] / maiores[chave] : 0;
+            const l = novo('span', 'cal-mov-medida ' + classe, null, r);
+            const t = novo('span', 'cal-mov-medida-txt', null, l);
+            novo('span', null, rotulo, t);
+            novo('b', null, texto, t);
+            const trilho = novo('span', 'cal-mov-trilho', null, l);
+            const enchimento = novo('span', null, null, trilho);
+            enchimento.style.width = Math.min(100, Math.round(valor * 100)) + '%';
+          };
+          barra('Exposição', 'exposicao', fmtPct(m.exposicao), 'expo');
+          barra('GMV', 'fatiaGmv', m.gmv ? gmvCurto.format(m.gmv) + ' · ' + fmtPct(m.fatiaGmv) : 'sem GMV', 'gmv');
+          if (vista.ordem === 'equilibrio') barra('Equilíbrio', 'equilibrio', fmtPct(m.equilibrio), 'equi');
+          r.title = [
+            (k + 1) + 'º · ' + m.texto + ' (' + c.ciclo + ', calendário ' + cal.nome + ')',
+            m.marcas.map((mc) => mc.nome + ' ' + fmtPct(mc.valor)).join(' · ') + (m.classe ? ' · ' + m.classe.nome : ''),
+            'Exposição: ' + fmtPct(m.exposicao) + ' do espaço de exposição' + (vista.er ? '' : ' (média das ERs)') + ' · ' + fmtNum(m.espacos) + (m.espacos === 1 ? ' espaço' : ' espaços')
+              + ' · ' + fmtPct(m.fatiaExposicao) + ' da exposição do ciclo',
+            'GMV esperado: ' + (m.gmv ? gmvCompleto.format(m.gmv) + ' · ' + fmtPct(m.fatiaGmv) + ' do GMV do ciclo' : 'sem GMV'),
+            'Equilíbrio (média das duas fatias): ' + fmtPct(m.equilibrio),
+            m.espacos ? 'Clique para ver na planta' : 'Sem espaço de exposição no ciclo',
+          ].join('\n');
+          r.addEventListener('click', () => acoes.verMovimento({ ciclo: c.cicloApp, texto: m.texto, er: m.er }));
+        });
+        if (visiveis.length < ordem.length) {
+          const mais = novo('button', 'cal-mais', '+' + (ordem.length - visiveis.length) + ' movimentos', area);
+          mais.type = 'button';
+          mais.title = 'Mostrar todos os movimentos de cada ciclo';
+          mais.style.top = topoC + 2 + 'px';
+          mais.style.left = x0 + visiveis.length * (LARGURA.raia + LARGURA.vao) + 'px';
+          mais.addEventListener('click', () => redesenhar({ limite: 0 }));
+        }
+      });
+      if (hoje >= inicio && hoje <= fim) {
+        const l = novo('div', 'cal-linha-hoje', null, area);
+        l.style.top = y(hoje) + px / 2 + 'px';
+      }
+    });
+
+    const irPara = (topoPx) => { rolagem.scrollTop = Math.max(0, topoPx - 24); };
+    bHoje.disabled = hoje < inicio || hoje > fim;
+    bHoje.addEventListener('click', () => irPara(y(hoje)));
+    // Rolagem: a mesma de antes (ao redesenhar) ou, ao abrir, o ciclo da tela; sem ele, hoje.
+    if (posAntes) {
+      rolagem.scrollTop = (posAntes.top / posAntes.px) * px;
+      rolagem.scrollLeft = posAntes.left;
+    } else if (alvoRolagem !== null) irPara(alvoRolagem);
+    else if (hoje >= inicio && hoje <= fim) irPara(y(hoje));
+  }
+
+  return { desenhar, datas, chaveCiclo };
+})();
+</script>
+
+    <script>
+/**
+ * ============================================================================
  *  TUTORIAL GUIADO (primeira visita)
  * ============================================================================
  *  Na primeira vez que a pessoa abre o app (neste navegador), aparece um cartão de boas-vindas que
@@ -14856,9 +15853,12 @@ const Tutorial = (() => {
     sel.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  /** Fecha o Analytics e o calendário dos ciclos (os dois cobrem a planta). */
   function fecharAnalytics() {
-    const b = $('btnAnalytics');
-    if (b && b.getAttribute('aria-pressed') === 'true') b.click();
+    ['btnAnalytics', 'btnCalendario'].forEach((id) => {
+      const b = $(id);
+      if (b && b.getAttribute('aria-pressed') === 'true') b.click();
+    });
   }
 
   /**
@@ -14898,6 +15898,11 @@ const Tutorial = (() => {
         alvo: '#btnAnalytics',
         titulo: 'Analytics',
         texto: 'Como o espaço de cada ER se divide entre movimentos, marcas e classificações.',
+      },
+      {
+        alvo: '#btnCalendario',
+        titulo: 'Calendário',
+        texto: 'Quando cada ciclo do Boticário e da Eudora começa e termina, com os movimentos empilhados por GMV esperado e exposição.',
       },
       {
         alvo: '#btnPng',
@@ -15156,6 +16161,7 @@ const App = (() => {
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}; LOJA → {escala} (tamanho, em %)
     grupos: [],
     analytics: false, // dashboard "Analytics" aberto (no lugar da planta)
+    calendario: false, // calendário dos ciclos aberto (no lugar da planta, na largura toda)
     painelLoja: false, // menu da esquerda (nome da ER, TV / rádio, A, C, notas, símbolos, itens extras) aberto
     tela: { w: 1920, h: 1080 }, // tamanho do slide do último desenho (cresce em 16:9 quando as etiquetas pedem)
     simbolos: [], // símbolos usados na planta (legenda do menu da esquerda)
@@ -15800,6 +16806,7 @@ const App = (() => {
     atualizarCanto(!ctx.paineis);
     aplicarZoom();
     atualizarAnalytics();
+    if (estado.calendario) atualizarCalendario(); // dados novos (Atualizar, Desenvolvedor): redesenha
     atualizarPainelLoja();
     Validacao.atualizar();
     Rascunho.atualizar();
@@ -16638,6 +17645,7 @@ const App = (() => {
 
   function alternarAnalytics(aberto) {
     estado.analytics = aberto === undefined ? !estado.analytics : !!aberto;
+    if (estado.analytics && estado.calendario) alternarCalendario(false);
     esconderBalao();
     atualizarAnalytics();
   }
@@ -16654,6 +17662,142 @@ const App = (() => {
     const antes = estado.planta;
     if (o.er && o.er !== antes) trocarPlanta(o.er);
     if (estado.planta === antes) desenhar();
+  }
+
+  /* ------------------------- calendário dos ciclos -------------------------- */
+
+  /**
+   * Dados do calendário dos ciclos (Calendario.desenhar): os ciclos de cada calendário (Boticário e Eudora,
+   * do Desenvolvedor › Calendário), cada um ligado ao ciclo do app de mesmo nome e com os movimentos dele
+   * que seguem aquele calendário. Um movimento segue o calendário da marca que tem mais espaço nele: só a
+   * Eudora tem calendário próprio; as outras marcas (e o movimento sem marca) seguem o do Boticário.
+   * Exposição: a fatia do espaço de exposição (sem VM) da ER que vai para o movimento; sem `er`, a média das
+   * ERs (cada ER é um tamanho médio da rede: nada soma ERs). GMV: o esperado, da aba Tipos de movimento.
+   * Em cada ciclo, fatiaExposicao e fatiaGmv são a parte do movimento na exposição e no GMV do ciclo (somam
+   * 100% entre os movimentos) e o equilíbrio é a média das duas.
+   */
+  function dadosCalendario(er) {
+    const cal = estado.dados.config.calendario || { calendarios: {}, ciclos: {}, feriados: [] };
+    const feriados = cal.feriados || [];
+    const doApp = {};
+    todosOsCiclos().forEach((c) => { doApp[Calendario.chaveCiclo(c)] = c; });
+    const plantas = er ? estado.dados.plantas.filter((p) => p.id === er) : estado.dados.plantas;
+    const ordemM = ordemDasMarcas();
+    const porCiclo = {};
+    const movimentosDoCiclo = (ciclo) => {
+      if (porCiclo[ciclo]) return porCiclo[ciclo];
+      const movs = {};
+      const daChave = (k, texto) => movs[k] || (movs[k] = { chave: k, texto: Render.movimentoDaEtiqueta(texto), porEr: {}, marcas: {}, espacos: 0 });
+      const ers = plantas.map((p) => {
+        const partes = partesDeEspaco(p, ciclo).filter((pt) => !pt.vm);
+        const total = partes.reduce((s, pt) => s + pt.peso, 0);
+        partes.forEach((pt) => movimentosDaParte(pt).forEach((g) => {
+          const m = daChave(g.chave, g.etiquetas[0].texto);
+          m.porEr[p.id] = (m.porEr[p.id] || 0) + g.valor;
+          m.espacos += g.valor;
+          const codigos = g.etiquetas.map((x) => x.marca).filter(Boolean)
+            .reduce((l, x) => l.concat(String(x).split('+').map((c) => c.trim())), [])
+            .map((c) => (estado.dados.marcas[c] ? c : 'OUTRA'));
+          const unicos = (codigos.length ? codigos : ['NEUTRO']).filter((c, i, l) => l.indexOf(c) === i);
+          unicos.forEach((c) => { m.marcas[c] = (m.marcas[c] || 0) + g.valor / unicos.length; });
+        }));
+        return { id: p.id, total };
+      });
+      // Movimentos cadastrados nos tipos sem espaço no ciclo também entram (só com o GMV).
+      Object.values((estado.dados.tiposMovimento || {})[ciclo] || {}).forEach((t) => daChave(chaveEtiqueta(t.texto), t.texto));
+      const comEspaco = ers.filter((e) => e.total);
+      const lista = Object.values(movs).map((m) => {
+        const tipo = tipoDe(ciclo, m.texto);
+        const soma = Object.values(m.marcas).reduce((a, b) => a + b, 0);
+        const marcas = ordemM.filter((c) => m.marcas[c]).map((c) => ({ cod: c, nome: nomeMarcaPainel(c), cor: corMarcaPainel(c), valor: m.marcas[c] / soma }));
+        const principal = marcas.slice().sort((a, b) => b.valor - a.valor)[0];
+        const classe = tipo && tipo.classificacao ? tipo.classificacao : SEM_CLASSIFICACAO;
+        // ER para ver o movimento na planta: a da tela, se ele estiver nela; senão, a ER com mais espaço dele.
+        const ersDoMov = Object.keys(m.porEr).sort((a, b) => m.porEr[b] - m.porEr[a]);
+        return {
+          texto: m.texto,
+          calendario: principal && principal.cod === 'EUD' ? 'EUD' : 'BOT',
+          marcas,
+          cor: principal && principal.cod !== 'NEUTRO' ? principal.cor : COR_SEM_MARCA,
+          classe: classe === SEM_CLASSIFICACAO ? null : { cod: classe, nome: nomeClassificacao(classe), cor: corClassificacao(classe) },
+          gmv: tipo && typeof tipo.gmv === 'number' && tipo.gmv > 0 ? tipo.gmv : 0,
+          espacos: comEspaco.length ? m.espacos / comEspaco.length : 0,
+          exposicao: comEspaco.length ? comEspaco.reduce((s, e) => s + (m.porEr[e.id] || 0) / e.total, 0) / comEspaco.length : 0,
+          er: ersDoMov.indexOf(estado.planta) >= 0 ? estado.planta : ersDoMov[0] || estado.planta,
+        };
+      });
+      const totalExpo = lista.reduce((s, m) => s + m.exposicao, 0);
+      const totalGmv = lista.reduce((s, m) => s + m.gmv, 0);
+      lista.forEach((m) => {
+        m.fatiaExposicao = totalExpo ? m.exposicao / totalExpo : 0;
+        m.fatiaGmv = totalGmv ? m.gmv / totalGmv : 0;
+        // Sem GMV no ciclo (ou sem exposição), o equilíbrio fica com a medida que existe.
+        m.equilibrio = totalExpo && totalGmv ? (m.fatiaExposicao + m.fatiaGmv) / 2 : m.fatiaExposicao || m.fatiaGmv;
+      });
+      porCiclo[ciclo] = lista;
+      return lista;
+    };
+    const corDoCalendario = (k) => (estado.dados.marcas[k] ? estado.dados.marcas[k].etiqueta : COR_SEM_MARCA);
+    const ligados = {};
+    const calendarios = Object.keys(cal.calendarios || {}).map((k) => ({
+      cod: k,
+      nome: cal.calendarios[k].nome,
+      descricao: cal.calendarios[k].descricao,
+      cor: corDoCalendario(k),
+      ciclos: ((cal.ciclos || {})[k] || []).map((c) => {
+        const app = doApp[Calendario.chaveCiclo(c.ciclo)] || '';
+        if (app) ligados[app] = true;
+        const d0 = Calendario.datas.dia(c.inicio);
+        const d1 = Calendario.datas.dia(c.fim);
+        return {
+          ciclo: c.ciclo, inicio: c.inicio, fim: c.fim, cicloApp: app,
+          dias: d1 - d0 + 1,
+          uteis: Calendario.datas.uteis(c.inicio, c.fim, feriados),
+          feriados: feriados.filter((f) => f.data >= c.inicio && f.data <= c.fim),
+          movimentos: app ? movimentosDoCiclo(app).filter((m) => m.calendario === k) : [],
+        };
+      }),
+    }));
+    return {
+      calendarios,
+      feriados,
+      ers: estado.dados.plantas.map((p) => ({ id: p.id, nome: p.nome })),
+      cicloAtual: estado.ciclo,
+      semDatas: todosOsCiclos().filter((c) => !ligados[c]),
+    };
+  }
+
+  /** Calendário dos ciclos: ocupa a área da planta inteira (a planta continua desenhada por baixo). */
+  function atualizarCalendario() {
+    const painel = $('painelCalendario');
+    if (!painel) return;
+    const aberto = estado.calendario && !!estado.dados && !Editor.contexto();
+    painel.hidden = !aberto;
+    document.body.classList.toggle('com-calendario', aberto);
+    if ($('btnCalendario')) $('btnCalendario').setAttribute('aria-pressed', String(aberto));
+    if (!aberto) { $('calCorpo').innerHTML = ''; return; } // ao abrir de novo, rola até o ciclo da tela
+    const cal = estado.dados.config.calendario || { ciclos: {} };
+    const n = Object.keys(cal.ciclos || {}).reduce((s, k) => s + cal.ciclos[k].length, 0);
+    $('calSub').textContent = n ? n + (n === 1 ? ' ciclo' : ' ciclos') + ' no calendário' + (estado.ciclo ? ' · na tela: ' + estado.ciclo : '') : '';
+    Calendario.desenhar($('calCorpo'), {
+      dados: dadosCalendario,
+      abrirCiclo: (ciclo) => {
+        alternarCalendario(false);
+        if (ciclo !== estado.ciclo) { estado.ciclo = ciclo; montarCiclos(); desenhar(); }
+      },
+      verMovimento: (o) => {
+        alternarCalendario(false);
+        if (o.ciclo !== estado.ciclo) { estado.ciclo = o.ciclo; montarCiclos(); }
+        verNaPlanta({ etiqueta: o.texto, er: o.er });
+      },
+    });
+  }
+
+  function alternarCalendario(aberto) {
+    estado.calendario = aberto === undefined ? !estado.calendario : !!aberto;
+    if (estado.calendario && estado.analytics) alternarAnalytics(false);
+    esconderBalao();
+    atualizarCalendario();
   }
 
   /* -------------------- estatísticas da construção do ciclo ------------------- */
@@ -17624,6 +18768,7 @@ const App = (() => {
     ligar = ligar === undefined ? !ativo : ligar;
     if (ligar === ativo || (ligar && (!estado.dados || Editor.ativo()))) return;
     if (ligar && estado.analytics) alternarAnalytics(false);
+    if (ligar && estado.calendario) alternarCalendario(false);
     document.body.classList.toggle('apresentando', ligar);
     if (ligar) {
       const el = document.documentElement;
@@ -17740,6 +18885,7 @@ const App = (() => {
       if (it.er !== estado.planta) trocarPlanta(it.er);
       if (estado.planta === it.er) {
         if (estado.analytics) alternarAnalytics(false);
+        if (estado.calendario) alternarCalendario(false);
         abrirMovel(it.id);
       }
       return;
@@ -17797,6 +18943,8 @@ const App = (() => {
     ao('btnEditar', 'click', () => estado.dados && alternarEdicao());
     ao('btnAnalytics', 'click', () => estado.dados && alternarAnalytics());
     ao('anFechar', 'click', () => alternarAnalytics(false));
+    ao('btnCalendario', 'click', () => estado.dados && alternarCalendario());
+    ao('calFechar', 'click', () => alternarCalendario(false));
     ao('anInfo', 'click', () => {
       if (!estado.dados || !estado.ciclo) return;
       Analytics.desenharInfo($('anInfoCorpo'), dadosAnalytics(estado.ciclo), { miniatura: Render.miniaturaEspacos });
@@ -17804,8 +18952,9 @@ const App = (() => {
     });
     ao('btnLoja', 'click', () => {
       // Com o Analytics aberto, o botão volta para a planta com o menu da ER aberto.
-      estado.painelLoja = estado.analytics ? true : !estado.painelLoja;
+      estado.painelLoja = estado.analytics || estado.calendario ? true : !estado.painelLoja;
       if (estado.analytics) alternarAnalytics(false);
+      if (estado.calendario) alternarCalendario(false);
       memoria.gravar('painelLoja', estado.painelLoja ? '1' : '0');
       atualizarPainelLoja();
     });
@@ -17874,6 +19023,8 @@ const App = (() => {
       if (e.key === 'Escape' && document.body.classList.contains('apresentando')) { alternarApresentacao(false); return; }
       // Com o Analytics aberto (meia tela), Esc fecha ele; o zoom e as setas continuam valendo na planta.
       if (estado.analytics && e.key === 'Escape' && !document.querySelector('.tut-foco')) { alternarAnalytics(false); return; }
+      // O calendário cobre a planta: Esc fecha; o zoom e as setas não valem enquanto ele está aberto.
+      if (estado.calendario) { if (e.key === 'Escape' && !document.querySelector('.tut-foco')) alternarCalendario(false); return; }
       if (e.key === '+' || e.key === '=') { zoomPara(estado.zoom.k * 1.5); return; }
       if (e.key === '-' || e.key === '_') { zoomPara(estado.zoom.k / 1.5); return; }
       if (e.key === '0') { zoomPara(1); return; }
@@ -17916,6 +19067,7 @@ const App = (() => {
   Desenvolvedor.iniciar({
     estado, chamar, toast, erro, carregar, carregando, plantaAtual, trocarPlanta,
     espacos: (m) => Render.espacos(m),
+    ciclos: () => todosOsCiclos(),
     layoutDe: (p) => Editor.layoutDe(p),
     // Nova planta: abre o Construir loja com uma planta em branco (o Salvar planta pergunta o nome).
     novaPlanta: () => { if (!Editor.ativo()) $('btnConstruir').click(); if (Editor.ativo()) Editor.novaPlanta(); },
@@ -17930,7 +19082,7 @@ const App = (() => {
   Validacao.iniciar({
     estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta,
     abrirMovel: (id) => abrirMovel(id),
-    fecharAnalytics: () => alternarAnalytics(false),
+    fecharAnalytics: () => { alternarAnalytics(false); alternarCalendario(false); },
     montarRascunhos: (corpo) => { Rascunho.montarSecao(corpo); Antecipacao.montarSecao(corpo); },
     construindo: () => Rascunho.painelVisivel(),
     aoEntrar: () => Rascunho.recarregar(),

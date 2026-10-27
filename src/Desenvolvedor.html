@@ -4,12 +4,15 @@
  *  DESENVOLVEDOR (item "Modo desenvolvedor" da engrenagem)
  * ============================================================================
  *  O item pede a senha do Desenvolvedor (SENHAS_ACESSO.DESENVOLVEDOR, trocável aqui mesmo), como a
- *  Validação e a Construção pedem a delas, e abre o painel do desenvolvedor, com cinco seções:
+ *  Validação e a Construção pedem a delas, e abre o painel do desenvolvedor, com seis seções:
  *   - Construção da loja: Construir loja, Baixar planilha base e Importar planilha; escolher um fecha o painel;
  *   - Plantas: o painel de controle de cada planta (nome, ordem da cascata, tamanho da loja e das
  *     etiquetas, abrir no Construir loja, duplicar e apagar);
  *   - Cascata entre ERs: espaços fixos de uma marca em algumas ERs e livres nas outras e espaços que mudam
  *     de nome de uma ER para a seguinte;
+ *   - Calendário: o início e o fim de cada ciclo no calendário do Boticário (que vale para todas as marcas,
+ *     menos a Eudora) e no da Eudora, ligados aos ciclos do app pelo nome, e os feriados (a aba Calendário
+ *     do topo mostra os ciclos e os movimentos num calendário vertical);
  *   - Senhas: as do Desenvolvedor, da Validação e da Construção;
  *   - Planilhas: onde ficam as abas; o layout (aba Layout) pode ficar numa planilha separada (Code.gs).
  *  Enquanto a sessão está aberta, a faixa "Modo desenvolvedor" fica no alto da tela. A senha fica só nesta
@@ -18,12 +21,15 @@
 const Desenvolvedor = (() => {
   const CHAVE = 'planoVarejo.desenvolvedor';
   const $ = (id) => document.getElementById(id);
-  let app = null; // { estado, chamar, toast, erro, carregar, carregando, plantaAtual, trocarPlanta, espacos, layoutDe, novaPlanta, aoSair }
+  let app = null; // { estado, chamar, toast, erro, carregar, carregando, plantaAtual, trocarPlanta, espacos, ciclos, layoutDe, novaPlanta, aoSair }
   let acesso = null; // { senha }
   let aba = 'modulos';
   let config = null; // resposta de getConfigDev (Desenvolvedor.gs)
   let edEspacos = null; // regras em edição (espaços fixos numa ER e livres nas outras)
   let edHeranca = null; // regras em edição (mudanças de espaço entre ERs)
+  let edCalendario = null; // calendário dos ciclos em edição: { BOT: [{ ciclo, inicio, fim }], EUD: [...] }
+  let edFeriados = null; // feriados em edição: [{ data, nome }]
+  let calSujo = false; // o calendário ou os feriados em edição mudaram e não foram salvos
   let planilhas = null; // resposta de getPlanilhas (Code.gs)
 
   const sessao = {
@@ -75,7 +81,7 @@ const Desenvolvedor = (() => {
     document.body.classList.toggle('modo-dev', dentro);
     $('devFaixa').hidden = !dentro;
     $('btnDesenvolvedor').setAttribute('aria-pressed', String(dentro));
-    $('btnDesenvolvedor').title = dentro ? 'Abrir o painel do desenvolvedor' : 'Construir loja, planilha base, plantas, regras da cascata, senhas e planilhas (pede senha)';
+    $('btnDesenvolvedor').title = dentro ? 'Abrir o painel do desenvolvedor' : 'Construir loja, planilha base, plantas, regras da cascata, calendário dos ciclos, senhas e planilhas (pede senha)';
   }
 
   function abrirAcesso() {
@@ -154,6 +160,8 @@ const Desenvolvedor = (() => {
       config = await app.chamar('getConfigDev', acesso);
       edEspacos = null;
       edHeranca = null;
+      edCalendario = null;
+      edFeriados = null;
       desenharTudo();
       recarregarPlanilhas();
     } catch (e) {
@@ -178,6 +186,8 @@ const Desenvolvedor = (() => {
       config = await app.chamar('salvarConfigDev', acesso, pedido);
       edEspacos = null;
       edHeranca = null;
+      edCalendario = null;
+      edFeriados = null;
       await app.carregar({ planta: app.estado.planta });
       desenharTudo();
       mensagem(ok);
@@ -194,6 +204,7 @@ const Desenvolvedor = (() => {
     if (!config) return;
     desenharPlantas();
     desenharCascata();
+    desenharCalendario();
     desenharSenhas();
   }
 
@@ -524,6 +535,275 @@ const Desenvolvedor = (() => {
   function selo(pai, chave) {
     const mudou = config.mudou.indexOf(chave) >= 0;
     n('span', 'dev-selo-estado' + (mudou ? ' mudou' : ''), mudou ? 'personalizado' : 'padrão do código', pai);
+  }
+
+  /* ------------------------------ calendário ------------------------------- */
+
+  const Datas = () => Calendario.datas;
+
+  function edicaoCalendario() {
+    if (!edCalendario) {
+      edCalendario = {};
+      Object.keys(config.calendarioCiclos).forEach((k) => { edCalendario[k] = config.calendarioCiclos[k].map((c) => Object.assign({}, c)); });
+    }
+    if (!edFeriados) { edFeriados = config.feriados.map((f) => Object.assign({}, f)); calSujo = false; }
+    return edCalendario;
+  }
+
+  /** "C01/2027" → "C02/2027"; "Ciclo 9" → "Ciclo 10" (o primeiro número do nome, com os mesmos zeros). */
+  function proximoNome(nome, passo) {
+    const m = /^(\D*)(\d+)(.*)$/.exec(String(nome || '').trim());
+    if (!m) return '';
+    const n = String(+m[2] + (passo || 1));
+    return m[1] + (n.length < m[2].length ? '0'.repeat(m[2].length - n.length) : '') + n + m[3];
+  }
+
+  /** Linhas coladas do Excel (colunas separadas por tabulação ou ";"): as células que são datas e as que não são. */
+  function linhasColadas(texto) {
+    return String(texto || '').split(/\r?\n/).map((l) => l.split(/\t|;/).map((c) => c.trim()).filter(Boolean)).filter((l) => l.length)
+      .map((cels) => ({ datas: cels.map((c) => Datas().ler(c)).filter(Boolean), textos: cels.filter((c) => !Datas().ler(c)) }));
+  }
+
+  /** Junta ciclos novos aos da lista (o mesmo nome é substituído) e ordena pelo início. */
+  function juntarCiclos(lista, novos) {
+    const k = (c) => Calendario.chaveCiclo(c.ciclo);
+    novos.forEach((c) => {
+      const i = lista.findIndex((x) => k(x) === k(c));
+      if (i >= 0) lista[i] = c; else lista.push(c);
+    });
+    lista.sort((a, b) => (a.inicio || '9') < (b.inicio || '9') ? -1 : (a.inicio || '9') > (b.inicio || '9') ? 1 : 0);
+  }
+
+  function desenharCalendario() {
+    const corpo = $('devCalendario');
+    corpo.innerHTML = '';
+    const cal = edicaoCalendario();
+    const feriados = edFeriados;
+    const doApp = {};
+    (app.ciclos ? app.ciclos() : app.estado.dados.ciclos).forEach((c) => { doApp[Calendario.chaveCiclo(c)] = c; });
+
+    const topo = n('div', 'dev-secao-topo', null, corpo);
+    const t = n('div', null, null, topo);
+    n('h3', 'dev-titulo', 'Calendário dos ciclos', t);
+    n('p', 'dev-nota', 'O início e o fim de cada ciclo, em dois calendários: o do Boticário, que vale para todas as marcas (QDB, O.U.i, multimarca…), e o da Eudora, a única com calendário próprio. O nome liga a linha ao ciclo do app (o do seletor; maiúsculas e acentos não importam). Os feriados entram na conta dos dias úteis. A aba Calendário, no topo do app, mostra os ciclos e os movimentos de cada um.', t);
+    selo(topo, 'calendarioCiclos');
+
+    // Ciclos do app: sugestões do nome.
+    const lista = n('datalist', null, null, corpo);
+    lista.id = 'devCiclosApp';
+    Object.values(doApp).forEach((c) => { n('option', null, null, lista).value = c; });
+
+    const estado = n('p', 'dev-resumo dev-cal-estado', null);
+    estado.id = 'devCalEstado';
+    const sujo = () => {
+      calSujo = true;
+      const e = $('devCalEstado');
+      if (e) e.textContent = 'Há mudanças não salvas: clique em Salvar calendário e feriados.';
+    };
+    if (calSujo) estado.textContent = 'Há mudanças não salvas: clique em Salvar calendário e feriados.';
+    const resumoCiclos = () => {
+      const ligados = {};
+      Object.keys(cal).forEach((k) => cal[k].forEach((c) => { const a = doApp[Calendario.chaveCiclo(c.ciclo)]; if (a) ligados[a] = true; }));
+      return Object.values(doApp).filter((c) => !ligados[c]);
+    };
+
+    Object.keys(config.calendarios || {}).forEach((k) => {
+      const info = config.calendarios[k];
+      const ciclos = cal[k] = cal[k] || [];
+      const bloco = n('section', 'dev-bloco', null, corpo);
+      bloco.dataset.calendario = k;
+      const tb = n('div', 'dev-secao-topo', null, bloco);
+      const dt = n('div', null, null, tb);
+      n('h3', 'dev-titulo', 'Calendário ' + info.nome, dt);
+      n('p', 'dev-nota', info.descricao + '. ' + ciclos.length + (ciclos.length === 1 ? ' ciclo.' : ' ciclos.'), dt);
+
+      const tabela = n('table', 'dev-tabela', null, bloco);
+      const cab = n('tr', null, null, n('thead', null, null, tabela));
+      ['Ciclo (nome no app)', 'Início', 'Fim', 'Dias', 'No app', ''].forEach((x) => { n('th', null, x, cab).scope = 'col'; });
+      const tbody = n('tbody', null, null, tabela);
+      if (!ciclos.length) {
+        const tr = n('tr', null, null, tbody);
+        const td = n('td', 'dev-vazio', 'Nenhum ciclo. Use + Ciclo, Gerar ciclos ou Colar do Excel.', tr);
+        td.colSpan = 6;
+      }
+      ciclos.forEach((c, i) => {
+        const tr = n('tr', null, null, tbody);
+        const nome = entrada(n('td', null, null, tr), c.ciclo, 'text', { maxLength: 40, placeholder: 'C01/2027', className: 'dev-cal-nome' });
+        nome.setAttribute('list', 'devCiclosApp');
+        nome.setAttribute('aria-label', 'Nome do ciclo');
+        const ini = entrada(n('td', null, null, tr), c.inicio, 'date');
+        ini.setAttribute('aria-label', 'Início do ' + (c.ciclo || 'ciclo'));
+        const fim = entrada(n('td', null, null, tr), c.fim, 'date');
+        fim.setAttribute('aria-label', 'Fim do ' + (c.ciclo || 'ciclo'));
+        const dias = n('td', 'dev-cal-dias', null, tr);
+        const noApp = n('td', null, null, tr);
+        const atualizar = () => {
+          const d0 = Datas().dia(c.inicio);
+          const d1 = Datas().dia(c.fim);
+          dias.textContent = isNaN(d0) || isNaN(d1) ? '—' : d1 < d0 ? 'fim antes do início'
+            : (d1 - d0 + 1) + ' (' + Datas().uteis(c.inicio, c.fim, feriados) + ' úteis)';
+          dias.classList.toggle('erro', !isNaN(d0) && !isNaN(d1) && d1 < d0);
+          noApp.innerHTML = '';
+          const a = doApp[Calendario.chaveCiclo(c.ciclo)];
+          const chip = n('span', 'dev-chip' + (a ? ' ok' : ''), a ? '✓ ' + a : c.ciclo ? 'não existe no app' : '—', noApp);
+          chip.title = a ? 'Ligado ao ciclo ' + a + ' do app' : 'Nenhum ciclo do app com este nome (pode ser um ciclo futuro)';
+        };
+        nome.addEventListener('input', () => { c.ciclo = nome.value; atualizar(); sujo(); });
+        ini.addEventListener('change', () => { c.inicio = ini.value; atualizar(); sujo(); });
+        fim.addEventListener('change', () => { c.fim = fim.value; atualizar(); sujo(); });
+        atualizar();
+        botao('×', 'icone', () => { ciclos.splice(i, 1); desenharCalendario(); sujo(); }, n('td', null, null, tr)).title = 'Tirar o ciclo';
+      });
+
+      const acoes = n('div', 'dev-planta-acoes', null, bloco);
+      botao('+ Ciclo', '', () => {
+        const ult = ciclos[ciclos.length - 1];
+        const d0 = ult ? Datas().dia(ult.inicio) : NaN;
+        const d1 = ult ? Datas().dia(ult.fim) : NaN;
+        if (ult && !isNaN(d0) && !isNaN(d1) && d1 >= d0) {
+          ciclos.push({ ciclo: proximoNome(ult.ciclo), inicio: Datas().iso(d1 + 1), fim: Datas().iso(d1 + 1 + (d1 - d0)) });
+        } else {
+          ciclos.push({ ciclo: '', inicio: '', fim: '' });
+        }
+        desenharCalendario();
+        sujo();
+      }, acoes).title = 'Um ciclo depois do último, com a mesma duração';
+
+      // Gerar vários ciclos seguidos.
+      const gerar = n('details', 'dev-cal-ferramenta', null, bloco);
+      n('summary', null, 'Gerar ciclos seguidos', gerar);
+      const g = n('div', 'dev-campos', null, gerar);
+      const ult = ciclos[ciclos.length - 1];
+      const dUlt = ult ? Datas().dia(ult.fim) : NaN;
+      const gNome = entrada(campo('Primeiro ciclo', g), ult ? proximoNome(ult.ciclo) : 'C01/' + new Date().getFullYear(), 'text', { maxLength: 40 });
+      const gIni = entrada(campo('Início do primeiro', g), isNaN(dUlt) ? '' : Datas().iso(dUlt + 1), 'date');
+      const gDur = entrada(campo('Duração (dias)', g), 21, 'number', { min: 1, max: 120, step: 1 });
+      const gQtd = entrada(campo('Quantidade', g), 17, 'number', { min: 1, max: 60, step: 1 });
+      const gUtil = n('label', 'dev-opcao', null, gerar);
+      const cUtil = entrada(gUtil, '', 'checkbox');
+      n('span', null, 'Se um ciclo começar num feriado ou fim de semana, ele começa no próximo dia útil (e o anterior termina na véspera)', gUtil);
+      const gAcoes = n('div', 'dev-planta-acoes', null, gerar);
+      botao('Gerar', 'pequeno', () => {
+        const qtd = Math.min(60, Math.max(1, Math.round(+gQtd.value) || 0));
+        const dur = Math.min(120, Math.max(1, Math.round(+gDur.value) || 0));
+        const d0 = Datas().dia(gIni.value);
+        if (!gNome.value.trim() || !/\d/.test(gNome.value)) { mensagem('Gerar ciclos: dê o nome do primeiro ciclo com um número (ex.: C01/2027).', true); return; }
+        if (isNaN(d0)) { mensagem('Gerar ciclos: escolha o início do primeiro ciclo.', true); return; }
+        const ajusta = (d) => (cUtil.checked ? Datas().proximoUtil(d, feriados) : d);
+        const inicios = [ajusta(d0)];
+        for (let i = 1; i <= qtd; i++) inicios.push(ajusta(inicios[i - 1] + dur));
+        const novos = [];
+        for (let i = 0; i < qtd; i++) {
+          novos.push({ ciclo: i ? proximoNome(gNome.value.trim(), i) : gNome.value.trim(), inicio: Datas().iso(inicios[i]), fim: Datas().iso(i === qtd - 1 ? inicios[i] + dur - 1 : inicios[i + 1] - 1) });
+        }
+        juntarCiclos(ciclos, novos);
+        desenharCalendario();
+        sujo();
+        mensagem(qtd + (qtd === 1 ? ' ciclo gerado' : ' ciclos gerados') + ' no calendário ' + info.nome + ' (' + novos[0].ciclo + ' a ' + novos[novos.length - 1].ciclo + '). Confira e salve.');
+      }, gAcoes);
+
+      // Colar do Excel: ciclo, início e fim (o fim pode faltar: vai até a véspera do seguinte).
+      const colar = n('details', 'dev-cal-ferramenta', null, bloco);
+      n('summary', null, 'Colar do Excel', colar);
+      n('p', 'dev-nota', 'Uma linha por ciclo, com as colunas Ciclo, Início e Fim (copie as células da planilha e cole aqui). Sem o fim, o ciclo vai até a véspera do seguinte. Um ciclo que já está na lista é substituído.', colar);
+      const area = n('textarea', 'dev-cal-colar', null, colar);
+      area.rows = 4;
+      area.placeholder = 'C01/2027\t02/01/2027\t22/01/2027\nC02/2027\t23/01/2027\t12/02/2027';
+      area.setAttribute('aria-label', 'Ciclos colados do Excel (calendário ' + info.nome + ')');
+      botao('Usar as linhas coladas', 'pequeno', () => {
+        const novos = linhasColadas(area.value).filter((l) => l.textos.length && l.datas.length)
+          .map((l) => ({ ciclo: l.textos[0], inicio: l.datas[0], fim: l.datas[1] || '' }));
+        if (!novos.length) { mensagem('Colar do Excel: nenhuma linha com o nome do ciclo e uma data (dd/mm/aaaa).', true); return; }
+        novos.sort((a, b) => (a.inicio < b.inicio ? -1 : 1));
+        novos.forEach((c, i) => { if (!c.fim && novos[i + 1]) c.fim = Datas().iso(Datas().dia(novos[i + 1].inicio) - 1); });
+        juntarCiclos(ciclos, novos);
+        desenharCalendario();
+        sujo();
+        mensagem(novos.length + (novos.length === 1 ? ' ciclo colado' : ' ciclos colados') + ' no calendário ' + info.nome + '. Confira e salve.');
+      }, n('div', 'dev-planta-acoes', null, colar));
+    });
+
+    // Feriados.
+    const bf = n('section', 'dev-bloco', null, corpo);
+    bf.dataset.feriados = '';
+    const tf = n('div', 'dev-secao-topo', null, bf);
+    const df = n('div', null, null, tf);
+    n('h3', 'dev-titulo', 'Feriados', df);
+    n('p', 'dev-nota', 'Os dias úteis de cada ciclo são de segunda a sexta, menos os feriados. No calendário do app, os feriados aparecem em vermelho.', df);
+    selo(tf, 'feriados');
+    const tabF = n('table', 'dev-tabela', null, bf);
+    const cabF = n('tr', null, null, n('thead', null, null, tabF));
+    ['Data', 'Dia', 'Feriado', ''].forEach((x) => { n('th', null, x, cabF).scope = 'col'; });
+    const corpoF = n('tbody', null, null, tabF);
+    if (!feriados.length) { const td = n('td', 'dev-vazio', 'Nenhum feriado.', n('tr', null, null, corpoF)); td.colSpan = 4; }
+    feriados.forEach((f, i) => {
+      const tr = n('tr', null, null, corpoF);
+      const data = entrada(n('td', null, null, tr), f.data, 'date');
+      data.setAttribute('aria-label', 'Data do feriado');
+      const dia = n('td', 'dev-cal-dias', null, tr);
+      const nome = entrada(n('td', null, null, tr), f.nome, 'text', { maxLength: 60, placeholder: 'Nome do feriado', className: 'dev-cal-feriado' });
+      nome.setAttribute('aria-label', 'Nome do feriado');
+      const atualizar = () => {
+        const d = Datas().dia(f.data);
+        dia.textContent = isNaN(d) ? '—' : ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'][Datas().semana(d)];
+      };
+      data.addEventListener('change', () => { f.data = data.value; atualizar(); sujo(); });
+      nome.addEventListener('input', () => { f.nome = nome.value; sujo(); });
+      atualizar();
+      botao('×', 'icone', () => { feriados.splice(i, 1); desenharCalendario(); sujo(); }, n('td', null, null, tr)).title = 'Tirar o feriado';
+    });
+    const af = n('div', 'dev-planta-acoes', null, bf);
+    botao('+ Feriado', '', () => { feriados.push({ data: '', nome: '' }); desenharCalendario(); sujo(); }, af);
+    const ano = n('select', null, null, af);
+    ano.setAttribute('aria-label', 'Ano dos feriados nacionais');
+    const agora = new Date().getFullYear();
+    for (let a = agora - 1; a <= agora + 3; a++) ano.add(new Option(String(a), String(a), false, a === agora));
+    botao('+ Feriados nacionais do ano', '', () => {
+      const novos = Datas().nacionais(+ano.value).filter((x) => !feriados.some((f) => f.data === x.data));
+      novos.forEach((x) => feriados.push(x));
+      feriados.sort((a, b) => ((a.data || '9') < (b.data || '9') ? -1 : 1));
+      desenharCalendario();
+      if (novos.length) sujo();
+      mensagem(novos.length ? novos.length + ' feriados nacionais de ' + ano.value + ' entraram na lista (Carnaval e Corpus Christi são ponto facultativo: tire se não valerem). Confira e salve.'
+        : 'Os feriados nacionais de ' + ano.value + ' já estão na lista.');
+    }, af).title = 'Fixos, Sexta-feira Santa e, como ponto facultativo, Carnaval e Corpus Christi';
+    const colarF = n('details', 'dev-cal-ferramenta', null, bf);
+    n('summary', null, 'Colar do Excel', colarF);
+    n('p', 'dev-nota', 'Uma linha por feriado, com a data e o nome (ex.: 20/01/2027 e São Sebastião). Uma data que já está na lista tem o nome trocado.', colarF);
+    const areaF = n('textarea', 'dev-cal-colar', null, colarF);
+    areaF.rows = 3;
+    areaF.placeholder = '20/01/2027\tSão Sebastião';
+    areaF.setAttribute('aria-label', 'Feriados colados do Excel');
+    botao('Usar as linhas coladas', 'pequeno', () => {
+      const novos = linhasColadas(areaF.value).filter((l) => l.datas.length).map((l) => ({ data: l.datas[0], nome: l.textos.join(' ') || 'Feriado' }));
+      if (!novos.length) { mensagem('Colar do Excel: nenhuma linha com uma data (dd/mm/aaaa).', true); return; }
+      novos.forEach((x) => {
+        const f = feriados.find((y) => y.data === x.data);
+        if (f) f.nome = x.nome; else feriados.push(x);
+      });
+      feriados.sort((a, b) => ((a.data || '9') < (b.data || '9') ? -1 : 1));
+      desenharCalendario();
+      sujo();
+      mensagem(novos.length + (novos.length === 1 ? ' feriado colado' : ' feriados colados') + '. Confira e salve.');
+    }, n('div', 'dev-planta-acoes', null, colarF));
+
+    // Salvar, avisos e os ciclos do app sem datas.
+    const fim = n('section', 'dev-bloco', null, corpo);
+    const semDatas = resumoCiclos();
+    if (semDatas.length) n('p', 'dev-nota', 'Ciclos do app sem datas: ' + semDatas.join(', ') + '.', fim);
+    if (config.calendarioAvisos && config.calendarioAvisos.length) {
+      n('span', 'dev-rotulo', 'Avisos do calendário salvo', fim);
+      const ul = n('ul', 'dev-cal-avisos', null, fim);
+      config.calendarioAvisos.forEach((a) => n('li', null, a, ul));
+    }
+    const acoes = n('div', 'dev-planta-acoes', null, fim);
+    botao('Salvar calendário e feriados', 'primario', () => mudar({
+      acao: 'calendario',
+      calendarioCiclos: cal,
+      feriados: feriados,
+    }, 'Calendário e feriados salvos.'), acoes);
+    botao('Descartar mudanças', '', () => { edCalendario = null; edFeriados = null; desenharCalendario(); mensagem(''); }, acoes);
+    fim.appendChild(estado);
   }
 
   /* -------------------------------- senhas --------------------------------- */

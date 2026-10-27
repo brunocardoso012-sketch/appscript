@@ -445,6 +445,70 @@ test('desenvolvedor: plantas (criar, renomear, ordenar, apagar), regras da casca
   assert.throws(() => run("salvarConfigDev({ senha: 'nova-dev' }, { acao: 'config', chave: 'senhas', valor: { DESENVOLVEDOR: 'a', VALIDADOR: 'bbbb', CONSTRUTOR: 'cccc' } })"), /4 caracteres/);
 });
 
+test('desenvolvedor: calendário dos ciclos (Boticário e Eudora) e feriados', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  configurarComExemplo(run);
+  const cfg = () => run(`getConfigDev(${DEV})`);
+  const salvar = (pedido) => run(`salvarConfigDev(${DEV}, ${JSON.stringify(pedido)})`);
+  assert.deepEqual(cfg().calendarioCiclos, { BOT: [], EUD: [] }, 'começa vazio');
+  assert.deepEqual(run('getDados()').config.calendario.ciclos, { BOT: [], EUD: [] });
+
+  // Só a Eudora tem calendário próprio: as outras marcas seguem o do Boticário.
+  assert.equal(run("calendarioDaMarca_('Eudora')"), 'EUD');
+  ['BOT', 'QDB', 'OUI', 'MULTI', '', 'BOT+EUD'].forEach((m) => assert.equal(run(`calendarioDaMarca_('${m}')`), 'BOT', m));
+
+  // Datas em dd/mm/aaaa ou AAAA-MM-DD; a lista sai na ordem do início.
+  salvar({ acao: 'config', chave: 'calendarioCiclos', valor: {
+    BOT: [
+      { ciclo: 'Ciclo exemplo cheio', inicio: '22/10/2026', fim: '2026-11-11' },
+      { ciclo: ' Ciclo  exemplo ', inicio: '2026-10-01', fim: '21/10/2026' },
+      { ciclo: '', inicio: '', fim: '' },
+    ],
+    EUD: [{ ciclo: 'Ciclo exemplo', inicio: '2026-10-05', fim: '2026-10-25' }],
+  } });
+  salvar({ acao: 'config', chave: 'feriados', valor: [{ data: '02/11/2026', nome: 'Finados' }, { data: '2026-10-12', nome: '' }] });
+  const c = cfg();
+  assert.deepEqual(c.calendarioCiclos.BOT, [
+    { ciclo: 'Ciclo exemplo', inicio: '2026-10-01', fim: '2026-10-21' },
+    { ciclo: 'Ciclo exemplo cheio', inicio: '2026-10-22', fim: '2026-11-11' },
+  ]);
+  assert.deepEqual(c.feriados, [{ data: '2026-10-12', nome: 'Feriado' }, { data: '2026-11-02', nome: 'Finados' }]);
+  assert.deepEqual(c.calendarioAvisos, [], 'sem buracos nem começo em feriado ou fim de semana');
+  const d = run('getDados()');
+  assert.deepEqual(d.config.calendario.ciclos, c.calendarioCiclos, 'a página recebe o calendário');
+  assert.deepEqual(d.config.calendario.feriados, c.feriados);
+  assert.equal(d.config.calendario.calendarios.EUD.nome, 'Eudora');
+  assert.ok(f.planilha.getSheetByName('Config do app'), 'gravado na aba Config do app');
+
+  // Dias úteis: de segunda a sexta, menos os feriados (01/10 a 21/10/2026: 15 dias, menos o 12/10).
+  assert.equal(run("diasUteis_('2026-10-01', '2026-10-21', FERIADOS)"), 14);
+
+  // Erros: fim antes do início, nome repetido, ciclos sobrepostos, data inválida.
+  const bot = (lista) => salvar({ acao: 'config', chave: 'calendarioCiclos', valor: { BOT: lista, EUD: [] } });
+  assert.throws(() => bot([{ ciclo: 'C1', inicio: '2026-10-10', fim: '2026-10-01' }]), /vem antes do início/);
+  assert.throws(() => bot([{ ciclo: 'C1', inicio: '2026-10-01', fim: '2026-10-05' }, { ciclo: 'c 1', inicio: '2026-10-06', fim: '2026-10-08' }]), /aparece duas vezes/);
+  assert.throws(() => bot([{ ciclo: 'C1', inicio: '2026-10-01', fim: '2026-10-10' }, { ciclo: 'C2', inicio: '2026-10-10', fim: '2026-10-20' }]), /se sobrepõe/);
+  assert.throws(() => bot([{ ciclo: 'C1', inicio: '31/02/2026', fim: '2026-10-10' }]), /datas válidas/);
+  assert.throws(() => bot([{ ciclo: '', inicio: '2026-10-01', fim: '2026-10-10' }]), /nome do ciclo/);
+  assert.throws(() => salvar({ acao: 'config', chave: 'feriados', valor: [{ data: '2026-11-02' }, { data: '02/11/2026' }] }), /duas vezes/);
+  assert.equal(cfg().calendarioCiclos.BOT.length, 2, 'o erro não grava nada');
+
+  // Avisos: dias sem ciclo entre dois ciclos e começo num feriado ou fim de semana.
+  bot([{ ciclo: 'C1', inicio: '2026-10-01', fim: '2026-10-05' }, { ciclo: 'C2', inicio: '2026-10-12', fim: '2026-10-20' }, { ciclo: 'C3', inicio: '2026-10-24', fim: '2026-10-30' }]);
+  assert.deepEqual(cfg().calendarioAvisos, [
+    'Boticário: 6 dias sem ciclo entre o C1 e o C2.',
+    'Boticário: o C2 começa num feriado (Feriado, 12/10/2026).',
+    'Boticário: 3 dias sem ciclo entre o C2 e o C3.',
+    'Boticário: o C3 começa num fim de semana (24/10/2026).',
+  ]);
+
+  // Voltar ao padrão do código: o calendário fica vazio de novo.
+  salvar({ acao: 'padrao', chave: 'calendarioCiclos' });
+  assert.deepEqual(cfg().calendarioCiclos, { BOT: [], EUD: [] });
+  assert.equal(cfg().feriados.length, 2, 'os feriados continuam');
+});
+
 test('planilha separada para o layout: criar, ler e gravar nela, vincular e voltar para a principal', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);

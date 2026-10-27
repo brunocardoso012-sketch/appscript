@@ -46,9 +46,12 @@ const Tutorial = (() => {
     sel.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  /** Fecha o Analytics e o calendário dos ciclos (os dois cobrem a planta). */
   function fecharAnalytics() {
-    const b = $('btnAnalytics');
-    if (b && b.getAttribute('aria-pressed') === 'true') b.click();
+    ['btnAnalytics', 'btnCalendario'].forEach((id) => {
+      const b = $(id);
+      if (b && b.getAttribute('aria-pressed') === 'true') b.click();
+    });
   }
 
   /**
@@ -88,6 +91,11 @@ const Tutorial = (() => {
         alvo: '#btnAnalytics',
         titulo: 'Analytics',
         texto: 'Como o espaço de cada ER se divide entre movimentos, marcas e classificações.',
+      },
+      {
+        alvo: '#btnCalendario',
+        titulo: 'Calendário',
+        texto: 'Quando cada ciclo do Boticário e da Eudora começa e termina, com os movimentos empilhados por GMV esperado e exposição.',
       },
       {
         alvo: '#btnPng',
