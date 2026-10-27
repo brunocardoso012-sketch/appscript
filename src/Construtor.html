@@ -272,7 +272,6 @@ const Construtor = (() => {
     const s = sujo();
     $('cnsStatus').textContent = s ? '● Alterações não salvas' : '✓ Tudo salvo';
     $('cnsStatus').classList.toggle('sujo', s);
-    $('cnsSalvar').disabled = !s;
     $('cnsDescartar').disabled = !s;
     $('cnsDesfazer').disabled = !c.historico.length;
   }
@@ -413,27 +412,79 @@ const Construtor = (() => {
     app.toast(c.planta.nome + ' criada. Ajuste e clique em Salvar planta.');
   }
 
-  async function salvar() {
+  /** Layout de uma planta no formato do salvarLayout (Code.gs). */
+  function layoutDe(p) {
+    return {
+      loja: p.loja,
+      moveis: p.moveis.map((m) => ({
+        id: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h,
+        ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '', giro: m.giro || 0,
+        ajustesEspacos: m.ajustesEspacos || {},
+      })),
+    };
+  }
+
+  /** Salvar planta: pergunta se substitui uma planta existente (a da tela, por padrão) ou cria uma nova. */
+  function salvar() {
     const p = c.planta;
-    app.carregando(true, 'Salvando layout da ' + p.nome + '…');
+    const plantas = app.estado.dados.plantas;
+    const existe = plantas.some((x) => x.id === p.id);
+    const sel = $('spPlanta');
+    sel.innerHTML = '';
+    plantas.forEach((x) => sel.add(new Option(x.nome + (x.id === p.id ? ' (a que está na tela)' : ''), x.id)));
+    if (existe) sel.value = p.id;
+    $('formSalvarPlanta').querySelector('[value="' + (existe && !c.nova ? 'substituir' : 'nova') + '"]').checked = true;
+    $('spNome').value = '';
+    $('spErro').hidden = true;
+    atualizarDialogoSalvar();
+    $('dlgSalvarPlanta').showModal();
+    (existe && !c.nova ? sel : $('spNome')).focus();
+  }
+
+  function destinoSalvar() {
+    return $('formSalvarPlanta').querySelector('[name="spDestino"]:checked').value;
+  }
+
+  function atualizarDialogoSalvar() {
+    const nova = destinoSalvar() === 'nova';
+    $('spPlanta').disabled = nova;
+    $('spNome').disabled = !nova;
+    const alvo = app.estado.dados.plantas.find((x) => x.id === $('spPlanta').value);
+    $('spAviso').textContent = nova
+      ? 'A planta nova entra no fim da cascata, com o próximo número livre. Depois, ajuste a ordem e o nome em Desenvolvedor › Plantas.'
+      : alvo && alvo.id !== c.planta.id
+        ? 'O layout da ' + alvo.nome + ' será trocado pelo que está na tela (os ciclos dela continuam).'
+        : 'O layout desta planta será trocado pelo que está na tela.';
+    $('spSalvar').textContent = nova ? 'Criar planta' : 'Substituir';
+  }
+
+  async function confirmarSalvar(ev) {
+    ev.preventDefault();
+    const nova = destinoSalvar() === 'nova';
+    const nome = $('spNome').value.trim();
+    const destino = nova ? 'NOVA' : $('spPlanta').value;
+    if (nova && !nome) {
+      $('spErro').textContent = 'Dê um nome para a planta nova.';
+      $('spErro').hidden = false;
+      $('spNome').focus();
+      return;
+    }
+    $('spSalvar').disabled = true;
     try {
-      const layout = {
-        loja: p.loja,
-        moveis: p.moveis.map((m) => ({
-          id: m.id, descricao: m.descricao, tipo: m.tipo, x: m.x, y: m.y, z: m.z, w: m.w, d: m.d, h: m.h,
-          ajusteX: m.ajusteX || 0, ajusteY: m.ajusteY || 0, dividido: m.dividido || '', giro: m.giro || 0,
-          ajustesEspacos: m.ajustesEspacos || {},
-        })),
-      };
-      const r = await app.chamar('salvarLayout', app.acesso(), p.id, layout);
+      app.carregando(true, nova ? 'Criando a planta ' + nome + '…' : 'Salvando o layout…');
+      const r = await app.chamar('salvarLayout', app.acesso(), destino, layoutDe(c.planta), nova ? nome : '');
+      $('dlgSalvarPlanta').close();
       c.historico = [];
       c.nova = false;
       c.vazia = false;
-      await app.carregar({ planta: p.id });
-      app.toast('Layout salvo: ' + p.nome + ' (' + r.moveis + ' móveis).');
+      c.planta.id = r.planta;
+      await app.carregar({ planta: r.planta });
+      app.toast((nova ? 'Planta criada: ' : 'Layout salvo: ') + r.nome + ' (' + r.moveis + ' móveis).');
     } catch (e) {
-      app.erro(e);
+      $('spErro').textContent = (e && e.message) || String(e);
+      $('spErro').hidden = false;
     } finally {
+      $('spSalvar').disabled = false;
       app.carregando(false);
     }
   }
@@ -772,6 +823,9 @@ const Construtor = (() => {
 
     $('cnsDesfazer').addEventListener('click', desfazer);
     $('cnsSalvar').addEventListener('click', salvar);
+    $('formSalvarPlanta').addEventListener('submit', confirmarSalvar);
+    $('formSalvarPlanta').addEventListener('change', atualizarDialogoSalvar);
+    $('spCancelar').addEventListener('click', () => $('dlgSalvarPlanta').close());
     $('cnsDescartar').addEventListener('click', descartar);
     $('cnsBaixarCodigo').addEventListener('click', baixarCodigo);
     $('cnsCarregarCodigo').addEventListener('click', () => $('cnsArquivoCodigo').click());
@@ -796,6 +850,8 @@ const Construtor = (() => {
     sincronizar,
     tecla,
     gerarCodigo,
+    layoutDe,
+    novaPlanta,
   };
 })();
 </script>

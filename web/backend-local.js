@@ -54,6 +54,7 @@
     campo[CONFIG.ABAS.TIPOS] = 'tipos';
     campo[CONFIG.ABAS.COMENTARIOS] = 'comentarios';
     campo[CONFIG.ABAS.PRODUTOS] = 'produtos';
+    campo[CONFIG.ABAS.LAYOUT] = 'layout';
     const chave = (nome) => campo[nome] || 'aba:' + nome;
     const abas = ler();
     return {
@@ -101,13 +102,16 @@
       return resultado;
     },
 
-    salvarLayout(acesso, planta, layout) {
-      conferirDesenvolvedor_(acesso);
-      const objetos = objetosLayoutDaPlanta_(planta, layout);
-      const abas = ler();
-      abas.layout = mesclarLinhas_(abas.layout, objetos, colunasLayout_());
-      gravar(abas);
-      return { planta: normPlanta_(planta), moveis: objetos.length - 1 };
+    salvarLayout(acesso, planta, layout, nome) {
+      return executarSalvarLayout_(ioRascunhos(), acesso, planta, layout, nome);
+    },
+
+    getConfigDev(acesso) {
+      return executarConfigDev_(ioRascunhos(), acesso, null);
+    },
+
+    salvarConfigDev(acesso, pedido) {
+      return executarConfigDev_(ioRascunhos(), acesso, pedido);
     },
 
     entrarDesenvolvedor(acesso) {
@@ -194,6 +198,17 @@
     },
   };
 
+  /**
+   * Configuração do Desenvolvedor (aba "Config do app" guardada no navegador): aplicada antes de cada chamada,
+   * como o Code.gs faz a cada execução. As senhas (Validacao.gs) já a encontram aplicada.
+   */
+  function aplicarConfigLocal() {
+    let salvo = null;
+    try { salvo = JSON.parse(window.localStorage.getItem(CHAVE)); } catch (e) { /* sem armazenamento */ }
+    aplicarConfigApp_(configAppDeValores_(salvo && salvo['aba:' + CONFIG.ABAS.CONFIG_APP]));
+  }
+  carregarConfigApp_ = function () { /* já aplicada por aplicarConfigLocal */ };
+
   /** Mesma interface do google.script.run (assíncrona, com handlers). */
   window.google = {
     script: {
@@ -209,6 +224,7 @@
             setTimeout(() => {
               let resposta;
               try {
+                aplicarConfigLocal();
                 // Cópia via JSON, como o Apps Script faz entre servidor e página.
                 resposta = JSON.parse(JSON.stringify(api[nome](...JSON.parse(JSON.stringify(args)))));
               } catch (e) {

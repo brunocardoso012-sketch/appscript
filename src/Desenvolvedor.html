@@ -1,33 +1,80 @@
 <script>
 /**
  * ============================================================================
- *  DESENVOLVEDOR (módulo de construção da loja)
+ *  DESENVOLVEDOR (painel da engrenagem)
  * ============================================================================
- *  O item "Desenvolvedor" da engrenagem pede uma senha (SENHAS_ACESSO.DESENVOLVEDOR,
- *  em Config.gs) e, com ela, mostra no mesmo menu o módulo de construção da loja:
- *  Baixar planilha base, Importar planilha e Construir loja. Depois de entrar, o item
- *  abre e fecha esse grupo; "Sair do desenvolvedor" esconde de novo.
- *  A senha fica só nesta aba do navegador (sessionStorage) e é conferida no servidor
- *  a cada gravação (importarPlanilha e salvarLayout, em Code.gs).
+ *  A engrenagem pede a senha do Desenvolvedor (SENHAS_ACESSO.DESENVOLVEDOR, trocável aqui mesmo) e abre o
+ *  painel do desenvolvedor, com quatro seções:
+ *   - Módulos: todos os módulos do app (Construir loja, Baixar / Importar planilha, Validação, Construção,
+ *     Ajustar etiquetas, Modo noturno, Abrir planilha, Tutorial); escolher um fecha o painel;
+ *   - Plantas: o painel de controle de cada planta (nome, ordem da cascata, tamanho da loja e das
+ *     etiquetas, abrir no Construir loja, duplicar e apagar);
+ *   - Cascata entre ERs: espaços fixos de uma marca em algumas ERs e livres nas outras e espaços que mudam
+ *     de nome de uma ER para a seguinte;
+ *   - Senhas: as do Desenvolvedor, da Validação e da Construção.
+ *  Enquanto a sessão está aberta, a faixa "Modo desenvolvedor" fica no alto da tela. A senha fica só nesta
+ *  aba do navegador (sessionStorage) e o servidor a confere a cada gravação (Desenvolvedor.gs).
  */
 const Desenvolvedor = (() => {
   const CHAVE = 'planoVarejo.desenvolvedor';
   const $ = (id) => document.getElementById(id);
-  let app = null; // { chamar, toast, aoSair }
+  let app = null; // { estado, chamar, toast, erro, carregar, carregando, plantaAtual, trocarPlanta, espacos, layoutDe, novaPlanta, aoSair }
   let acesso = null; // { senha }
-  let aberto = true; // grupo do módulo aberto no menu
+  let aba = 'modulos';
+  let config = null; // resposta de getConfigDev (Desenvolvedor.gs)
+  let edEspacos = null; // regras em edição (espaços fixos numa ER e livres nas outras)
+  let edHeranca = null; // regras em edição (mudanças de espaço entre ERs)
 
   const sessao = {
     ler() { try { return JSON.parse(window.sessionStorage.getItem(CHAVE)); } catch (e) { return null; } },
     gravar(v) { try { if (v) window.sessionStorage.setItem(CHAVE, JSON.stringify(v)); else window.sessionStorage.removeItem(CHAVE); } catch (e) { /* sem armazenamento */ } },
   };
 
-  /** Mostra (ou esconde) o grupo do módulo no menu, conforme o acesso. */
-  function atualizar() {
+  function n(tag, classe, texto, pai) {
+    const e = document.createElement(tag);
+    if (classe) e.className = classe;
+    if (texto !== undefined && texto !== null) e.textContent = texto;
+    if (pai) pai.appendChild(e);
+    return e;
+  }
+
+  function botao(texto, classe, fn, pai) {
+    const b = n('button', 'dev-btn ' + (classe || ''), texto, pai);
+    b.type = 'button';
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  function campo(rotulo, pai, classe) {
+    const l = n('label', 'dev-campo ' + (classe || ''), null, pai);
+    n('span', null, rotulo, l);
+    return l;
+  }
+
+  function entrada(pai, valor, tipo, extra) {
+    const i = n('input', null, null, pai);
+    i.type = tipo || 'text';
+    i.value = valor === undefined || valor === null ? '' : valor;
+    Object.assign(i, extra || {});
+    return i;
+  }
+
+  const plantas = () => (config ? config.plantas : []);
+  const nomeEr = (id) => (plantas().find((p) => p.id === id) || { nome: id }).nome;
+  const listaErs = (ids) => {
+    const nomes = ids.map(nomeEr);
+    return nomes.length < 2 ? nomes.join('') : nomes.slice(0, -1).join(', ') + ' e ' + nomes[nomes.length - 1];
+  };
+
+  /* ------------------------------- acesso ---------------------------------- */
+
+  /** Faixa no alto, engrenagem em destaque e o corpo com a classe modo-dev enquanto a sessão está aberta. */
+  function atualizarModo() {
     const dentro = !!acesso;
-    $('btnDesenvolvedor').setAttribute('aria-expanded', String(dentro && aberto));
-    $('btnDesenvolvedor').title = dentro ? 'Módulo de construção da loja (clique para mostrar ou esconder)' : 'Módulo de construção da loja (pede senha)';
-    $('grupoDesenvolvedor').hidden = !(dentro && aberto);
+    document.body.classList.toggle('modo-dev', dentro);
+    $('devFaixa').hidden = !dentro;
+    $('btnConfig').setAttribute('aria-pressed', String(dentro));
+    $('btnConfig').title = dentro ? 'Painel do desenvolvedor' : 'Desenvolvedor (pede senha)';
   }
 
   function abrirAcesso() {
@@ -40,50 +87,497 @@ const Desenvolvedor = (() => {
   async function entrar(ev) {
     ev.preventDefault();
     const pedido = { senha: $('devSenha').value };
-    const botao = $('devEntrar');
-    botao.disabled = true;
+    const b = $('devEntrar');
+    b.disabled = true;
     try {
       await app.chamar('entrarDesenvolvedor', pedido);
       acesso = pedido;
-      aberto = true;
       sessao.gravar(acesso);
       $('dlgDesenvolvedor').close();
-      atualizar();
-      app.toast('Módulo desenvolvedor liberado: abra a engrenagem para construir a loja.');
+      atualizarModo();
+      abrirPainel('modulos');
     } catch (e) {
       $('devErro').textContent = (e && e.message) || String(e);
       $('devErro').hidden = false;
     } finally {
-      botao.disabled = false;
+      b.disabled = false;
     }
   }
 
   function sair() {
     if (app.aoSair && app.aoSair() === false) return; // ex.: o Construir loja tem alterações e a pessoa cancelou
     acesso = null;
+    config = null;
     sessao.gravar(null);
-    atualizar();
-    app.toast('Você saiu do módulo desenvolvedor.');
+    if ($('dlgDev').open) $('dlgDev').close();
+    atualizarModo();
+    app.toast('Você saiu do modo desenvolvedor.');
   }
+
+  /** Engrenagem: sem a senha, pede; com ela, abre o painel. */
+  function abrir() {
+    if (!app.estado.dados) return;
+    if (!acesso) abrirAcesso();
+    else abrirPainel();
+  }
+
+  /* ------------------------------- painel ---------------------------------- */
+
+  function abrirPainel(qual) {
+    if (qual) aba = qual;
+    mensagem('');
+    if (!$('dlgDev').open) $('dlgDev').showModal();
+    mostrarAba(aba);
+    recarregar();
+  }
+
+  function fecharPainel() {
+    if ($('dlgDev').open) $('dlgDev').close();
+  }
+
+  function mostrarAba(qual) {
+    aba = qual;
+    document.querySelectorAll('#dlgDev .dev-aba').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.devAba === qual)));
+    document.querySelectorAll('#dlgDev .dev-painel').forEach((s) => { s.hidden = s.dataset.devPainel !== qual; });
+  }
+
+  function mensagem(texto, erro) {
+    const m = $('devMsg');
+    m.textContent = texto || '';
+    m.hidden = !texto;
+    m.classList.toggle('erro', !!erro);
+  }
+
+  async function recarregar() {
+    try {
+      config = await app.chamar('getConfigDev', acesso);
+      edEspacos = null;
+      edHeranca = null;
+      desenharTudo();
+    } catch (e) {
+      if (/Senha incorreta/.test((e && e.message) || '')) {
+        // A senha mudou em outro lugar: a sessão acaba.
+        acesso = null;
+        sessao.gravar(null);
+        atualizarModo();
+        fecharPainel();
+        app.toast('A senha do desenvolvedor mudou. Entre de novo.');
+        return;
+      }
+      mensagem((e && e.message) || String(e), true);
+    }
+  }
+
+  /** Grava um pedido (salvarConfigDev), recarrega os dados do app e redesenha o painel. */
+  async function mudar(pedido, ok) {
+    mensagem('');
+    app.carregando(true, 'Salvando…');
+    try {
+      config = await app.chamar('salvarConfigDev', acesso, pedido);
+      edEspacos = null;
+      edHeranca = null;
+      await app.carregar({ planta: app.estado.planta });
+      desenharTudo();
+      mensagem(ok);
+      return true;
+    } catch (e) {
+      mensagem((e && e.message) || String(e), true);
+      return false;
+    } finally {
+      app.carregando(false);
+    }
+  }
+
+  function desenharTudo() {
+    if (!config) return;
+    desenharPlantas();
+    desenharCascata();
+    desenharSenhas();
+  }
+
+  /* ------------------------------- plantas --------------------------------- */
+
+  /** Regras da cascata que tocam a planta (para o cartão dela). */
+  function regrasDaPlanta(id) {
+    const out = [];
+    Object.keys(config.espacosPorEr).forEach((esp) => {
+      const r = config.espacosPorEr[esp];
+      out.push(esp + ': ' + (r.fixo.plantas.indexOf(id) >= 0 ? r.fixo.nome : r.livre.nome));
+    });
+    config.herancaEntreErs.filter((h) => h.para === id).forEach((h) => {
+      Object.keys(h.espacos).forEach((novo) => out.push(novo + ' herda ' + h.espacos[novo] + ' da ' + nomeEr(h.de)));
+      h.semHeranca.forEach((e) => out.push(e + ': definido de novo aqui'));
+    });
+    return out;
+  }
+
+  function desenharPlantas() {
+    const corpo = $('devPlantas');
+    corpo.innerHTML = '';
+    const topo = n('div', 'dev-secao-topo', null, corpo);
+    const t = n('div', null, null, topo);
+    n('h3', 'dev-titulo', 'Plantas', t);
+    n('p', 'dev-nota', 'A ordem abaixo é a ordem da cascata: o que é definido numa ER vale para as seguintes, até a ER ter linha própria. Para criar uma planta, monte no Construir loja e use Salvar planta › Criar uma planta nova.', t);
+    botao('+ Nova planta', 'primario', () => { fecharPainel(); app.novaPlanta(); }, topo);
+
+    const lista = n('ol', 'dev-plantas', null, corpo);
+    const ids = plantas().map((p) => p.id);
+    plantas().forEach((info, i) => {
+      const p = app.estado.dados.plantas.find((x) => x.id === info.id);
+      if (!p) return;
+      const li = n('li', 'dev-planta', null, lista);
+      li.dataset.planta = p.id;
+      const cab = n('div', 'dev-planta-cab', null, li);
+      n('span', 'dev-id', '#' + p.id, cab);
+      const nome = entrada(cab, info.nome, 'text', { maxLength: 30, className: 'dev-nome' });
+      nome.setAttribute('aria-label', 'Nome da planta ' + p.id);
+      n('span', 'dev-heranca', i === 0 ? 'primeira da cascata' : 'herda da ' + nomeEr(ids[i - 1]), cab);
+      const ordem = n('div', 'dev-ordem', null, cab);
+      const mover = (d) => {
+        const nova = ids.slice();
+        nova.splice(i, 1);
+        nova.splice(i + d, 0, p.id);
+        mudar({ acao: 'ordemPlantas', ordem: nova }, 'Ordem da cascata: ' + nova.map(nomeEr).join(' → ') + '.');
+      };
+      const sobe = botao('↑', 'icone', () => mover(-1), ordem);
+      sobe.title = 'Subir na cascata';
+      sobe.disabled = i === 0;
+      const desce = botao('↓', 'icone', () => mover(1), ordem);
+      desce.title = 'Descer na cascata';
+      desce.disabled = i === ids.length - 1;
+
+      const contagem = {};
+      p.moveis.filter((m) => m.tipo !== 'EXTRA').forEach((m) => { contagem[m.tipo] = (contagem[m.tipo] || 0) + 1; });
+      const tipos = app.estado.dados.tipos || {};
+      const resumo = n('div', 'dev-planta-info', null, li);
+      n('span', 'dev-chip forte', p.moveis.filter((m) => m.tipo !== 'EXTRA').length + ' móveis', resumo);
+      Object.keys(contagem).sort((a, b) => contagem[b] - contagem[a]).forEach((k) => {
+        n('span', 'dev-chip', contagem[k] + ' × ' + String(tipos[k] || k).split(':')[0].toLowerCase(), resumo);
+      });
+      if (info.apelidos.length) n('span', 'dev-chip apelido', 'nomes antigos: ' + info.apelidos.join(', '), resumo);
+
+      const campos = n('div', 'dev-campos', null, li);
+      const loja = p.loja || {};
+      const num = (rotulo, valor, extra) => entrada(campo(rotulo, campos), valor, 'number', Object.assign({ step: '0.5', min: '1' }, extra));
+      const largura = num('Largura da loja', loja.largura);
+      const fundo = num('Fundo da loja', loja.profundidade);
+      const parede = num('Altura das paredes', loja.alturaParede, { step: '0.1', min: '0' });
+      const etq = num('Tamanho das etiquetas (%)', loja.escalaEtiquetas || 100, { step: '10', min: '60', max: '250' });
+      const slide = num('Largura do slide (px)', loja.slide || '', { step: '1', min: '0', placeholder: 'automática' });
+
+      const regras = regrasDaPlanta(p.id);
+      if (regras.length) {
+        const r = n('div', 'dev-regras-planta', null, li);
+        n('span', 'dev-rotulo', 'Regras da cascata', r);
+        regras.forEach((x) => n('span', 'dev-chip regra', x, r));
+      }
+
+      const acoes = n('div', 'dev-planta-acoes', null, li);
+      botao('Salvar alterações', 'primario', async () => {
+        const novoNome = nome.value.trim();
+        const novaLoja = {
+          largura: Number(largura.value) || loja.largura, profundidade: Number(fundo.value) || loja.profundidade,
+          alturaParede: Number(parede.value) >= 0 && parede.value !== '' ? Number(parede.value) : loja.alturaParede,
+          escalaEtiquetas: Number(etq.value) || 100, slide: Number(slide.value) || 0,
+        };
+        const mudouLoja = ['largura', 'profundidade', 'alturaParede'].some((k) => novaLoja[k] !== loja[k])
+          || novaLoja.escalaEtiquetas !== (loja.escalaEtiquetas || 100) || novaLoja.slide !== (loja.slide || 0);
+        if (novoNome === info.nome && !mudouLoja) { mensagem('Nada mudou na ' + info.nome + '.'); return; }
+        if (mudouLoja) {
+          app.carregando(true, 'Salvando a ' + info.nome + '…');
+          try {
+            await app.chamar('salvarLayout', acesso, p.id, app.layoutDe(Object.assign({}, p, { loja: novaLoja })));
+          } catch (e) {
+            mensagem((e && e.message) || String(e), true);
+            app.carregando(false);
+            return;
+          }
+          app.carregando(false);
+        }
+        if (novoNome !== info.nome) await mudar({ acao: 'renomearPlanta', planta: p.id, nome: novoNome }, 'Planta salva: ' + novoNome + '.');
+        else { await app.carregar({ planta: app.estado.planta }); desenharTudo(); mensagem('Planta salva: ' + info.nome + '.'); }
+      }, acoes);
+      botao('Ver na planta', '', () => { fecharPainel(); app.trocarPlanta(p.id); }, acoes);
+      botao('Abrir no Construir loja', '', () => {
+        fecharPainel();
+        app.trocarPlanta(p.id);
+        if ($('btnConstruir').getAttribute('aria-pressed') !== 'true') $('btnConstruir').click();
+      }, acoes);
+      botao('Duplicar', '', async () => {
+        const nomeCopia = window.prompt('Nome da cópia da ' + info.nome + ':', info.nome + ' (cópia)');
+        if (!nomeCopia || !nomeCopia.trim()) return;
+        app.carregando(true, 'Duplicando a ' + info.nome + '…');
+        try {
+          const r = await app.chamar('salvarLayout', acesso, 'NOVA', app.layoutDe(p), nomeCopia.trim());
+          await recarregarDepois('Planta criada: ' + r.nome + ' (cópia do layout da ' + info.nome + ').');
+        } catch (e) {
+          mensagem((e && e.message) || String(e), true);
+        } finally {
+          app.carregando(false);
+        }
+      }, acoes);
+      const apagar = botao('Apagar', 'perigo', () => { confirmar.hidden = false; apagar.disabled = true; }, acoes);
+
+      const confirmar = n('div', 'dev-confirmar', null, li);
+      confirmar.hidden = true;
+      n('p', null, 'Apagar a ' + info.nome + '? O layout dela sai da aba Layout.', confirmar);
+      const op = n('label', 'dev-opcao', null, confirmar);
+      const dados = entrada(op, '', 'checkbox');
+      n('span', null, 'Apagar também as linhas desta ER nas abas Movimentos e Painéis e nos ciclos em construção (todos os ciclos)', op);
+      const bc = n('div', 'dev-planta-acoes', null, confirmar);
+      botao('Cancelar', '', () => { confirmar.hidden = true; apagar.disabled = false; }, bc);
+      botao('Apagar de vez', 'perigo', () => {
+        if (app.estado.planta === p.id) {
+          const outra = app.estado.dados.plantas.find((x) => x.id !== p.id);
+          if (outra) app.trocarPlanta(outra.id);
+        }
+        mudar({ acao: 'excluirPlanta', planta: p.id, apagarDados: dados.checked }, 'Planta apagada: ' + info.nome + '.');
+      }, bc);
+    });
+  }
+
+  async function recarregarDepois(ok) {
+    config = await app.chamar('getConfigDev', acesso);
+    await app.carregar({ planta: app.estado.planta });
+    desenharTudo();
+    mensagem(ok);
+  }
+
+  /* ------------------------------- cascata --------------------------------- */
+
+  /** Todos os espaços das plantas (sugestões dos campos de espaço). */
+  function listaDeEspacos() {
+    const lista = document.getElementById('devEspacosLista') || n('datalist', null, null, $('devCascata'));
+    lista.id = 'devEspacosLista';
+    lista.innerHTML = '';
+    const vistos = {};
+    app.estado.dados.plantas.forEach((p) => p.moveis.forEach((m) => {
+      if (m.tipo === 'EXTRA') return;
+      const esp = app.espacos(m);
+      (esp.length ? esp.map((e) => m.id + '/' + e.id) : [m.id]).forEach((id) => {
+        if (vistos[id]) return;
+        vistos[id] = true;
+        n('option', null, null, lista).value = id;
+      });
+    }));
+    return lista;
+  }
+
+  function edicaoEspacos() {
+    if (!edEspacos) {
+      edEspacos = Object.keys(config.espacosPorEr).map((esp) => {
+        const r = config.espacosPorEr[esp];
+        return { espaco: esp, fixo: { plantas: r.fixo.plantas.slice(), marca: r.fixo.marca, nome: r.fixo.nome }, livre: { nome: r.livre.nome } };
+      });
+    }
+    return edEspacos;
+  }
+
+  function edicaoHeranca() {
+    if (!edHeranca) {
+      edHeranca = config.herancaEntreErs.map((h) => ({
+        para: h.para,
+        espacos: Object.keys(h.espacos).map((novo) => ({ novo, antigo: h.espacos[novo] })),
+        semHeranca: h.semHeranca.slice(),
+      }));
+    }
+    return edHeranca;
+  }
+
+  function desenharCascata() {
+    const corpo = $('devCascata');
+    corpo.innerHTML = '';
+    listaDeEspacos();
+    const ids = plantas().map((p) => p.id);
+
+    // Fluxo da cascata.
+    n('h3', 'dev-titulo', 'Ordem da cascata', corpo);
+    const fluxo = n('div', 'dev-fluxo', null, corpo);
+    ids.forEach((id, i) => {
+      if (i) n('span', 'dev-seta', '→', fluxo);
+      const no = n('span', 'dev-no', nomeEr(id), fluxo);
+      if (config.herancaEntreErs.some((h) => h.para === id)) { no.classList.add('com-regra'); no.title = 'Tem mudanças de espaço ao chegar aqui'; }
+    });
+    n('p', 'dev-nota', 'Mude a ordem na seção Plantas. As regras abaixo são as exceções à cascata.', corpo);
+
+    // Espaços fixos numa ER e livres nas outras.
+    const s1 = n('section', 'dev-bloco', null, corpo);
+    const t1 = n('div', 'dev-secao-topo', null, s1);
+    const d1 = n('div', null, null, t1);
+    n('h3', 'dev-titulo', 'Espaços fixos numa ER e livres nas outras', d1);
+    n('p', 'dev-nota', 'Nas ERs marcadas, o espaço é fixo da marca escolhida (com o cadeado 🔒); nas outras, é livre. A parte livre não herda a fixa: ela vale a partir da primeira ER em que o espaço é livre.', d1);
+    selo(t1, 'espacosPorEr');
+    const regras = edicaoEspacos();
+    if (!regras.length) n('p', 'dev-vazio', 'Nenhum espaço fixo por ER.', s1);
+    regras.forEach((r, i) => {
+      const card = n('div', 'dev-regra', null, s1);
+      const linha = n('div', 'dev-campos', null, card);
+      const esp = entrada(campo('Espaço', linha, 'largo'), r.espaco, 'text', { placeholder: 'GONDOLA 1/PONTA-B' });
+      esp.setAttribute('list', 'devEspacosLista');
+      esp.addEventListener('input', () => { r.espaco = esp.value; });
+      const marca = n('select', null, null, campo('Marca do fixo', linha));
+      Object.keys(app.estado.dados.marcas).filter((k) => k !== 'NEUTRO').forEach((k) => marca.add(new Option(app.estado.dados.marcas[k].nome, k)));
+      marca.value = r.fixo.marca || 'OUI';
+      r.fixo.marca = marca.value;
+      marca.addEventListener('change', () => { r.fixo.marca = marca.value; });
+      const nf = entrada(campo('Nome da parte fixa', linha), r.fixo.nome, 'text', { maxLength: 30, placeholder: 'Fixo O.U.i' });
+      nf.addEventListener('input', () => { r.fixo.nome = nf.value; });
+      const nl = entrada(campo('Nome da parte livre', linha), r.livre.nome, 'text', { maxLength: 30, placeholder: 'Livre' });
+      nl.addEventListener('input', () => { r.livre.nome = nl.value; });
+      const ers = n('div', 'dev-ers', null, card);
+      n('span', 'dev-rotulo', 'Fixo em', ers);
+      const resumo = n('p', 'dev-resumo', null, card);
+      const atualizarResumo = () => {
+        const fixo = ids.filter((id) => r.fixo.plantas.indexOf(id) >= 0);
+        const livre = ids.filter((id) => r.fixo.plantas.indexOf(id) < 0);
+        resumo.textContent = !fixo.length ? 'Marque ao menos uma ER.' : !livre.length ? 'Deixe ao menos uma ER livre.'
+          : 'Fixo na ' + listaErs(fixo) + '; livre na ' + listaErs(livre) + '.';
+      };
+      ids.forEach((id) => {
+        const op = n('label', 'dev-opcao chip', null, ers);
+        const c = entrada(op, '', 'checkbox');
+        c.checked = r.fixo.plantas.indexOf(id) >= 0;
+        n('span', null, nomeEr(id), op);
+        c.addEventListener('change', () => {
+          r.fixo.plantas = ids.filter((x) => (x === id ? c.checked : r.fixo.plantas.indexOf(x) >= 0));
+          atualizarResumo();
+        });
+      });
+      atualizarResumo();
+      botao('Remover', 'perigo pequeno', () => { regras.splice(i, 1); desenharCascata(); }, card);
+    });
+    const a1 = n('div', 'dev-planta-acoes', null, s1);
+    botao('+ Espaço fixo', '', () => {
+      regras.push({ espaco: '', fixo: { plantas: [], marca: 'OUI', nome: '' }, livre: { nome: 'Livre' } });
+      desenharCascata();
+    }, a1);
+    botao('Salvar espaços fixos', 'primario', () => mudar({ acao: 'config', chave: 'espacosPorEr', valor: regras }, 'Espaços fixos salvos.'), a1);
+    if (config.mudou.indexOf('espacosPorEr') >= 0) botao('Voltar ao padrão do código', '', () => mudar({ acao: 'padrao', chave: 'espacosPorEr' }, 'Espaços fixos de volta ao padrão.'), a1);
+
+    // Mudanças de espaço entre ERs.
+    const s2 = n('section', 'dev-bloco', null, corpo);
+    const t2 = n('div', 'dev-secao-topo', null, s2);
+    const d2 = n('div', null, null, t2);
+    n('h3', 'dev-titulo', 'Mudanças de espaço entre ERs', d2);
+    n('p', 'dev-nota', 'Quando os móveis mudam de lugar de uma ER para a seguinte: um espaço herda o que estava em outro espaço da ER anterior, e os espaços marcados como "definidos de novo" não herdam nada (a ER tem de ter linha própria).', d2);
+    selo(t2, 'herancaEntreErs');
+    const herancas = edicaoHeranca();
+    if (!herancas.length) n('p', 'dev-vazio', 'Nenhuma mudança de espaço.', s2);
+    herancas.forEach((h, i) => {
+      const card = n('div', 'dev-regra', null, s2);
+      const linha = n('div', 'dev-campos', null, card);
+      const para = n('select', null, null, campo('Ao chegar na ER', linha));
+      ids.slice(1).forEach((id) => para.add(new Option(nomeEr(id), id)));
+      if (ids.indexOf(h.para) < 1) h.para = ids[1];
+      para.value = h.para;
+      const de = n('p', 'dev-resumo', null, linha);
+      const atualizarDe = () => { de.textContent = 'vem da ' + nomeEr(ids[ids.indexOf(h.para) - 1]); };
+      para.addEventListener('change', () => { h.para = para.value; atualizarDe(); });
+      atualizarDe();
+
+      n('span', 'dev-rotulo', 'Trocas de espaço', card);
+      const trocas = n('div', 'dev-lista', null, card);
+      h.espacos.forEach((t, j) => {
+        const l = n('div', 'dev-troca', null, trocas);
+        const novo = entrada(l, t.novo, 'text', { placeholder: 'espaço nesta ER (GONDOLA 3/PONTA-A)' });
+        novo.setAttribute('list', 'devEspacosLista');
+        novo.setAttribute('aria-label', 'Espaço nesta ER');
+        novo.addEventListener('input', () => { t.novo = novo.value; });
+        n('span', 'dev-seta', 'herda de', l);
+        const antigo = entrada(l, t.antigo, 'text', { placeholder: 'espaço na ER anterior (GONDOLA 2/PONTA-B)' });
+        antigo.setAttribute('list', 'devEspacosLista');
+        antigo.setAttribute('aria-label', 'Espaço na ER anterior');
+        antigo.addEventListener('input', () => { t.antigo = antigo.value; });
+        botao('×', 'icone', () => { h.espacos.splice(j, 1); desenharCascata(); }, l).title = 'Tirar a troca';
+      });
+      botao('+ Troca', 'pequeno', () => { h.espacos.push({ novo: '', antigo: '' }); desenharCascata(); }, card);
+
+      n('span', 'dev-rotulo', 'Definidos de novo nesta ER (não herdam)', card);
+      const sem = n('div', 'dev-lista', null, card);
+      h.semHeranca.forEach((e, j) => {
+        const l = n('div', 'dev-troca', null, sem);
+        const i2 = entrada(l, e, 'text', { placeholder: 'GONDOLA 2/PONTA-B' });
+        i2.setAttribute('list', 'devEspacosLista');
+        i2.setAttribute('aria-label', 'Espaço definido de novo');
+        i2.addEventListener('input', () => { h.semHeranca[j] = i2.value; });
+        botao('×', 'icone', () => { h.semHeranca.splice(j, 1); desenharCascata(); }, l).title = 'Tirar';
+      });
+      botao('+ Espaço', 'pequeno', () => { h.semHeranca.push(''); desenharCascata(); }, card);
+      botao('Remover regra', 'perigo pequeno', () => { herancas.splice(i, 1); desenharCascata(); }, card);
+    });
+    const a2 = n('div', 'dev-planta-acoes', null, s2);
+    const b2 = botao('+ Mudança de espaço', '', () => {
+      herancas.push({ para: ids.find((id, k) => k > 0 && !herancas.some((h) => h.para === id)) || ids[1], espacos: [{ novo: '', antigo: '' }], semHeranca: [] });
+      desenharCascata();
+    }, a2);
+    b2.disabled = ids.length < 2;
+    botao('Salvar mudanças de espaço', 'primario', () => mudar({
+      acao: 'config', chave: 'herancaEntreErs',
+      valor: herancas.map((h) => ({ para: h.para, espacos: h.espacos, semHeranca: h.semHeranca.filter((e) => String(e).trim()) })),
+    }, 'Mudanças de espaço salvas.'), a2);
+    if (config.mudou.indexOf('herancaEntreErs') >= 0) botao('Voltar ao padrão do código', '', () => mudar({ acao: 'padrao', chave: 'herancaEntreErs' }, 'Mudanças de espaço de volta ao padrão.'), a2);
+  }
+
+  /** "Padrão do código" ou "Personalizado" no topo de cada seção. */
+  function selo(pai, chave) {
+    const mudou = config.mudou.indexOf(chave) >= 0;
+    n('span', 'dev-selo-estado' + (mudou ? ' mudou' : ''), mudou ? 'personalizado' : 'padrão do código', pai);
+  }
+
+  /* -------------------------------- senhas --------------------------------- */
+
+  function desenharSenhas() {
+    const corpo = $('devSenhas');
+    corpo.innerHTML = '';
+    const topo = n('div', 'dev-secao-topo', null, corpo);
+    const t = n('div', null, null, topo);
+    n('h3', 'dev-titulo', 'Senhas', t);
+    n('p', 'dev-nota', 'Uma senha para cada módulo, com ao menos 4 caracteres. Elas ficam na aba "Config do app" da planilha (quem edita a planilha consegue vê-las). Ao trocar, avise quem usa cada módulo.', t);
+    selo(topo, 'senhas');
+    const campos = n('div', 'dev-campos', null, corpo);
+    const s = config.senhas;
+    const ent = {};
+    [['DESENVOLVEDOR', 'Desenvolvedor (a engrenagem)'], ['VALIDADOR', 'Validação'], ['CONSTRUTOR', 'Construção']].forEach(([k, rotulo]) => {
+      ent[k] = entrada(campo(rotulo, campos, 'largo'), s[k], 'text', { autocomplete: 'off', spellcheck: false });
+      ent[k].dataset.senha = k;
+    });
+    const a = n('div', 'dev-planta-acoes', null, corpo);
+    const aplicar = (r) => { if (r && config) { acesso = { senha: config.senhas.DESENVOLVEDOR }; sessao.gravar(acesso); } };
+    botao('Salvar senhas', 'primario', async () => {
+      const valor = {};
+      Object.keys(ent).forEach((k) => { valor[k] = ent[k].value.trim(); });
+      aplicar(await mudar({ acao: 'config', chave: 'senhas', valor }, 'Senhas salvas. A do desenvolvedor vale já nesta sessão.'));
+    }, a);
+    if (config.mudou.indexOf('senhas') >= 0) {
+      botao('Voltar às senhas do código', '', async () => {
+        aplicar(await mudar({ acao: 'padrao', chave: 'senhas' }, 'Senhas de volta ao padrão do código.'));
+      }, a);
+    }
+  }
+
+  /* -------------------------------- início --------------------------------- */
 
   function iniciar(contexto) {
     app = contexto;
-    // Sem acesso, o item pede a senha (e o menu fecha); com acesso, abre e fecha o grupo sem fechar o menu.
-    $('btnDesenvolvedor').addEventListener('click', (e) => {
-      if (!acesso) { abrirAcesso(); return; }
-      e.stopPropagation();
-      aberto = !aberto;
-      atualizar();
-    });
-    $('btnSairDesenvolvedor').addEventListener('click', sair);
+    $('btnConfig').addEventListener('click', abrir);
     $('formDesenvolvedor').addEventListener('submit', entrar);
     $('devCancelar').addEventListener('click', () => $('dlgDesenvolvedor').close());
+    $('devFechar').addEventListener('click', fecharPainel);
+    $('btnSairDesenvolvedor').addEventListener('click', sair);
+    $('devFaixaPainel').addEventListener('click', () => abrirPainel());
+    $('devFaixaSair').addEventListener('click', sair);
+    document.querySelectorAll('#dlgDev .dev-aba').forEach((b) => b.addEventListener('click', () => mostrarAba(b.dataset.devAba)));
+    // Escolher um módulo fecha o painel (depois da ação do próprio botão); o modo noturno não fecha.
+    $('dlgDev').addEventListener('click', (e) => {
+      const card = e.target.closest('.dev-card');
+      if (card && !card.hasAttribute('data-mantem-painel')) fecharPainel();
+    });
     // Mesma aba: continua entrado depois de recarregar a página.
     const salvo = sessao.ler();
     if (salvo && salvo.senha) acesso = salvo;
-    atualizar();
+    atualizarModo();
   }
 
-  return { iniciar, ativo: () => !!acesso, acesso: () => acesso };
+  return { iniciar, abrir, abrirPainel, ativo: () => !!acesso, acesso: () => acesso };
 })();
 </script>

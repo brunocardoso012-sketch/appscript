@@ -27,7 +27,7 @@ test('app completo em arquivo único: serve a página embutida, sem Index.html n
   const codigo = gerarCompleto();
   assert.ok(!/createTemplateFromFile|createHtmlOutputFromFile\('Index'\)/.test(codigo), 'não depende do Index.html');
   const pagina = gerarPaginaCompleta();
-  ['const Construtor', 'const Planilha', 'const Estrategia', 'const Tutorial', 'const Analytics', 'const App', 'const Desenvolvedor', 'id="btnConstruir"', 'id="btnDesenvolvedor"', 'id="btnAnalytics"']
+  ['const Construtor', 'const Planilha', 'const Estrategia', 'const Tutorial', 'const Analytics', 'const App', 'const Desenvolvedor', 'id="btnConstruir"', 'id="dlgDev"', 'id="btnAnalytics"']
     .forEach((x) => assert.ok(pagina.includes(x), x));
   const falsos = servicosFalsos({ vinculada: true });
   const run = carregar(codigo, falsos);

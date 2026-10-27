@@ -27,6 +27,8 @@ const CONFIG = {
     PRODUTOS: 'Produtos',
     // Opcional, criada à mão: em quantas lojas da rede cada móvel ou espaço existe (inventarioDeValores_).
     INVENTARIO: 'Inventario',
+    // O que o Desenvolvedor muda no app (Desenvolvedor.gs): nomes e ordem das plantas, regras da cascata e senhas.
+    CONFIG_APP: 'Config do app',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -39,9 +41,8 @@ const CONFIG = {
 };
 
 /**
- * Senhas de acesso aos módulos da engrenagem: Validação e Construção (uma por papel) e
- * Desenvolvedor (Construir loja, Baixar planilha base e Importar planilha).
- * Provisórias: no futuro virão da planilha (troque em senhasDeAcesso_, Validacao.gs).
+ * Senhas padrão dos módulos: Desenvolvedor (a engrenagem) e, dentro dele, Validação e Construção
+ * (uma por papel). O Desenvolvedor pode trocá-las (aba "Config do app", veja Desenvolvedor.gs).
  */
 const SENHAS_ACESSO = {
   VALIDADOR: 'validacao_exposicao',
@@ -55,6 +56,17 @@ const SENHAS_ACESSO = {
  * aqui é chamada de "PLANTA <número>".
  */
 const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
+
+/*
+ * Preenchidos pelo Desenvolvedor (aba "Config do app", aplicada por aplicarConfigApp_ em Desenvolvedor.gs):
+ *  - APELIDOS_PLANTAS: nomes antigos de cada planta, que continuam valendo na coluna "Planta" das abas;
+ *  - ORDEM_PLANTAS: ordem das plantas (é a ordem da cascata); vazia = pela ordem do número;
+ *  - PLANTAS_EXCLUIDAS: plantas apagadas, que o modelo do código não recria.
+ * NOMES_PLANTAS, ESPACOS_POR_ER, HERANCA_ENTRE_ERS e SENHAS_ACESSO também mudam com ela.
+ */
+const APELIDOS_PLANTAS = {};
+const ORDEM_PLANTAS = [];
+const PLANTAS_EXCLUIDAS = [];
 
 /**
  * Espaços que mudam conforme o tamanho da ER: nas ERs de fixo.plantas, o espaço é fixo de uma marca

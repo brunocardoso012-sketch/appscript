@@ -2590,19 +2590,6 @@ const App = (() => {
     ao('etqMenor', 'click', () => mudarTamanhoEtiquetas(tamanhoEtiquetas() - TAMANHO_ETQ.passo));
     ao('etqMaior', 'click', () => mudarTamanhoEtiquetas(tamanhoEtiquetas() + TAMANHO_ETQ.passo));
     ao('etqTamanho', 'click', () => mudarTamanhoEtiquetas(100));
-    // Menu de configurações (engrenagem): abre e fecha; fecha ao escolher um item, clicar fora ou Esc.
-    const menuCfg = $('menuConfigLista');
-    const abrirMenuCfg = (abrir) => {
-      menuCfg.hidden = !abrir;
-      $('btnConfig').setAttribute('aria-expanded', String(abrir));
-      if (abrir) { const i = menuCfg.querySelector('.menu-item:not(:disabled)'); if (i) i.focus(); }
-    };
-    ao('btnConfig', 'click', () => abrirMenuCfg(menuCfg.hidden));
-    menuCfg.addEventListener('click', (e) => { if (e.target.closest('.menu-item')) abrirMenuCfg(false); });
-    document.addEventListener('pointerdown', (e) => { if (!menuCfg.hidden && !e.target.closest('#menuConfig')) abrirMenuCfg(false); });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !menuCfg.hidden) { abrirMenuCfg(false); $('btnConfig').focus(); }
-    });
     ao('btnTema', 'click', () => {
       const escuro = document.documentElement.dataset.tema !== 'escuro';
       memoria.gravar('tema', escuro ? 'escuro' : 'claro');
@@ -2686,9 +2673,18 @@ const App = (() => {
   }
   Editor.iniciar({ estado, desenhar, chamar, toast, erro, carregar, carregando, plantaAtual, acesso: () => Desenvolvedor.acesso() });
   Desenvolvedor.iniciar({
-    chamar, toast,
-    // Sair do módulo fecha o Construir loja (que pergunta antes, se houver alterações não salvas).
-    aoSair: () => { if (Editor.ativo()) Editor.fechar(); return !Editor.ativo(); },
+    estado, chamar, toast, erro, carregar, carregando, plantaAtual, trocarPlanta,
+    espacos: (m) => Render.espacos(m),
+    layoutDe: (p) => Editor.layoutDe(p),
+    // Nova planta: abre o Construir loja com uma planta em branco (o Salvar planta pergunta o nome).
+    novaPlanta: () => { if (!Editor.ativo()) $('btnConstruir').click(); if (Editor.ativo()) Editor.novaPlanta(); },
+    // Sair fecha o Construir loja (que pergunta antes, se houver alterações não salvas) e o ajuste das etiquetas.
+    aoSair: () => {
+      if (Editor.ativo()) Editor.fechar();
+      if (Editor.ativo()) return false;
+      if (estado.edicao) alternarEdicao();
+      return !estado.edicao;
+    },
   });
   Validacao.iniciar({
     estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta,

@@ -383,7 +383,64 @@ test('desenvolvedor: senha própria para importar a planilha e salvar o layout',
   assert.equal(run(`importarPlanilha(${DEV}, ${payload})`).movimentos, 1);
   const layout = "{ loja: { largura: 10, profundidade: 8, alturaParede: 3 }, moveis: [{ id: 'PIRAMIDE 1', tipo: 'PIRAMIDE', x: 1, y: 1, w: 1, d: 1, h: 2 }] }";
   assert.throws(() => run(`salvarLayout({ senha: '' }, '01', ${layout})`), /Senha incorreta/);
-  assert.deepEqual(run(`salvarLayout(${DEV}, '01', ${layout})`), { planta: '01', moveis: 1 });
+  assert.deepEqual(run(`salvarLayout(${DEV}, '01', ${layout})`), { planta: '01', nome: 'ER P', moveis: 1 });
+});
+
+test('desenvolvedor: plantas (criar, renomear, ordenar, apagar), regras da cascata e senhas', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  const cfg = () => run(`getConfigDev(${DEV})`);
+  const salvar = (pedido) => run(`salvarConfigDev(${DEV}, ${JSON.stringify(pedido)})`);
+  assert.throws(() => run("getConfigDev({ senha: 'x' })"), /Senha incorreta/);
+  assert.deepEqual(cfg().plantas.map((p) => p.nome), ['ER P', 'ER M', 'ER G', 'ER GG']);
+  assert.ok(cfg().espacosPorEr['GONDOLA 1/PONTA-B'], 'regra do código vale sem a aba');
+  assert.equal(cfg().senhas.DESENVOLVEDOR, 'desenvolvedor_exposicao');
+
+  // Planta nova pelo Salvar planta: próximo número livre e o nome escolhido.
+  const layout = "{ loja: { largura: 10, profundidade: 8, alturaParede: 3 }, moveis: [{ id: 'PIRAMIDE 1', tipo: 'PIRAMIDE', x: 1, y: 1, w: 1, d: 1, h: 2 }] }";
+  assert.deepEqual(run(`salvarLayout(${DEV}, 'NOVA', ${layout}, 'ER Outlet')`), { planta: '05', nome: 'ER Outlet', moveis: 1 });
+  assert.throws(() => run(`salvarLayout(${DEV}, 'NOVA', ${layout}, 'er m')`), /Já existe uma planta chamada/);
+  assert.equal(run('getDados()').plantas.find((p) => p.id === '05').nome, 'ER Outlet');
+
+  // Renomear: o nome antigo continua valendo nas abas (apelido).
+  salvar({ acao: 'renomearPlanta', planta: '03', nome: 'ER Grande' });
+  assert.equal(run("normPlanta_('ER G')"), '03');
+  const d = run('getDados()');
+  assert.equal(d.plantas.find((p) => p.id === '03').nome, 'ER Grande');
+  assert.ok(d.movimentos['Ciclo exemplo']['03'], 'linhas gravadas como "ER G" continuam na planta');
+  assert.ok(f.planilha.getSheetByName('Config do app'), 'aba criada');
+
+  // Ordem das plantas (é a ordem da cascata).
+  salvar({ acao: 'ordemPlantas', ordem: ['01', '02', '03', '05', '04'] });
+  assert.deepEqual(run('getDados()').plantas.map((p) => p.id), ['01', '02', '03', '05', '04']);
+  assert.throws(() => salvar({ acao: 'ordemPlantas', ordem: ['01', '02'] }), /todas as plantas/);
+
+  // Regras: espaço fixo (aqui, a ponta B da gôndola 1 fixa de O.U.i na ER G) e mudança de espaço.
+  salvar({ acao: 'config', chave: 'espacosPorEr', valor: [{ espaco: 'gondola 1/ponta-b', fixo: { plantas: ['03'], marca: 'oui' }, livre: { nome: 'Livre' } }] });
+  let c = cfg();
+  assert.deepEqual(c.espacosPorEr, { 'GONDOLA 1/PONTA-B': { fixo: { plantas: ['03'], marca: 'OUI', nome: 'Fixo OUI' }, livre: { nome: 'Livre' } } });
+  assert.deepEqual(run('getDados()').config.espacosPorEr, c.espacosPorEr, 'a página recebe a regra nova');
+  assert.throws(() => salvar({ acao: 'config', chave: 'espacosPorEr', valor: [{ espaco: 'GONDOLA 1/PONTA-B', fixo: { plantas: [], marca: 'OUI' } }] }), /ao menos uma ER/);
+  salvar({ acao: 'config', chave: 'herancaEntreErs', valor: [{ para: '04', espacos: [{ novo: 'GONDOLA 4/PONTA-A', antigo: 'GONDOLA 2/PONTA-B' }], semHeranca: ['GONDOLA 2/PONTA-B'] }] });
+  assert.deepEqual(cfg().herancaEntreErs, [{ de: '05', para: '04', espacos: { 'GONDOLA 4/PONTA-A': 'GONDOLA 2/PONTA-B' }, semHeranca: ['GONDOLA 2/PONTA-B'] }]);
+  salvar({ acao: 'padrao', chave: 'herancaEntreErs' });
+  assert.equal(cfg().herancaEntreErs[0].para, '03', 'volta ao padrão do código');
+
+  // Apagar: não apaga planta usada numa regra; apaga as linhas da planta e o modelo do código não a recria.
+  assert.throws(() => salvar({ acao: 'excluirPlanta', planta: '03' }), /regras da cascata/);
+  salvar({ acao: 'excluirPlanta', planta: '04', apagarDados: true });
+  const d2 = run('getDados()');
+  assert.deepEqual(d2.plantas.map((p) => p.id), ['01', '02', '03', '05']);
+  assert.ok(!d2.movimentos['Ciclo exemplo']['04'], 'linhas da ER GG apagadas');
+  assert.deepEqual(d2.avisos, []);
+
+  // Senhas: a nova vale (no servidor), a antiga não.
+  salvar({ acao: 'config', chave: 'senhas', valor: { DESENVOLVEDOR: 'nova-dev', VALIDADOR: 'nova-val', CONSTRUTOR: 'nova-cons' } });
+  assert.throws(() => run(`getConfigDev(${DEV})`), /Senha incorreta/);
+  assert.deepEqual(run("entrarDesenvolvedor({ senha: 'nova-dev' })"), { ok: true });
+  assert.equal(run("entrarValidacao({ papel: 'VALIDADOR', senha: 'nova-val', nome: 'Ana' })").papel, 'VALIDADOR');
+  assert.throws(() => run("salvarConfigDev({ senha: 'nova-dev' }, { acao: 'config', chave: 'senhas', valor: { DESENVOLVEDOR: 'a', VALIDADOR: 'bbbb', CONSTRUTOR: 'cccc' } })"), /4 caracteres/);
 });
 
 test('validação: senha por papel, quem pode o quê e aba Comentários', () => {

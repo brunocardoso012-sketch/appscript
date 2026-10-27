@@ -20,6 +20,13 @@
     </script>
   </head>
   <body>
+    <!-- Aparece enquanto o Desenvolvedor está aberto (Desenvolvedor.html): deixa claro que a sessão pode mudar o app. -->
+    <div class="dev-faixa" id="devFaixa" hidden>
+      <span class="dev-faixa-selo">&lt;/&gt; Modo desenvolvedor</span>
+      <span class="dev-faixa-texto">Você pode mudar as plantas, as regras e as senhas do app.</span>
+      <button id="devFaixaPainel" class="dev-faixa-btn" type="button">Abrir painel</button>
+      <button id="devFaixaSair" class="dev-faixa-btn" type="button">Sair</button>
+    </div>
     <header class="topo">
       <div class="identidade">
         <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
@@ -75,65 +82,13 @@
         <button id="btnApresentar" class="btn fantasma icone" type="button" aria-label="Apresentar" title="Apresentar: só a planta, em tela cheia (F)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8M10 8.2v4.6l4-2.3z"/></svg>
         </button>
-        <!-- Configurações: só o ícone; abre o menu com a validação, a construção, o desenvolvedor (construção da loja), o ajuste das etiquetas, o modo noturno e a planilha. -->
-        <div class="menu-config" id="menuConfig">
-          <button id="btnConfig" class="btn fantasma icone" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menuConfigLista" aria-label="Configurações" title="Configurações">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
-            <span class="badge" id="cfgBadge" hidden></span>
-          </button>
-          <div class="menu-lista" id="menuConfigLista" role="menu" hidden>
-            <button id="btnValidacao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Validação da estratégia e aprovação dos ciclos novos (pede senha)">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z"/><path d="m8.5 12 2.3 2.3L15.5 9.5"/></svg>
-              Validação
-              <span class="badge" id="valBadge" hidden></span>
-            </button>
-            <button id="btnConstrucao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Construção dos ciclos novos (pede senha)">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V10l7-6 7 6v11"/><path d="M9 21v-5h6v5"/></svg>
-              Construção
-              <span class="badge" id="consBadge" hidden></span>
-            </button>
-            <!-- Desenvolvedor: pede a senha e mostra o módulo de construção da loja (Desenvolvedor.html). -->
-            <button id="btnDesenvolvedor" class="menu-item" type="button" role="menuitem" aria-expanded="false" aria-controls="grupoDesenvolvedor">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M13.5 5l-3 14"/></svg>
-              Desenvolvedor
-              <svg class="menu-seta" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
-            </button>
-            <div class="menu-grupo" id="grupoDesenvolvedor" role="group" aria-label="Construção da loja" hidden>
-              <button id="btnModelo" class="menu-item" type="button" role="menuitem" title="Planilha com uma linha por móvel de cada planta, para preencher e importar">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
-                Baixar planilha base
-              </button>
-              <button id="btnImportar" class="menu-item" type="button" role="menuitem" title="Lê a planilha preenchida e grava os ciclos">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-5 5m5-5 5 5M4 19h16"/></svg>
-                Importar planilha
-              </button>
-              <button id="btnConstruir" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Editor do layout: posição e tamanho dos móveis de cada planta">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
-                Construir loja
-              </button>
-              <button id="btnSairDesenvolvedor" class="menu-item" type="button" role="menuitem">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10"/></svg>
-                Sair do desenvolvedor
-              </button>
-            </div>
-            <button id="btnEditar" class="menu-item" type="button" role="menuitem" aria-pressed="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
-              Ajustar etiquetas
-            </button>
-            <button id="btnTema" class="menu-item" type="button" role="menuitem" aria-pressed="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
-              Modo noturno
-            </button>
-            <a id="lnkPlanilha" class="menu-item" role="menuitem" target="_blank" rel="noopener" hidden title="Abre a planilha com os ciclos (numa aba nova)">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
-              Abrir planilha
-            </a>
-            <button id="btnTutorial" class="menu-item" type="button" role="menuitem">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.7-.8 1.2V14M12 17.2v.1"/></svg>
-              Ver o tutorial
-            </button>
-          </div>
-        </div>
+        <!-- Engrenagem = Desenvolvedor: pede a senha e abre o painel do desenvolvedor (Desenvolvedor.html), com
+             todos os módulos do app, as plantas, as regras da cascata e as senhas. -->
+        <button id="btnConfig" class="btn fantasma icone" type="button" aria-haspopup="dialog" aria-controls="dlgDev" aria-label="Desenvolvedor" title="Desenvolvedor (pede senha)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+          <span class="dev-rotulo-btn">DEV</span>
+          <span class="badge" id="cfgBadge" hidden></span>
+        </button>
         <input type="file" id="arquivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
       </div>
     </header>
@@ -479,10 +434,117 @@
       </form>
     </dialog>
 
-    <dialog id="dlgDesenvolvedor" class="dialogo">
+    <!-- Painel do desenvolvedor (Desenvolvedor.html): módulos do app, plantas, regras da cascata e senhas. -->
+    <dialog id="dlgDev" class="dev-console" aria-labelledby="devTitulo">
+      <div class="dev-janela">
+        <header class="dev-topo">
+          <div class="dev-marca">
+            <span class="dev-selo" aria-hidden="true">&lt;/&gt;</span>
+            <div>
+              <h2 id="devTitulo">Painel do desenvolvedor</h2>
+              <p>Módulos do app, plantas, regras da cascata e senhas</p>
+            </div>
+          </div>
+          <div class="dev-topo-acoes">
+            <button id="btnSairDesenvolvedor" class="dev-btn" type="button">Sair do desenvolvedor</button>
+            <button id="devFechar" class="dev-btn primario" type="button" title="Fechar (Esc)">Fechar ✕</button>
+          </div>
+        </header>
+        <div class="dev-meio">
+          <nav class="dev-abas" role="tablist" aria-label="Seções do painel">
+            <button class="dev-aba" type="button" role="tab" data-dev-aba="modulos" aria-selected="true"><span>01</span>Módulos</button>
+            <button class="dev-aba" type="button" role="tab" data-dev-aba="plantas" aria-selected="false"><span>02</span>Plantas</button>
+            <button class="dev-aba" type="button" role="tab" data-dev-aba="cascata" aria-selected="false"><span>03</span>Cascata entre ERs</button>
+            <button class="dev-aba" type="button" role="tab" data-dev-aba="senhas" aria-selected="false"><span>04</span>Senhas</button>
+          </nav>
+          <div class="dev-corpo">
+            <p class="dev-msg" id="devMsg" role="status" hidden></p>
+            <section class="dev-painel" data-dev-painel="modulos" aria-label="Módulos">
+              <h3 class="dev-titulo">Construção da loja</h3>
+              <div class="dev-cards">
+            <button id="btnConstruir" class="dev-card" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
+              <span class="dev-card-texto"><strong>Construir loja</strong><small>Editor do layout: posição e tamanho dos móveis de cada planta</small></span>
+              <span class="dev-card-estado">ligado</span>
+            </button>
+            <button id="btnModelo" class="dev-card" type="button" >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
+              <span class="dev-card-texto"><strong>Baixar planilha base</strong><small>Uma linha por móvel de cada planta, para preencher e importar</small></span>
+              <span class="dev-card-estado">ligado</span>
+            </button>
+            <button id="btnImportar" class="dev-card" type="button" >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-5 5m5-5 5 5M4 19h16"/></svg>
+              <span class="dev-card-texto"><strong>Importar planilha</strong><small>Lê a planilha preenchida e grava os ciclos</small></span>
+              <span class="dev-card-estado">ligado</span>
+            </button>
+              </div>
+              <h3 class="dev-titulo">Estratégia</h3>
+              <div class="dev-cards">
+            <button id="btnValidacao" class="dev-card" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z"/><path d="m8.5 12 2.3 2.3L15.5 9.5"/></svg>
+              <span class="dev-card-texto"><strong>Validação</strong><small>Comentar a estratégia e aprovar os ciclos novos (pede a senha da validação)</small></span><span class="badge" id="valBadge" hidden></span>
+              <span class="dev-card-estado">ligado</span>
+            </button>
+            <button id="btnConstrucao" class="dev-card" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V10l7-6 7 6v11"/><path d="M9 21v-5h6v5"/></svg>
+              <span class="dev-card-texto"><strong>Construção</strong><small>Montar os ciclos novos e responder aos comentários (pede a senha da construção)</small></span><span class="badge" id="consBadge" hidden></span>
+              <span class="dev-card-estado">ligado</span>
+            </button>
+            <button id="btnEditar" class="dev-card" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
+              <span class="dev-card-texto"><strong>Ajustar etiquetas</strong><small>Arrastar as pilhas de etiquetas e mudar o tamanho delas</small></span>
+              <span class="dev-card-estado">ligado</span>
+            </button>
+              </div>
+              <h3 class="dev-titulo">App</h3>
+              <div class="dev-cards">
+            <button id="btnTema" class="dev-card" type="button" aria-pressed="false" data-mantem-painel>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+              <span class="dev-card-texto"><strong>Modo noturno</strong><small>Deixa o app escuro (lembrado neste navegador)</small></span>
+              <span class="dev-card-estado">ligado</span>
+            </button>
+            <a id="lnkPlanilha" class="dev-card" target="_blank" rel="noopener" hidden >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+              <span class="dev-card-texto"><strong>Abrir planilha</strong><small>A planilha com os ciclos, numa aba nova</small></span>
+              <span class="dev-card-estado">ligado</span>
+            </a>
+            <button id="btnTutorial" class="dev-card" type="button" >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.7-.8 1.2V14M12 17.2v.1"/></svg>
+              <span class="dev-card-texto"><strong>Ver o tutorial</strong><small>O tour curto pela tela</small></span>
+              <span class="dev-card-estado">ligado</span>
+            </button>
+              </div>
+            </section>
+            <section class="dev-painel" data-dev-painel="plantas" id="devPlantas" aria-label="Plantas" hidden></section>
+            <section class="dev-painel" data-dev-painel="cascata" id="devCascata" aria-label="Cascata entre ERs" hidden></section>
+            <section class="dev-painel" data-dev-painel="senhas" id="devSenhas" aria-label="Senhas" hidden></section>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Construir loja › Salvar planta: substituir uma planta existente ou criar uma nova (Construtor.html). -->
+    <dialog id="dlgSalvarPlanta" class="dialogo">
+      <form id="formSalvarPlanta">
+        <h2>Salvar planta</h2>
+        <p class="sub">Para onde vai o layout que está na tela?</p>
+        <label class="opcao"><input type="radio" name="spDestino" value="substituir" checked> <span>Substituir uma planta existente</span></label>
+        <label class="campo bloco sp-campo"><select id="spPlanta" aria-label="Planta a substituir"></select></label>
+        <label class="opcao"><input type="radio" name="spDestino" value="nova"> <span>Criar uma planta nova</span></label>
+        <label class="campo bloco sp-campo"><input id="spNome" type="text" maxlength="30" placeholder="Nome da planta nova (ex.: ER XG)" autocomplete="off" aria-label="Nome da planta nova"></label>
+        <p class="sub sp-aviso" id="spAviso"></p>
+        <p class="acesso-erro" id="spErro" role="alert" hidden></p>
+        <div class="rodape-dialogo">
+          <button class="btn" id="spCancelar" type="button">Cancelar</button>
+          <button class="btn primario" id="spSalvar" type="submit">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="dlgDesenvolvedor" class="dialogo dev-acesso">
       <form id="formDesenvolvedor">
         <h2>Desenvolvedor</h2>
-        <p class="sub">Módulo de construção da loja: Baixar planilha base, Importar planilha e Construir loja.</p>
+        <p class="sub">Digite a senha para abrir o painel do desenvolvedor: módulos do app, plantas, regras da cascata e senhas.</p>
         <label class="acesso-campo">Senha <input type="password" id="devSenha" autocomplete="current-password" required></label>
         <p class="acesso-erro" id="devErro" role="alert" hidden></p>
         <div class="rodape-dialogo">

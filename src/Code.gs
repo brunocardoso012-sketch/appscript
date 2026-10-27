@@ -105,10 +105,36 @@ function urlDoApp_() {
 
 /* ============================= DESENVOLVEDOR ============================== */
 
-/** Confere a senha do módulo Desenvolvedor (Construir loja, Baixar / Importar planilha). */
+/** Confere a senha do módulo Desenvolvedor (a engrenagem). */
 function entrarDesenvolvedor(acesso) {
   conferirDesenvolvedor_(acesso);
   return { ok: true };
+}
+
+/** Configuração do app para o painel do Desenvolvedor: plantas, regras da cascata e senhas. */
+function getConfigDev(acesso) {
+  return executarConfigDev_(ioRascunhos_(planilha_()), acesso, null);
+}
+
+/** Muda a configuração do app (renomear, ordenar ou apagar plantas, regras, senhas; veja aplicarAcaoConfigDev_). */
+function salvarConfigDev(acesso, pedido) {
+  return executarConfigDev_(ioRascunhos_(planilha_()), acesso, pedido);
+}
+
+let configAppCarregada_ = false;
+
+/** Aplica a aba "Config do app" (uma vez por execução; sem a aba, vale o que está no código). */
+function carregarConfigAppDe_(ss) {
+  if (configAppCarregada_) return;
+  configAppCarregada_ = true;
+  try {
+    aplicarConfigApp_(configAppDeValores_(lerAba_(ss, CONFIG.ABAS.CONFIG_APP, true)));
+  } catch (e) { /* aba com problema: vale o padrão */ }
+}
+
+/** Chamado antes de conferir as senhas (Validacao.gs): elas podem ter sido trocadas pelo Desenvolvedor. */
+function carregarConfigApp_() {
+  try { planilha_(); } catch (e) { /* sem planilha: senhas do código */ }
 }
 
 /* ======================== VALIDAÇÃO DA ESTRATÉGIA ========================= */
@@ -403,19 +429,12 @@ function salvarAjustesEtiquetas(planta, ajustes) {
  * Grava uma planta inteira (dimensões da loja + móveis) na aba Layout,
  * substituindo as linhas dessa planta. Usado pelo modo "Construir loja".
  * @param {{senha: string}} acesso  senha do módulo Desenvolvedor
- * @param {string} planta
+ * @param {string} planta  'NOVA' cria uma planta com o próximo número livre
  * @param {{loja: {largura, profundidade, alturaParede}, moveis: Array<Object>}} layout
+ * @param {string=} nome   nome da planta (para a planta nova)
  */
-function salvarLayout(acesso, planta, layout) {
-  conferirDesenvolvedor_(acesso);
-  const objetos = objetosLayoutDaPlanta_(planta, layout);
-  const ss = planilha_();
-  return comTrava_(function () {
-    const sh = ss.getSheetByName(CONFIG.ABAS.LAYOUT);
-    const existentes = sh ? sh.getDataRange().getValues() : valoresLayoutPadrao_();
-    escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), mesclarLinhas_(existentes, objetos, colunasLayout_()));
-    return { planta: normPlanta_(planta), moveis: objetos.length - 1 };
-  });
+function salvarLayout(acesso, planta, layout, nome) {
+  return executarSalvarLayout_(ioRascunhos_(planilha_()), acesso, planta, layout, nome);
 }
 
 /* ======================= TRANSFORMAÇÃO (sem I/O) ========================== */
@@ -448,6 +467,10 @@ function atualizarModelosPlantas_(abas, versoes) {
   const mudaram = [];
   Object.keys(VERSAO_MODELO_PLANTAS).forEach(function (planta) {
     if ((novas[planta] || 1) >= VERSAO_MODELO_PLANTAS[planta]) return;
+    if (PLANTAS_EXCLUIDAS.indexOf(planta) >= 0) { // apagada pelo Desenvolvedor: o modelo não a recria
+      novas[planta] = VERSAO_MODELO_PLANTAS[planta];
+      return;
+    }
     const daPlanta = function (o) { return normPlanta_(o.planta) === planta; };
     const layout = objetosDeValores_(valoresLayoutPadrao_(), colunasLayout_()).linhas.filter(daPlanta);
     abas.layout = mesclarLinhas_(abas.layout || [], layout, colunasLayout_());
@@ -550,6 +573,12 @@ function atualizarModelosNaPlanilha_(ss) {
 }
 
 function planilha_() {
+  const ss = abrirPlanilha_();
+  carregarConfigAppDe_(ss);
+  return ss;
+}
+
+function abrirPlanilha_() {
   const ativa = SpreadsheetApp.getActiveSpreadsheet();
   if (ativa) return ativa;
   const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA);

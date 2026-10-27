@@ -102,19 +102,32 @@ const SENHA = { VALIDADOR: 'validacao_exposicao', CONSTRUTOR: 'construcao_exposi
 const escolherCiclo = (p, ciclo) => p.selectOption('#selCiclo', ciclo);
 const abaPlanta = (p, nome) => p.locator('#abasPlanta .aba', { hasText: new RegExp('^' + nome + '$') });
 
-/** Clica num item do menu de configurações (engrenagem). */
-async function menuConfig(p, id) {
+/**
+ * Abre o painel do desenvolvedor pela engrenagem (com a senha, se a sessão ainda não tem) e volta
+ * para a seção Módulos.
+ */
+async function abrirPainelDev(p) {
   await p.click('#btnConfig');
-  await p.click('#' + id);
+  await p.waitForSelector('#dlgDesenvolvedor[open], #dlgDev[open]');
+  if (await p.locator('#dlgDesenvolvedor[open]').count()) {
+    await p.fill('#devSenha', SENHA.DESENVOLVEDOR);
+    await p.click('#devEntrar');
+  }
+  await p.waitForSelector('#dlgDev[open]');
+  await p.click('#dlgDev [data-dev-aba="modulos"]');
 }
 
-/** Entra no módulo Desenvolvedor da engrenagem (Baixar / Importar planilha e Construir loja). */
+/** Escolhe um módulo no painel do desenvolvedor (o painel fecha; o modo noturno o deixa aberto e o teste fecha). */
+async function menuConfig(p, id) {
+  await abrirPainelDev(p);
+  await p.click('#' + id);
+  if (await p.locator('#dlgDev[open]').count()) await p.click('#devFechar');
+}
+
+/** Entra no Desenvolvedor (a engrenagem) e fecha o painel. */
 async function entrarDesenvolvedor(p) {
-  await menuConfig(p, 'btnDesenvolvedor');
-  await p.waitForSelector('#dlgDesenvolvedor[open]');
-  await p.fill('#devSenha', SENHA.DESENVOLVEDOR);
-  await p.click('#devEntrar');
-  await p.waitForSelector('#dlgDesenvolvedor:not([open])', { state: 'attached' });
+  await abrirPainelDev(p);
+  await p.click('#devFechar');
 }
 
 /** Espera um download disparado por `acao` e devolve { nome, bytes }. */
@@ -140,9 +153,9 @@ test('abre no último ciclo aprovado, com as 4 plantas, em modo local', async (t
   await p.click('#btnAtualizar');
   await p.waitForSelector('#carregando', { state: 'hidden' });
   assert.strictEqual(await estado(p, () => App.estado.ciclo), '');
-  // Copiar link fica no topo; Abrir planilha, na engrenagem (no modo local não há planilha).
+  // Copiar link fica no topo; Abrir planilha, no painel do desenvolvedor (no modo local não há planilha).
   assert.ok(await p.isVisible('#btnLink'));
-  assert.ok(await p.locator('#menuConfigLista #lnkPlanilha').count() === 1);
+  assert.ok(await p.locator('#dlgDev #lnkPlanilha').count() === 1);
   const opcoes = await p.locator('#selCiclo option').allTextContents();
   assert.ok(opcoes.includes('Ciclo exemplo') && opcoes.includes('Ciclo exemplo cheio'), opcoes.join(', '));
   assert.ok(await p.isVisible('#avisoLocal'));
@@ -399,13 +412,14 @@ test('todas as ERs num PowerPoint: um slide por ER', async (t) => {
   assert.ok(!nomes.includes('ppt/slides/slide' + (nPlantas + 1) + '.xml'), 'slide a mais');
 });
 
-test('desenvolvedor: o módulo de construção da loja fica na engrenagem, com senha', async (t) => {
+test('desenvolvedor: a engrenagem pede a senha e abre o painel com os módulos, as plantas, a cascata e as senhas', async (t) => {
   const p = await abrir(t);
-  await p.click('#btnConfig');
-  for (const id of ['btnModelo', 'btnImportar', 'btnConstruir']) {
+  // Fora do painel não há módulo nenhum: a engrenagem pede a senha.
+  for (const id of ['btnModelo', 'btnImportar', 'btnConstruir', 'btnValidacao', 'btnConstrucao', 'btnEditar', 'btnTema', 'btnTutorial']) {
     assert.strictEqual(await p.isVisible('#' + id), false, id + ' aparece sem a senha');
   }
-  await p.click('#btnDesenvolvedor');
+  assert.strictEqual(await p.isVisible('#devFaixa'), false);
+  await p.click('#btnConfig');
   await p.waitForSelector('#dlgDesenvolvedor[open]');
   await p.fill('#devSenha', SENHA.CONSTRUTOR);
   await p.click('#devEntrar');
@@ -413,25 +427,69 @@ test('desenvolvedor: o módulo de construção da loja fica na engrenagem, com s
   assert.match(await p.textContent('#devErro'), /Senha incorreta/);
   await p.click('#devCancelar');
 
-  await entrarDesenvolvedor(p);
-  await p.click('#btnConfig');
-  for (const id of ['btnModelo', 'btnImportar', 'btnConstruir']) assert.ok(await p.isVisible('#' + id), id + ' não aparece com a senha');
-  // Com a senha, o item abre e fecha o grupo sem fechar o menu.
-  await p.click('#btnDesenvolvedor');
-  assert.ok(await p.isVisible('#menuConfigLista'));
-  assert.strictEqual(await p.isVisible('#btnConstruir'), false);
-  await p.click('#btnDesenvolvedor');
-  assert.ok(await p.isVisible('#btnConstruir'));
+  await abrirPainelDev(p);
+  for (const id of ['btnModelo', 'btnImportar', 'btnConstruir', 'btnValidacao', 'btnConstrucao', 'btnEditar', 'btnTema', 'btnTutorial']) {
+    assert.ok(await p.isVisible('#' + id), id + ' não aparece no painel');
+  }
+  // Visual do modo desenvolvedor: faixa no alto e a classe no corpo.
+  assert.ok(await p.isVisible('#devFaixa'));
+  assert.ok(await estado(p, () => document.body.classList.contains('modo-dev')));
 
-  // Continua liberado depois de recarregar (mesma aba); "Sair do desenvolvedor" esconde de novo.
+  // Plantas: renomear a ER G (o nome antigo continua valendo) e ver a ordem da cascata.
+  await p.click('#dlgDev [data-dev-aba="plantas"]');
+  const er = (id) => p.locator('#devPlantas .dev-planta[data-planta="' + id + '"]');
+  await er('03').locator('.dev-nome').fill('ER Grande');
+  await er('03').locator('button', { hasText: 'Salvar alterações' }).click();
+  await p.waitForFunction(() => App.estado.dados.plantas.find((x) => x.id === '03').nome === 'ER Grande');
+  assert.ok(await abaPlanta(p, 'ER Grande').count(), 'aba da planta com o nome novo');
+  await er('04').locator('button[title="Subir na cascata"]').click();
+  await p.waitForFunction(() => App.estado.dados.plantas.map((x) => x.id).join() === '01,02,04,03');
+  await er('04').locator('button[title="Descer na cascata"]').click();
+  await p.waitForFunction(() => App.estado.dados.plantas.map((x) => x.id).join() === '01,02,03,04');
+
+  // Cascata: a ponta B da gôndola 1 passa a ser fixa de O.U.i na ER G (e livre nas outras).
+  await p.click('#dlgDev [data-dev-aba="cascata"]');
+  const regra = p.locator('#devCascata .dev-regra').first();
+  await regra.locator('.dev-opcao', { hasText: 'ER P' }).locator('input').uncheck();
+  await regra.locator('.dev-opcao', { hasText: 'ER Grande' }).locator('input').check();
+  assert.match(await regra.locator('.dev-resumo').textContent(), /Fixo na ER Grande; livre na ER P, ER M e ER GG/);
+  await p.click('#devCascata button:has-text("Salvar espaços fixos")');
+  await p.waitForFunction(() => App.estado.dados.config.espacosPorEr['GONDOLA 1/PONTA-B'].fixo.plantas.join() === '03');
+  assert.match(await p.textContent('#devMsg'), /Espaços fixos salvos/);
+  await p.click('#devCascata button:has-text("Voltar ao padrão do código")');
+  await p.waitForFunction(() => App.estado.dados.config.espacosPorEr['GONDOLA 1/PONTA-B'].fixo.plantas.join() === '01');
+
+  // Senhas: as três aparecem.
+  await p.click('#dlgDev [data-dev-aba="senhas"]');
+  assert.strictEqual(await p.inputValue('#devSenhas [data-senha="DESENVOLVEDOR"]'), SENHA.DESENVOLVEDOR);
+  await p.click('#devFechar');
+
+  // Construir loja › Salvar planta › Criar uma planta nova; depois, apagar a planta pelo painel.
+  await menuConfig(p, 'btnConstruir');
+  await p.click('#cnsSalvar');
+  await p.waitForSelector('#dlgSalvarPlanta[open]');
+  await p.check('#formSalvarPlanta input[value="nova"]');
+  await p.fill('#spNome', 'ER Teste');
+  await p.click('#spSalvar');
+  await p.waitForFunction(() => App.estado.dados.plantas.some((x) => x.nome === 'ER Teste'));
+  assert.strictEqual(await estado(p, () => App.estado.planta), '05');
+  await p.click('#cnsFechar');
+  await abrirPainelDev(p);
+  await p.click('#dlgDev [data-dev-aba="plantas"]');
+  await er('05').locator('button', { hasText: /^Apagar$/ }).click();
+  await er('05').locator('button', { hasText: 'Apagar de vez' }).click();
+  await p.waitForFunction(() => !App.estado.dados.plantas.some((x) => x.id === '05'));
+  await p.click('#devFechar');
+
+  // Continua no modo desenvolvedor depois de recarregar (mesma aba); Sair volta a pedir a senha.
   await p.reload();
   await p.waitForFunction(() => App.estado.dados);
-  await menuConfig(p, 'btnConstruir');
-  assert.ok(await p.isVisible('#painelConstrutor'));
-  await p.click('#cnsFechar');
-  await menuConfig(p, 'btnSairDesenvolvedor');
+  assert.ok(await p.isVisible('#devFaixa'));
+  await p.click('#devFaixaSair');
+  assert.strictEqual(await p.isVisible('#devFaixa'), false);
   await p.click('#btnConfig');
-  assert.strictEqual(await p.isVisible('#btnConstruir'), false);
+  await p.waitForSelector('#dlgDesenvolvedor[open]');
+  await p.click('#devCancelar');
 });
 
 test('planilha base: baixar e importar de volta como ciclo novo', async (t) => {
@@ -520,6 +578,9 @@ test('Construir loja: adicionar, desfazer e salvar um móvel', async (t) => {
   await p.locator('#cnsPaleta button', { hasText: 'Pirâmide' }).first().click();
   await p.locator('#slide').press('ArrowRight');
   await p.click('#cnsSalvar');
+  await p.waitForSelector('#dlgSalvarPlanta[open]');
+  assert.strictEqual(await p.inputValue('#spPlanta'), '02', 'substitui a planta da tela, por padrão');
+  await p.click('#spSalvar');
   await p.waitForFunction((n) => App.estado.dados.plantas.find((x) => x.id === '02').moveis.length === n + 1, antes);
 
   await menuConfig(p, 'btnConstruir');

@@ -20,10 +20,10 @@ No app (legenda, listas, Analytics, PNG), as marcas aparecem pela sigla de 3 let
 - **Abre direto no último ciclo aprovado** (o último da planilha). O link pode pedir outro ciclo; a opção *Sem ciclo (planta limpa)* mostra a planta sem cores nem etiquetas, e *Atualizar* mantém o ciclo da tela. Quem está logado na validação vai direto para o ciclo em construção do seu papel (o construtor, o que está montando; o validador, o que aguarda aprovação), com uma faixa em destaque no topo avisando que o ciclo ainda não foi publicado.
 - **Seletor de ciclo e abas por planta** (ER P, ER M, ER G e ER GG = plantas 01 a 04). As setas ← → do teclado trocam de planta.
 - **Móveis coloridos pela marca**, com as etiquetas (caixas de texto) de cada móvel, os símbolos 🔒 (espaço fixo: a etiqueta tem borda dupla na mesma cor, e o móvel e a etiqueta ganham uma hachura diagonal numa versão mais escura da cor deles; a legenda dos símbolos mostra uma amostra da hachura), Ⓔ, NEW e ⏩ (antecipação, veja abaixo) (no PNG do slide, também a lateral TV/rádio, (A), (C) e os destaques com a miniatura do móvel), as notas e a legenda dos símbolos (no canto de baixo) e a faixa Cestinhas / Espaço da Beleza / Cavalete.
-- **Desenvolvedor (construção da loja, com senha)**: na engrenagem, o item *Desenvolvedor* pede a senha e mostra o módulo de construção da loja (veja [Desenvolvedor](#desenvolvedor-construção-da-loja)):
+- **Desenvolvedor (a engrenagem, com senha)**: a engrenagem pede a senha e abre o **painel do desenvolvedor**, com todos os módulos do app, o painel de controle das plantas, as regras da cascata entre as ERs e as senhas (veja [Desenvolvedor](#desenvolvedor-painel-do-app)). Entre os módulos:
   - **Baixar planilha base**: gera um `.xlsx` com uma linha por móvel de cada planta, listas suspensas e cores por marca. Pode vir em branco ou já preenchido com um ciclo existente, para servir de ponto de partida do próximo.
   - **Importar planilha**: lê o `.xlsx` preenchido, grava no Google Sheets e já mostra o ciclo importado.
-  - **Construir loja**: o editor do layout (posição e tamanho dos móveis de cada planta).
+  - **Construir loja**: o editor do layout (posição e tamanho dos móveis de cada planta); *Salvar planta* pergunta se substitui uma planta existente ou cria uma nova.
 - **Zoom na planta**: role o mouse sobre a planta (ou use a pinça no celular, os botões − / + acima dela ou as teclas <kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd>). Com zoom, arraste para mover a planta. As etiquetas crescem junto com a planta, para ler melhor; as caixas de destaque continuam do mesmo tamanho na tela. Clique no percentual para voltar a 100%. O PNG sai sempre sem zoom.
 - **Estratégia do móvel** (com o aviso fixo *Página em construção*, em amarelo, no topo): clique num móvel (ou numa etiqueta dele) para abrir uma tela inteira com o desenho do móvel e o que o ciclo define para ele: marca, símbolo, etiquetas (com a cor e o bloco de cada uma) e observação — na gôndola, mesas, totem e móvel make, a linha de cada espaço. No alto, o **planograma** mostra como as prateleiras estão divididas: uma coluna por espaço (lados e meios da gôndola, frentes da mesa, blocos do balcão), com as prateleiras de cima para baixo; as etiquetas de cada espaço dividem as prateleiras na ordem (Etiqueta 1 em cima), cada uma com a cor da sua marca. No totem, cada linha é um painel; no móvel make, as testeiras aparecem por cima.
 - **Destaque ao passar o mouse**: com o mouse sobre um móvel (ou uma etiqueta dele), as etiquetas desse móvel ganham contorno e as linhas-guia escurecem; as dos outros móveis ficam mais claras.
@@ -38,9 +38,9 @@ No app (legenda, listas, Analytics, PNG), as marcas aparecem pela sigla de 3 let
 - **Link com o que está na tela**: o endereço guarda o ciclo, a ER, a visão, o filtro de marca ou etiqueta (ex.: `#ciclo=C10&er=ER+M&marca=BOT`). Quem abre o link vê o app do mesmo jeito. *Copiar link*, no topo, copia o endereço (no Apps Script, o do app publicado).
 - **Busca** (lupa no topo, <kbd>Ctrl</kbd>+<kbd>K</kbd> ou <kbd>/</kbd>): digite parte de uma etiqueta, marca ou móvel (sem se preocupar com acentos e maiúsculas). Etiqueta: mostra na planta só onde ela aparece (na ER atual, se ela estiver lá; senão, na primeira ER que a tem). Marca: liga o filtro da marca. Móvel: vai para a ER e abre a tela do móvel. Setas escolhem, Enter vai, Esc fecha. Sem ciclo, só acha móveis.
 - **Filtro por marca**: clique numa marca da legenda para destacar só ela; os móveis e etiquetas das outras marcas ficam em tons de cinza (etiquetas em cinza mais escuro, móveis em cinza mais claro).
-- **Tutorial guiado**: na primeira vez que alguém abre o app (em cada navegador), aparece um cartão de boas-vindas oferecendo um tour curto (menos de 1 minuto, só o essencial). O tour destaca uma parte da tela por vez (o resto escurece), com uma frase sobre cada uma: ciclo, plantas, a planta, marcas, Comunicações ER, Analytics, Baixar PNG e a engrenagem. Avança com *Próximo* ou as setas ← →, fecha com *Pular* ou Esc; partes que não estão na tela são puladas. Para rever, abra a engrenagem e escolha *Ver o tutorial*. Os textos ficam em [`src/Tutorial.html`](src/Tutorial.html).
-- **Menu do topo**: *Comunicações ER* e *Analytics* ficam em destaque, à esquerda das outras ações. *Copiar link* fica no topo. *Validação*, *Construção*, *Desenvolvedor* (com *Baixar planilha base*, *Importar planilha* e *Construir loja*), *Ajustar etiquetas*, *Modo noturno*, *Abrir planilha* e *Ver o tutorial* ficam no menu de configurações (o ícone de engrenagem, no fim do topo); o número de comentários abertos da validação aparece também no ícone.
-- **Modo noturno**: no menu de configurações (engrenagem), *Modo noturno* deixa o app escuro: topo, painéis, Analytics, Construir loja, diálogos e também a planta (fundo, piso, paredes, móveis sem marca, notas, legenda e as fichas da visão simplificada), na tela e na tela do móvel. As marcas ganham versões mais escuras das cores de sempre (nas etiquetas, nos móveis e no menu Comunicações ER), e o PNG sai sempre com as cores originais do slide. O app lembra a escolha em cada navegador; sem escolha, segue o tema do sistema.
+- **Tutorial guiado**: na primeira vez que alguém abre o app (em cada navegador), aparece um cartão de boas-vindas oferecendo um tour curto (menos de 1 minuto, só o essencial). O tour destaca uma parte da tela por vez (o resto escurece), com uma frase sobre cada uma: ciclo, plantas, a planta, marcas, Comunicações ER, Analytics, Baixar PNG e a engrenagem (Desenvolvedor). Avança com *Próximo* ou as setas ← →, fecha com *Pular* ou Esc; partes que não estão na tela são puladas. Para rever, abra o painel do desenvolvedor e escolha *Ver o tutorial*. Os textos ficam em [`src/Tutorial.html`](src/Tutorial.html).
+- **Menu do topo**: *Comunicações ER* e *Analytics* ficam em destaque, à esquerda das outras ações. *Copiar link* fica no topo. A engrenagem, no fim do topo, é só o **Desenvolvedor**: pede a senha e abre o painel com *Construir loja*, *Baixar planilha base*, *Importar planilha*, *Validação*, *Construção*, *Ajustar etiquetas*, *Modo noturno*, *Abrir planilha* e *Ver o tutorial*; o número de comentários abertos da validação aparece também no ícone.
+- **Modo noturno**: no painel do desenvolvedor (engrenagem), *Modo noturno* deixa o app escuro: topo, painéis, Analytics, Construir loja, diálogos e também a planta (fundo, piso, paredes, móveis sem marca, notas, legenda e as fichas da visão simplificada), na tela e na tela do móvel. As marcas ganham versões mais escuras das cores de sempre (nas etiquetas, nos móveis e no menu Comunicações ER), e o PNG sai sempre com as cores originais do slide. O app lembra a escolha em cada navegador; sem escolha, segue o tema do sistema.
 - **Baixar PNG** (botão no topo, depois de *Atualizar*): escolha o **conteúdo** — *Planta* (a loja com as etiquetas), *Visão simplificada* (as fichas dos móveis) ou *Estratégia* — e o **formato** — *PNG* (só o conteúdo, recortado e com fundo transparente) ou *Slide completo* (16:9, 3840 px de largura, com fundo; na planta e na visão simplificada, também com o nome da ER, TV / rádio, A, C, notas, legenda e itens extras, como na apresentação). A **Estratégia** é o espaço da ER aberta em gráficos, do tamanho de um slide: números principais (espaços, móveis, movimentos e GMV esperado), *Por marca* (barra 100% e uma linha por marca), *Por movimentos* (uma barra por movimento, pelas marcas, com o selo da classificação e o GMV esperado) e *Por classificação* (espaços e GMV de cada uma, cada medida na sua barra). Se os movimentos não couberem, os menores ficam resumidos numa linha. Na planta e na visão simplificada, com um filtro ligado o PNG sai igual à tela; a estratégia mostra sempre o ciclo inteiro na ER.
 - **Todas as ERs num PowerPoint**: no diálogo do *Baixar PNG*, a opção *ERs › Todas as ERs* baixa um `.pptx` com um slide 16:9 por ER (ER P → ER GG), cada um com o *Slide completo* do conteúdo escolhido (planta, visão simplificada ou estratégia), com o filtro da tela. A biblioteca PptxGenJS é carregada na hora, do jsDelivr (precisa de internet).
 - **Etiquetas arredondadas** na fonte Nunito (também no PNG, que leva a fonte embutida; sem internet, usa Segoe UI / Arial).
@@ -51,9 +51,9 @@ No app (legenda, listas, Analytics, PNG), as marcas aparecem pela sigla de 3 let
 
 ## Validação da estratégia
 
-O menu de configurações (engrenagem) tem dois módulos separados, cada um com a sua senha: **Validação**, para o **validador** comentar a estratégia do ciclo e aprovar (ou devolver) os ciclos novos, e **Construção**, para o **construtor da estratégia** montar os ciclos novos e ver, responder e resolver os comentários. Os dois abrem o painel de comentários ao lado da planta.
+O painel do desenvolvedor (engrenagem) tem dois módulos separados, cada um com a sua senha (além da do Desenvolvedor): **Validação**, para o **validador** comentar a estratégia do ciclo e aprovar (ou devolver) os ciclos novos, e **Construção**, para o **construtor da estratégia** montar os ciclos novos e ver, responder e resolver os comentários. Os dois abrem o painel de comentários ao lado da planta.
 
-- **Acesso:** escolha *Validação* ou *Construção* na engrenagem e digite o seu nome e a senha do módulo: `validacao_exposicao` na Validação e `construcao_exposicao` na Construção (a senha de um não entra no outro). Entrar num módulo sai do outro. As senhas ficam em `SENHAS_ACESSO` (`src/Config.gs`) e são conferidas no servidor a cada gravação. Para passar a lê-las da planilha, basta mudar `senhasDeAcesso_()` em `src/Validacao.gs`. O acesso vale até fechar a aba do navegador; *Sair* encerra antes.
+- **Acesso:** abra a engrenagem (senha do Desenvolvedor), escolha *Validação* ou *Construção* e digite o seu nome e a senha do módulo: `validacao_exposicao` na Validação e `construcao_exposicao` na Construção (a senha de um não entra no outro). Entrar num módulo sai do outro. As senhas padrão ficam em `SENHAS_ACESSO` (`src/Config.gs`); o Desenvolvedor pode trocá-las (seção *Senhas* do painel). Elas são conferidas no servidor a cada gravação. O acesso vale até fechar a aba do navegador; *Sair* encerra antes.
 - **Validador:** comenta a planta em geral ou um móvel. O móvel pode ser escolhido na lista, com *Escolher na planta* (e depois um clique no móvel) ou direto na tela do móvel. O validador também pode reabrir e excluir comentários.
 - **Construtor da estratégia:** vê os comentários, responde e usa *Marcar como resolvido*.
 - **Onde aparecem:** no painel (filtros *Abertos*, *Resolvidos* e *Todos*, da planta e do ciclo escolhidos, com atalhos para as outras plantas que têm comentários abertos); como um balão laranja com o número de comentários abertos no canto do móvel (clique para ver os comentários); e na seção *Comentários da validação* da tela do móvel. O número no botão é o total de comentários abertos no ciclo. O balão não sai no PNG.
@@ -112,17 +112,25 @@ Depois da estratégia dos movimentos (que movimento fica em cada espaço), o con
 - **Aba Produtos (o catálogo):** uma linha por produto: **SKU** e **Produto** (obrigatórios), *Marca* (`BOT`, `EUD`, `QDB`, `OUI`, `MULTI`), *Categoria* e *Movimento (etiqueta)* (o movimento a que o produto pertence, para o filtro *Só do movimento*). No Apps Script, o app lê a aba direto da planilha: é só manter a lista ali. *Configurar planilha* cria a aba com produtos de exemplo. A *planilha base* (*Baixar planilha base*) vem com a aba Produtos preenchida com o catálogo atual, e *Importar planilha* com essa aba **substitui o catálogo inteiro** (é assim que a versão web recebe a lista). Só entram nos quadrados produtos do catálogo (o servidor confere); um produto que sai da aba continua no quadrado, riscado, até ser trocado.
 - **Na planilha:** aba **Prateleiras** (criada na primeira gravação), **uma linha por produto de cada quadrado**: *Ciclo*, *Planta* (a ER), *ID Móvel* (o espaço, ex.: `GONDOLA 1/PONTA-A`, ou o móvel, ex.: `PIRAMIDE 1`), *Prateleira* (1 = a de cima), *Quadrado* (numerados de cima para baixo e da esquerda para a direita), *X (%)*, *Largura (%)*, *Y (%)* e *Altura (%)* (a posição na prateleira, a partir do canto de cima à esquerda), *Movimento (etiqueta)*, *SKU*, *Produto*, *Frentes*, *Observação* (do quadrado, na primeira linha dele), *Atualizado por* e *Atualizado em*. O quadrado sem produto tem uma linha sem SKU. As regras ficam em [`src/Prateleiras.gs`](src/Prateleiras.gs) e são conferidas no servidor (só o construtor; ciclo que existe e não foi enviado; espaço que existe na ER; prateleira dentro do número de níveis do móvel; quadrados sem sobreposição, com pelo menos 3% de lado, até 30 por prateleira; até 20 produtos por quadrado, todos da aba Produtos; até 99 frentes).
 
-## Desenvolvedor (construção da loja)
+## Desenvolvedor (painel do app)
 
-O módulo de construção da loja fica na engrenagem, no item **Desenvolvedor**, protegido por senha: **Baixar planilha base**, **Importar planilha** e **Construir loja** não aparecem no topo.
+A engrenagem, no fim do topo, é o **Desenvolvedor**: ela pede a senha (`desenvolvedor_exposicao`) e abre o **painel do desenvolvedor**, em tela quase inteira e com visual próprio (escuro, com âmbar). Enquanto a sessão está aberta, uma **faixa listrada "Modo desenvolvedor"** fica no alto da tela (com *Abrir painel* e *Sair*), a engrenagem fica âmbar com o selo *DEV* e o topo ganha um traço âmbar, para ficar claro que dali dá para mudar o app. O acesso vale até fechar a aba do navegador; *Sair do desenvolvedor* encerra antes (fecha o Construir loja, perguntando se houver alterações, e o ajuste das etiquetas).
 
-- **Acesso:** escolha *Desenvolvedor* na engrenagem e digite a senha `desenvolvedor_exposicao`. O item passa a mostrar, recuados embaixo dele, *Baixar planilha base*, *Importar planilha*, *Construir loja* e *Sair do desenvolvedor*; clicar de novo em *Desenvolvedor* esconde ou mostra esse grupo.
-- **Senha:** fica em `SENHAS_ACESSO.DESENVOLVEDOR` (`src/Config.gs`), separada das senhas da Validação e da Construção (uma não entra no lugar da outra). O servidor confere a senha a cada **Importar planilha** e a cada **Salvar planta** / *Carregar código…* do Construir loja (`importarPlanilha` e `salvarLayout`, em `src/Code.gs`), então os botões escondidos não bastam para gravar.
-- **Duração:** o acesso vale até fechar a aba do navegador; *Sair do desenvolvedor* encerra antes (e fecha o Construir loja, perguntando se houver alterações não salvas).
+O painel tem quatro seções:
+
+- **Módulos:** todos os módulos do app, em cartões: *Construir loja*, *Baixar planilha base*, *Importar planilha*, *Validação*, *Construção* (as duas pedem também a senha delas), *Ajustar etiquetas*, *Modo noturno*, *Abrir planilha* e *Ver o tutorial*. Escolher um fecha o painel; o cartão do que está ligado mostra *ligado*.
+- **Plantas** (painel de controle de cada planta, na ordem da cascata): nome (ao renomear, o nome antigo continua valendo na coluna *Planta* das abas), ↑ ↓ para mudar a **ordem da cascata**, quantos móveis de cada tipo ela tem, tamanho da loja (largura, fundo e altura das paredes), tamanho das etiquetas, largura do slide (vazia = automática) e as regras da cascata que tocam a planta. Botões: *Salvar alterações*, *Ver na planta*, *Abrir no Construir loja*, *Duplicar* (cria uma planta nova com o mesmo layout) e *Apagar* (pede confirmação; pode apagar também as linhas da ER nas abas *Movimentos* e *Painéis* e nos ciclos em construção, em todos os ciclos). *+ Nova planta* abre o Construir loja com uma planta em branco. Uma planta usada numa regra da cascata não pode ser apagada antes de sair da regra; uma planta padrão apagada não volta com as atualizações do código.
+- **Cascata entre ERs:** a ordem da cascata e as duas exceções a ela:
+  - **Espaços fixos numa ER e livres nas outras** (ex.: a ponta B da gôndola 1, fixa de O.U.i): o espaço, a marca do fixo, os nomes das duas partes e as ERs em que ele é fixo. Nas outras ERs ele é livre, e a parte livre não herda a fixa.
+  - **Mudanças de espaço entre ERs** (ex.: na ER G, a ponta A e o meio A da gôndola 3 herdam a ponta B e o meio B da gôndola 2 da ER M): a ER em que a regra vale, as trocas (*espaço nesta ER* herda de *espaço na ER anterior*) e os espaços definidos de novo nela (não herdam).
+  Cada bloco mostra se está no *padrão do código* ou *personalizado* e tem *Voltar ao padrão do código*.
+- **Senhas:** as do Desenvolvedor, da Validação e da Construção (ao menos 4 caracteres, uma diferente da outra). A nova senha do Desenvolvedor vale já na sessão aberta.
+
+**Onde fica:** o que o Desenvolvedor muda vai para a aba **Config do app** da planilha (uma linha por chave, com o valor em JSON: `plantas`, `espacosPorEr`, `herancaEntreErs` e `senhas`), criada na primeira mudança; o que não está nela vale como no código (`src/Config.gs`). Quem edita a planilha consegue ver as senhas nessa aba. O servidor confere a senha do Desenvolvedor a cada gravação (`src/Desenvolvedor.gs`); na versão web, tudo fica no navegador.
 
 ## Construir loja (editor do layout)
 
-Em **engrenagem › Desenvolvedor**, clique em **Construir loja** para abrir o editor ao lado da planta (clique de novo, ou em *Fechar*, para sair). A planta **abre com o modelo atual** (os móveis salvos dela), pronta para editar; trocar de planta no editor também abre o modelo daquela planta. Fechar sem salvar não apaga nada; ao clicar em **Salvar planta**, o layout passa a ser o que está na tela.
+No painel do desenvolvedor (engrenagem), clique em **Construir loja** para abrir o editor ao lado da planta (*Fechar* sai). A planta **abre com o modelo atual** (os móveis salvos dela), pronta para editar; trocar de planta no editor também abre o modelo daquela planta. Fechar sem salvar não apaga nada. **Salvar planta** pergunta para onde vai o layout da tela: **Substituir uma planta existente** (a da tela, por padrão, ou outra escolhida na lista) ou **Criar uma planta nova** (com o nome dado; ela entra no fim da cascata, com o próximo número livre, e depois pode ser renomeada, reordenada ou apagada em *Desenvolvedor › Plantas*). Dá para salvar mesmo sem alterações, para copiar uma planta.
 
 | Para… | Faça |
 |---|---|
@@ -172,7 +180,7 @@ Seções recolhidas no painel:
 
 A pasta [`instalacao/`](instalacao/) tem o app pronto para colar no Apps Script **num arquivo só** (`App completo - Plano de Varejo.gs`), e o **[guia de instalação e atualização](instalacao/GUIA%20DE%20INSTALA%C3%87%C3%83O%20E%20ATUALIZA%C3%87%C3%83O.md)**, escrito para quem já usa o app e já tem a planilha com os ciclos. Os arquivos são gerados a partir de `src/` com `npm run build:instalacao`.
 
-Não existe mais a versão só de visualização (a antiga pasta `visualizador/`): há só o app completo, com o módulo de construção da loja protegido pela senha do [Desenvolvedor](#desenvolvedor-construção-da-loja). Quem usava o visualizador troca para o app completo pela Parte A do guia de instalação.
+Não existe mais a versão só de visualização (a antiga pasta `visualizador/`): há só o app completo, com o módulo de construção da loja protegido pela senha do [Desenvolvedor](#desenvolvedor-painel-do-app). Quem usava o visualizador troca para o app completo pela Parte A do guia de instalação.
 
 ## Versão web para testes (netli.fyi / Netlify)
 
@@ -180,11 +188,11 @@ Para ver e ajustar o app **sem o Apps Script**, use [`index.html`](index.html) (
 
 1. Baixe o `index.html` da raiz (ou o projeto inteiro). O nome precisa continuar `index.html`.
 2. Arraste a pasta (ou o projeto inteiro) para o [netli.fyi](https://netli.fyi) (ou para o Netlify Drop). Também abre com duplo clique, direto no navegador.
-3. Use normalmente: trocar ciclo, PNG, ajustar etiquetas e, em *engrenagem › Desenvolvedor* (senha `desenvolvedor_exposicao`), baixar a planilha base, importar e construir a loja.
+3. Use normalmente: trocar ciclo, PNG, ajustar etiquetas e, no painel do desenvolvedor (engrenagem, senha `desenvolvedor_exposicao`), baixar a planilha base, importar, construir a loja e controlar as plantas.
 
 Para **ajustar a planta** (posição e tamanho dos móveis):
 
-1. Em *Baixar planilha base* (*engrenagem › Desenvolvedor*), marque **Incluir aba Layout**.
+1. Em *Baixar planilha base* (painel do desenvolvedor), marque **Incluir aba Layout**.
 2. Mude X, Y, Largura, Profundidade e Altura no Excel e importe. As plantas presentes na aba são substituídas por inteiro.
 3. Quando estiver tudo certo, baixe a planilha com a aba Layout e importe na versão Apps Script. O Apps Script aceita o mesmo arquivo.
 
@@ -214,6 +222,7 @@ Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`
    | Script | `Rascunhos` | [`src/Rascunhos.gs`](src/Rascunhos.gs) |
    | Script | `Antecipacoes` | [`src/Antecipacoes.gs`](src/Antecipacoes.gs) |
    | Script | `Prateleiras` | [`src/Prateleiras.gs`](src/Prateleiras.gs) |
+   | Script | `Desenvolvedor` | [`src/Desenvolvedor.gs`](src/Desenvolvedor.gs) |
    | HTML | `Index` | [`src/Index.html`](src/Index.html) |
    | HTML | `Styles` | [`src/Styles.html`](src/Styles.html) |
    | HTML | `Render` | [`src/Render.html`](src/Render.html) |
@@ -238,7 +247,7 @@ Depois de alterar algo em `src/`, gere o arquivo de novo com `npm run build:web`
 
    Quando mudar o código: **Implantar › Gerenciar implantações › ✏️ › Versão: Nova versão**. A URL continua a mesma.
 
-> Quem acessa a URL pode salvar posições de etiquetas (o app grava na planilha em nome de quem publicou); importar planilhas e salvar o layout das plantas pedem a senha do *Desenvolvedor*. Libere o acesso só para quem pode editar o plano.
+> Quem acessa a URL pode salvar posições de etiquetas (o app grava na planilha em nome de quem publicou); o painel do desenvolvedor (importar planilhas, plantas, regras e senhas) pede a senha do *Desenvolvedor*. Libere o acesso só para quem pode editar o plano.
 
 ### Opção B — `clasp` (linha de comando)
 
@@ -253,7 +262,7 @@ Depois siga os passos 5 a 7 acima.
 
 ## Como usar a cada ciclo
 
-1. No app, entre em **engrenagem › Desenvolvedor** (senha `desenvolvedor_exposicao`), selecione o ciclo atual e clique em **Baixar planilha base**.
+1. No app, abra a engrenagem (senha `desenvolvedor_exposicao`), selecione o ciclo atual e clique em **Baixar planilha base**.
    - *Nome do ciclo na planilha:* por exemplo `C15/2026`.
    - *Conteúdo:* **Copiar o ciclo selecionado**, para partir do ciclo anterior, ou **Em branco**.
 2. Abra o `.xlsx` (Excel ou Google Sheets) e altere as marcas e etiquetas dos móveis que mudam.
@@ -265,7 +274,7 @@ Também dá para editar direto nas abas do Google Sheets e clicar em **Atualizar
 
 ### Cascata entre as plantas (preencha cada móvel uma vez)
 
-As plantas seguem a ordem **ER P → ER M → ER G → ER GG**. O que é definido para um móvel numa planta vale também para o móvel com o **mesmo ID** nas plantas seguintes. Por isso a planilha base (com *Todas as plantas*) traz **cada móvel uma vez só**, na primeira planta que o tem, e a coluna *Móvel (referência)* diz para quais plantas ele vale. Para que uma planta maior seja diferente, acrescente uma linha com o mesmo *ID Móvel* e essa planta: ela passa a valer dali para a frente. O mesmo vale para os textos da aba Painéis (por seção).
+As plantas seguem a ordem **ER P → ER M → ER G → ER GG** (o Desenvolvedor pode mudar a ordem e criar ou apagar plantas). O que é definido para um móvel numa planta vale também para o móvel com o **mesmo ID** nas plantas seguintes. Por isso a planilha base (com *Todas as plantas*) traz **cada móvel uma vez só**, na primeira planta que o tem, e a coluna *Móvel (referência)* diz para quais plantas ele vale. Para que uma planta maior seja diferente, acrescente uma linha com o mesmo *ID Móvel* e essa planta: ela passa a valer dali para a frente. O mesmo vale para os textos da aba Painéis (por seção). As exceções (espaços fixos numa ER e livres nas outras, espaços que mudam de nome de uma ER para a seguinte) ficam em *Desenvolvedor › Cascata entre ERs*, e a aba *Instruções* da planilha base lista as que estão valendo.
 
 Os IDs são o nome do móvel e um número (`GONDOLA 1`, `PIRAMIDE 2`, `MOVEL DE FILA 3`, `MOVEL MAKE 1`…), numerados por tipo do fundo para a frente da loja; maiúsculas e acentos não importam (`Gôndola 1` = `GONDOLA 1`).
 
@@ -360,12 +369,13 @@ src/
   appsscript.json   manifesto (fuso, V8, App da Web)
   Config.gs         marcas/cores, símbolos, seções, tipos, colunas das abas
   Dados.gs          leitura das abas e normalizações (sem I/O; usado também pela versão web)
-  Code.gs           doGet, menu, getDados, entrarDesenvolvedor, importarPlanilha, salvarLayout, salvarAjustesEtiquetas…
+  Code.gs           doGet, menu, getDados, entrarDesenvolvedor, getConfigDev, salvarConfigDev, importarPlanilha, salvarLayout…
   Layouts.gs        layout padrão das 4 plantas + ciclo de exemplo
   Validacao.gs      senhas (validação, construção e desenvolvedor), aba Comentários e quem pode o quê
   Rascunhos.gs      ciclos em construção: criar, editar, enviar, devolver e aprovar (abas Rascunho…)
   Antecipacoes.gs   antecipações: item do próximo ciclo num espaço do ciclo atual, com a data (aba Antecipações)
   Prateleiras.gs    prateleiras: os quadrados de cada prateleira e os produtos deles, por ER (abas Prateleiras e Produtos)
+  Desenvolvedor.gs  o que o Desenvolvedor muda (aba Config do app): plantas, regras da cascata e senhas
   Index.html        página (inclui os arquivos abaixo)
   Styles.html       estilos
   Render.html       desenho isométrico em SVG (slide 1920×1080)
@@ -374,7 +384,7 @@ src/
   Tutorial.html     tutorial guiado (boas-vindas na primeira visita + tour pela tela)
   Planilha.html     gerar/ler .xlsx no navegador (ExcelJS via cdnjs, com SRI)
   Construtor.html   modo "Construir loja" (editor visual do layout)
-  Desenvolvedor.html  item "Desenvolvedor" da engrenagem: senha e o grupo Baixar / Importar planilha e Construir loja
+  Desenvolvedor.html  painel do desenvolvedor (a engrenagem): senha, módulos, plantas, cascata entre ERs e senhas
   Validacao.html    painel de validação (acesso, comentários, marcadores na planta)
   Rascunho.html     ciclos em construção: novo ciclo, edição dos espaços, Comunicações ER, Tipos, aprovação
   Antecipacao.html  antecipações: seção no painel da validação, diálogo, junção com a planta e símbolo ⏩

@@ -31,7 +31,7 @@ function gerarPaginaCompleta() {
 
 /** Código do servidor do app completo, servindo a página a partir do texto PAGINA_ (no fim do arquivo). */
 function gerarCompleto() {
-  let codigo = ['Config.gs', 'Dados.gs', 'Code.gs', 'Layouts.gs', 'Validacao.gs', 'Rascunhos.gs', 'Antecipacoes.gs', 'Prateleiras.gs']
+  let codigo = ['Config.gs', 'Dados.gs', 'Code.gs', 'Layouts.gs', 'Validacao.gs', 'Rascunhos.gs', 'Antecipacoes.gs', 'Prateleiras.gs', 'Desenvolvedor.gs']
     .map((f) => '/* ===== src/' + f + ' ===== */\n' + ler(SRC, f).trim() + '\n')
     .join('\n');
   const molde = "HtmlService.createTemplateFromFile('Index')\n    .evaluate()";

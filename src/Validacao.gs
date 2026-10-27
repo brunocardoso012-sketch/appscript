@@ -37,10 +37,11 @@ function colunasComentarios_() {
 }
 
 /**
- * Senhas de cada papel. Por enquanto vêm de SENHAS_ACESSO (Config.gs); este é o
- * único lugar a mudar quando elas passarem a ser lidas da planilha.
+ * Senhas de cada papel e do Desenvolvedor: SENHAS_ACESSO (Config.gs), com as que o Desenvolvedor trocou
+ * (aba "Config do app", carregada por carregarConfigApp_ no Code.gs; na versão web, pelo backend local).
  */
 function senhasDeAcesso_() {
+  if (typeof carregarConfigApp_ === 'function') carregarConfigApp_();
   return SENHAS_ACESSO;
 }
 

@@ -72,6 +72,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
         aviso(onde + ': Ciclo, Planta e ID Móvel são obrigatórios — linha ignorada.');
         return;
       }
+      if (PLANTAS_EXCLUIDAS.indexOf(planta) >= 0) return; // planta apagada pelo Desenvolvedor (linhas mantidas)
       if (!idsPorPlanta[planta] && planta !== CONFIG.PLANTA_TODAS) {
         aviso(onde + ': planta "' + planta + '" não existe no Layout.');
       } else if (!existeMovel(planta, id)) {
@@ -118,6 +119,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
         aviso(onde + ': Ciclo, Planta e Texto são obrigatórios — linha ignorada.');
         return;
       }
+      if (PLANTAS_EXCLUIDAS.indexOf(planta) >= 0) return; // planta apagada pelo Desenvolvedor (linhas mantidas)
       if (!secao) {
         aviso(onde + ': seção "' + texto_(l.secao) + '" inválida (use ' + Object.keys(SECOES_PAINEL).join(', ') + ').');
         return;
@@ -264,7 +266,9 @@ function montarPlantas_(linhas, aviso) {
     aviso('Planta ' + id + ': sem linha do tipo LOJA no Layout — tamanho calculado automaticamente.');
   });
 
-  ordem.sort(function (a, b) { return a.localeCompare(b, 'pt-BR', { numeric: true }); });
+  // Ordem do Desenvolvedor (é a ordem da cascata); as plantas que não estão nela vão depois, pelo número.
+  const pos = function (id) { const i = ORDEM_PLANTAS.indexOf(id); return i < 0 ? ORDEM_PLANTAS.length : i; };
+  ordem.sort(function (a, b) { return pos(a) - pos(b) || a.localeCompare(b, 'pt-BR', { numeric: true }); });
   return ordem.map(function (id) { return mapa[id]; });
 }
 
@@ -378,6 +382,10 @@ function normPlanta_(v) {
   if (s === '*' || k === 'TODAS' || k === 'TODOS' || k === 'GERAL') return CONFIG.PLANTA_TODAS;
   const porNome = Object.keys(NOMES_PLANTAS).filter(function (id) { return chave_(NOMES_PLANTAS[id]) === k; })[0];
   if (porNome) return porNome;
+  const porApelido = Object.keys(APELIDOS_PLANTAS).filter(function (id) {
+    return (APELIDOS_PLANTAS[id] || []).some(function (n) { return chave_(n) === k; });
+  })[0];
+  if (porApelido) return porApelido;
   if (/^\d+([.,]0+)?$/.test(s)) {
     const n = parseInt(s, 10);
     return (n < 10 ? '0' : '') + n;
