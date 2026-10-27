@@ -261,6 +261,104 @@ test('Analytics: cartões, mapa, "Sobre a análise" e "ver na planta"', async (t
   assert.strictEqual(await p.isVisible('#painelAnalytics'), false);
 });
 
+test('cascata ER M → ER G: o lado B da gôndola 2 vira o lado A da gôndola 3 e é definido de novo; a gôndola 1 segue a cascata', async (t) => {
+  const p = await abrir(t);
+  const mov = (er, id) => p.evaluate(([e, i]) => {
+    const l = App.resolver.movimento('Ciclo exemplo', e, i);
+    return l && l.etiquetas.map((x) => x.texto).join(',');
+  }, [er, id]);
+  // A gôndola 3 (ER G e ER GG) herda o lado B da gôndola 2 da ER M.
+  assert.strictEqual(await mov('02', 'GONDOLA 2/PONTA-B'), 'OUTLET EUD');
+  assert.strictEqual(await mov('02', 'GONDOLA 2/MEIO-B'), 'CUIDADOS');
+  for (const er of ['03', '04']) {
+    assert.strictEqual(await mov(er, 'GONDOLA 3/PONTA-A'), 'OUTLET EUD', er);
+    assert.strictEqual(await mov(er, 'GONDOLA 3/MEIO-A'), 'CUIDADOS', er);
+  }
+  // O lado B da gôndola 2 na ER G é o da própria ER G; sem a linha dela, fica vazio (não vem da ER M).
+  assert.strictEqual(await mov('03', 'GONDOLA 2/PONTA-B'), 'JUICY MOOD');
+  assert.strictEqual(await mov('04', 'GONDOLA 2/PONTA-B'), 'JUICY MOOD', 'a ER GG herda da ER G');
+  await p.evaluate(() => {
+    const g = App.estado.dados.movimentos['Ciclo exemplo']['03'];
+    ['GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'].forEach((k) => delete g[k]);
+  });
+  for (const id of ['GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B']) {
+    assert.strictEqual(await mov('03', id), null, 'ER G ' + id);
+    assert.strictEqual(await mov('04', id), null, 'ER GG ' + id);
+  }
+  // A gôndola 1 segue a cascata: o meio B (da ER P) e a ponta B livre (da ER M) valem na ER G e na ER GG.
+  for (const er of ['03', '04']) {
+    assert.strictEqual(await mov(er, 'GONDOLA 1/MEIO-B'), 'UOMINI HERO', 'ER ' + er + ' meio B');
+    assert.strictEqual(await mov(er, 'GONDOLA 1/PONTA-B'), 'BOTI PROMO', 'ER ' + er + ' ponta B livre');
+  }
+  assert.strictEqual(await mov('03', 'GONDOLA 1/MEIO-A'), 'BOTIK');
+});
+
+/** Inventário de teste: cada móvel nas lojas das ERs que o têm (ER P 350, M 300, G 220, GG 130 = 1000 lojas). */
+async function comInventario(p, extra) {
+  await p.evaluate((extra) => {
+    const tam = { '01': 350, '02': 300, '03': 220, '04': 130 };
+    const lojas = {};
+    App.estado.dados.plantas.forEach((pl) => pl.moveis.forEach((m) => { lojas[m.id] = (lojas[m.id] || 0) + tam[pl.id]; }));
+    App.estado.dados.inventario = { lojas: Object.assign(lojas, extra), total: 1000 };
+  }, extra || {});
+}
+
+test('Inventario: o mouse no móvel mostra as lojas da rede; o Analytics, a presença de cada movimento', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo');
+  await comInventario(p, { 'GONDOLA 1/PONTA-B': 900 });
+  await abaPlanta(p, 'ER M').click();
+  await abaPlanta(p, 'ER P').click(); // redesenha com o inventário
+  // Balão arredondado (no lugar da dica do navegador), em duas linhas.
+  const balao = async (sel) => {
+    // O mouse entra no desenho do espaço (no meio da caixa dele pode estar outro móvel, na vista isométrica).
+    await p.locator(sel).first().evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse', clientX: r.x + 4, clientY: r.y + 4 }));
+    });
+    await p.waitForSelector('.balao-rede:not([hidden])');
+    return p.locator('.balao-rede span').allTextContents();
+  };
+  assert.deepStrictEqual(await balao('#slide .movel[data-movel="GONDOLA 1"][data-espaco="PONTA-B"]'), ['Presente em 900 lojas', '90% da rede']);
+  assert.deepStrictEqual(await balao('#slide .movel[data-movel="GONDOLA 1"][data-espaco="PONTA-A"]'), ['Presente em 1.000 lojas', '100% da rede']);
+  assert.strictEqual(await p.locator('#slide .movel[data-movel="GONDOLA 1"] > title').count(), 0, 'sem a dica antiga');
+  assert.notStrictEqual(await p.$eval('.balao-rede', (b) => getComputedStyle(b).borderTopLeftRadius), '0px', 'balão arredondado');
+  await abaPlanta(p, 'ER GG').click();
+  assert.deepStrictEqual(await balao('#slide .movel[data-movel="GONDOLA 4"]'), ['Presente em 130 lojas', '13% da rede']);
+  const caixa = await p.locator('#slide').boundingBox();
+  await p.mouse.move(caixa.x + caixa.width / 2, caixa.y + caixa.height / 2);
+  await p.mouse.move(2, 2);
+  assert.ok(await p.locator('.balao-rede').isHidden(), 'some ao sair da planta');
+
+  // Analytics: coluna "Na rede" com a presença de cada movimento.
+  await p.click('#btnAnalytics');
+  assert.match(await p.textContent('#anCorpo th.an-col-rede'), /Na rede.*% das lojas · espaços/);
+  assert.match(await p.getAttribute('#anCorpo th.an-col-rede', 'title'), /1\.000 lojas/);
+  assert.deepStrictEqual((await p.locator('#anCorpo .an-mapa').first().locator('thead th').allTextContents()).slice(0, 4).map((x) => x.split(/\d/)[0].trim()),
+    ['Movimento', 'Móveis', 'Na rede% das lojas · espaços', 'ER P'], 'Móveis e Na rede antes das ERs');
+  const linha = (texto) => p.locator('#anCorpo tbody tr', { has: p.locator('.an-mov-nome', { hasText: new RegExp('^' + texto + '$') }) }).first();
+  // Móveis: um ícone por tipo de móvel em que o movimento está.
+  assert.deepStrictEqual(await linha('EXAUSTÃO OUI').locator('.an-movel-icone').evaluateAll((s) => s.map((x) => x.getAttribute('aria-label'))), ['Gôndola']);
+  assert.ok(await linha('BOTIPROMO').locator('.an-movel-icone').count() >= 2, 'BOTIPROMO está em mais de um tipo de móvel');
+  // Espaços na rede: soma todos os espaços do movimento (EXAUSTÃO OUI: ponta A da gôndola 4, nas 130 lojas da ER GG).
+  assert.match(await linha('EXAUSTÃO OUI').locator('td.an-col-rede small').textContent(), /≈ 130 espaços/);
+  const pct = (texto) => p.locator('#anCorpo tbody tr', { has: p.locator('.an-mov-nome', { hasText: new RegExp('^' + texto + '$') }) })
+    .first().locator('td.an-col-rede strong').textContent();
+  assert.strictEqual(await pct('EXAUSTÃO OUI'), '13%', 'só na gôndola 4 (só ER GG)');
+  assert.strictEqual(await pct('LIQUIDA QDB'), '100%', 'na ponta A da gôndola 1, de todas as ERs');
+});
+
+test('tela do móvel: aviso fixo de página em construção', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo');
+  await p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await p.waitForSelector('#dlgMovel[open]');
+  assert.strictEqual((await p.textContent('#dlgMovel .mv-aviso')).trim(), 'Página em construção');
+  const antes = await p.locator('#dlgMovel .mv-aviso').boundingBox();
+  await p.locator('#mvEstrategia').evaluate((el) => { el.closest('.mv-corpo').scrollTop = 400; el.scrollTop = 400; });
+  assert.deepStrictEqual(await p.locator('#dlgMovel .mv-aviso').boundingBox(), antes, 'não rola com o conteúdo');
+});
+
 test('Analytics sem ciclo não quebra', async (t) => {
   const p = await abrir(t);
   await p.click('#btnAnalytics');
@@ -505,30 +603,6 @@ test('tutorial: boas-vindas na primeira visita e o tour inteiro', async (t) => {
   await p.waitForSelector('.tut-balao', { state: 'detached' });
 });
 
-test('comparar ciclos: só o que mudou fica colorido, com a lista no painel', async (t) => {
-  const p = await abrir(t);
-  await escolherCiclo(p, '');
-  assert.ok(await p.isHidden('#campoComparar'), 'sem ciclo, não há comparação');
-  await escolherCiclo(p, 'Ciclo exemplo cheio');
-  const cinzas = () => p.locator('#slide .movel polygon[fill="#D2D2D2"]').count();
-  assert.strictEqual(await cinzas(), 0);
-  await p.selectOption('#selComparar', 'Ciclo exemplo');
-  assert.ok(await p.isVisible('#painelLoja'), 'o painel abre com a lista');
-  const mudancas = await p.locator('.lj-mudanca').count();
-  assert.ok(mudancas > 0, 'nenhuma mudança listada');
-  assert.ok(await cinzas() > 0, 'nada ficou em cinza');
-  // Clicar numa mudança abre o móvel.
-  await p.locator('.lj-mudanca').first().click();
-  await p.waitForSelector('#dlgMovel[open]');
-  await p.keyboard.press('Escape');
-  // O mesmo ciclo some da lista; voltar a "Não comparar" deixa tudo colorido.
-  const opcoes = await p.locator('#selComparar option').allTextContents();
-  assert.ok(opcoes.indexOf('Ciclo exemplo cheio') < 0);
-  await p.selectOption('#selComparar', '');
-  assert.strictEqual(await p.locator('.lj-mudanca').count(), 0);
-  assert.strictEqual(await cinzas(), 0);
-});
-
 test('busca (Ctrl+K): etiqueta, marca e móvel', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo cheio');
@@ -560,14 +634,13 @@ test('busca (Ctrl+K): etiqueta, marca e móvel', async (t) => {
 });
 
 test('link: o #hash abre no ciclo, ER, visão e filtro, e acompanha a tela', async (t) => {
-  const p = await abrir(t, { hash: '#ciclo=Ciclo+exemplo+cheio&er=ER+G&visao=simplificada&marca=BOT&comparar=Ciclo+exemplo' });
+  const p = await abrir(t, { hash: '#ciclo=Ciclo+exemplo+cheio&er=ER+G&visao=simplificada&marca=BOT' });
   const e = await estado(p, () => {
     const s = App.estado;
-    return { ciclo: s.ciclo, er: s.dados.plantas.find((x) => x.id === s.planta).nome, visao: s.visao, filtro: s.filtro, comparar: s.comparar };
+    return { ciclo: s.ciclo, er: s.dados.plantas.find((x) => x.id === s.planta).nome, visao: s.visao, filtro: s.filtro };
   });
-  assert.deepStrictEqual(e, { ciclo: 'Ciclo exemplo cheio', er: 'ER G', visao: 'simplificada', filtro: 'BOT', comparar: 'Ciclo exemplo' });
+  assert.deepStrictEqual(e, { ciclo: 'Ciclo exemplo cheio', er: 'ER G', visao: 'simplificada', filtro: 'BOT' });
   assert.strictEqual(await p.inputValue('#selCiclo'), 'Ciclo exemplo cheio');
-  assert.strictEqual(await p.inputValue('#selComparar'), 'Ciclo exemplo');
   // Trocar de ER atualiza o hash.
   await abaPlanta(p, 'ER M').click();
   assert.match(await p.evaluate(() => location.hash), /er=ER\+M/);
@@ -687,6 +760,31 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.ok(await p.locator('#pcStats .pc-gmv', { hasText: 'NOVO MOVIMENTO OUI' }).count() === 1, 'conta no mesmo movimento');
   assert.strictEqual(await p.locator('#pcStats .pc-alertas li.erro').count(), 0, 'não fica fora dos tipos');
   assert.strictEqual(await p.inputValue('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-A"] .rs-etq-obs'), 'só no kit');
+  // Ponta B da gôndola 1: fixa de O.U.i na ER P e livre nas ERs maiores, em duas partes separadas.
+  const fixa = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-B"][data-parte="fixo"]');
+  const livre = p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 1/PONTA-B"][data-parte="livre"]');
+  assert.ok(await fixa.isVisible() && await livre.isVisible(), 'a ponta B mostra a parte fixa e a livre');
+  assert.match(await fixa.textContent(), /Só na ER P/);
+  assert.match(await livre.textContent(), /Vale para ER M, ER G, ER GG\./);
+  assert.ok(await fixa.locator('select.rs-marca').first().isDisabled(), 'a marca da parte fixa não muda');
+  assert.strictEqual(await fixa.locator('select.rs-marca').first().inputValue(), 'OUI');
+  await fixa.locator('.rs-etq select:not(.rs-marca)').first().selectOption('NOVO MOVIMENTO OUI');
+  const outro = (await livre.locator('.rs-etq select:not(.rs-marca)').first().locator('option').evaluateAll((os) => os.map((o) => o.value)))
+    .find((v) => v && v !== 'NOVO MOVIMENTO OUI');
+  await livre.locator('select.rs-marca').first().selectOption('BOT');
+  await livre.locator('.rs-etq select:not(.rs-marca)').first().selectOption(outro);
+  await gravado();
+  assert.strictEqual((await espacos())['01']['GONDOLA 1/PONTA-B'].marca, 'OUI');
+  assert.strictEqual((await espacos())['02']['GONDOLA 1/PONTA-B'].etiquetas[0].texto, outro, 'a parte livre grava na ER M');
+  const pontaB = (er) => p.evaluate((e) => App.resolver.movimento('C11/2026', e, 'GONDOLA 1/PONTA-B'), er);
+  assert.strictEqual((await pontaB('01')).etiquetas[0].texto, 'NOVO MOVIMENTO OUI');
+  assert.strictEqual((await pontaB('02')).etiquetas[0].texto, outro, 'ER M: só a parte livre');
+  // A parte livre definida na ER M vale da ER M até a ER GG (cascata).
+  for (const er of ['03', '04']) assert.strictEqual((await pontaB(er)).etiquetas[0].texto, outro, 'ER ' + er + ': a parte livre da ER M');
+  // Sem a parte livre, as ERs maiores ficam sem nada na ponta B (não herdam a parte fixa da ER P).
+  await livre.locator('button', { hasText: 'Limpar espaço' }).click();
+  await gravado();
+  for (const er of ['02', '03', '04']) assert.strictEqual(await pontaB(er), null, 'ER ' + er + ': a parte fixa não passa');
   // Limpar um espaço: some da planta e o espaço vazio aparece na lista; clicar nele seleciona o móvel.
   await p.evaluate(() => document.querySelector('#slide .movel[data-movel="PIRAMIDE 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
   await p.waitForSelector('#pcForm .pc-espaco[data-espaco="PIRAMIDE 1"]');
@@ -765,11 +863,9 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.ok(fixos.tipos.includes('NOVO MOVIMENTO OUI'), 'os tipos dos movimentos fixos vêm junto');
 });
 
-test('ciclo em construção: fixos na planta mesmo comparando, meio dividido, etiquetas e cores das marcas', async (t) => {
+test('ciclo em construção: fixos na planta, meio dividido, etiquetas e cores das marcas', async (t) => {
   const p = await abrir(t);
-  // Comparando com o ciclo de origem: os fixos copiados são iguais aos dele, mas aparecem na planta em construção.
   await escolherCiclo(p, 'Ciclo exemplo cheio');
-  await p.selectOption('#selComparar', 'Ciclo exemplo');
   await abaPlanta(p, 'ER P').click();
   await menuConfig(p, 'btnConstrucao');
   await p.waitForSelector('#dlgAcesso[open]');
@@ -783,16 +879,12 @@ test('ciclo em construção: fixos na planta mesmo comparando, meio dividido, et
   await p.check('input[name="rsCopiar"][value="fixos"]');
   await p.click('#rascunhoOk');
   await p.waitForSelector('#dlgRascunho', { state: 'hidden' });
-  assert.strictEqual(await estado(p, () => App.estado.comparar), '', 'construindo, a comparação sai');
-  assert.ok(await p.isHidden('#campoComparar'));
   const fixos = await estado(p, () => Object.keys(App.estado.dados.movimentos['C20/2026']['01']).length);
   assert.ok(fixos > 0);
   assert.strictEqual(await p.locator('#slide .grupo-etiquetas').count(), fixos, 'as etiquetas dos fixos aparecem na planta');
-  // Mesmo ligando a comparação pelo link, a planta em construção mostra o ciclo inteiro.
-  await p.evaluate(() => { App.estado.comparar = 'Ciclo exemplo'; });
+  // Na ER M valem os fixos da ER P (cascata), menos a ponta B da gôndola 1: fixa de O.U.i só na ER P.
   await abaPlanta(p, 'ER M').click();
-  assert.strictEqual(await p.locator('#slide .grupo-etiquetas').count(), fixos, 'os fixos da ER P valem na ER M (cascata)');
-  await p.evaluate(() => { App.estado.comparar = ''; });
+  assert.strictEqual(await p.locator('#slide .grupo-etiquetas').count(), fixos - 1, 'os fixos da ER P valem na ER M (cascata)');
   // O resto na ER M, que tem a gôndola 2.
 
   // Etiquetas: começa com uma e "+ Adicionar etiqueta" põe outra, até 4.

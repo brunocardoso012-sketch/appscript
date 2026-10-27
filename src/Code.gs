@@ -87,6 +87,7 @@ function getDados() {
   dados.antecipacoes = antecipacoesDeValores_(lerAba_(ss, CONFIG.ABAS.ANTECIPACOES, true));
   dados.produtos = produtosDeValores_(lerAba_(ss, CONFIG.ABAS.PRODUTOS, true));
   dados.prateleiras = prateleirasDeValores_(lerAba_(ss, CONFIG.ABAS.PRATELEIRAS, true), dados.produtos);
+  dados.inventario = inventarioDeValores_(lerAbaSemAcento_(ss, CONFIG.ABAS.INVENTARIO));
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = !ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS);
@@ -568,6 +569,12 @@ function lerAba_(ss, nome, comoTexto) {
   if (!sh || sh.getLastRow() < 1) return sh ? [] : null;
   const range = sh.getDataRange();
   return comoTexto ? range.getDisplayValues() : range.getValues();
+}
+
+/** Aba pelo nome, sem ligar para acento e maiúsculas ("Inventario" acha "Inventário"); null sem a aba. */
+function lerAbaSemAcento_(ss, nome) {
+  const sh = ss.getSheets().filter(function (s) { return chave_(s.getName()) === chave_(nome); })[0];
+  return sh && sh.getLastRow() >= 1 ? sh.getDataRange().getValues() : null;
 }
 
 function comTrava_(fn) {

@@ -12,7 +12,6 @@ const App = (() => {
     filtro: '',
     filtroEtiqueta: '', // etiqueta escolhida em "Por movimentos" (só os espaços com ela ficam coloridos)
     filtroClassificacao: '', // classificação escolhida em "Por classificação" (lançamento, promoção…)
-    comparar: '', // ciclo com que o atual é comparado (só os espaços que mudaram ficam coloridos)
     edicao: false,
     ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}; LOJA → {escala} (tamanho, em %)
     grupos: [],
@@ -96,17 +95,194 @@ const App = (() => {
   }
 
   /**
+   * Espaço que muda conforme a ER (ESPACOS_POR_ER, em Config.gs): fixo de uma marca em algumas ERs e livre
+   * nas outras. Devolve null para os demais espaços; senão, as duas partes, cada uma com as ERs dela:
+   * { fixo: { nome, marca, plantas }, livre: { nome, plantas }, parte(planta) → a parte da ER }.
+   */
+  function espacoPorEr(id) {
+    const cfg = ((estado.dados.config || {}).espacosPorEr || {})[id];
+    if (!cfg) return null;
+    const ids = estado.dados.plantas.map((p) => p.id);
+    const fixo = Object.assign({ tipo: 'fixo' }, cfg.fixo, { plantas: ids.filter((p) => cfg.fixo.plantas.indexOf(p) >= 0) });
+    const livre = Object.assign({ tipo: 'livre' }, cfg.livre, { plantas: ids.filter((p) => cfg.fixo.plantas.indexOf(p) < 0) });
+    return { fixo, livre, parte: (planta) => (fixo.plantas.indexOf(planta) >= 0 ? fixo : livre) };
+  }
+
+  /** O espaço (ou a metade do meio dividido) está na lista? 'GONDOLA 2/MEIO-B' vale também para '…/MEIO-B-2'. */
+  const casaEspaco = (base, id) => id === base || id.indexOf(base + '-') === 0;
+
+  /**
+   * Regra da cascata que a ER aplica ao passar para a ER anterior (HERANCA_ENTRE_ERS, em Config.gs) para
+   * este espaço: { tipo: 'troca', id: o espaço na ER anterior } ou { tipo: 'corta' }; null = segue igual.
+   */
+  function regraDaHeranca(planta, id) {
+    const regra = ((estado.dados.config || {}).herancaEntreErs || []).find((h) => h.para === planta);
+    if (!regra) return null;
+    if ((regra.semHeranca || []).some((b) => casaEspaco(b, id))) return { tipo: 'corta', regra };
+    const base = Object.keys(regra.espacos || {}).find((b) => casaEspaco(b, id));
+    return base ? { tipo: 'troca', id: regra.espacos[base] + id.slice(base.length), regra } : null;
+  }
+
+  /**
+   * Onde a cascata procura um espaço numa ER: [{ planta, id }], da ER para as menores. O nome do espaço
+   * pode mudar de uma ER para a anterior (o lado B da gôndola 2 da ER M é o lado A da gôndola 3 da ER G),
+   * e a busca para quando o espaço é definido de novo na ER (HERANCA_ENTRE_ERS). No espaço que muda
+   * conforme a ER (ESPACOS_POR_ER), fica dentro da parte da ER (a livre não herda a fixa).
+   */
+  function cadeiaDaCascata(planta, id) {
+    const porEr = espacoPorEr(id);
+    const parte = porEr && porEr.parte(planta);
+    const out = [];
+    let atual = id;
+    for (const p of cascata(planta)) {
+      if (!parte || parte.plantas.indexOf(p) >= 0) out.push({ planta: p, id: atual });
+      const r = regraDaHeranca(p, atual);
+      if (r && r.tipo === 'corta') break;
+      if (r) atual = r.id;
+    }
+    return out;
+  }
+
+  /** De onde vem o que vale para o espaço na ER: { planta, id } (null = de nenhuma ER: TODAS ou nada). */
+  function origemDe(ciclo, planta, id) {
+    const c = estado.dados.movimentos[ciclo] || {};
+    return cadeiaDaCascata(planta, id).find((x) => c[x.planta] && c[x.planta][x.id]) || null;
+  }
+
+  /**
+   * ERs em que a linha do espaço nesta ER vale quando elas não têm linha própria: a ER e as seguintes, até
+   * a cascata parar (ou o espaço mudar de parte). [{ planta, id }]: o nome do espaço em cada uma (o lado B
+   * da gôndola 2 da ER M vale como lado A da gôndola 3 na ER G). Só as ERs que têm o móvel.
+   */
+  function ersDaLinha(planta, id) {
+    const plantas = estado.dados.plantas;
+    const i = plantas.findIndex((p) => p.id === planta);
+    const porEr = espacoPorEr(id);
+    const parte = porEr && porEr.parte(planta);
+    const out = [];
+    let atual = id;
+    for (let k = i; k >= 0 && k < plantas.length; k++) {
+      const q = plantas[k];
+      if (k > i) {
+        const regra = ((estado.dados.config || {}).herancaEntreErs || []).find((h) => h.para === q.id);
+        if (regra) {
+          if ((regra.semHeranca || []).some((b) => casaEspaco(b, atual))) break;
+          const nova = Object.keys(regra.espacos || {}).find((n) => casaEspaco(regra.espacos[n], atual));
+          if (nova) atual = nova + atual.slice(regra.espacos[nova].length);
+          else if (Object.keys(regra.espacos || {}).some((n) => casaEspaco(n, atual))) break; // o espaço vem de outro
+        }
+        const pq = espacoPorEr(atual);
+        if (parte && pq && pq.parte(q.id).tipo !== parte.tipo) break;
+      }
+      if (q.moveis.some((m) => m.id === atual.split('/')[0])) out.push({ planta: q.id, id: atual });
+    }
+    return out;
+  }
+
+  /** "Gôndola 2 · Ponta B" (o móvel e o espaço, como na tela), a partir do ID ("GONDOLA 2/PONTA-B"). */
+  function nomeDoEspaco(planta, id) {
+    const [mid, eid] = id.split('/');
+    const p = estado.dados.plantas.find((x) => x.id === planta);
+    const m = p && p.moveis.find((x) => x.id === mid);
+    if (!m) return id;
+    // O meio inteiro (MEIO-B) e as metades (MEIO-B-1, MEIO-B-2) só aparecem com o meio dividido ou não.
+    const e = eid && Render.espacos(Object.assign({}, m, { dividido: '' })).concat(Render.espacos(Object.assign({}, m, { dividido: 'AB' })))
+      .find((x) => x.id === eid);
+    return (m.descricao || m.id) + (eid ? ' · ' + (e ? e.nome : eid) : '');
+  }
+  const nomeDaEr = (id) => (estado.dados.plantas.find((p) => p.id === id) || { nome: id }).nome;
+
+  /**
    * O que vale para um móvel (ou espaço) numa ER, com a cascata e as antecipações do ciclo (Antecipacao.html).
    * semAntecipacao: só a aba Movimentos (planilha base).
+   * Espaço que muda conforme a ER: na parte fixa, o espaço é sempre da marca dela, com 🔒 quando a linha
+   * não tem símbolo, mesmo sem linha no ciclo.
    */
   function movimentoDe(ciclo, planta, id, semAntecipacao) {
     const c = estado.dados.movimentos[ciclo] || {};
-    const achada = cascata(planta).find((p) => c[p] && c[p][id]);
-    const linha = (achada && c[achada][id]) || (c[TODAS()] && c[TODAS()][id]) || null;
+    const porEr = espacoPorEr(id);
+    const parte = porEr && porEr.parte(planta);
+    const achada = origemDe(ciclo, planta, id);
+    let linha = (achada && c[achada.planta][achada.id]) || (parte && parte.tipo === 'fixo' ? null : c[TODAS()] && c[TODAS()][id]) || null;
+    if (parte && parte.tipo === 'fixo' && (linha || (ciclo && !semAntecipacao))) {
+      linha = Object.assign({ etiquetas: [], observacao: '' }, linha, { marca: parte.marca, simbolo: (linha && linha.simbolo) || 'FIXO' });
+    }
     return semAntecipacao ? linha : Antecipacao.aplicar(ciclo, planta, id, linha);
   }
   /** Só a aba Movimentos: a planilha base não leva as antecipações (elas ficam na aba Antecipações). */
   const movimentoDaPlanilha = (ciclo, planta, id) => movimentoDe(ciclo, planta, id, true);
+
+  /* ------------------------------ inventário ------------------------------ */
+
+  /**
+   * Lojas da rede que têm o espaço (aba Inventario): a linha do espaço, senão a do móvel; para o móvel
+   * inteiro, a linha dele, senão a do espaço que está em mais lojas. null sem o dado.
+   */
+  function lojasDoEspaco(movelId, espacoId) {
+    const inv = estado.dados.inventario;
+    if (!inv) return null;
+    const l = inv.lojas;
+    if (espacoId && typeof l[movelId + '/' + espacoId] === 'number') return l[movelId + '/' + espacoId];
+    if (typeof l[movelId] === 'number') return l[movelId];
+    if (espacoId) {
+      // Metade do meio dividido (MEIO-B-2) sem linha própria: a do meio inteiro (MEIO-B).
+      const meio = /^(MEIO-[AB])-\d$/.exec(espacoId);
+      return meio && typeof l[movelId + '/' + meio[1]] === 'number' ? l[movelId + '/' + meio[1]] : null;
+    }
+    const dosEspacos = Object.keys(l).filter((k) => k.indexOf(movelId + '/') === 0).map((k) => l[k]);
+    return dosEspacos.length ? Math.max.apply(null, dosEspacos) : null;
+  }
+
+  /** "Presente em 900 lojas · 90% da rede" (texto do mouse sobre o móvel); null sem o dado do inventário. */
+  function presencaNaRede(movelId, espacoId) {
+    const n = lojasDoEspaco(movelId, espacoId);
+    const total = (estado.dados.inventario || {}).total;
+    if (n === null) return null;
+    return { lojas: n, pct: total ? n / total : 0 };
+  }
+
+  /**
+   * Lojas de cada ER na rede, estimadas pelo inventário: cada móvel está nas lojas das ERs que o têm na
+   * planta, então lojas do móvel ≈ soma das lojas dessas ERs (mínimos quadrados, sem número negativo);
+   * a soma das ERs fecha com o total da rede. { '01': 350, … }; null sem o inventário.
+   */
+  let lojasPorErCache = null;
+  function lojasPorEr() {
+    const inv = estado.dados.inventario;
+    if (!inv) return null;
+    if (lojasPorErCache && lojasPorErCache.dados === estado.dados) return lojasPorErCache.valor;
+    const ids = estado.dados.plantas.map((p) => p.id);
+    const moveis = {};
+    estado.dados.plantas.forEach((p, k) => p.moveis.forEach((m) => { (moveis[m.id] = moveis[m.id] || []).push(k); }));
+    const eqs = Object.keys(moveis).map((id) => ({ ers: moveis[id], L: lojasDoEspaco(id, null) })).filter((q) => q.L !== null);
+    const n = ids.map(() => inv.total / ids.length);
+    for (let it = 0; it < 300; it++) {
+      ids.forEach((_, k) => {
+        const daEr = eqs.filter((q) => q.ers.indexOf(k) >= 0);
+        if (!daEr.length) return;
+        const resto = daEr.reduce((s, q) => s + q.L - q.ers.reduce((t, j) => t + (j === k ? 0 : n[j]), 0), 0);
+        n[k] = Math.max(0, resto / daEr.length);
+      });
+    }
+    const soma = n.reduce((s, x) => s + x, 0);
+    const valor = {};
+    ids.forEach((id, k) => { valor[id] = soma ? (n[k] * inv.total) / soma : inv.total / ids.length; });
+    lojasPorErCache = { dados: estado.dados, valor };
+    return valor;
+  }
+
+  /**
+   * Lojas da ER que têm o espaço: as lojas do espaço (inventário) divididas entre as ERs que têm o móvel,
+   * pelo tamanho de cada uma (no máximo, todas as lojas da ER). null sem o dado.
+   */
+  function lojasNaEr(planta, movelId, espacoId) {
+    const total = lojasDoEspaco(movelId, espacoId);
+    const ers = lojasPorEr();
+    if (total === null || !ers) return null;
+    const comMovel = estado.dados.plantas.filter((p) => p.moveis.some((m) => m.id === movelId)).map((p) => p.id);
+    const base = comMovel.reduce((s, id) => s + (ers[id] || 0), 0);
+    return base ? Math.min(ers[planta] || 0, (total * (ers[planta] || 0)) / base) : null;
+  }
 
   /** Painéis de uma planta: por seção, vale a planta mais próxima na cascata que tiver a seção; senão "TODAS". */
   function paineisDe(ciclo, planta) {
@@ -205,7 +381,6 @@ const App = (() => {
     if ('visao' in pref) estado.visao = pref.visao === 'simplificada' ? 'simplificada' : 'planta';
     if ('marca' in pref) estado.filtro = dados.marcas[pref.marca] ? pref.marca : '';
     if ('etiqueta' in pref) estado.filtroEtiqueta = pref.etiqueta || '';
-    if ('comparar' in pref && $('selComparar')) estado.comparar = pref.comparar || '';
     estado.ajustes = {};
 
     $('avisoLocal').hidden = !dados.modoLocal;
@@ -262,25 +437,10 @@ const App = (() => {
       sel.appendChild(grupo);
     }
     sel.value = estado.ciclo;
-    montarComparar();
   }
 
   /** Ciclos publicados e, para quem entrou na validação, os em construção. */
   const todosOsCiclos = () => estado.dados.ciclos.concat(Rascunho.lista().map((r) => r.ciclo).filter((c) => estado.dados.ciclos.indexOf(c) < 0));
-
-  /** "Comparar com": os outros ciclos (só aparece com um ciclo escolhido e mais de um ciclo na planilha). */
-  function montarComparar() {
-    const sel = $('selComparar');
-    // A versão só de visualização não tem a comparação de ciclos.
-    if (!sel) { estado.comparar = ''; return; }
-    if (estado.comparar === estado.ciclo || todosOsCiclos().indexOf(estado.comparar) < 0) estado.comparar = '';
-    const outros = todosOsCiclos().filter((c) => c !== estado.ciclo);
-    $('campoComparar').hidden = !estado.ciclo || !outros.length || Rascunho.editavel(); // construindo, não compara
-    sel.textContent = '';
-    sel.appendChild(new Option('Não comparar', '', false, !estado.comparar));
-    outros.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.comparar)));
-    document.body.classList.toggle('comparando', !!(estado.ciclo && estado.comparar));
-  }
 
   function montarAbas() {
     const box = $('abasPlanta');
@@ -411,10 +571,6 @@ const App = (() => {
       ciclo: estado.ciclo,
       filtro: estado.filtro,
       filtroEtiqueta: construcao ? '' : etiquetasDoFiltro(),
-      // Montando um ciclo (Construir loja ou ciclo em construção), a comparação não vale: os espaços iguais aos
-      // do outro ciclo (ex.: os fixos copiados) ficariam cinza e sem etiqueta.
-      destaqueEspacos: !construcao && !Rascunho.editavel() && estado.ciclo && estado.comparar
-        ? mudancasEntre(planta, estado.ciclo, estado.comparar).map((x) => x.chave) : null,
       ajustes: outra && outra.id !== estado.planta ? {} : estado.ajustes, // ajustes não salvos: só os da planta da tela
       escalaEtiquetas: construcao ? 1 : tamanhoEtiquetas() / 100,
       edicao: estado.edicao,
@@ -434,6 +590,8 @@ const App = (() => {
       grade: construcao ? construcao.grade : false,
       referencia: construcao ? construcao.referencia : null,
       escuro: document.documentElement.dataset.tema === 'escuro',
+      // Ao passar o mouse num móvel: em quantas lojas da rede ele está (aba Inventario).
+      presencaNaRede: estado.dados.inventario ? presencaNaRede : null,
     };
   }
 
@@ -443,6 +601,7 @@ const App = (() => {
     svg.classList.toggle('construindo', !!Editor.contexto());
     // Marcadores dos comentários abertos (só na validação e fora da construção).
     if (!Editor.contexto()) ctx.comentarios = Validacao.marcadores();
+    esconderBalao();
     const r = Render.desenhar(svg, ctx);
     estado.tela = r.tela;
     estado.simbolos = r.simbolos;
@@ -615,18 +774,58 @@ const App = (() => {
     });
   }
 
-  /** Mouse sobre um móvel (ou uma etiqueta dele): destaca as etiquetas que estão nele. */
+  /** Esconde o balão das lojas da rede (ligarDestaque): ao redesenhar a planta ou trocar de tela. */
+  let esconderBalao = () => {};
+
+  /**
+   * Mouse sobre um móvel (ou uma etiqueta dele): destaca as etiquetas que estão nele. Com a aba Inventario,
+   * o mouse sobre o móvel (ou um espaço dele) mostra um balão com as lojas da rede que o têm.
+   */
   function ligarDestaque() {
+    const balao = document.createElement('div');
+    balao.className = 'balao-rede';
+    balao.hidden = true;
+    balao.setAttribute('role', 'tooltip');
+    $('areaPlanta').appendChild(balao); // fixo no canto de cima à direita da planta
+    let doBalao = '';
+    const esconder = () => { balao.hidden = true; doBalao = ''; };
+    esconderBalao = esconder;
+    const mostrar = (ev) => {
+      const movel = estado.dados && estado.dados.inventario && ev.target.closest('.movel[data-movel]');
+      if (!movel) { esconder(); return; }
+      const id = movel.getAttribute('data-movel');
+      const espaco = movel.getAttribute('data-espaco') || null;
+      const chave = id + '/' + (espaco || '');
+      if (chave !== doBalao) {
+        doBalao = chave;
+        const rede = presencaNaRede(id, espaco);
+        balao.innerHTML = '';
+        const linha = (texto) => { const s = document.createElement('span'); s.textContent = texto; balao.appendChild(s); };
+        if (rede) {
+          linha('Presente em ' + Math.round(rede.lojas).toLocaleString('pt-BR') + (rede.lojas === 1 ? ' loja' : ' lojas'));
+          linha(Math.round(rede.pct * 100) + '% da rede');
+        } else {
+          linha('Sem dado no inventário');
+        }
+        balao.hidden = false;
+      }
+    };
     svg.addEventListener('pointerover', (ev) => {
       // Fora do mouse (toque), no ajuste de etiquetas e na construção não há destaque.
       if (ev.pointerType !== 'mouse' || estado.edicao || Editor.contexto() || svg.classList.contains('arrastando')) {
         destacarMovel('');
+        esconder();
         return;
       }
       const alvo = ev.target.closest('.movel, .grupo-etiquetas');
       destacarMovel(alvo ? alvo.getAttribute('data-movel-base') || alvo.getAttribute('data-movel') : '');
     });
-    svg.addEventListener('pointerleave', () => destacarMovel(''));
+    svg.addEventListener('pointermove', (ev) => {
+      if (ev.pointerType !== 'mouse' || estado.edicao || Editor.contexto() || svg.classList.contains('arrastando')) return;
+      mostrar(ev);
+    });
+    svg.addEventListener('pointerleave', () => { destacarMovel(''); esconder(); });
+    svg.addEventListener('pointerdown', esconder); // clique abre a tela do móvel
   }
 
   /* --------------------------- ajuste de etiquetas ------------------------- */
@@ -917,26 +1116,6 @@ const App = (() => {
     return partes;
   }
 
-  /**
-   * Comparação de ciclos: os espaços da planta (como o ciclo atual os desenha) cuja linha mudou de um
-   * ciclo para o outro — marca, símbolo ou etiquetas (texto e marca de cada uma).
-   * @return {Array<{movel, espaco, chave, tipo: 'nova'|'removida'|'mudou', antes, depois}>}
-   */
-  function mudancasEntre(planta, ciclo, outro) {
-    const assinatura = (i) => (linhaValida(i)
-      // A etiqueta inteira (com a observação depois do "|"): mudar só a observação também é mudança.
-      ? JSON.stringify([i.marca || '', i.simbolo || '', i.etiquetas.map((e) => String(e.texto).trim().replace(/\s+/g, ' ').toUpperCase() + '#' + (e.marca || '') + '#' + (e.simbolo || '') + (e.data || ''))]) : '');
-    return espacosDaPlanta(planta, ciclo).map((x) => {
-      const id = x.espaco && x.espaco.id;
-      const depois = linhaDoEspaco(ciclo, planta.id, x.movel, id);
-      const antes = linhaDoEspaco(outro, planta.id, x.movel, id);
-      const a = assinatura(antes);
-      const d = assinatura(depois);
-      if (a === d) return null;
-      return Object.assign({}, x, { antes: a ? antes : null, depois: d ? depois : null, tipo: !a ? 'nova' : !d ? 'removida' : 'mudou' });
-    }).filter(Boolean);
-  }
-
   /** Mesmo texto de etiqueta, com variações de maiúsculas e espaços. */
   const chaveEtiqueta = Render.chaveEtiqueta;
 
@@ -1059,7 +1238,7 @@ const App = (() => {
 
   /**
    * Dados do Analytics (Analytics.desenhar): o ciclo inteiro, ER por ER — espaços, marcas, classificações,
-   * espaços sem movimento e a fatia da rede que cada ER representa. Cada ER é um tamanho médio da rede:
+   * e espaços sem movimento. Cada ER é um tamanho médio da rede:
    * nenhuma conta soma ERs. Também cada movimento com os espaços dele em cada ER. Não usa os filtros da tela.
    * O espaço de exposição e o de VM têm contas separadas (vm: a mesma estrutura, só com os espaços de VM).
    * Na classificação, cada espaço se divide entre os tipos dos movimentos dele (para as barras somarem 100%).
@@ -1090,7 +1269,22 @@ const App = (() => {
             porClasse[c] = (porClasse[c] || 0) + (pt.peso * g.valor) / soma;
           });
         });
-        return { id: p.id, nome: p.nome, total: r.total, semMovimento, porMarca: r.porMarca, porClasse, porEtiqueta: r.porEtiqueta };
+        // Aba Inventario, nesta ER: lojas com cada movimento (o espaço dele que está em mais lojas da ER) e
+        // espaços dele na rede (a soma das lojas de cada espaço em que ele está). E os tipos de móvel dele.
+        const lojasMov = {};
+        const espacosMov = {};
+        const moveisMov = {};
+        partes.forEach((pt) => movimentosDaParte(pt).forEach((g) => {
+          (moveisMov[g.chave] = moveisMov[g.chave] || {})[pt.movel.tipo] = pt.movel;
+          const n = lojasNaEr(p.id, pt.movel.id, pt.espaco && pt.espaco.id);
+          if (n === null) return;
+          lojasMov[g.chave] = Math.max(lojasMov[g.chave] || 0, n);
+          espacosMov[g.chave] = (espacosMov[g.chave] || 0) + n;
+        }));
+        return {
+          id: p.id, nome: p.nome, total: r.total, semMovimento, porMarca: r.porMarca, porClasse, porEtiqueta: r.porEtiqueta,
+          lojasMov, espacosMov, moveisMov,
+        };
       });
       const movs = {};
       ers.forEach((e) => Object.keys(e.porEtiqueta).forEach((k) => {
@@ -1104,6 +1298,25 @@ const App = (() => {
       // Cada ER é um tamanho médio da rede: nada soma ERs. As marcas de cada movimento são a média da
       // divisão dele em cada ER onde aparece; a ordem é pela maior fatia que ele tem em alguma ER.
       const fatiaMax = (m) => Math.max.apply(null, ers.map((e) => (e.total ? (m.porEr[e.id] || 0) / e.total : 0)));
+      // Presença na rede (aba Inventario): as lojas de cada ER com o movimento, somadas (as ERs são lojas
+      // diferentes da rede), e os espaços dele na rede: todos os espaços em que ele está, em todas as ERs,
+      // cada um com as lojas que o têm. null quando nenhum espaço do movimento está no inventário.
+      const inv = estado.dados.inventario;
+      const naRede = (k) => {
+        const comDado = ers.filter((e) => k in e.lojasMov);
+        if (!inv || !comDado.length) return null;
+        const lojas = Math.min(inv.total, comDado.reduce((s, e) => s + e.lojasMov[k], 0));
+        const espacos = comDado.reduce((s, e) => s + e.espacosMov[k], 0);
+        return { lojas, pct: inv.total ? lojas / inv.total : 0, espacos };
+      };
+      // Tipos de móvel em que o movimento está (em qualquer ER), na ordem dos tipos: um exemplo de cada.
+      const ordemTipos = Object.keys(estado.dados.tipos || {});
+      const moveisDe = (k) => {
+        const porTipo = {};
+        ers.forEach((e) => Object.assign(porTipo, e.moveisMov[k] || {}));
+        return Object.keys(porTipo).sort((a, b) => ordemTipos.indexOf(a) - ordemTipos.indexOf(b))
+          .map((t) => ({ tipo: t, nome: String((estado.dados.tipos || {})[t] || t).split(':')[0], movel: porTipo[t] }));
+      };
       return {
         ers,
         movimentos: Object.values(movs)
@@ -1116,14 +1329,12 @@ const App = (() => {
             classe: m.classificacao === SEM_CLASSIFICACAO ? null
               : { cod: m.classificacao, nome: nomeClassificacao(m.classificacao), cor: corClassificacao(m.classificacao) },
             marcas: ordemM.filter((c) => m.marcas[c]).map((c) => marca(c, m.marcas[c])),
+            rede: naRede(m.chave),
+            moveis: moveisDe(m.chave),
           })),
       };
     };
-    const rede = estado.dados.config.rede || { participacao: {} };
-    const enxuta = (e) => ({
-      id: e.id, nome: e.nome, total: e.total, semMovimento: e.semMovimento, porMarca: e.porMarca, porClasse: e.porClasse,
-      rede: rede.participacao[e.id] || 0,
-    });
+    const enxuta = (e) => ({ id: e.id, nome: e.nome, total: e.total, semMovimento: e.semMovimento, porMarca: e.porMarca, porClasse: e.porClasse });
     const expo = contas((pt) => !pt.vm);
     const vm = contas((pt) => pt.vm);
     const classes = ordemDasClassificacoes(expo.ers.reduce((acc, e) => acc.concat(Object.keys(e.porClasse)), [])
@@ -1133,7 +1344,7 @@ const App = (() => {
       erAtual: estado.planta,
       abaTipos: estado.dados.config.abas.TIPOS,
       filtroEtiqueta: chaveEtiqueta(estado.filtroEtiqueta),
-      rede: { lojas: rede.lojas || 0, ficticia: !!rede.ficticia },
+      inventario: estado.dados.inventario ? { total: estado.dados.inventario.total, aba: estado.dados.config.abas.INVENTARIO } : null,
       ers: expo.ers.map(enxuta),
       movimentos: expo.movimentos,
       marcas: ordemM.filter((c) => expo.ers.some((e) => e.porMarca[c])).map((c) => marca(c, 0)),
@@ -1203,11 +1414,12 @@ const App = (() => {
       novo('p', 'an-vazio', 'Escolha um ciclo no seletor para ver como o espaço está dividido.', corpo);
       return;
     }
-    Analytics.desenhar(corpo, dadosAnalytics(estado.ciclo), { verNaPlanta });
+    Analytics.desenhar(corpo, dadosAnalytics(estado.ciclo), { verNaPlanta, miniatura: Render.miniatura });
   }
 
   function alternarAnalytics(aberto) {
     estado.analytics = aberto === undefined ? !estado.analytics : !!aberto;
+    esconderBalao();
     atualizarAnalytics();
   }
 
@@ -1311,7 +1523,6 @@ const App = (() => {
       if (titulo) novo('span', null, titulo, h);
       return { sec, h };
     };
-    if (estado.comparar && !Rascunho.editavel()) secaoMudancas(secao('Mudou desde ' + estado.comparar).sec, planta);
     // Antecipações do ciclo nesta ER (itens do próximo ciclo que entram antes).
     const antecipadas = Antecipacao.daEr(estado.ciclo, planta);
     if (antecipadas.length) Antecipacao.montarLista(secao('Antecipações').sec, antecipadas, planta, false);
@@ -1357,40 +1568,6 @@ const App = (() => {
         else chipsLoja(bloco, etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || (info.marca !== 'NEUTRO' ? info.marca : '') })));
       });
     }
-  }
-
-  /** Lista do que mudou na ER desde o ciclo comparado: antes e agora de cada espaço (clique abre o móvel). */
-  function secaoMudancas(sec, planta) {
-    const lista = mudancasEntre(planta, estado.ciclo, estado.comparar);
-    if (!lista.length) {
-      novo('p', 'mv-vazio', 'Nada mudou nesta ER.', sec);
-      return;
-    }
-    novo('p', 'lj-mud-resumo', lista.length + (lista.length === 1 ? ' espaço mudou' : ' espaços mudaram')
-      + ' (os outros ficam em cinza na planta).', sec);
-    const chips = (pai, i) => {
-      if (!i) { novo('span', 'mv-vazio', 'sem movimento', pai); return; }
-      const marca = i.marca && i.marca !== 'NEUTRO' ? i.marca : '';
-      const itens = i.etiquetas.length ? i.etiquetas.map((e) => ({ texto: e.texto, marca: e.marca || marca }))
-        : [{ texto: marca ? nomeDaMarca(marca) : 'sem etiqueta', marca }];
-      chipsLoja(pai, itens);
-      if (i.simbolo === 'FIXO') novo('span', 'lj-mud-fixo', '🔒 fixo', pai);
-    };
-    lista.forEach((x) => {
-      const bloco = novo('button', 'lj-mudanca', null, sec);
-      bloco.type = 'button';
-      bloco.dataset.movel = x.movel.id;
-      bloco.addEventListener('click', () => abrirMovel(x.movel.id));
-      const topo = novo('div', 'lj-mud-topo', null, bloco);
-      novo('strong', null, (x.movel.descricao || x.movel.id) + (x.espaco ? ' · ' + x.espaco.nome : ''), topo);
-      novo('span', 'lj-mud-tipo ' + x.tipo, x.tipo === 'nova' ? 'novo' : x.tipo === 'removida' ? 'saiu' : 'mudou', topo);
-      const antes = novo('div', 'lj-mud-linha antes', null, bloco);
-      novo('span', 'lj-mud-rot', 'Antes', antes);
-      chips(antes, x.antes);
-      const agora = novo('div', 'lj-mud-linha', null, bloco);
-      novo('span', 'lj-mud-rot', 'Agora', agora);
-      chips(agora, x.depois);
-    });
   }
 
   /* ------------------------- estratégia do móvel -------------------------- */
@@ -1717,9 +1894,16 @@ const App = (() => {
     return espacos.map((e) => {
       const meio = /^MEIO-[AB]-\d$/.test(e.id) ? m.id + '/' + e.id.slice(0, 6) : null;
       const propria = [m.id + '/' + e.id, meio].filter(Boolean).find(temLinha);
+      // Espaço que muda conforme a ER: o título diz qual parte vale nesta ER (ex.: "Ponta B · Fixo O.U.i").
+      const porEr = espacoPorEr(m.id + '/' + e.id);
+      // De onde vem o que vale aqui (outra ER, talvez outro espaço) e se o espaço é definido de novo nesta ER.
+      const de = propria && !daEr[propria] && ciclo ? origemDe(ciclo, planta.id, propria) : null;
+      const corte = regraDaHeranca(planta.id, m.id + '/' + e.id);
       return {
-        titulo: e.nome, chave: m.id + '/' + e.id, espaco: e, info: propria ? linha(propria) : null,
+        titulo: e.nome + (porEr ? ' · ' + porEr.parte(planta.id).nome : ''), chave: m.id + '/' + e.id, espaco: e, info: propria ? linha(propria) : null,
         propria: !!(propria && daEr[propria]), limite: (config.etiquetasPorBloco || {})[m.tipo] || 1,
+        origem: de ? { er: nomeDaEr(de.planta), espaco: nomeDoEspaco(de.planta, de.id), outro: de.id !== propria } : null,
+        redefinir: corte && corte.tipo === 'corta' ? nomeDaEr(corte.regra.de) : '',
       };
     });
   }
@@ -1873,10 +2057,6 @@ const App = (() => {
     $('pngFiltroTexto').textContent = marca ? 'Só ' + marca.nome + ' fica colorida; as outras marcas saem em cinza, como na tela.'
       : estado.filtroEtiqueta ? 'Só os espaços com a etiqueta ' + estado.filtroEtiqueta + ' ficam coloridos, como na tela.'
         : estado.filtroClassificacao ? 'Só os espaços com movimentos de ' + nomeClassificacao(estado.filtroClassificacao) + ' ficam coloridos, como na tela.' : '';
-    if (estado.ciclo && estado.comparar) {
-      $('pngFiltroTexto').textContent = ($('pngFiltroTexto').textContent + ' Comparando com ' + estado.comparar
-        + ': só os espaços que mudaram ficam coloridos, como na tela.').trim();
-    }
     $('pngFiltroTexto').hidden = !$('pngFiltroTexto').textContent;
     dlg.returnValue = '';
     dlg.showModal();
@@ -2151,12 +2331,12 @@ const App = (() => {
 
   const noAppsScript = () => !!(window.google && google.script && google.script.url && google.script.history);
 
-  /** Preferências do link (as que existirem): ciclo, planta (nome da ER), visão, marca, etiqueta, comparar. */
+  /** Preferências do link (as que existirem): ciclo, planta (nome da ER), visão, marca, etiqueta. */
   function lerLink() {
     const converter = (hash) => {
       const q = new URLSearchParams(String(hash || '').replace(/^#/, ''));
       const pref = {};
-      [['ciclo', 'ciclo'], ['er', 'planta'], ['visao', 'visao'], ['marca', 'marca'], ['etiqueta', 'etiqueta'], ['comparar', 'comparar']]
+      [['ciclo', 'ciclo'], ['er', 'planta'], ['visao', 'visao'], ['marca', 'marca'], ['etiqueta', 'etiqueta']]
         .forEach(([k, campo]) => { if (q.has(k)) pref[campo] = q.get(k); });
       return pref;
     };
@@ -2174,7 +2354,6 @@ const App = (() => {
     if (estado.visao === 'simplificada') q.set('visao', 'simplificada');
     if (estado.filtro) q.set('marca', estado.filtro);
     if (estado.filtroEtiqueta) q.set('etiqueta', estado.filtroEtiqueta);
-    if (estado.ciclo && estado.comparar) q.set('comparar', estado.comparar);
     return q.toString();
   }
 
@@ -2378,14 +2557,6 @@ const App = (() => {
     const ao = (id, evento, fn) => { if ($(id)) $(id).addEventListener(evento, fn); };
     ao('selCiclo', 'change', (e) => {
       estado.ciclo = e.target.value;
-      montarComparar();
-      desenhar();
-    });
-    ao('selComparar', 'change', (e) => {
-      estado.comparar = e.target.value;
-      // Ao ligar a comparação, abre o menu da esquerda com a lista do que mudou.
-      if (estado.comparar && !estado.painelLoja) estado.painelLoja = true;
-      montarComparar();
       desenhar();
     });
     // Baixar planilha base, Importar planilha e Construir loja: só com o módulo Desenvolvedor liberado.
@@ -2532,7 +2703,7 @@ const App = (() => {
     estado, ultimoAprovado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,
     acesso: () => Validacao.acesso(),
     recarregarComentarios: () => Validacao.recarregar(),
-    abrirMovel, blocosDoMovel, corDaMarca, colorirSelectMarca, movimentoDe,
+    abrirMovel, blocosDoMovel, espacoPorEr, ersDaLinha, corDaMarca, colorirSelectMarca, movimentoDe,
     comentariosAbertos: () => Validacao.abertosNoCiclo(),
     abrirComentarios: () => Validacao.abrirPainel(),
     estatisticas: estatisticasConstrucao,
@@ -2554,7 +2725,6 @@ const App = (() => {
     marcarVisao();
     montarCiclos();
     montarLegenda();
-    if (estado.comparar && !estado.painelLoja) { estado.painelLoja = true; desenhar(); }
     Tutorial.oferecer();
   });
 

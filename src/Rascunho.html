@@ -209,7 +209,6 @@ const Rascunho = (() => {
     const r = lista.slice().reverse().find((x) => x.status === status);
     if (!r || r.ciclo === app.estado.ciclo) return;
     app.estado.ciclo = r.ciclo;
-    app.estado.comparar = '';
     selecao = '';
     verComentarios = false;
   }
@@ -349,7 +348,6 @@ const Rascunho = (() => {
     e.ciclo = ciclo;
     verComentarios = false;
     selecao = '';
-    e.comparar = ''; // construindo, a planta mostra o ciclo inteiro (sem a comparação)
     app.montarCiclos();
     app.desenhar();
   }
@@ -557,7 +555,24 @@ const Rascunho = (() => {
     if (m.descricao && m.descricao !== m.id) n('span', null, m.descricao, nome);
     botao('Ver detalhes', 'fantasma', () => app.abrirMovel(m.id), topo).title = 'Planograma e comentários deste móvel';
     botao('✕', 'fantasma', () => aoClicarMovel(''), topo).setAttribute('aria-label', 'Tirar a seleção');
-    app.blocosDoMovel(planta, m, app.estado.ciclo).forEach((b) => blocoEspaco(pai, planta, m, b));
+    app.blocosDoMovel(planta, m, app.estado.ciclo).forEach((b) => {
+      const porEr = app.espacoPorEr(b.chave);
+      if (!porEr) { blocoEspaco(pai, planta, m, b); return; }
+      // Espaço que muda conforme a ER (ex.: ponta B da gôndola 1): a parte fixa e a livre, separadas. Cada
+      // uma grava na ER dela (na ER aberta, quando é a parte dela; senão, na primeira ER da parte).
+      const nomeEr = (id) => (app.estado.dados.plantas.find((p) => p.id === id) || { nome: id }).nome;
+      // A parte que vale na ER aberta vem primeiro.
+      [porEr.parte(planta.id), porEr.parte(planta.id) === porEr.fixo ? porEr.livre : porEr.fixo].forEach((parte) => {
+        if (!parte.plantas.length) return;
+        const alvo = parte.plantas.indexOf(planta.id) >= 0 ? planta : app.estado.dados.plantas.find((p) => p.id === parte.plantas[0]);
+        const mAlvo = alvo && alvo.moveis.find((x) => x.id === m.id);
+        const bAlvo = mAlvo && app.blocosDoMovel(alvo, mAlvo, app.estado.ciclo).find((x) => x.chave === b.chave);
+        if (!bAlvo) return;
+        // ERs em que esta linha vale (a cascata pode parar antes, ex.: a ER G define o espaço de novo).
+        const ers = app.ersDaLinha(alvo.id, b.chave).map((x) => nomeEr(x.planta)).join(', ');
+        blocoEspaco(pai, alvo, mAlvo, bAlvo, { parte, ers, nestaEr: alvo === planta });
+      });
+    });
   }
 
   /* ------------------------- meio de gôndola em 2 -------------------------- */
@@ -627,12 +642,16 @@ const Rascunho = (() => {
    * Um espaço (ou o móvel inteiro) no painel: cada mudança pinta a planta na hora e é gravada sozinha.
    * As etiquetas começam com uma (ou as que o espaço já tem) e "+ Adicionar etiqueta" põe outra, até o limite.
    * @param {{titulo, chave, info, limite, propria, espaco}} b  de blocosDoMovel (App.html)
+   * @param {{parte, ers, nestaEr}} [porEr]  uma parte de um espaço que muda conforme a ER (fixa ou livre):
+   *   planta é a ER em que ela grava; ers, os nomes das ERs da parte; nestaEr: é a parte da ER aberta.
    */
-  function blocoEspaco(pai, planta, m, b) {
+  function blocoEspaco(pai, planta, m, b, porEr) {
     const ciclo = app.estado.ciclo;
     const i = b.info || { marca: '', etiquetas: [], simbolo: '', observacao: '' };
-    const f = n('div', 'rs-espaco pc-espaco', null, pai);
+    const fixa = porEr && porEr.parte.tipo === 'fixo' ? porEr.parte.marca : '';
+    const f = n('div', 'rs-espaco pc-espaco' + (porEr ? ' pc-parte ' + porEr.parte.tipo + (porEr.nestaEr ? ' atual' : '') : ''), null, pai);
     f.dataset.espaco = b.chave;
+    if (porEr) f.dataset.parte = porEr.parte.tipo;
     const cab = n('div', 'pc-espaco-cab', null, f);
     n('h4', null, b.titulo, cab);
     // Gôndola: o meio pode ser dividido em duas metades (dois movimentos) e as metades, juntadas de novo.
@@ -644,15 +663,29 @@ const Rascunho = (() => {
       botao('Juntar metades', 'fantasma pc-dividir', () => juntarMeio(planta, m, idEsp.slice(5, 6)), cab)
         .title = 'Volta a ser um meio só (fica o que está na metade 1)';
     }
+    if (porEr) {
+      const sub = n('p', 'pc-parte-ers', null, f);
+      n('strong', null, (porEr.parte.tipo === 'fixo' ? 'Só na ' : 'Vale para ') + porEr.ers + '.', sub);
+      sub.appendChild(document.createTextNode(porEr.parte.tipo === 'fixo'
+        ? ' Espaço fixo de ' + app.nomeDaMarca(fixa) + ': só as etiquetas mudam.'
+        : ' É só o que aparece nessas ERs (a parte fixa não passa para elas).'));
+      if (!porEr.nestaEr) n('span', 'pc-parte-outra', 'Não aparece na ' + app.plantaAtual().nome, sub);
+    }
+    // Vem de outra ER (às vezes de outro espaço: o lado B da gôndola 2 da ER M é o lado A da gôndola 3 da ER G).
+    const de = b.origem ? 'Vem ' + (b.origem.outro ? 'de ' + b.origem.espaco + ', na ' : 'da ') + b.origem.er : 'Vem de outra ER';
     const herdado = b.info && !b.propria
-      ? n('p', 'rs-herdado', 'Vem de outra ER (cascata). Ao mudar, vira uma linha própria da ' + planta.nome + '.', f) : null;
+      ? n('p', 'rs-herdado', de + ' (cascata). Ao mudar, vira uma linha própria da ' + planta.nome + '.', f)
+      // Espaço que a ER define de novo (não herda da ER anterior: os móveis mudaram de lugar).
+      : !b.info && !b.propria && b.redefinir
+        ? n('p', 'rs-herdado pc-redefinir', 'Defina de novo na ' + planta.nome + ': este espaço não vem da ' + b.redefinir + '.', f) : null;
     const linha = (rotulo) => {
       const d = n('label', 'pc-linha', null, f);
       n('span', 'mv-rotulo', rotulo, d);
       return d;
     };
-    const marca = selectMarca(linha('Marca'), i.marca, 'Sem marca (branco)');
+    const marca = selectMarca(linha('Marca'), fixa || i.marca, 'Sem marca (branco)');
     marca.setAttribute('aria-label', 'Marca de ' + b.titulo);
+    marca.disabled = !!fixa; // espaço fixo de uma marca: a marca não muda
     const simbolo = n('select', null, null, linha('Símbolo'));
     simbolo.setAttribute('aria-label', 'Símbolo de ' + b.titulo);
     n('option', null, 'Nenhum', simbolo).value = '';
@@ -781,7 +814,7 @@ const Rascunho = (() => {
     obs.addEventListener('input', () => mudou(false));
     const acoes = n('div', 'val-acoes', null, f);
     botao('Limpar espaço', 'fantasma', () => {
-      [marca, simbolo, obs].forEach((el) => { el.value = ''; });
+      [fixa ? null : marca, simbolo, obs].filter(Boolean).forEach((el) => { el.value = ''; }); // a marca fixa fica
       marca.dispatchEvent(new Event('input'));
       campos.splice(1).forEach((c) => c.row.remove());
       campos.forEach((c) => {

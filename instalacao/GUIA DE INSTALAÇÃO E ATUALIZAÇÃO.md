@@ -19,7 +19,7 @@ Este guia é para quem **já usa o app no Apps Script e já tem a planilha com o
 
 ## O que muda para quem usa o app
 
-- **Analytics** (no lugar do antigo *Espaço por marca*): um dashboard do ciclo que compara as ERs — números principais, insights rápidos, o mapa movimento × ER, as marcas e as classificações em cada ER e o GMV esperado × espaço. Clicar numa célula ou num insight mostra na planta daquela ER só onde o movimento aparece.
+- **Analytics** (no lugar do antigo *Espaço por marca*): um dashboard do ciclo que compara as ERs — o mapa movimento × ER, as marcas e as classificações em cada ER e o GMV esperado × espaço (gráfico de dispersão). Clicar numa célula ou num ponto mostra na planta daquela ER só onde o movimento aparece.
 - **Aba nova na planilha, "Tipos de movimento":** nela você informa a classificação (lançamento, promoção…) e o GMV esperado de cada movimento.
 - **Só o app completo:** a versão *visualizador* deixou de existir. Quem usava o visualizador passa a usar o app completo (Parte A); a planilha e os ciclos continuam os mesmos.
 - **Desenvolvedor (com senha):** *Construir loja*, *Baixar planilha base* e *Importar planilha* saíram do topo e ficam na engrenagem, no item **Desenvolvedor**, que pede a senha `desenvolvedor_exposicao`. Com a senha, o item mostra os três botões (e *Sair do desenvolvedor*); a senha vale até fechar a aba do navegador e é conferida de novo no servidor a cada importação e a cada *Salvar planta*. Avise quem monta as plantas e importa as planilhas.
@@ -147,7 +147,7 @@ A aba é criada já com as colunas, as listas suspensas e o GMV em reais. Acresc
 
 - **Ciclo:** o mesmo nome usado na aba *Movimentos* (ex.: `C15/2026`).
 - **Movimento (etiqueta):** o texto da etiqueta, igual ao da aba *Movimentos* (ex.: `LÇTO EGEO`). Maiúsculas e espaços a mais não importam.
-- **Classificação:** `Lançamento`, `Promoção`, `Liquidação / outlet`, `Institucional / portfólio` ou `Outro`. Também aceita outro texto, que vira uma classificação própria.
+- **Classificação:** `Lançamento`, `Promoção`, `Liquidação / outlet`, `Baseline` (o antigo *Institucional / portfólio*) ou `Outro`. Também aceita outro texto, que vira uma classificação própria.
 - **GMV esperado (R$):** um número, como `1500000`, `R$ 1.500.000,00`, `1,5 mi` ou `250 mil`.
 - **Observação:** opcional. Aparece ao passar o mouse no painel.
 
@@ -181,7 +181,7 @@ Abra o link do app e confira:
 - [ ] O seletor de ciclo mostra os **seus** ciclos e a planta abre com as cores e as etiquetas.
 - [ ] O topo tem **Comunicações ER** e **Analytics** em destaque e a **engrenagem** com *Validação*, *Construção*, *Desenvolvedor*, *Ajustar etiquetas* e *Ver o tutorial*. *Construir loja*, *Baixar planilha base* e *Importar planilha* não aparecem no topo.
 - [ ] Em **engrenagem › Desenvolvedor**, a senha `desenvolvedor_exposicao` mostra *Baixar planilha base*, *Importar planilha* e *Construir loja* (e *Sair do desenvolvedor*). Outra senha não entra.
-- [ ] O **Analytics** mostra os números, os insights, o mapa movimento × ER e as marcas e classificações em cada ER. A classificação e o GMV só aparecem para os movimentos que estão na aba *Tipos de movimento*.
+- [ ] O **Analytics** mostra o mapa movimento × ER e as marcas e classificações em cada ER. A classificação e o GMV só aparecem para os movimentos que estão na aba *Tipos de movimento*.
 - [ ] **Baixar PNG** (canto de baixo da planta) baixa a planta, a visão simplificada e a estratégia.
 - [ ] As posições de etiquetas que você já tinha salvado continuam no lugar.
 - [ ] Entre na *Construção* (senha `construcao_exposicao`): o painel mostra **Ciclos em construção** com o botão *Novo ciclo*. Se quiser testar, crie um ciclo de teste, mude um espaço e depois clique em *Excluir* na faixa do ciclo.

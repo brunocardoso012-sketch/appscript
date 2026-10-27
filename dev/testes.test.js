@@ -28,6 +28,9 @@ test('normalizações', () => {
   assert.equal(run("normSimbolo_('e')"), 'EXPOSICAO');
   assert.equal(run("normSecao_('TV/Rádio')"), 'TV');
   assert.equal(run("numero_('1,5')"), 1.5);
+  assert.equal(run("normClassificacao_('Baseline')"), 'INSTITUCIONAL');
+  assert.equal(run("normClassificacao_('Institucional / portfólio')"), 'INSTITUCIONAL', 'o nome antigo continua aceito');
+  assert.equal(run('CLASSIFICACOES.INSTITUCIONAL.nome'), 'Baseline');
   assert.equal(run("numero_('2.25')"), 2.25);
 });
 
@@ -40,6 +43,30 @@ test('layout padrão + ciclo de exemplo são lidos sem avisos', () => {
   assert.deepEqual(d.avisos, []);
   assert.ok(d.movimentos['Ciclo exemplo'].TODAS['EXTRA-CESTINHAS']);
   assert.ok(d.movimentos['Ciclo exemplo']['01']['GONDOLA 1/PONTA-A']);
+});
+
+test('aba Inventario: lojas por móvel ou espaço, total da rede e leitura sem acento', () => {
+  const { run } = carregarGas();
+  const inv = run(`inventarioDeValores_([
+    ['ID Móvel', 'Lojas'],
+    ['Gôndola 1', 1000],
+    ['gondola 1 / ponta b', '900'],
+    ['PIRAMIDE 1', '1.000'],
+    ['', 5],
+    ['GONDOLA 3', 'x'],
+  ])`);
+  assert.deepEqual(inv.lojas, { 'GONDOLA 1': 1000, 'GONDOLA 1/PONTA-B': 900, 'PIRAMIDE 1': 1000 });
+  assert.equal(inv.total, 1000, 'sem linha TOTAL: o maior número da aba');
+  assert.equal(run("inventarioDeValores_([['Lojas', 'Móvel'], [350, 'GONDOLA 2'], [1200, 'Total']]).total"), 1200, 'linha TOTAL e colunas pelo nome');
+  assert.equal(run('inventarioDeValores_(null)'), null);
+  assert.equal(run("inventarioDeValores_([['ID Móvel', 'Lojas']])"), null);
+
+  const f = servicosFalsos({ vinculada: true });
+  const { run: run2 } = carregarGas(f.globais);
+  run2('configurarPlanilha()');
+  assert.equal(run2('getDados()').inventario, null, 'sem a aba, sem inventário');
+  f.planilha.insertSheet('Inventário').getRange(1, 1, 3, 2).setValues([['ID Móvel', 'Lojas'], ['GONDOLA 1', 1000], ['GONDOLA 2', 650]]);
+  assert.deepEqual(run2('getDados()').inventario, { lojas: { 'GONDOLA 1': 1000, 'GONDOLA 2': 650 }, total: 1000 });
 });
 
 test('avisos para marca desconhecida e móvel inexistente', () => {
@@ -91,7 +118,7 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.equal(ilha.simbolo, 'FIXO');
   assert.deepEqual(Object.keys(d2.movimentos['Ciclo exemplo']['01']), ['PIRAMIDE 1'], 'par (ciclo, planta) substituído; ID sem acento');
   assert.equal(d2.movimentos['Ciclo exemplo']['01']['PIRAMIDE 1'].etiquetas[0].texto, '10/2026');
-  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 10, 'outras plantas intactas');
+  assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 11, 'outras plantas intactas');
   assert.equal(d2.paineis['C15/2026'].TODAS[0].secao, 'TV');
 
   const aj = run("salvarAjustesEtiquetas('2', { 'PIRAMIDE 1': { x: 40.4, y: -12 } })");

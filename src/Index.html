@@ -37,10 +37,6 @@
           <span>Ciclo</span>
           <select id="selCiclo" aria-label="Ciclo"></select>
         </label>
-        <label class="campo" id="campoComparar" hidden title="Só os espaços que mudaram em relação ao outro ciclo ficam coloridos">
-          <span>Comparar com</span>
-          <select id="selComparar" aria-label="Comparar com o ciclo"></select>
-        </label>
         <div class="abas" id="abasPlanta" role="tablist" aria-label="Plantas"></div>
         <div class="abas" id="abasVisao" role="tablist" aria-label="Como mostrar as etiquetas">
           <button class="aba" type="button" role="tab" data-visao="planta" aria-selected="true" title="Etiquetas junto de cada espaço do móvel, na planta">Na planta</button>
@@ -64,6 +60,10 @@
         <button id="btnAtualizar" class="btn fantasma" type="button" title="Ler a planilha de novo">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
           Atualizar
+        </button>
+        <button id="btnPng" class="btn" type="button" title="Baixar a planta (ou o slide completo) em PNG">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
+          Baixar PNG
         </button>
         <button id="btnLink" class="btn fantasma" type="button" title="Copia o link que abre o app neste ciclo, ER, visão e filtro">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
@@ -190,10 +190,6 @@
       </aside>
       <div class="area-planta" id="areaPlanta">
         <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
-        <button id="btnPng" class="btn btn-png" type="button" title="Baixar a planta (ou o slide completo) em PNG">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
-          Baixar PNG
-        </button>
       </div>
       <section class="analytics" id="painelAnalytics" hidden aria-label="Analytics">
         <header class="an-topo">
@@ -416,6 +412,10 @@
 
     <dialog id="dlgMovel" class="tela-movel">
       <form method="dialog">
+        <div class="mv-aviso" role="note">
+          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2.5 18.5 17h-17z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 8v4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1" fill="currentColor"/></svg>
+          <span>Página em construção</span>
+        </div>
         <header class="mv-topo">
           <div>
             <h2 id="mvTitulo"></h2>

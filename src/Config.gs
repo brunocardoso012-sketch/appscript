@@ -25,6 +25,8 @@ const CONFIG = {
     PRATELEIRAS: 'Prateleiras',
     // Catálogo de produtos que vão nos quadrados das prateleiras (SKU, nome, marca, categoria, movimento).
     PRODUTOS: 'Produtos',
+    // Opcional, criada à mão: em quantas lojas da rede cada móvel ou espaço existe (inventarioDeValores_).
+    INVENTARIO: 'Inventario',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -55,12 +57,33 @@ const SENHAS_ACESSO = {
 const NOMES_PLANTAS = { '01': 'ER P', '02': 'ER M', '03': 'ER G', '04': 'ER GG' };
 
 /**
- * Rede de lojas que as plantas representam: cada planta (ER P, M, G, GG) é a média das lojas daquele
- * tamanho. participacao = fatia da rede (0..1) de cada planta; lojas = total de lojas da rede.
- * O Analytics mostra isso em cada ER e nunca soma os espaços de ERs diferentes.
- * ficticia = true: a divisão abaixo é só um exemplo (troque pelos números reais e passe para false).
+ * Espaços que mudam conforme o tamanho da ER: nas ERs de fixo.plantas, o espaço é fixo de uma marca
+ * (fixo.marca; o símbolo 🔒 entra sozinho quando a linha não tem símbolo); nas outras ERs, é livre.
+ * A cascata não passa de uma parte para a outra: nas ERs em que o espaço é livre, só vale o que foi
+ * definido como livre (a linha da ER M, que segue para a ER G e a ER GG), nunca a parte fixa.
+ * Ao montar o ciclo, o espaço mostra as duas partes, separadas.
  */
-const REDE = { lojas: 1000, ficticia: true, participacao: { '01': 0.35, '02': 0.3, '03': 0.22, '04': 0.13 } };
+const ESPACOS_POR_ER = {
+  'GONDOLA 1/PONTA-B': { fixo: { plantas: ['01'], marca: 'OUI', nome: 'Fixo O.U.i' }, livre: { nome: 'Livre' } },
+};
+
+/**
+ * Mudanças na cascata ao passar de uma ER para a seguinte (de → para), quando os móveis mudam de lugar:
+ *  - espacos: { espaço na ER "para": espaço na ER "de" } — o espaço herda o que vem de outro espaço da ER
+ *    anterior (e, dali para trás, a cascata segue com o nome antigo);
+ *  - semHeranca: espaços que não herdam nada da ER "de" (nem das menores): têm de ser definidos de novo na
+ *    ER "para" (as ERs seguintes herdam dela, como sempre).
+ * Os nomes valem também para as metades do meio dividido (MEIO-B vale para MEIO-B-1 e MEIO-B-2).
+ */
+const HERANCA_ENTRE_ERS = [
+  {
+    // Da ER M para a ER G: o lado B (ponta e meio) da gôndola 2 vira o lado A da gôndola 3, e o lado B da
+    // gôndola 2 é definido de novo na ER G. A gôndola 1 segue a cascata normal (ER M → ER G → ER GG).
+    de: '02', para: '03',
+    espacos: { 'GONDOLA 3/PONTA-A': 'GONDOLA 2/PONTA-B', 'GONDOLA 3/MEIO-A': 'GONDOLA 2/MEIO-B' },
+    semHeranca: ['GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'],
+  },
+];
 
 /**
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
@@ -165,7 +188,8 @@ const CLASSIFICACOES = {
   LANCAMENTO: { nome: 'Lançamento', cor: '#0E7490', apelidos: ['LANCAMENTOS', 'LANC', 'LCTO', 'NOVIDADE', 'NEW'] },
   PROMOCAO: { nome: 'Promoção', cor: '#C2410C', apelidos: ['PROMO', 'PROMOCIONAL', 'PROMOCOES', 'OFERTA'] },
   LIQUIDACAO: { nome: 'Liquidação / outlet', cor: '#A16207', apelidos: ['LIQUIDA', 'LIQUIDACAOOUTLET', 'OUTLET', 'EXAUSTAO', 'QUEIMA'] },
-  INSTITUCIONAL: { nome: 'Institucional / portfólio', cor: '#475569', apelidos: ['PORTFOLIO', 'INSTITUCIONALPORTFOLIO', 'PERMANENTE', 'REGULAR'] },
+  // Baseline (antes "Institucional / portfólio": o nome antigo continua aceito na planilha).
+  INSTITUCIONAL: { nome: 'Baseline', cor: '#475569', apelidos: ['INSTITUCIONALPORTFOLIO', 'PORTFOLIO', 'PERMANENTE', 'REGULAR'] },
   OUTRO: { nome: 'Outro', cor: '#6B7280', apelidos: ['OUTROS'] },
 };
 
