@@ -373,6 +373,14 @@
   }
   /* A planta e o botão de baixar PNG, no canto de baixo dela. */
   .area-planta { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+  /* Notas e legenda dos símbolos: fixas no canto de baixo à esquerda da área da planta, em tamanho de leitura. */
+  .canto-planta {
+    position: absolute; left: 12px; bottom: 12px; z-index: 4; max-width: min(calc(100% - 24px), 420px);
+    padding: 6px 8px; border-radius: 10px; background: color-mix(in srgb, var(--superficie) 92%, transparent);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .12); pointer-events: none; overflow: hidden;
+  }
+  .canto-planta[hidden] { display: none; }
+  .canto-planta svg { display: block; max-width: 100%; height: auto; }
   #slide {
     flex: 1 1 auto;
     min-width: 0;
@@ -462,6 +470,9 @@
   .an-mapa thead th.atual button > span:first-child { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
   .an-mapa th.an-col-mov { width: 30%; min-width: 160px; text-align: left; padding: 4px 8px 4px 0; }
   .an-mov-nome { display: flex; align-items: center; gap: 8px; font-weight: 600; font-family: var(--fonte-etq); }
+  button.an-mov-nome { width: 100%; padding: 2px 4px; margin: 0 0 0 -4px; border: 0; border-radius: 6px; background: none; color: inherit; font-size: inherit; text-align: left; cursor: pointer; }
+  button.an-mov-nome:hover:not(:disabled) { background: var(--fundo); text-decoration: underline; }
+  button.an-mov-nome:disabled { cursor: default; }
   /* Bolinhas das marcas do movimento, ao lado do nome. */
   .an-marcas-mov { display: inline-flex; gap: 3px; flex: 0 0 auto; }
   .an-marcas-mov i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, .12); }
@@ -1151,6 +1162,11 @@
   @media (prefers-reduced-motion: reduce) { .pc-gravacao.salvando::before { animation: none; } }
   .pc-passos { display: flex; flex-direction: column; gap: 3px; margin: 12px 0 10px; }
   .pc-acoes { display: flex; flex-wrap: wrap; gap: 6px; }
+  /* Publicar ciclo: verde e grande, na faixa do ciclo e no painel de construção. */
+  .btn.btn-publicar { background: #1E8E3E; border-color: #1E8E3E; color: #fff; font-size: 14px; font-weight: 800; padding: 8px 16px; box-shadow: 0 2px 6px rgba(30,142,62,.35); }
+  .btn.btn-publicar:hover { background: #177333; }
+  .btn.btn-publicar svg { width: 18px; height: 18px; stroke-width: 2.6; }
+  .btn.btn-publicar.pc-publicar { display: flex; width: 100%; justify-content: center; margin: 0 0 10px; font-size: 15px; padding: 10px 16px; }
   .pc-secao { padding: 4px 0 14px; border-bottom: 1px solid var(--borda); }
   .pc-secao:last-child { border-bottom: 0; }
   .pc-secao h3 { margin: 14px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--texto-2); }
@@ -1216,6 +1232,7 @@
   .pc-gmv-trilho i { display: block; height: 100%; border-radius: 0 3px 3px 0; min-width: 2px; max-width: 70%; }
   .pc-gmv-trilho i.esp { background: var(--borda-forte); }
   .pc-gmv-trilho small { font-size: 10px; color: var(--texto-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .pc-gmv-fora { font-size: 10.5px; font-style: italic; color: var(--texto-2); }
   .pc-indice { font-size: 12px; }
   .rs-voltar { width: 100%; justify-content: center; margin-bottom: 10px; }
   [data-tema="escuro"] .pc-alertas li.erro { background: #4a2510; color: #ffb38a; }

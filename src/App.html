@@ -384,9 +384,6 @@ const App = (() => {
     estado.ajustes = {};
 
     $('avisoLocal').hidden = !dados.modoLocal;
-    const link = $('lnkPlanilha');
-    link.hidden = !dados.planilhaUrl;
-    if (dados.planilhaUrl) link.href = dados.planilhaUrl;
 
     montarCiclos();
     montarAbas();
@@ -660,12 +657,43 @@ const App = (() => {
     Editor.aposDesenhar(r);
     estado.grupos = r.grupos;
     if (estado.edicao) ativarArraste();
+    atualizarCanto(!ctx.paineis);
     aplicarZoom();
     atualizarAnalytics();
     atualizarPainelLoja();
     Validacao.atualizar();
     Rascunho.atualizar();
     gravarLink();
+  }
+
+  /* ------------------------- notas e legenda (canto) ------------------------ */
+
+  const ESCALA_CANTO = 0.64; // px na tela por unidade do slide: a nota (17) fica com ~11 px, a legenda (19) com ~12 px
+
+  /**
+   * Na tela, as notas e a legenda dos símbolos (.fixo-zoom) saem do slide e ficam num canto fixo, embaixo à
+   * esquerda da área da planta, sempre no mesmo tamanho de leitura: não mudam com o zoom, com o tamanho do
+   * slide da ER nem com a largura da área (com o Analytics aberto, o slide 16:9 não vai até embaixo). No PNG
+   * e no Construir loja (com os painéis no slide), continuam no slide.
+   */
+  function atualizarCanto(naTela) {
+    const canto = $('cantoPlanta');
+    if (!canto) return;
+    const alvo = canto.querySelector('svg');
+    alvo.innerHTML = '';
+    const grupo = naTela ? svg.querySelector('.fixo-zoom') : null;
+    canto.hidden = !grupo || !grupo.childNodes.length;
+    if (canto.hidden) return;
+    // As hachuras (padrões) da legenda vêm do slide: copia as definições para este desenho.
+    const defs = svg.querySelector('defs');
+    if (defs) alvo.appendChild(defs.cloneNode(true));
+    alvo.appendChild(grupo);
+    alvo.querySelectorAll('.notas rect[filter]').forEach((r) => r.removeAttribute('filter'));
+    const bb = alvo.getBBox();
+    const folga = 6;
+    alvo.setAttribute('viewBox', [bb.x - folga, bb.y - folga, bb.width + folga * 2, bb.height + folga * 2].join(' '));
+    alvo.setAttribute('width', Math.round((bb.width + folga * 2) * ESCALA_CANTO));
+    alvo.setAttribute('height', Math.round((bb.height + folga * 2) * ESCALA_CANTO));
   }
 
   /* --------------------------------- zoom --------------------------------- */
@@ -691,11 +719,6 @@ const App = (() => {
     svg.style.setProperty('--zoom', z.k);
     svg.classList.toggle('com-zoom', z.k > 1);
     const s = 1 / z.k;
-    // A legenda dos símbolos e as notas ficam paradas na tela (do tamanho de sempre), com qualquer zoom.
-    svg.querySelectorAll('.fixo-zoom').forEach((g) => {
-      if (z.k === 1) g.removeAttribute('transform');
-      else g.setAttribute('transform', 'translate(' + z.x + ',' + z.y + ') scale(' + s + ')');
-    });
     svg.querySelectorAll('.etq-zoom').forEach((g) => {
       if (z.k === 1) { g.removeAttribute('transform'); return; }
       const px = +g.getAttribute('data-px');
@@ -1511,7 +1534,8 @@ const App = (() => {
     const grupos = Object.values(r.porEtiqueta).sort((a, b) => b.espacos - a.espacos || a.texto.localeCompare(b.texto, 'pt-BR'));
     const gmvDe = (g) => (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0);
     const totalGmv = grupos.reduce((s, g) => s + gmvDe(g), 0);
-    const totalEsp = grupos.reduce((s, g) => s + g.espacos, 0);
+    // GMV × espaço: só o espaço dos movimentos com GMV entra na conta (os sem GMV e os vazios ficam de fora).
+    const totalEsp = grupos.reduce((s, g) => s + (gmvDe(g) > 0 ? g.espacos : 0), 0);
     return {
       total: partes.reduce((s, p) => s + p.peso, 0),
       preenchidos: partes.filter(cheia).reduce((s, p) => s + p.peso, 0),
@@ -1520,7 +1544,7 @@ const App = (() => {
       classes: ordemDasClassificacoes(Object.keys(r.porClassificacao))
         .map((c) => ({ nome: nomeClassificacao(c), cor: corClassificacao(c), valor: r.porClassificacao[c] })),
       gmv: grupos.map((g) => {
-        const espaco = totalEsp ? g.espacos / totalEsp : 0;
+        const espaco = totalEsp && gmvDe(g) > 0 ? g.espacos / totalEsp : 0;
         const gmv = totalGmv ? gmvDe(g) / totalGmv : 0;
         const principal = Object.keys(g.marcas).sort((a, b) => g.marcas[b] - g.marcas[a])[0];
         return { texto: g.texto, cor: principal ? corMarcaPainel(principal) : COR_SEM_MARCA, espaco, gmv, semGmv: !gmvDe(g), indice: espaco ? gmv / espaco : 0 };
@@ -2453,6 +2477,8 @@ const App = (() => {
   }
 
   /** Só a planta, na tela toda (tela cheia, quando o navegador deixa). As setas trocam a ER; F ou Esc saem. */
+  let saindoDaTelaCheia = false; // a saída da tela cheia foi pedida pelo app (F, Esc, botão)
+
   function alternarApresentacao(ligar) {
     const ativo = document.body.classList.contains('apresentando');
     ligar = ligar === undefined ? !ativo : ligar;
@@ -2465,7 +2491,10 @@ const App = (() => {
       mostrarRotuloApresentacao();
     } else {
       $('apresRotulo').hidden = true;
-      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      if (document.fullscreenElement && document.exitFullscreen) {
+        saindoDaTelaCheia = true; // o fullscreenchange desta saída chega depois: não desliga uma apresentação nova
+        document.exitFullscreen().catch(() => { saindoDaTelaCheia = false; });
+      }
     }
     estado.zoom = { k: 1, x: 0, y: 0 };
     desenhar();
@@ -2669,7 +2698,11 @@ const App = (() => {
     ao('btnApresentar', 'click', () => alternarApresentacao(true));
     ao('btnLink', 'click', () => estado.dados && copiarLink());
     // Esc do navegador sai da tela cheia: sai da apresentação junto.
-    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) alternarApresentacao(false); });
+    document.addEventListener('fullscreenchange', () => {
+      if (document.fullscreenElement) return;
+      if (saindoDaTelaCheia) { saindoDaTelaCheia = false; return; }
+      alternarApresentacao(false); // saiu da tela cheia pelo navegador
+    });
     ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });
     // O menu fecha no clique; o tour começa depois, para não destacar o menu ainda aberto.
     ao('btnTutorial', 'click', () => estado.dados && setTimeout(() => Tutorial.iniciar(), 0));

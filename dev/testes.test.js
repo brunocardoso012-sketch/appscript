@@ -536,7 +536,7 @@ test('validação: senha por papel, quem pode o quê e aba Comentários', () => 
   assert.equal(run("lerComentariosDaPlanilha_(planilha_())").length, 1, 'resposta sai junto');
 });
 
-test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
+test('ciclo em construção: criar, editar, enviar, devolver e publicar', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
   configurarComExemplo(run);
@@ -603,18 +603,16 @@ test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   r = salvar(C, { acao: 'salvarTipos', ciclo: 'C11', linhas: [{ etiqueta: 'BOTIPROMO', classificacao: 'promo', gmv: '1,5 mi' }, { etiqueta: 'NÃO USADO', gmv: 5 }]
     .concat(comGmv(todos)) });
 
-  // Enviar trava a edição; o construtor não aprova; devolver vira comentário e destrava.
+  // Enviar trava a edição; devolver vira comentário e destrava.
   assert.throws(() => salvar(V, { acao: 'enviar', ciclo: 'C11' }), /Só o construtor/);
   r = salvar(C, { acao: 'enviar', ciclo: 'C11' });
   assert.equal(r.rascunhos[0].status, 'ENVIADO');
   assert.throws(() => salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: '01', movel: 'PIRAMIDE 1', linha: { marca: 'BOT' } }), /foi enviado/);
-  assert.throws(() => salvar(C, { acao: 'aprovar', ciclo: 'C11' }), /Só o validador/);
   assert.throws(() => salvar(V, { acao: 'devolver', ciclo: 'C11', motivo: ' ' }), /Escreva/);
   r = salvar(V, { acao: 'devolver', ciclo: 'C11', planta: 'ER G', motivo: 'Faltou a pirâmide' });
   assert.equal(r.rascunhos[0].status, 'EM_CONSTRUCAO');
   const coment = run(`getComentarios(${V})`);
   assert.deepEqual(coment.map((c) => [c.ciclo, c.planta, c.texto]), [['C11', '03', 'Devolvido para ajustes: Faltou a pirâmide']]);
-  assert.throws(() => salvar(V, { acao: 'aprovar', ciclo: 'C11' }), /não está aguardando/);
 
   // Aprovar: as linhas vão para as abas publicadas e saem das de rascunho (os tipos que nenhum espaço usa ficam de fora).
   salvar(C, { acao: 'enviar', ciclo: 'C11' });
@@ -640,8 +638,21 @@ test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   assert.throws(() => salvar(C, { acao: 'enviar', ciclo: 'C12' }), /Passo 1: cadastre os Tipos/);
   r = salvar(C, { acao: 'salvarTipos', ciclo: 'C12', linhas: [{ etiqueta: 'X', gmv: 1 }] });
   assert.throws(() => salvar(C, { acao: 'enviar', ciclo: 'C12' }), /Passo 2: o ciclo está vazio/);
+  assert.throws(() => salvar(C, { acao: 'aprovar', ciclo: 'C12' }), /Passo 2: o ciclo está vazio/);
   r = salvar(C, { acao: 'excluir', ciclo: 'C12' });
   assert.deepEqual(r.rascunhos, []);
+
+  // Publicar direto da construção (construtor ou validador), sem enviar: confere só os espaços; GMV pode faltar.
+  salvar(C, { acao: 'criar', ciclo: 'C15' });
+  salvar(C, { acao: 'salvarTipos', ciclo: 'C15', linhas: [{ etiqueta: 'SEM GMV' }] });
+  salvar(C, { acao: 'salvarEspaco', ciclo: 'C15', planta: '01', movel: 'PIRAMIDE 1', linha: { marca: 'BOT', etiquetas: [{ texto: 'SEM GMV' }] } });
+  assert.throws(() => run("salvarRascunho({ papel: 'VALIDADOR', senha: 'x', nome: 'Ana' }, { acao: 'aprovar', ciclo: 'C15' })"), /Senha incorreta/);
+  r = salvar(C, { acao: 'aprovar', ciclo: 'C15' });
+  assert.deepEqual(r.rascunhos, []);
+  assert.ok(run('getDados()').ciclos.includes('C15'));
+  salvar(C, { acao: 'criar', ciclo: 'C16', origem: 'C15' });
+  r = salvar(V, { acao: 'aprovar', ciclo: 'C16' });
+  assert.ok(run('getDados()').ciclos.includes('C16'), 'o validador também publica um ciclo ainda em construção');
 
   // Só os movimentos fixos do ciclo anterior: as linhas com 🔒 e os tipos delas; sem as comunicações.
   const fixos = Object.values(exemplo.movimentos['Ciclo exemplo']).flatMap((pl) => Object.values(pl)).filter((i) => i.simbolo === 'FIXO');

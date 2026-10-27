@@ -154,8 +154,9 @@ function listaCurta_(itens) {
  *                    movimentos dos tipos) e trava a edição até o validador decidir;
  *  - excluir:        { acao, ciclo }                  construtor (antes da aprovação);
  *  - devolver:       { acao, ciclo, planta, motivo }   validador: volta para construção, com um comentário;
- *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas (todos os
- *                    tipos cadastrados vão para a aba Tipos de movimento, mesmo os que nenhum espaço usa).
+ *  - aprovar:        { acao, ciclo }                  publicar (validador ou construtor; em construção ou enviado):
+ *                    as linhas vão para as abas publicadas (todos os tipos cadastrados vão para a aba Tipos de
+ *                    movimento, mesmo os que nenhum espaço usa). Em construção, confere os espaços como no envio.
  * @param {Object} abas  matrizes (com cabeçalho) de cada campo de abasRascunho_()
  * @param {{papel, autor}} quem  resultado de conferirAcesso_
  * @return {{abas: Object, gravar: string[]}} gravar: campos das abas que mudaram
@@ -286,6 +287,17 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     return { abas: novas, gravar: gravar };
   }
 
+  // O ciclo precisa ter espaços e todos com movimentos cadastrados nos Tipos de movimento (para enviar e publicar).
+  const conferirEspacos = function () {
+    const tipos = objs('rTipos').filter(doCiclo);
+    const movimentos = objs('rMovimentos').filter(doCiclo);
+    if (!movimentos.length) throw new Error('Passo 2: o ciclo está vazio. Preencha pelo menos um espaço antes de enviar.');
+    const fora = tiposQueFaltam_(ciclo, movimentos, tipos).map(function (t) { return t.etiqueta; });
+    if (fora.length) {
+      throw new Error('Passo 2: há espaços com movimentos fora dos Tipos de movimento: ' + listaCurta_(fora) + '. Cadastre-os nos tipos ou troque nos espaços.');
+    }
+  };
+
   if (p.acao === 'enviar') {
     exigir('CONSTRUTOR', 'envia o ciclo para aprovação');
     exigirRascunho('EM_CONSTRUCAO');
@@ -295,12 +307,7 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     if (semGmv.length) {
       throw new Error('Passo 1: falta o GMV esperado de ' + listaCurta_(semGmv.map(function (t) { return texto_(t.etiqueta); })) + ' em Tipos de movimento.');
     }
-    const movimentos = objs('rMovimentos').filter(doCiclo);
-    if (!movimentos.length) throw new Error('Passo 2: o ciclo está vazio. Preencha pelo menos um espaço antes de enviar.');
-    const fora = tiposQueFaltam_(ciclo, movimentos, tipos).map(function (t) { return t.etiqueta; });
-    if (fora.length) {
-      throw new Error('Passo 2: há espaços com movimentos fora dos Tipos de movimento: ' + listaCurta_(fora) + '. Cadastre-os nos tipos ou troque nos espaços.');
-    }
+    conferirEspacos();
     comStatus('ENVIADO', { enviadoEm: quando });
     return { abas: novas, gravar: gravar };
   }
@@ -329,9 +336,11 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
   }
 
   if (p.acao === 'aprovar') {
-    exigir('VALIDADOR', 'aprova o ciclo');
-    exigirRascunho('ENVIADO');
-    if (ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '" publicado. Peça para o construtor renomear (criar outro copiando este).');
+    // Publicar: o validador e o construtor, com o ciclo em construção ou aguardando aprovação.
+    if (quem.papel !== 'VALIDADOR' && quem.papel !== 'CONSTRUTOR') throw new Error('Entre na Validação ou na Construção para publicar o ciclo.');
+    exigirRascunho();
+    if (texto_(atual.status) === 'EM_CONSTRUCAO') conferirEspacos();
+    if (ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '" publicado. Crie outro com outro nome, copiando este.');
     // Todos os Tipos de movimento cadastrados no ciclo vão para a aba "Tipos de movimento", inclusive os movimentos
     // novos que ainda não estão em nenhum espaço; o GMV vai como número.
     const comoPublicada = function (campo, o) {

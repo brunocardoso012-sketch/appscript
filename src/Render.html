@@ -2204,7 +2204,7 @@ const Render = (() => {
     }
 
     // Painéis (lateral, legenda, notas, extras e caixas de destaque). A legenda e as notas ficam num grupo
-    // que a aplicação mantém parado na tela com o zoom (.fixo-zoom; no PNG não há zoom).
+    // que a aplicação, na tela, leva para o canto de baixo da área da planta (.fixo-zoom; no PNG ficam no slide).
     const fixos = el('g', { class: 'fixo-zoom' }, camadaSobre);
     const topoLegenda = desenharLegendaSimbolos(fixos, simbolosUsados, ctx.dados.simbolos);
     if (medNotas) desenharNotas(fixos, medNotas, 15, Math.min(topoLegenda, TELA.h - 8) - 28 - medNotas.h);

@@ -152,7 +152,16 @@ const Analytics = (() => {
       const tr = novo('tr', m.chave === filtrada ? 'ativo' : null, null, tbody);
       const th = novo('th', 'an-col-mov', null, tr);
       th.scope = 'row';
-      const nome = novo('div', 'an-mov-nome', null, th);
+      // O nome mostra o movimento na planta da ER selecionada (se ele não estiver nela, na primeira ER que o tem).
+      const nome = novo('button', 'an-mov-nome', null, th);
+      nome.type = 'button';
+      const naEr = m.porEr[d.erAtual] ? ers.find((e) => e.id === d.erAtual) : ers.find((e) => m.porEr[e.id]);
+      if (naEr) {
+        nome.title = 'Ver ' + m.texto + ' na planta da ' + naEr.nome + (naEr.id === d.erAtual ? '' : ' (não aparece na ER selecionada)');
+        nome.addEventListener('click', () => acoes.verNaPlanta({ er: naEr.id, etiqueta: m.texto }));
+      } else {
+        nome.disabled = true;
+      }
       novo('span', null, m.texto, nome);
       // As marcas do movimento: uma bolinha na cor de cada uma (no lugar da antiga coluna Marcas).
       const somaM = m.marcas.reduce((s, x) => s + x.valor, 0);
@@ -521,7 +530,8 @@ const Analytics = (() => {
         + 'em todas as ERs, cada um com as lojas que o têm (uma loja com o movimento em dois espaços conta dois). É uma estimativa.']);
     regra(['A coluna ', ['Móveis'], ' mostra os tipos de móvel em que o movimento está, em qualquer ER (passe o mouse para ver o nome).']);
     }
-    regra(['O ', ['GMV esperado'], ' é o do movimento no ciclo (aba "' + d.abaTipos + '"), comparado com o espaço dentro de cada ER.']);
+    regra(['O ', ['GMV esperado'], ' é o do movimento no ciclo (aba "' + d.abaTipos + '"), comparado com o espaço dentro de cada ER. ',
+      'Nessa comparação, ', ['só conta o espaço dos movimentos com GMV'], ': espaços vazios e movimentos sem GMV ficam fora da conta.']);
     const leg = novo('section', 'an-info-legenda', null, corpo);
     novo('h3', null, 'O que conta como espaço', leg);
     novo('p', 'an-info-sub', 'Cada cor na miniatura é um espaço na conta do Analytics; as partes em cinza não contam ali.', leg);

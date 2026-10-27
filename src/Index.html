@@ -112,10 +112,6 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
               Modo noturno
             </button>
-            <a id="lnkPlanilha" class="menu-item" role="menuitem" target="_blank" rel="noopener" hidden title="Abre a planilha com os ciclos (numa aba nova)">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
-              Abrir planilha
-            </a>
             <button id="btnTutorial" class="menu-item" type="button" role="menuitem">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.7-.8 1.2V14M12 17.2v.1"/></svg>
               Ver o tutorial
@@ -183,6 +179,8 @@
       </aside>
       <div class="area-planta" id="areaPlanta">
         <svg id="slide" viewBox="0 0 1920 1080" role="img" aria-label="Planta da loja"></svg>
+        <!-- Notas e legenda dos símbolos: na tela, fixas no canto de baixo à esquerda (App.atualizarCanto). -->
+        <div class="canto-planta" id="cantoPlanta" hidden><svg aria-label="Notas e legenda dos símbolos"></svg></div>
       </div>
       <section class="analytics" id="painelAnalytics" hidden aria-label="Analytics">
         <header class="an-topo">

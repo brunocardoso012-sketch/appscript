@@ -193,9 +193,9 @@ test('abre no último ciclo aprovado, com as 4 plantas, em modo local', async (t
   await p.click('#btnAtualizar');
   await p.waitForSelector('#carregando', { state: 'hidden' });
   assert.strictEqual(await estado(p, () => App.estado.ciclo), 'Ciclo exemplo');
-  // Copiar link fica no topo; Abrir planilha, na engrenagem (no modo local não há planilha).
+  // Copiar link fica no topo; a planilha só se abre pelo painel do desenvolvedor.
   assert.ok(await p.isVisible('#btnLink'));
-  assert.ok(await p.locator('#menuConfigLista #lnkPlanilha').count() === 1);
+  assert.strictEqual(await p.locator('#lnkPlanilha').count(), 0);
   const opcoes = await p.locator('#selCiclo option').allTextContents();
   assert.deepStrictEqual(opcoes, ['Ciclo exemplo', 'Ciclo exemplo cheio']);
   assert.ok(await p.isVisible('#avisoLocal'));
@@ -319,6 +319,14 @@ test('Analytics: cartões, mapa, "Sobre a análise" e "ver na planta"', async (t
   assert.ok(await estado(p, () => App.estado.filtroEtiqueta), 'filtro da etiqueta não foi ligado');
   assert.ok(await p.inputValue('#filtroMovimento'), 'o menu de movimento mostra a etiqueta escolhida');
 
+  // Clicar no nome do movimento mostra ele na planta da ER selecionada.
+  const erSel = await estado(p, () => App.estado.planta);
+  const nomeMov = p.locator('#anCorpo .an-mapa-cartao').first().locator('button.an-mov-nome:not(:disabled):not([title*="não aparece"])').last();
+  const textoMov = (await nomeMov.locator('span').first().textContent()).trim();
+  await nomeMov.click();
+  assert.strictEqual(await estado(p, () => App.estado.filtroEtiqueta), textoMov);
+  assert.strictEqual(await estado(p, () => App.estado.planta), erSel, 'ficou na ER selecionada');
+
   // Esc fecha o Analytics.
   await p.locator('body').press('Escape');
   assert.strictEqual(await p.isVisible('#painelAnalytics'), false);
@@ -342,14 +350,27 @@ test('filtros por tipo de movimento e por movimento (menus ao lado das marcas); 
   assert.deepStrictEqual(await estado(p, () => [App.estado.filtroClassificacao, App.estado.filtroEtiqueta]), ['', '']);
   assert.strictEqual(await p.inputValue('#filtroTipo'), '');
 
-  // Zoom: a caixa das notas e a legenda dos símbolos ficam no mesmo lugar da tela.
-  const lugar = () => p.locator('#slide .fixo-zoom').boundingBox();
-  const antes = await lugar();
+  // Notas e legenda dos símbolos: fora do slide, no canto de baixo da área da planta, do mesmo tamanho com
+  // zoom, em qualquer ER e com o Analytics aberto ou fechado.
+  const canto = () => p.evaluate(() => {
+    const c = document.getElementById('cantoPlanta').getBoundingClientRect();
+    const a = document.getElementById('areaPlanta').getBoundingClientRect();
+    return { w: Math.round(c.width), h: Math.round(c.height), folgaBaixo: Math.round(a.bottom - c.bottom), folgaEsq: Math.round(c.left - a.left) };
+  });
+  assert.ok(await p.isVisible('#cantoPlanta'));
+  assert.strictEqual(await p.locator('#slide .fixo-zoom').count(), 0);
+  const antes = await canto();
+  assert.ok(antes.folgaBaixo <= 16 && antes.folgaEsq <= 16, JSON.stringify(antes));
   await p.click('#zoomMais');
   await p.click('#zoomMais');
-  const depois = await lugar();
-  assert.ok(Math.abs(antes.x - depois.x) < 2 && Math.abs(antes.y - depois.y) < 2 && Math.abs(antes.width - depois.width) < 2,
-    'a legenda mexeu com o zoom: ' + JSON.stringify([antes, depois]));
+  assert.deepStrictEqual(await canto(), antes, 'com zoom, o canto não muda');
+  await p.click('#btnAnalytics');
+  const comAnalytics = await canto();
+  assert.ok(comAnalytics.folgaBaixo <= 16 && Math.abs(comAnalytics.h - antes.h) < 40, 'com o Analytics, embaixo e do mesmo tamanho: ' + JSON.stringify(comAnalytics));
+  await p.click('#btnAnalytics');
+  await abaPlanta(p, 'ER GG').click();
+  const gg = await canto();
+  assert.ok(gg.folgaBaixo <= 16 && Math.abs(gg.h - antes.h) < 40, 'na ER GG, o mesmo tamanho: ' + JSON.stringify(gg));
 });
 
 test('cascata ER M → ER G: o lado B da gôndola 2 vira o lado A da gôndola 3 e é definido de novo; a gôndola 1 segue a cascata', async (t) => {
@@ -850,11 +871,12 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.strictEqual(await estado(p, () => App.estado.ciclo), 'C11/2026');
   assert.ok(await p.locator('#selCiclo optgroup[label="Em construção"] option').count() === 1);
   // O construtor monta pelo painel da lateral (no lugar do painel da validação); a faixa do topo avisa que o ciclo
-  // está em construção, sem as ações (que ficam no painel).
+  // está em construção, com o Publicar ciclo (também no alto do painel).
   assert.ok(await p.isVisible('#painelConstrucao'));
   assert.ok(await p.isHidden('#painelValidacao'));
   assert.match(await p.textContent('#barraRascunho'), /Ciclo C11\/2026 \(não publicado\).*Em construção.*Você está montando/);
-  assert.strictEqual(await p.locator('#rascunhoAcoes button').count(), 0);
+  assert.deepStrictEqual(await p.locator('#rascunhoAcoes button').allTextContents(), ['Publicar ciclo']);
+  assert.ok(await p.isVisible('#pcPassos .btn-publicar'));
 
   // O painel mostra os passos: o 1 (tipos com GMV) ainda não está pronto (o servidor recusa o envio; testes.test.js).
   assert.match(await p.textContent('#pcPassos .rs-passos li:first-child'), /Tipos de movimento.*sem GMV/);
@@ -963,7 +985,7 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   // Passo 3: enviar. A edição trava: o painel sai e a faixa mostra o status.
   await passo('3. Enviar para aprovação');
   await p.waitForFunction(() => document.querySelector('#rascunhoInfo .rs-status') && document.querySelector('#rascunhoInfo .rs-status').textContent === 'Aguardando aprovação');
-  assert.strictEqual(await p.locator('#rascunhoAcoes button').count(), 0);
+  assert.deepStrictEqual(await p.locator('#rascunhoAcoes button').allTextContents(), ['Publicar ciclo']);
   assert.ok(await p.isHidden('#painelConstrucao'));
 
   // Validador: devolve (vira comentário).
@@ -972,7 +994,7 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await entrar('VALIDADOR', 'Ana');
   // Ao entrar, o validador vai direto para o ciclo que aguarda aprovação, com o aviso em destaque.
   await p.waitForFunction(() => App.estado.ciclo === 'C11/2026');
-  assert.match(await p.textContent('#barraRascunho'), /Ciclo C11\/2026 \(não publicado\).*Aguardando aprovação.*aprove ou devolva/);
+  assert.match(await p.textContent('#barraRascunho'), /Ciclo C11\/2026 \(não publicado\).*Aguardando aprovação.*publique ou devolva/);
   await acao('Devolver');
   await p.fill('#rascunhoCorpo textarea', 'Faltou o totem');
   await p.click('#rascunhoOk');
@@ -989,7 +1011,7 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await sair();
   await entrar('VALIDADOR', 'Ana');
   await p.selectOption('#selCiclo', 'C11/2026');
-  await acao('Aprovar e publicar');
+  await acao('Publicar ciclo');
   await p.waitForFunction(() => App.estado.dados.ciclos.includes('C11/2026'));
   assert.ok(await p.isHidden('#barraRascunho'));
   await sair();
@@ -1274,7 +1296,7 @@ test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo
   // A planta mostra o item no espaço, com o símbolo de antecipação (e a legenda dele).
   assert.ok((await estado(p, () => App.estado.simbolos)).includes('ANTECIPADO'));
   assert.match(await p.textContent('#slide'), /LÇTO ANTECIPADO/);
-  assert.match(await p.textContent('#slide'), /Antecipação \(item adiantado do próximo ciclo\)/);
+  assert.match(await p.textContent('#cantoPlanta'), /Antecipação \(item adiantado do próximo ciclo\)/);
   const linha = await estado(p, () => App.resolver.movimento('Ciclo exemplo', '01', 'GONDOLA 1/PONTA-A'));
   assert.ok(!linha || !linha.etiquetas.some((e) => e.texto === 'LÇTO ANTECIPADO'), 'a planilha base não leva a antecipação');
 

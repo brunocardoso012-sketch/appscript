@@ -2910,8 +2910,9 @@ function listaCurta_(itens) {
  *                    movimentos dos tipos) e trava a edição até o validador decidir;
  *  - excluir:        { acao, ciclo }                  construtor (antes da aprovação);
  *  - devolver:       { acao, ciclo, planta, motivo }   validador: volta para construção, com um comentário;
- *  - aprovar:        { acao, ciclo }                  validador: as linhas vão para as abas publicadas (todos os
- *                    tipos cadastrados vão para a aba Tipos de movimento, mesmo os que nenhum espaço usa).
+ *  - aprovar:        { acao, ciclo }                  publicar (validador ou construtor; em construção ou enviado):
+ *                    as linhas vão para as abas publicadas (todos os tipos cadastrados vão para a aba Tipos de
+ *                    movimento, mesmo os que nenhum espaço usa). Em construção, confere os espaços como no envio.
  * @param {Object} abas  matrizes (com cabeçalho) de cada campo de abasRascunho_()
  * @param {{papel, autor}} quem  resultado de conferirAcesso_
  * @return {{abas: Object, gravar: string[]}} gravar: campos das abas que mudaram
@@ -3042,6 +3043,17 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     return { abas: novas, gravar: gravar };
   }
 
+  // O ciclo precisa ter espaços e todos com movimentos cadastrados nos Tipos de movimento (para enviar e publicar).
+  const conferirEspacos = function () {
+    const tipos = objs('rTipos').filter(doCiclo);
+    const movimentos = objs('rMovimentos').filter(doCiclo);
+    if (!movimentos.length) throw new Error('Passo 2: o ciclo está vazio. Preencha pelo menos um espaço antes de enviar.');
+    const fora = tiposQueFaltam_(ciclo, movimentos, tipos).map(function (t) { return t.etiqueta; });
+    if (fora.length) {
+      throw new Error('Passo 2: há espaços com movimentos fora dos Tipos de movimento: ' + listaCurta_(fora) + '. Cadastre-os nos tipos ou troque nos espaços.');
+    }
+  };
+
   if (p.acao === 'enviar') {
     exigir('CONSTRUTOR', 'envia o ciclo para aprovação');
     exigirRascunho('EM_CONSTRUCAO');
@@ -3051,12 +3063,7 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     if (semGmv.length) {
       throw new Error('Passo 1: falta o GMV esperado de ' + listaCurta_(semGmv.map(function (t) { return texto_(t.etiqueta); })) + ' em Tipos de movimento.');
     }
-    const movimentos = objs('rMovimentos').filter(doCiclo);
-    if (!movimentos.length) throw new Error('Passo 2: o ciclo está vazio. Preencha pelo menos um espaço antes de enviar.');
-    const fora = tiposQueFaltam_(ciclo, movimentos, tipos).map(function (t) { return t.etiqueta; });
-    if (fora.length) {
-      throw new Error('Passo 2: há espaços com movimentos fora dos Tipos de movimento: ' + listaCurta_(fora) + '. Cadastre-os nos tipos ou troque nos espaços.');
-    }
+    conferirEspacos();
     comStatus('ENVIADO', { enviadoEm: quando });
     return { abas: novas, gravar: gravar };
   }
@@ -3085,9 +3092,11 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
   }
 
   if (p.acao === 'aprovar') {
-    exigir('VALIDADOR', 'aprova o ciclo');
-    exigirRascunho('ENVIADO');
-    if (ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '" publicado. Peça para o construtor renomear (criar outro copiando este).');
+    // Publicar: o validador e o construtor, com o ciclo em construção ou aguardando aprovação.
+    if (quem.papel !== 'VALIDADOR' && quem.papel !== 'CONSTRUTOR') throw new Error('Entre na Validação ou na Construção para publicar o ciclo.');
+    exigirRascunho();
+    if (texto_(atual.status) === 'EM_CONSTRUCAO') conferirEspacos();
+    if (ciclosPublicados_(abas)[ciclo]) throw new Error('Já existe um ciclo "' + ciclo + '" publicado. Crie outro com outro nome, copiando este.');
     // Todos os Tipos de movimento cadastrados no ciclo vão para a aba "Tipos de movimento", inclusive os movimentos
     // novos que ainda não estão em nenhum espaço; o GMV vai como número.
     const comoPublicada = function (campo, o) {
@@ -4481,6 +4490,14 @@ const PAGINA_ = [
   "  }",
   "  /* A planta e o botão de baixar PNG, no canto de baixo dela. */",
   "  .area-planta { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }",
+  "  /* Notas e legenda dos símbolos: fixas no canto de baixo à esquerda da área da planta, em tamanho de leitura. */",
+  "  .canto-planta {",
+  "    position: absolute; left: 12px; bottom: 12px; z-index: 4; max-width: min(calc(100% - 24px), 420px);",
+  "    padding: 6px 8px; border-radius: 10px; background: color-mix(in srgb, var(--superficie) 92%, transparent);",
+  "    box-shadow: 0 4px 14px rgba(0, 0, 0, .12); pointer-events: none; overflow: hidden;",
+  "  }",
+  "  .canto-planta[hidden] { display: none; }",
+  "  .canto-planta svg { display: block; max-width: 100%; height: auto; }",
   "  #slide {",
   "    flex: 1 1 auto;",
   "    min-width: 0;",
@@ -4570,6 +4587,9 @@ const PAGINA_ = [
   "  .an-mapa thead th.atual button > span:first-child { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }",
   "  .an-mapa th.an-col-mov { width: 30%; min-width: 160px; text-align: left; padding: 4px 8px 4px 0; }",
   "  .an-mov-nome { display: flex; align-items: center; gap: 8px; font-weight: 600; font-family: var(--fonte-etq); }",
+  "  button.an-mov-nome { width: 100%; padding: 2px 4px; margin: 0 0 0 -4px; border: 0; border-radius: 6px; background: none; color: inherit; font-size: inherit; text-align: left; cursor: pointer; }",
+  "  button.an-mov-nome:hover:not(:disabled) { background: var(--fundo); text-decoration: underline; }",
+  "  button.an-mov-nome:disabled { cursor: default; }",
   "  /* Bolinhas das marcas do movimento, ao lado do nome. */",
   "  .an-marcas-mov { display: inline-flex; gap: 3px; flex: 0 0 auto; }",
   "  .an-marcas-mov i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, .12); }",
@@ -5259,6 +5279,11 @@ const PAGINA_ = [
   "  @media (prefers-reduced-motion: reduce) { .pc-gravacao.salvando::before { animation: none; } }",
   "  .pc-passos { display: flex; flex-direction: column; gap: 3px; margin: 12px 0 10px; }",
   "  .pc-acoes { display: flex; flex-wrap: wrap; gap: 6px; }",
+  "  /* Publicar ciclo: verde e grande, na faixa do ciclo e no painel de construção. */",
+  "  .btn.btn-publicar { background: #1E8E3E; border-color: #1E8E3E; color: #fff; font-size: 14px; font-weight: 800; padding: 8px 16px; box-shadow: 0 2px 6px rgba(30,142,62,.35); }",
+  "  .btn.btn-publicar:hover { background: #177333; }",
+  "  .btn.btn-publicar svg { width: 18px; height: 18px; stroke-width: 2.6; }",
+  "  .btn.btn-publicar.pc-publicar { display: flex; width: 100%; justify-content: center; margin: 0 0 10px; font-size: 15px; padding: 10px 16px; }",
   "  .pc-secao { padding: 4px 0 14px; border-bottom: 1px solid var(--borda); }",
   "  .pc-secao:last-child { border-bottom: 0; }",
   "  .pc-secao h3 { margin: 14px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--texto-2); }",
@@ -5324,6 +5349,7 @@ const PAGINA_ = [
   "  .pc-gmv-trilho i { display: block; height: 100%; border-radius: 0 3px 3px 0; min-width: 2px; max-width: 70%; }",
   "  .pc-gmv-trilho i.esp { background: var(--borda-forte); }",
   "  .pc-gmv-trilho small { font-size: 10px; color: var(--texto-2); white-space: nowrap; font-variant-numeric: tabular-nums; }",
+  "  .pc-gmv-fora { font-size: 10.5px; font-style: italic; color: var(--texto-2); }",
   "  .pc-indice { font-size: 12px; }",
   "  .rs-voltar { width: 100%; justify-content: center; margin-bottom: 10px; }",
   "  [data-tema=\"escuro\"] .pc-alertas li.erro { background: #4a2510; color: #ffb38a; }",
@@ -5589,10 +5615,6 @@ const PAGINA_ = [
   "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z\"/></svg>",
   "              Modo noturno",
   "            </button>",
-  "            <a id=\"lnkPlanilha\" class=\"menu-item\" role=\"menuitem\" target=\"_blank\" rel=\"noopener\" hidden title=\"Abre a planilha com os ciclos (numa aba nova)\">",
-  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5\"/></svg>",
-  "              Abrir planilha",
-  "            </a>",
   "            <button id=\"btnTutorial\" class=\"menu-item\" type=\"button\" role=\"menuitem\">",
   "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.7-.8 1.2V14M12 17.2v.1\"/></svg>",
   "              Ver o tutorial",
@@ -5660,6 +5682,8 @@ const PAGINA_ = [
   "      </aside>",
   "      <div class=\"area-planta\" id=\"areaPlanta\">",
   "        <svg id=\"slide\" viewBox=\"0 0 1920 1080\" role=\"img\" aria-label=\"Planta da loja\"></svg>",
+  "        <!-- Notas e legenda dos símbolos: na tela, fixas no canto de baixo à esquerda (App.atualizarCanto). -->",
+  "        <div class=\"canto-planta\" id=\"cantoPlanta\" hidden><svg aria-label=\"Notas e legenda dos símbolos\"></svg></div>",
   "      </div>",
   "      <section class=\"analytics\" id=\"painelAnalytics\" hidden aria-label=\"Analytics\">",
   "        <header class=\"an-topo\">",
@@ -8293,7 +8317,7 @@ const PAGINA_ = [
   "    }",
   "",
   "    // Painéis (lateral, legenda, notas, extras e caixas de destaque). A legenda e as notas ficam num grupo",
-  "    // que a aplicação mantém parado na tela com o zoom (.fixo-zoom; no PNG não há zoom).",
+  "    // que a aplicação, na tela, leva para o canto de baixo da área da planta (.fixo-zoom; no PNG ficam no slide).",
   "    const fixos = el('g', { class: 'fixo-zoom' }, camadaSobre);",
   "    const topoLegenda = desenharLegendaSimbolos(fixos, simbolosUsados, ctx.dados.simbolos);",
   "    if (medNotas) desenharNotas(fixos, medNotas, 15, Math.min(topoLegenda, TELA.h - 8) - 28 - medNotas.h);",
@@ -11436,24 +11460,36 @@ const PAGINA_ = [
   "    n('strong', null, 'Ciclo ' + r.ciclo + ' (não publicado)', info);",
   "    n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, info);",
   "    const msg = construtor",
-  "      ? (enviado ? 'Enviado para o validador. Você volta a editar se ele devolver.'",
-  "        : 'Você está montando este ciclo. Ele só aparece para todos depois que o validador aprovar.')",
+  "      ? (enviado ? 'Enviado para o validador. Você ou o validador podem publicar.'",
+  "        : 'Você está montando este ciclo. Ele só aparece para todos depois de publicado.')",
   "      : validador",
-  "        ? (enviado ? 'Confira as ERs e aprove ou devolva para o construtor.' : 'O construtor ainda está montando este ciclo (não foi enviado para aprovação).')",
+  "        ? (enviado ? 'Confira as ERs e publique ou devolva para o construtor.' : 'O construtor ainda está montando este ciclo (não foi enviado para aprovação).')",
   "        : '';",
   "    if (msg) n('span', 'rs-faixa-msg', msg, info);",
   "    const acoes = $('rascunhoAcoes');",
   "    acoes.innerHTML = '';",
   "    if (construtor && !enviado && verComentarios) {",
-  "      botao('← Voltar à construção', 'primario', () => { verComentarios = false; app.desenhar(); }, acoes);",
-  "    } else if (validador && enviado) {",
-  "      botao('Devolver', '', () => devolver(r), acoes);",
-  "      botao('Aprovar e publicar', 'primario', () => {",
-  "        if (window.confirm('Aprovar ' + r.ciclo + '? Ele entra na planilha, junto com os outros ciclos, e fica visível para todos.')) {",
-  "          salvar({ acao: 'aprovar', ciclo: r.ciclo }, 'Ciclo ' + r.ciclo + ' aprovado e publicado.');",
-  "        }",
-  "      }, acoes);",
+  "      botao('← Voltar à construção', '', () => { verComentarios = false; app.desenhar(); }, acoes);",
   "    }",
+  "    if (validador && enviado) botao('Devolver', '', () => devolver(r), acoes);",
+  "    if (construtor || validador) botaoPublicar(r, acoes);",
+  "  }",
+  "",
+  "  /**",
+  "   * Publicar o ciclo: as linhas saem das abas de rascunho e vão para as abas publicadas (Movimentos, Painéis e",
+  "   * Tipos de movimento), e o ciclo aparece para todos. Vale para o construtor e para o validador, com o ciclo em",
+  "   * construção ou aguardando aprovação.",
+  "   */",
+  "  function botaoPublicar(r, pai) {",
+  "    const b = botao('', 'btn-publicar', () => publicar(r), pai);",
+  "    b.innerHTML = '<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 19V5m0 0-6 6m6-6 6 6\"/></svg>Publicar ciclo';",
+  "    b.title = 'Leva o ciclo para as abas principais da planilha (sai do rascunho) e mostra para todos';",
+  "    return b;",
+  "  }",
+  "",
+  "  function publicar(r) {",
+  "    if (!window.confirm('Publicar ' + r.ciclo + '? Ele sai do rascunho, entra nas abas principais da planilha, junto com os outros ciclos, e fica visível para todos.')) return;",
+  "    esvaziarTudo().then(() => salvar({ acao: 'aprovar', ciclo: r.ciclo }, 'Ciclo ' + r.ciclo + ' publicado.'));",
   "  }",
   "",
   "  function devolver(r) {",
@@ -11533,10 +11569,14 @@ const PAGINA_ = [
   "      + (p.semGmv ? ', ' + p.semGmv + ' sem GMV' : ', todos com GMV') : 'cadastre os movimentos e o GMV');",
   "    item(passo2, 'Móveis', p.fora.length ? p.fora.length + ' movimento(s) fora dos tipos' : p.espacos + ' linhas preenchidas');",
   "    item(false, 'Enviar para aprovação', '');",
+  "    // Publicar ciclo, em destaque no alto do painel.",
+  "    const pub = botaoPublicar(r, null);",
+  "    pub.classList.add('pc-publicar');",
+  "    corpo.prepend(pub);",
   "    const acoes = n('div', 'pc-acoes', null, corpo);",
   "    botao('1. Tipos de movimento', passo1 ? '' : 'primario', editarTipos, acoes);",
   "    botao('Comunicações ER', '', editarPaineis, acoes);",
-  "    botao('3. Enviar para aprovação', passo1 && passo2 ? 'primario' : '', () => enviarParaAprovacao(r), acoes);",
+  "    botao('3. Enviar para aprovação', '', () => enviarParaAprovacao(r), acoes);",
   "    botao('Excluir', 'fantasma perigo', () => {",
   "      if (window.confirm('Excluir o ciclo em construção ' + r.ciclo + '? Não dá para desfazer.')) {",
   "        salvar({ acao: 'excluir', ciclo: r.ciclo }, 'Ciclo excluído.');",
@@ -11903,7 +11943,7 @@ const PAGINA_ = [
   "    // GMV × espaço.",
   "    const b3 = n('div', 'pc-bloco', null, pai);",
   "    n('h4', null, 'GMV esperado × espaço', b3);",
-  "    n('p', 'pc-sub', 'Fatia do GMV e fatia do espaço de cada movimento nesta ER. Índice acima de 1× rende mais que o espaço que ocupa.', b3);",
+  "    n('p', 'pc-sub', 'Fatia do GMV e fatia do espaço de cada movimento nesta ER, só entre os movimentos com GMV (os sem GMV e os espaços vazios ficam fora da conta). Índice acima de 1× rende mais que o espaço que ocupa.', b3);",
   "    if (!st.gmv.length) n('p', 'mv-vazio', 'Nenhum movimento nos espaços ainda.', b3);",
   "    st.gmv.forEach((g) => {",
   "      const l = n('div', 'pc-gmv', null, b3);",
@@ -11916,8 +11956,12 @@ const PAGINA_ = [
   "        if (classe === 'gmv') i.style.background = g.cor;",
   "        n('small', null, rot + ' ' + pct(v), tr);",
   "      };",
-  "      trilho('esp', g.espaco, 'espaço');",
-  "      trilho('gmv', g.gmv, g.semGmv ? 'GMV (falta)' : 'GMV');",
+  "      if (g.semGmv) {",
+  "        n('small', 'pc-gmv-fora', 'Sem GMV: fora da conta de espaço × GMV', barras);",
+  "      } else {",
+  "        trilho('esp', g.espaco, 'espaço');",
+  "        trilho('gmv', g.gmv, 'GMV');",
+  "      }",
   "      const ind = n('span', 'an-indice pc-indice' + (g.semGmv ? '' : g.indice >= 1.2 ? ' alto' : g.indice <= 0.8 ? ' baixo' : ''),",
   "        g.semGmv ? '—' : g.indice.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '×', l);",
   "      ind.title = g.semGmv ? 'Sem GMV em Tipos de movimento' : g.indice >= 1.2 ? 'Rende mais que o espaço que ocupa' : g.indice <= 0.8 ? 'Rende menos que o espaço que ocupa' : 'Proporcional ao espaço';",
@@ -14131,7 +14175,16 @@ const PAGINA_ = [
   "      const tr = novo('tr', m.chave === filtrada ? 'ativo' : null, null, tbody);",
   "      const th = novo('th', 'an-col-mov', null, tr);",
   "      th.scope = 'row';",
-  "      const nome = novo('div', 'an-mov-nome', null, th);",
+  "      // O nome mostra o movimento na planta da ER selecionada (se ele não estiver nela, na primeira ER que o tem).",
+  "      const nome = novo('button', 'an-mov-nome', null, th);",
+  "      nome.type = 'button';",
+  "      const naEr = m.porEr[d.erAtual] ? ers.find((e) => e.id === d.erAtual) : ers.find((e) => m.porEr[e.id]);",
+  "      if (naEr) {",
+  "        nome.title = 'Ver ' + m.texto + ' na planta da ' + naEr.nome + (naEr.id === d.erAtual ? '' : ' (não aparece na ER selecionada)');",
+  "        nome.addEventListener('click', () => acoes.verNaPlanta({ er: naEr.id, etiqueta: m.texto }));",
+  "      } else {",
+  "        nome.disabled = true;",
+  "      }",
   "      novo('span', null, m.texto, nome);",
   "      // As marcas do movimento: uma bolinha na cor de cada uma (no lugar da antiga coluna Marcas).",
   "      const somaM = m.marcas.reduce((s, x) => s + x.valor, 0);",
@@ -14500,7 +14553,8 @@ const PAGINA_ = [
   "        + 'em todas as ERs, cada um com as lojas que o têm (uma loja com o movimento em dois espaços conta dois). É uma estimativa.']);",
   "    regra(['A coluna ', ['Móveis'], ' mostra os tipos de móvel em que o movimento está, em qualquer ER (passe o mouse para ver o nome).']);",
   "    }",
-  "    regra(['O ', ['GMV esperado'], ' é o do movimento no ciclo (aba \"' + d.abaTipos + '\"), comparado com o espaço dentro de cada ER.']);",
+  "    regra(['O ', ['GMV esperado'], ' é o do movimento no ciclo (aba \"' + d.abaTipos + '\"), comparado com o espaço dentro de cada ER. ',",
+  "      'Nessa comparação, ', ['só conta o espaço dos movimentos com GMV'], ': espaços vazios e movimentos sem GMV ficam fora da conta.']);",
   "    const leg = novo('section', 'an-info-legenda', null, corpo);",
   "    novo('h3', null, 'O que conta como espaço', leg);",
   "    novo('p', 'an-info-sub', 'Cada cor na miniatura é um espaço na conta do Analytics; as partes em cinza não contam ali.', leg);",
@@ -15227,9 +15281,6 @@ const PAGINA_ = [
   "    estado.ajustes = {};",
   "",
   "    $('avisoLocal').hidden = !dados.modoLocal;",
-  "    const link = $('lnkPlanilha');",
-  "    link.hidden = !dados.planilhaUrl;",
-  "    if (dados.planilhaUrl) link.href = dados.planilhaUrl;",
   "",
   "    montarCiclos();",
   "    montarAbas();",
@@ -15503,12 +15554,43 @@ const PAGINA_ = [
   "    Editor.aposDesenhar(r);",
   "    estado.grupos = r.grupos;",
   "    if (estado.edicao) ativarArraste();",
+  "    atualizarCanto(!ctx.paineis);",
   "    aplicarZoom();",
   "    atualizarAnalytics();",
   "    atualizarPainelLoja();",
   "    Validacao.atualizar();",
   "    Rascunho.atualizar();",
   "    gravarLink();",
+  "  }",
+  "",
+  "  /* ------------------------- notas e legenda (canto) ------------------------ */",
+  "",
+  "  const ESCALA_CANTO = 0.64; // px na tela por unidade do slide: a nota (17) fica com ~11 px, a legenda (19) com ~12 px",
+  "",
+  "  /**",
+  "   * Na tela, as notas e a legenda dos símbolos (.fixo-zoom) saem do slide e ficam num canto fixo, embaixo à",
+  "   * esquerda da área da planta, sempre no mesmo tamanho de leitura: não mudam com o zoom, com o tamanho do",
+  "   * slide da ER nem com a largura da área (com o Analytics aberto, o slide 16:9 não vai até embaixo). No PNG",
+  "   * e no Construir loja (com os painéis no slide), continuam no slide.",
+  "   */",
+  "  function atualizarCanto(naTela) {",
+  "    const canto = $('cantoPlanta');",
+  "    if (!canto) return;",
+  "    const alvo = canto.querySelector('svg');",
+  "    alvo.innerHTML = '';",
+  "    const grupo = naTela ? svg.querySelector('.fixo-zoom') : null;",
+  "    canto.hidden = !grupo || !grupo.childNodes.length;",
+  "    if (canto.hidden) return;",
+  "    // As hachuras (padrões) da legenda vêm do slide: copia as definições para este desenho.",
+  "    const defs = svg.querySelector('defs');",
+  "    if (defs) alvo.appendChild(defs.cloneNode(true));",
+  "    alvo.appendChild(grupo);",
+  "    alvo.querySelectorAll('.notas rect[filter]').forEach((r) => r.removeAttribute('filter'));",
+  "    const bb = alvo.getBBox();",
+  "    const folga = 6;",
+  "    alvo.setAttribute('viewBox', [bb.x - folga, bb.y - folga, bb.width + folga * 2, bb.height + folga * 2].join(' '));",
+  "    alvo.setAttribute('width', Math.round((bb.width + folga * 2) * ESCALA_CANTO));",
+  "    alvo.setAttribute('height', Math.round((bb.height + folga * 2) * ESCALA_CANTO));",
   "  }",
   "",
   "  /* --------------------------------- zoom --------------------------------- */",
@@ -15534,11 +15616,6 @@ const PAGINA_ = [
   "    svg.style.setProperty('--zoom', z.k);",
   "    svg.classList.toggle('com-zoom', z.k > 1);",
   "    const s = 1 / z.k;",
-  "    // A legenda dos símbolos e as notas ficam paradas na tela (do tamanho de sempre), com qualquer zoom.",
-  "    svg.querySelectorAll('.fixo-zoom').forEach((g) => {",
-  "      if (z.k === 1) g.removeAttribute('transform');",
-  "      else g.setAttribute('transform', 'translate(' + z.x + ',' + z.y + ') scale(' + s + ')');",
-  "    });",
   "    svg.querySelectorAll('.etq-zoom').forEach((g) => {",
   "      if (z.k === 1) { g.removeAttribute('transform'); return; }",
   "      const px = +g.getAttribute('data-px');",
@@ -16354,7 +16431,8 @@ const PAGINA_ = [
   "    const grupos = Object.values(r.porEtiqueta).sort((a, b) => b.espacos - a.espacos || a.texto.localeCompare(b.texto, 'pt-BR'));",
   "    const gmvDe = (g) => (g.tipo && typeof g.tipo.gmv === 'number' ? g.tipo.gmv : 0);",
   "    const totalGmv = grupos.reduce((s, g) => s + gmvDe(g), 0);",
-  "    const totalEsp = grupos.reduce((s, g) => s + g.espacos, 0);",
+  "    // GMV × espaço: só o espaço dos movimentos com GMV entra na conta (os sem GMV e os vazios ficam de fora).",
+  "    const totalEsp = grupos.reduce((s, g) => s + (gmvDe(g) > 0 ? g.espacos : 0), 0);",
   "    return {",
   "      total: partes.reduce((s, p) => s + p.peso, 0),",
   "      preenchidos: partes.filter(cheia).reduce((s, p) => s + p.peso, 0),",
@@ -16363,7 +16441,7 @@ const PAGINA_ = [
   "      classes: ordemDasClassificacoes(Object.keys(r.porClassificacao))",
   "        .map((c) => ({ nome: nomeClassificacao(c), cor: corClassificacao(c), valor: r.porClassificacao[c] })),",
   "      gmv: grupos.map((g) => {",
-  "        const espaco = totalEsp ? g.espacos / totalEsp : 0;",
+  "        const espaco = totalEsp && gmvDe(g) > 0 ? g.espacos / totalEsp : 0;",
   "        const gmv = totalGmv ? gmvDe(g) / totalGmv : 0;",
   "        const principal = Object.keys(g.marcas).sort((a, b) => g.marcas[b] - g.marcas[a])[0];",
   "        return { texto: g.texto, cor: principal ? corMarcaPainel(principal) : COR_SEM_MARCA, espaco, gmv, semGmv: !gmvDe(g), indice: espaco ? gmv / espaco : 0 };",
@@ -17296,6 +17374,8 @@ const PAGINA_ = [
   "  }",
   "",
   "  /** Só a planta, na tela toda (tela cheia, quando o navegador deixa). As setas trocam a ER; F ou Esc saem. */",
+  "  let saindoDaTelaCheia = false; // a saída da tela cheia foi pedida pelo app (F, Esc, botão)",
+  "",
   "  function alternarApresentacao(ligar) {",
   "    const ativo = document.body.classList.contains('apresentando');",
   "    ligar = ligar === undefined ? !ativo : ligar;",
@@ -17308,7 +17388,10 @@ const PAGINA_ = [
   "      mostrarRotuloApresentacao();",
   "    } else {",
   "      $('apresRotulo').hidden = true;",
-  "      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});",
+  "      if (document.fullscreenElement && document.exitFullscreen) {",
+  "        saindoDaTelaCheia = true; // o fullscreenchange desta saída chega depois: não desliga uma apresentação nova",
+  "        document.exitFullscreen().catch(() => { saindoDaTelaCheia = false; });",
+  "      }",
   "    }",
   "    estado.zoom = { k: 1, x: 0, y: 0 };",
   "    desenhar();",
@@ -17512,7 +17595,11 @@ const PAGINA_ = [
   "    ao('btnApresentar', 'click', () => alternarApresentacao(true));",
   "    ao('btnLink', 'click', () => estado.dados && copiarLink());",
   "    // Esc do navegador sai da tela cheia: sai da apresentação junto.",
-  "    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) alternarApresentacao(false); });",
+  "    document.addEventListener('fullscreenchange', () => {",
+  "      if (document.fullscreenElement) return;",
+  "      if (saindoDaTelaCheia) { saindoDaTelaCheia = false; return; }",
+  "      alternarApresentacao(false); // saiu da tela cheia pelo navegador",
+  "    });",
   "    ao('btnDescartar', 'click', () => { estado.ajustes = {}; atualizarBarraEdicao(); desenhar(); });",
   "    // O menu fecha no clique; o tour começa depois, para não destacar o menu ainda aberto.",
   "    ao('btnTutorial', 'click', () => estado.dados && setTimeout(() => Tutorial.iniciar(), 0));",
