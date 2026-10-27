@@ -445,68 +445,91 @@ test('desenvolvedor: plantas (criar, renomear, ordenar, apagar), regras da casca
   assert.throws(() => run("salvarConfigDev({ senha: 'nova-dev' }, { acao: 'config', chave: 'senhas', valor: { DESENVOLVEDOR: 'a', VALIDADOR: 'bbbb', CONSTRUTOR: 'cccc' } })"), /4 caracteres/);
 });
 
-test('desenvolvedor: calendário dos ciclos (Boticário e Eudora) e feriados', () => {
+test('calendário dos ciclos e feriados: abas lidas da planilha do calendário (vinculada em Desenvolvedor › Planilhas)', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
   configurarComExemplo(run);
-  const cfg = () => run(`getConfigDev(${DEV})`);
-  const salvar = (pedido) => run(`salvarConfigDev(${DEV}, ${JSON.stringify(pedido)})`);
-  assert.deepEqual(cfg().calendarioCiclos, { BOT: [], EUD: [] }, 'começa vazio');
-  assert.deepEqual(run('getDados()').config.calendario.ciclos, { BOT: [], EUD: [] });
+  let cal = run('getDados()').calendario;
+  assert.deepEqual(cal.ciclos, { BOT: [], EUD: [] }, 'sem as abas, o calendário fica vazio');
+  assert.deepEqual(cal.abas, { ciclos: false, feriados: false });
 
   // Só a Eudora tem calendário próprio: as outras marcas seguem o do Boticário.
   assert.equal(run("calendarioDaMarca_('Eudora')"), 'EUD');
-  ['BOT', 'QDB', 'OUI', 'MULTI', '', 'BOT+EUD'].forEach((m) => assert.equal(run(`calendarioDaMarca_('${m}')`), 'BOT', m));
+  ['Boticário', 'BOT', 'QDB', 'OUI', 'MULTI', '', 'BOT+EUD'].forEach((m) => assert.equal(run(`calendarioDaMarca_('${m}')`), 'BOT', m));
 
-  // Datas em dd/mm/aaaa ou AAAA-MM-DD; a lista sai na ordem do início.
-  salvar({ acao: 'config', chave: 'calendarioCiclos', valor: {
-    BOT: [
-      { ciclo: 'Ciclo exemplo cheio', inicio: '22/10/2026', fim: '2026-11-11' },
-      { ciclo: ' Ciclo  exemplo ', inicio: '2026-10-01', fim: '21/10/2026' },
-      { ciclo: '', inicio: '', fim: '' },
-    ],
-    EUD: [{ ciclo: 'Ciclo exemplo', inicio: '2026-10-05', fim: '2026-10-25' }],
-  } });
-  salvar({ acao: 'config', chave: 'feriados', valor: [{ data: '02/11/2026', nome: 'Finados' }, { data: '2026-10-12', nome: '' }] });
-  const c = cfg();
-  assert.deepEqual(c.calendarioCiclos.BOT, [
+  // Sem planilha vinculada, as abas são procuradas na principal (nome sem diferença de acento e maiúsculas).
+  run(`(function () {
+    const ss = planilha_();
+    ss.insertSheet('calendario de ciclos').getRange(1, 1, 8, 4).setValues([
+      ['Marca', 'Ciclo', 'Data de início', 'Fim'],
+      ['Boticário', 'Ciclo exemplo', new Date(2026, 9, 1), '21/10/2026'],
+      ['Boticário', ' Ciclo  exemplo cheio ', '2026-10-24', '11/11/2026'],
+      ['Eudora', 'Ciclo exemplo', '05/10/2026', '25/10/2026'],
+      ['EUD', 'Ciclo exemplo', '05/10/2026', '25/10/2026'],
+      ['Boticário', 'C sem data', 'amanhã', '25/10/2026'],
+      ['Boticário', 'C invertido', '25/10/2026', '01/10/2026'],
+      ['Eudora', 'Ciclo exemplo cheio', '20/10/2026', '15/11/2026'],
+    ]);
+    ss.insertSheet('Feriados').getRange(1, 1, 4, 2).setValues([['Data', 'Nome'], ['12/10/2026', 'Nossa Senhora Aparecida'], ['02/11/2026', ''], ['xx', 'ruim']]);
+  })()`);
+  cal = run('getDados()').calendario;
+  assert.deepEqual(cal.ciclos.BOT, [
     { ciclo: 'Ciclo exemplo', inicio: '2026-10-01', fim: '2026-10-21' },
-    { ciclo: 'Ciclo exemplo cheio', inicio: '2026-10-22', fim: '2026-11-11' },
+    { ciclo: 'Ciclo exemplo cheio', inicio: '2026-10-24', fim: '2026-11-11' },
   ]);
-  assert.deepEqual(c.feriados, [{ data: '2026-10-12', nome: 'Feriado' }, { data: '2026-11-02', nome: 'Finados' }]);
-  assert.deepEqual(c.calendarioAvisos, [], 'sem buracos nem começo em feriado ou fim de semana');
+  assert.deepEqual(cal.ciclos.EUD.map((c) => c.ciclo), ['Ciclo exemplo', 'Ciclo exemplo cheio']);
+  assert.deepEqual(cal.feriados, [{ data: '2026-10-12', nome: 'Nossa Senhora Aparecida' }, { data: '2026-11-02', nome: 'Feriado' }]);
+  const avisos = cal.avisos.join('\n');
+  assert.match(avisos, /linha 5: o Ciclo exemplo já aparece antes no calendário Eudora/);
+  assert.match(avisos, /C sem data\): o início ou o fim não é uma data/);
+  assert.match(avisos, /C invertido\): o fim vem antes do início/);
+  assert.match(avisos, /Eudora, o Ciclo exemplo cheio se sobrepõe ao Ciclo exemplo/);
+  assert.match(avisos, /Feriados, linha 4: "xx" não é uma data/);
+  assert.ok(run('getDados()').avisos.some((a) => /C invertido/.test(a)), 'os avisos aparecem no app');
+  // Observações (não impedem nada): dias sem ciclo e começo num fim de semana ou feriado.
+  assert.deepEqual(cal.observacoes, [
+    'Boticário: 2 dias sem ciclo entre o Ciclo exemplo e o Ciclo exemplo cheio.',
+    'Boticário: o Ciclo exemplo cheio começa num fim de semana (24/10/2026).',
+  ]);
+  assert.equal(run("diasUteis_('2026-10-01', '2026-10-21', [{ data: '2026-10-12' }])"), 14);
+
+  // Criar a planilha do calendário: leva as abas da principal e passa a ler dela.
+  assert.equal(run(`getPlanilhas(${DEV})`).calendario, null);
+  assert.throws(() => run("mudarPlanilhaCalendario({ senha: 'x' }, { acao: 'criar' })"), /Senha incorreta/);
+  const info = run(`mudarPlanilhaCalendario(${DEV}, { acao: 'criar' })`);
+  const idCal = info.calendario.id;
+  const nova = f.outras[idCal];
+  assert.ok(nova.getSheetByName('Calendário de ciclos').getLastRow() > 5, 'ciclos levados para a planilha nova');
+  assert.ok(nova.getSheetByName('Feriados'), 'feriados levados para a planilha nova');
+  assert.ok(!nova.getSheetByName('Página1'), 'sem a aba vazia da planilha nova');
+  assert.equal(info.leituraCalendario.ciclos.find((c) => c.cod === 'BOT').qtd, 2);
+  run("planilha_().getSheetByName('calendario de ciclos').getRange(2, 2, 1, 1).setValues([['Outro nome']])");
+  assert.equal(run('getDados()').calendario.ciclos.BOT[0].ciclo, 'Ciclo exemplo', 'lê da planilha vinculada, não da principal');
+
+  // Desvincular: volta a ler as abas da principal.
+  run(`mudarPlanilhaCalendario(${DEV}, { acao: 'desvincular' })`);
+  assert.equal(run(`getPlanilhas(${DEV})`).calendario, null);
+  assert.equal(run('getDados()').calendario.ciclos.BOT[0].ciclo, 'Outro nome');
+  assert.throws(() => run(`mudarPlanilhaCalendario(${DEV}, { acao: 'desvincular' })`), /Nenhuma planilha/);
+
+  // Vincular uma planilha que já existe: as abas que faltam são criadas, só com o cabeçalho.
+  const outra = run("SpreadsheetApp.create('Calendário corporativo').getId()");
+  const idLongo = outra + 'XXXXXXXXXXXXXXXXXXXXXX';
+  f.outras[idLongo] = f.outras[outra];
+  assert.throws(() => run(`mudarPlanilhaCalendario(${DEV}, { acao: 'vincular', url: 'abc' })`), /Cole o link/);
+  assert.throws(() => run(`mudarPlanilhaCalendario(${DEV}, { acao: 'vincular', url: 'https://docs.google.com/spreadsheets/d/TESTE00000000000000000000/edit' })`), /principal/);
+  const v = run(`mudarPlanilhaCalendario(${DEV}, { acao: 'vincular', url: 'https://docs.google.com/spreadsheets/d/${idLongo}/edit' })`);
+  assert.equal(v.calendario.id, outra);
+  assert.deepEqual(f.outras[outra].getSheetByName('Calendário de ciclos').getRange(1, 1, 1, 4).getValues()[0], ['Marca', 'Ciclo', 'Início', 'Fim']);
+  assert.deepEqual(f.outras[outra].getSheetByName('Feriados').getRange(1, 1, 1, 2).getValues()[0], ['Data', 'Feriado']);
+  assert.deepEqual(v.leituraCalendario.abas, { ciclos: true, feriados: true });
+  assert.deepEqual(run('getDados()').calendario.ciclos, { BOT: [], EUD: [] });
+
+  // Planilha vinculada que sumiu: o app abre, com o aviso.
+  f.propriedades.CALENDARIO_SPREADSHEET_ID = 'EXTRA_SUMIU';
   const d = run('getDados()');
-  assert.deepEqual(d.config.calendario.ciclos, c.calendarioCiclos, 'a página recebe o calendário');
-  assert.deepEqual(d.config.calendario.feriados, c.feriados);
-  assert.equal(d.config.calendario.calendarios.EUD.nome, 'Eudora');
-  assert.ok(f.planilha.getSheetByName('Config do app'), 'gravado na aba Config do app');
-
-  // Dias úteis: de segunda a sexta, menos os feriados (01/10 a 21/10/2026: 15 dias, menos o 12/10).
-  assert.equal(run("diasUteis_('2026-10-01', '2026-10-21', FERIADOS)"), 14);
-
-  // Erros: fim antes do início, nome repetido, ciclos sobrepostos, data inválida.
-  const bot = (lista) => salvar({ acao: 'config', chave: 'calendarioCiclos', valor: { BOT: lista, EUD: [] } });
-  assert.throws(() => bot([{ ciclo: 'C1', inicio: '2026-10-10', fim: '2026-10-01' }]), /vem antes do início/);
-  assert.throws(() => bot([{ ciclo: 'C1', inicio: '2026-10-01', fim: '2026-10-05' }, { ciclo: 'c 1', inicio: '2026-10-06', fim: '2026-10-08' }]), /aparece duas vezes/);
-  assert.throws(() => bot([{ ciclo: 'C1', inicio: '2026-10-01', fim: '2026-10-10' }, { ciclo: 'C2', inicio: '2026-10-10', fim: '2026-10-20' }]), /se sobrepõe/);
-  assert.throws(() => bot([{ ciclo: 'C1', inicio: '31/02/2026', fim: '2026-10-10' }]), /datas válidas/);
-  assert.throws(() => bot([{ ciclo: '', inicio: '2026-10-01', fim: '2026-10-10' }]), /nome do ciclo/);
-  assert.throws(() => salvar({ acao: 'config', chave: 'feriados', valor: [{ data: '2026-11-02' }, { data: '02/11/2026' }] }), /duas vezes/);
-  assert.equal(cfg().calendarioCiclos.BOT.length, 2, 'o erro não grava nada');
-
-  // Avisos: dias sem ciclo entre dois ciclos e começo num feriado ou fim de semana.
-  bot([{ ciclo: 'C1', inicio: '2026-10-01', fim: '2026-10-05' }, { ciclo: 'C2', inicio: '2026-10-12', fim: '2026-10-20' }, { ciclo: 'C3', inicio: '2026-10-24', fim: '2026-10-30' }]);
-  assert.deepEqual(cfg().calendarioAvisos, [
-    'Boticário: 6 dias sem ciclo entre o C1 e o C2.',
-    'Boticário: o C2 começa num feriado (Feriado, 12/10/2026).',
-    'Boticário: 3 dias sem ciclo entre o C2 e o C3.',
-    'Boticário: o C3 começa num fim de semana (24/10/2026).',
-  ]);
-
-  // Voltar ao padrão do código: o calendário fica vazio de novo.
-  salvar({ acao: 'padrao', chave: 'calendarioCiclos' });
-  assert.deepEqual(cfg().calendarioCiclos, { BOT: [], EUD: [] });
-  assert.equal(cfg().feriados.length, 2, 'os feriados continuam');
+  assert.ok(d.avisos.some((a) => /planilha do calendário/.test(a)));
+  assert.match(run(`getPlanilhas(${DEV})`).calendario.erro, /Não consegui abrir/);
 });
 
 test('planilha separada para o layout: criar, ler e gravar nela, vincular e voltar para a principal', () => {

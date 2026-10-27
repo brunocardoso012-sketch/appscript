@@ -121,7 +121,7 @@
               Ver o tutorial
             </button>
             <span class="menu-divisor" aria-hidden="true"></span>
-            <button id="btnDesenvolvedor" class="menu-item menu-dev" type="button" role="menuitem" aria-pressed="false" aria-haspopup="dialog" aria-controls="dlgDev" title="Construir loja, planilha base, plantas, regras da cascata, calendário dos ciclos, senhas e planilhas (pede senha)">
+            <button id="btnDesenvolvedor" class="menu-item menu-dev" type="button" role="menuitem" aria-pressed="false" aria-haspopup="dialog" aria-controls="dlgDev" title="Construir loja, planilha base, plantas, regras da cascata, senhas e planilhas (pede senha)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M13.5 5l-3 14"/></svg>
               Modo desenvolvedor
             </button>
@@ -511,7 +511,7 @@
             <span class="dev-selo" aria-hidden="true">&lt;/&gt;</span>
             <div>
               <h2 id="devTitulo">Painel do desenvolvedor</h2>
-              <p>Construção da loja, plantas, regras da cascata, calendário dos ciclos, senhas e planilhas</p>
+              <p>Construção da loja, plantas, regras da cascata, senhas e planilhas</p>
             </div>
           </div>
           <div class="dev-topo-acoes">
@@ -524,9 +524,8 @@
             <button class="dev-aba" type="button" role="tab" data-dev-aba="modulos" aria-selected="true"><span>01</span>Construção da loja</button>
             <button class="dev-aba" type="button" role="tab" data-dev-aba="plantas" aria-selected="false"><span>02</span>Plantas</button>
             <button class="dev-aba" type="button" role="tab" data-dev-aba="cascata" aria-selected="false"><span>03</span>Cascata entre ERs</button>
-            <button class="dev-aba" type="button" role="tab" data-dev-aba="calendario" aria-selected="false"><span>04</span>Calendário</button>
-            <button class="dev-aba" type="button" role="tab" data-dev-aba="senhas" aria-selected="false"><span>05</span>Senhas</button>
-            <button class="dev-aba" type="button" role="tab" data-dev-aba="planilhas" aria-selected="false"><span>06</span>Planilhas</button>
+            <button class="dev-aba" type="button" role="tab" data-dev-aba="senhas" aria-selected="false"><span>04</span>Senhas</button>
+            <button class="dev-aba" type="button" role="tab" data-dev-aba="planilhas" aria-selected="false"><span>05</span>Planilhas</button>
           </nav>
           <div class="dev-corpo">
             <p class="dev-msg" id="devMsg" role="status" hidden></p>
@@ -552,7 +551,6 @@
             </section>
             <section class="dev-painel" data-dev-painel="plantas" id="devPlantas" aria-label="Plantas" hidden></section>
             <section class="dev-painel" data-dev-painel="cascata" id="devCascata" aria-label="Cascata entre ERs" hidden></section>
-            <section class="dev-painel" data-dev-painel="calendario" id="devCalendario" aria-label="Calendário dos ciclos e feriados" hidden></section>
             <section class="dev-painel" data-dev-painel="senhas" id="devSenhas" aria-label="Senhas" hidden></section>
             <section class="dev-painel" data-dev-painel="planilhas" id="devPlanilhas" aria-label="Planilhas" hidden></section>
           </div>
@@ -581,7 +579,7 @@
     <dialog id="dlgDesenvolvedor" class="dialogo dev-acesso">
       <form id="formDesenvolvedor">
         <h2>Desenvolvedor</h2>
-        <p class="sub">Digite a senha para abrir o painel do desenvolvedor: construção da loja, plantas, regras da cascata, calendário dos ciclos, senhas e planilhas.</p>
+        <p class="sub">Digite a senha para abrir o painel do desenvolvedor: construção da loja, plantas, regras da cascata, senhas e planilhas.</p>
         <label class="acesso-campo">Senha <input type="password" id="devSenha" autocomplete="current-password" required></label>
         <p class="acesso-erro" id="devErro" role="alert" hidden></p>
         <div class="rodape-dialogo">

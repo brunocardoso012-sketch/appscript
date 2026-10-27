@@ -29,6 +29,10 @@ const CONFIG = {
     INVENTARIO: 'Inventario',
     // O que o Desenvolvedor muda no app (Desenvolvedor.gs): nomes e ordem das plantas, regras da cascata e senhas.
     CONFIG_APP: 'Config do app',
+    // Calendário dos ciclos (início e fim de cada ciclo do Boticário e da Eudora) e feriados: na planilha do
+    // calendário (Desenvolvedor › Planilhas) ou, sem ela, na principal (calendarioDeValores_).
+    CICLOS: 'Calendário de ciclos',
+    FERIADOS: 'Feriados',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -38,6 +42,8 @@ const CONFIG = {
   PROPRIEDADE_PLANILHA: 'SPREADSHEET_ID',
   /** Planilha separada só com a aba Layout (Desenvolvedor › Planilhas); sem ela, o Layout fica na principal. */
   PROPRIEDADE_PLANILHA_LAYOUT: 'LAYOUT_SPREADSHEET_ID',
+  /** Planilha com o calendário dos ciclos e os feriados (Desenvolvedor › Planilhas); sem ela, as abas ficam na principal. */
+  PROPRIEDADE_PLANILHA_CALENDARIO: 'CALENDARIO_SPREADSHEET_ID',
   /** Planta coringa: linhas com esse valor valem para todas as plantas. */
   PLANTA_TODAS: 'TODAS',
 };
@@ -100,20 +106,14 @@ const HERANCA_ENTRE_ERS = [
 ];
 
 /**
- * Calendário dos ciclos (Desenvolvedor › Calendário): o início e o fim de cada ciclo, por calendário.
- * Só a Eudora tem calendário próprio; todas as outras marcas (Boticário, QDB, O.U.i, multimarca…) seguem
- * o do Boticário (calendarioDaMarca_). O nome do ciclo liga a linha ao ciclo do app (o do seletor), sem
- * diferença de maiúsculas, acentos e espaços. Datas em 'AAAA-MM-DD'.
- * Começa vazio: o Desenvolvedor preenche, e o que ele grava fica na aba "Config do app".
+ * Calendários dos ciclos (aba "Calendário de ciclos", coluna Marca): só a Eudora tem calendário próprio;
+ * todas as outras marcas (Boticário, QDB, O.U.i, multimarca…) seguem o do Boticário (calendarioDaMarca_).
+ * O nome do ciclo liga a linha ao ciclo do app (o do seletor), sem diferença de maiúsculas, acentos e espaços.
  */
 const CALENDARIOS = {
   BOT: { nome: 'Boticário', descricao: 'Boticário e todas as outras marcas' },
   EUD: { nome: 'Eudora', descricao: 'Só a Eudora' },
 };
-/** { BOT: [{ ciclo, inicio, fim }], EUD: [...] }, cada lista na ordem do início. */
-const CALENDARIO_CICLOS = { BOT: [], EUD: [] };
-/** Feriados: [{ data: 'AAAA-MM-DD', nome }], na ordem da data. Entram na conta dos dias úteis de cada ciclo. */
-const FERIADOS = [];
 
 /**
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
@@ -369,6 +369,24 @@ function colunasTipos_() {
     { chave: 'classificacao', titulo: 'Classificação', texto: true, apelidos: ['Tipo', 'Tipo de movimento'] },
     { chave: 'gmv', titulo: 'GMV esperado (R$)', apelidos: ['GMV esperado', 'GMV', 'GMV (R$)'] },
     { chave: 'observacao', titulo: 'Observação', texto: true, apelidos: ['Obs'] },
+  ];
+}
+
+/** Aba "Calendário de ciclos": uma linha por ciclo de cada calendário (Boticário ou Eudora). */
+function colunasCiclos_() {
+  return [
+    { chave: 'calendario', titulo: 'Marca', obrigatoria: true, texto: true, apelidos: ['Calendário', 'Calendario', 'Marca do calendário'] },
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true, apelidos: ['Nome do ciclo'] },
+    { chave: 'inicio', titulo: 'Início', obrigatoria: true, apelidos: ['Inicio', 'Data de início', 'Data início', 'Começo', 'De'] },
+    { chave: 'fim', titulo: 'Fim', obrigatoria: true, apelidos: ['Data de fim', 'Data fim', 'Término', 'Termino', 'Final', 'Até'] },
+  ];
+}
+
+/** Aba "Feriados": uma linha por feriado. */
+function colunasFeriados_() {
+  return [
+    { chave: 'data', titulo: 'Data', obrigatoria: true },
+    { chave: 'nome', titulo: 'Feriado', texto: true, apelidos: ['Nome', 'Descrição', 'Descricao'] },
   ];
 }
 

@@ -88,6 +88,8 @@ function getDados() {
   dados.produtos = produtosDeValores_(lerAba_(ss, CONFIG.ABAS.PRODUTOS, true));
   dados.prateleiras = prateleirasDeValores_(lerAba_(ss, CONFIG.ABAS.PRATELEIRAS, true), dados.produtos);
   dados.inventario = inventarioDeValores_(lerAbaSemAcento_(ss, CONFIG.ABAS.INVENTARIO));
+  dados.calendario = lerCalendario_(ss);
+  dados.calendario.avisos.forEach(function (a) { if (dados.avisos.length < 60) dados.avisos.push(a); });
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = !ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS);
@@ -585,8 +587,12 @@ function planilha_() {
 
 let planilhaLayoutAberta_ = null;
 
-/** A planilha em que a aba fica: a do layout (se houver uma separada) para a aba Layout; a principal para as outras. */
+/**
+ * A planilha em que a aba fica: a do layout (se houver uma separada) para a aba Layout; a do calendário (se
+ * houver uma vinculada) para as abas do calendário dos ciclos e dos feriados; a principal para as outras.
+ */
 function ssDaAba_(ss, nome) {
+  if (nome === CONFIG.ABAS.CICLOS || nome === CONFIG.ABAS.FERIADOS) return planilhaCalendario_(ss);
   if (nome !== CONFIG.ABAS.LAYOUT) return ss;
   const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT);
   if (!id) return ss;
@@ -599,6 +605,116 @@ function ssDaAba_(ss, nome) {
     }
   }
   return planilhaLayoutAberta_;
+}
+
+/* ------------------- planilha do calendário dos ciclos --------------------- */
+/*
+ * O calendário dos ciclos (aba "Calendário de ciclos": Marca, Ciclo, Início, Fim) e os feriados (aba "Feriados":
+ * Data, Feriado) vêm de uma planilha vinculada em Desenvolvedor › Planilhas (o ID fica na propriedade do
+ * script CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO). Sem ela, o app procura as duas abas na planilha principal.
+ * O app só lê essas abas: as datas são mantidas na própria planilha.
+ */
+
+let planilhaCalendarioAberta_ = null;
+
+/** A planilha do calendário (a vinculada; sem ela, a principal). */
+function planilhaCalendario_(ss) {
+  const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO);
+  if (!id) return ss;
+  if (!planilhaCalendarioAberta_ || planilhaCalendarioAberta_.getId() !== id) {
+    try {
+      planilhaCalendarioAberta_ = SpreadsheetApp.openById(id);
+    } catch (e) {
+      throw new Error('Não consegui abrir a planilha do calendário dos ciclos (ID ' + id + '). Confira se ela existe e se a conta que ' +
+        'publicou o app tem acesso; ou, em Desenvolvedor › Planilhas, desvincule a planilha do calendário.');
+    }
+  }
+  return planilhaCalendarioAberta_;
+}
+
+/** Nomes aceitos para as abas do calendário (sem diferença de acento e maiúsculas). */
+const NOMES_ABA_CICLOS_ = ['Calendário de ciclos', 'Calendário dos ciclos', 'Ciclos', 'Calendário'];
+const NOMES_ABA_FERIADOS_ = ['Feriados', 'Feriado'];
+
+/** Valores de uma aba da planilha, por um dos nomes aceitos (null sem a aba). */
+function lerAbaPorNomes_(alvo, nomes) {
+  const chaves = nomes.map(chave_);
+  const sh = alvo.getSheets().filter(function (s) { return chaves.indexOf(chave_(s.getName())) >= 0; })[0];
+  if (!sh) return null;
+  return sh.getLastRow() >= 1 ? sh.getDataRange().getValues() : [];
+}
+
+/** Calendário dos ciclos e feriados (calendarioDeValores_), da planilha do calendário. Erro ao abrir vira aviso. */
+function lerCalendario_(ss) {
+  let alvo;
+  try {
+    alvo = planilhaCalendario_(ss);
+  } catch (e) {
+    const vazio = calendarioDeValores_(null, null);
+    vazio.avisos.push(e.message);
+    vazio.erro = e.message;
+    return vazio;
+  }
+  return calendarioDeValores_(lerAbaPorNomes_(alvo, NOMES_ABA_CICLOS_), lerAbaPorNomes_(alvo, NOMES_ABA_FERIADOS_));
+}
+
+/** Cria as abas do calendário que faltam na planilha (só o cabeçalho, com um exemplo na aba dos ciclos). */
+function criarAbasCalendario_(ss) {
+  const alvo = planilhaCalendario_(ss);
+  if (!lerAbaPorNomes_(alvo, NOMES_ABA_CICLOS_)) {
+    escreverAba_(ss, CONFIG.ABAS.CICLOS, colunasCiclos_(), valoresVazios_(colunasCiclos_()));
+  }
+  if (!lerAbaPorNomes_(alvo, NOMES_ABA_FERIADOS_)) {
+    escreverAba_(ss, CONFIG.ABAS.FERIADOS, colunasFeriados_(), valoresVazios_(colunasFeriados_()));
+  }
+}
+
+/**
+ * Desenvolvedor › Planilhas › Calendário dos ciclos:
+ *  - { acao: 'criar' }          cria a planilha "Plano de Varejo – Calendário dos ciclos", com as abas "Calendário de
+ *                               ciclos" e "Feriados" (levando as da principal, se ela já tinha);
+ *  - { acao: 'vincular', url }  usa uma planilha que já existe (as abas que faltam são criadas, só com o cabeçalho);
+ *  - { acao: 'desvincular' }    deixa de usar a planilha vinculada (ela não é apagada): o app volta a procurar as
+ *                               abas na principal.
+ */
+function mudarPlanilhaCalendario(acesso, pedido) {
+  conferirDesenvolvedor_(acesso);
+  const ss = planilha_();
+  const props = PropertiesService.getScriptProperties();
+  const p = pedido || {};
+  return comTrava_(function () {
+    if (p.acao === 'criar' || p.acao === 'vincular') {
+      let destino;
+      // Na criação, leva as abas que já estavam na planilha de onde o app lia o calendário.
+      const antes = p.acao === 'criar' ? planilhaCalendario_(ss) : null;
+      const ciclos = antes && lerAbaPorNomes_(antes, NOMES_ABA_CICLOS_);
+      const feriados = antes && lerAbaPorNomes_(antes, NOMES_ABA_FERIADOS_);
+      if (p.acao === 'criar') {
+        destino = SpreadsheetApp.create('Plano de Varejo – Calendário dos ciclos');
+      } else {
+        const id = idDePlanilha_(p.url);
+        try {
+          destino = SpreadsheetApp.openById(id);
+        } catch (e) {
+          throw new Error('Não consegui abrir essa planilha. Confira o link e se a conta que publicou o app tem acesso a ela.');
+        }
+      }
+      if (destino.getId() === ss.getId()) throw new Error('Essa é a planilha principal. Para usar as abas da principal, desvincule a planilha do calendário.');
+      props.setProperty(CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO, destino.getId());
+      planilhaCalendarioAberta_ = destino;
+      if (ciclos && ciclos.length > 1) escreverAba_(ss, CONFIG.ABAS.CICLOS, colunasCiclos_(), ciclos);
+      if (feriados && feriados.length > 1) escreverAba_(ss, CONFIG.ABAS.FERIADOS, colunasFeriados_(), feriados);
+      criarAbasCalendario_(ss);
+      if (p.acao === 'criar') removerAbaPadraoVazia_(destino);
+    } else if (p.acao === 'desvincular') {
+      if (!props.getProperty(CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO)) throw new Error('Nenhuma planilha do calendário está vinculada.');
+      props.deleteProperty(CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO);
+      planilhaCalendarioAberta_ = null;
+    } else {
+      throw new Error('Ação desconhecida.');
+    }
+    return infoPlanilhas_(ss);
+  });
 }
 
 /** A aba (na planilha certa), ou null. */
@@ -615,18 +731,43 @@ function idDePlanilha_(texto) {
   throw new Error('Cole o link da planilha (https://docs.google.com/spreadsheets/d/…) ou o ID dela.');
 }
 
-/** Onde está cada coisa: a planilha principal e a do layout (null = o Layout está na principal). */
+/**
+ * Onde está cada coisa: a planilha principal, a do layout (null = o Layout está na principal) e a do calendário
+ * dos ciclos (null = as abas do calendário são procuradas na principal), com o que foi lido do calendário.
+ */
 function infoPlanilhas_(ss) {
-  const info = { principal: { url: ss.getUrl(), nome: ss.getName() }, layout: null };
+  const info = { principal: { url: ss.getUrl(), nome: ss.getName() }, layout: null, calendario: null };
   const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT);
-  if (!id) return info;
-  try {
-    const l = ssDaAba_(ss, CONFIG.ABAS.LAYOUT);
-    info.layout = { id: id, url: l.getUrl(), nome: l.getName() };
-  } catch (e) {
-    info.layout = { id: id, erro: e.message };
+  if (id) {
+    try {
+      const l = ssDaAba_(ss, CONFIG.ABAS.LAYOUT);
+      info.layout = { id: id, url: l.getUrl(), nome: l.getName() };
+    } catch (e) {
+      info.layout = { id: id, erro: e.message };
+    }
   }
+  const idCal = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO);
+  if (idCal) {
+    try {
+      const c = planilhaCalendario_(ss);
+      info.calendario = { id: idCal, url: c.getUrl(), nome: c.getName() };
+    } catch (e) {
+      info.calendario = { id: idCal, erro: e.message };
+    }
+  }
+  info.leituraCalendario = resumoCalendario_(lerCalendario_(ss));
   return info;
+}
+
+/** O que o painel do Desenvolvedor mostra do calendário lido: quantidades, avisos e observações. */
+function resumoCalendario_(cal) {
+  return {
+    abas: cal.abas,
+    ciclos: Object.keys(cal.ciclos).map(function (k) { return { cod: k, nome: CALENDARIOS[k].nome, qtd: cal.ciclos[k].length }; }),
+    feriados: cal.feriados.length,
+    avisos: cal.avisos,
+    observacoes: cal.observacoes,
+  };
 }
 
 /** Desenvolvedor › Planilhas: onde ficam as abas do app. */
@@ -831,6 +972,12 @@ function formatarAba_(sh, colunas, cab, maxLinhas, linhas) {
       });
     } else if (c.chave === 'gmv') {
       coluna.setNumberFormat('"R$" #,##0');
+    } else if (c.chave === 'calendario') {
+      lista = Object.keys(CALENDARIOS).map(function (k) { return CALENDARIOS[k].nome; });
+      ajuda = 'Eudora tem o calendário dela; qualquer outra marca segue o do Boticário.';
+    } else if ((c.chave === 'inicio' || c.chave === 'fim' || c.chave === 'data') && !c.texto) {
+      // Datas do calendário dos ciclos e dos feriados (as outras abas guardam a data como texto).
+      coluna.setNumberFormat('dd/mm/yyyy');
     }
     if (lista) {
       coluna.setDataValidation(

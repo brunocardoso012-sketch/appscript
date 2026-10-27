@@ -76,6 +76,9 @@
       dados.antecipacoes = antecipacoesDeValores_(abas['aba:' + CONFIG.ABAS.ANTECIPACOES]);
       dados.produtos = produtosDeValores_(abas.produtos);
       dados.prateleiras = prateleirasDeValores_(abas['aba:' + CONFIG.ABAS.PRATELEIRAS], dados.produtos);
+      // Calendário dos ciclos e feriados: no Apps Script, vêm da planilha do calendário; aqui, do navegador.
+      dados.calendario = calendarioDeValores_(abas['aba:' + CONFIG.ABAS.CICLOS], abas['aba:' + CONFIG.ABAS.FERIADOS]);
+      dados.calendario.avisos.forEach((a) => { if (dados.avisos.length < 60) dados.avisos.push(a); });
       dados.planilhaUrl = '';
       dados.precisaConfigurar = false;
       dados.modoLocal = true;
@@ -109,11 +112,16 @@
 
     getPlanilhas(acesso) {
       conferirDesenvolvedor_(acesso);
-      return { web: true };
+      const abas = ler();
+      return { web: true, leituraCalendario: resumoCalendario_(calendarioDeValores_(abas['aba:' + CONFIG.ABAS.CICLOS], abas['aba:' + CONFIG.ABAS.FERIADOS])) };
     },
 
     mudarPlanilhaLayout() {
       throw new Error('Na versão web, os dados ficam no navegador: a planilha separada do layout só existe no Apps Script.');
+    },
+
+    mudarPlanilhaCalendario() {
+      throw new Error('Na versão web, os dados ficam no navegador: a planilha do calendário dos ciclos só existe no Apps Script.');
     },
 
     getConfigDev(acesso) {

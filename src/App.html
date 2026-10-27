@@ -1522,17 +1522,19 @@ const App = (() => {
   /* ------------------------- calendário dos ciclos -------------------------- */
 
   /**
-   * Dados do calendário dos ciclos (Calendario.desenhar): os ciclos de cada calendário (Boticário e Eudora,
-   * do Desenvolvedor › Calendário), cada um ligado ao ciclo do app de mesmo nome e com os movimentos dele
-   * que seguem aquele calendário. Um movimento segue o calendário da marca que tem mais espaço nele: só a
-   * Eudora tem calendário próprio; as outras marcas (e o movimento sem marca) seguem o do Boticário.
+   * Dados do calendário dos ciclos (Calendario.desenhar): os ciclos de cada calendário (Boticário e Eudora, das
+   * abas da planilha do calendário), cada um ligado ao ciclo do app de mesmo nome, e os movimentos de cada ciclo
+   * do app (de todas as marcas, juntos), cada um com o início e o fim do ciclo no calendário da marca dele. Um
+   * movimento segue o calendário da marca que tem mais espaço nele: só a Eudora tem calendário próprio; as
+   * outras marcas (e o movimento sem marca) seguem o do Boticário. Se o ciclo não estiver no calendário da
+   * marca, valem as datas do outro calendário.
    * Exposição: a fatia do espaço de exposição (sem VM) da ER que vai para o movimento; sem `er`, a média das
    * ERs (cada ER é um tamanho médio da rede: nada soma ERs). GMV: o esperado, da aba Tipos de movimento.
    * Em cada ciclo, fatiaExposicao e fatiaGmv são a parte do movimento na exposição e no GMV do ciclo (somam
    * 100% entre os movimentos) e o equilíbrio é a média das duas.
    */
   function dadosCalendario(er) {
-    const cal = estado.dados.config.calendario || { calendarios: {}, ciclos: {}, feriados: [] };
+    const cal = estado.dados.calendario || { calendarios: {}, ciclos: {}, feriados: [] };
     const feriados = cal.feriados || [];
     const doApp = {};
     todosOsCiclos().forEach((c) => { doApp[Calendario.chaveCiclo(c)] = c; });
@@ -1593,7 +1595,7 @@ const App = (() => {
       return lista;
     };
     const corDoCalendario = (k) => (estado.dados.marcas[k] ? estado.dados.marcas[k].etiqueta : COR_SEM_MARCA);
-    const ligados = {};
+    const datasDoApp = {}; // ciclo do app → { BOT: {inicio, fim}, EUD: {…} }
     const calendarios = Object.keys(cal.calendarios || {}).map((k) => ({
       cod: k,
       nome: cal.calendarios[k].nome,
@@ -1601,7 +1603,7 @@ const App = (() => {
       cor: corDoCalendario(k),
       ciclos: ((cal.ciclos || {})[k] || []).map((c) => {
         const app = doApp[Calendario.chaveCiclo(c.ciclo)] || '';
-        if (app) ligados[app] = true;
+        if (app) (datasDoApp[app] = datasDoApp[app] || {})[k] = { inicio: c.inicio, fim: c.fim };
         const d0 = Calendario.datas.dia(c.inicio);
         const d1 = Calendario.datas.dia(c.fim);
         return {
@@ -1609,16 +1611,30 @@ const App = (() => {
           dias: d1 - d0 + 1,
           uteis: Calendario.datas.uteis(c.inicio, c.fim, feriados),
           feriados: feriados.filter((f) => f.data >= c.inicio && f.data <= c.fim),
-          movimentos: app ? movimentosDoCiclo(app).filter((m) => m.calendario === k) : [],
         };
       }),
     }));
+    // Um grupo por ciclo do app com datas: todos os movimentos dele, cada um nas datas do seu calendário.
+    const grupos = Object.keys(datasDoApp).map((app) => {
+      const porCal = datasDoApp[app];
+      const movimentos = movimentosDoCiclo(app).map((m) => {
+        const proprio = porCal[m.calendario];
+        const datasMov = proprio || porCal.BOT || porCal[Object.keys(porCal)[0]];
+        return Object.assign({}, m, {
+          inicio: datasMov.inicio, fim: datasMov.fim, datasDoOutro: !proprio,
+          nomeCalendario: (cal.calendarios[m.calendario] || {}).nome || m.calendario,
+        });
+      });
+      const inicio = Object.values(porCal).map((x) => x.inicio).sort()[0];
+      return { cicloApp: app, inicio, movimentos };
+    });
     return {
       calendarios,
+      grupos,
       feriados,
       ers: estado.dados.plantas.map((p) => ({ id: p.id, nome: p.nome })),
       cicloAtual: estado.ciclo,
-      semDatas: todosOsCiclos().filter((c) => !ligados[c]),
+      semDatas: todosOsCiclos().filter((c) => !datasDoApp[c]),
     };
   }
 
@@ -1631,7 +1647,7 @@ const App = (() => {
     document.body.classList.toggle('com-calendario', aberto);
     if ($('btnCalendario')) $('btnCalendario').setAttribute('aria-pressed', String(aberto));
     if (!aberto) { $('calCorpo').innerHTML = ''; return; } // ao abrir de novo, rola até o ciclo da tela
-    const cal = estado.dados.config.calendario || { ciclos: {} };
+    const cal = estado.dados.calendario || { ciclos: {} };
     const n = Object.keys(cal.ciclos || {}).reduce((s, k) => s + cal.ciclos[k].length, 0);
     $('calSub').textContent = n ? n + (n === 1 ? ' ciclo' : ' ciclos') + ' no calendário' + (estado.ciclo ? ' · na tela: ' + estado.ciclo : '') : '';
     Calendario.desenhar($('calCorpo'), {
@@ -2922,7 +2938,6 @@ const App = (() => {
   Desenvolvedor.iniciar({
     estado, chamar, toast, erro, carregar, carregando, plantaAtual, trocarPlanta,
     espacos: (m) => Render.espacos(m),
-    ciclos: () => todosOsCiclos(),
     layoutDe: (p) => Editor.layoutDe(p),
     // Nova planta: abre o Construir loja com uma planta em branco (o Salvar planta pergunta o nome).
     novaPlanta: () => { if (!Editor.ativo()) $('btnConstruir').click(); if (Editor.ativo()) Editor.novaPlanta(); },
