@@ -23,7 +23,7 @@ No app (legenda, listas, Analytics, PNG), as marcas aparecem pela sigla de 3 let
 - **Desenvolvedor (a engrenagem, com senha)**: a engrenagem pede a senha e abre o **painel do desenvolvedor**, com todos os módulos do app, o painel de controle das plantas, as regras da cascata entre as ERs e as senhas (veja [Desenvolvedor](#desenvolvedor-painel-do-app)). Entre os módulos:
   - **Baixar planilha base**: gera um `.xlsx` com uma linha por móvel de cada planta, listas suspensas e cores por marca. Pode vir em branco ou já preenchido com um ciclo existente, para servir de ponto de partida do próximo.
   - **Importar planilha**: lê o `.xlsx` preenchido, grava no Google Sheets e já mostra o ciclo importado.
-  - **Construir loja**: o editor do layout (posição e tamanho dos móveis de cada planta); *Salvar planta* pergunta se substitui uma planta existente ou cria uma nova.
+  - **Construir loja**: o editor do layout (posição e tamanho dos móveis de cada planta). **Salva sozinho** na aba Layout a cada mudança; *Salvar como…* cria uma planta nova ou substitui outra.
 - **Zoom na planta**: role o mouse sobre a planta (ou use a pinça no celular, os botões − / + acima dela ou as teclas <kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd>). Com zoom, arraste para mover a planta. As etiquetas crescem junto com a planta, para ler melhor; as caixas de destaque continuam do mesmo tamanho na tela. Clique no percentual para voltar a 100%. O PNG sai sempre sem zoom.
 - **Estratégia do móvel** (com o aviso fixo *Página em construção*, em amarelo, no topo): clique num móvel (ou numa etiqueta dele) para abrir uma tela inteira com o desenho do móvel e o que o ciclo define para ele: marca, símbolo, etiquetas (com a cor e o bloco de cada uma) e observação — na gôndola, mesas, totem e móvel make, a linha de cada espaço. No alto, o **planograma** mostra como as prateleiras estão divididas: uma coluna por espaço (lados e meios da gôndola, frentes da mesa, blocos do balcão), com as prateleiras de cima para baixo; as etiquetas de cada espaço dividem as prateleiras na ordem (Etiqueta 1 em cima), cada uma com a cor da sua marca. No totem, cada linha é um painel; no móvel make, as testeiras aparecem por cima.
 - **Destaque ao passar o mouse**: com o mouse sobre um móvel (ou uma etiqueta dele), as etiquetas desse móvel ganham contorno e as linhas-guia escurecem; as dos outros móveis ficam mais claras.
@@ -116,7 +116,7 @@ Depois da estratégia dos movimentos (que movimento fica em cada espaço), o con
 
 A engrenagem, no fim do topo, é o **Desenvolvedor**: ela pede a senha (`desenvolvedor_exposicao`) e abre o **painel do desenvolvedor**, em tela quase inteira e com visual próprio (escuro, com âmbar). Enquanto a sessão está aberta, uma **faixa listrada "Modo desenvolvedor"** fica no alto da tela (com *Abrir painel* e *Sair*), a engrenagem fica âmbar com o selo *DEV* e o topo ganha um traço âmbar, para ficar claro que dali dá para mudar o app. O acesso vale até fechar a aba do navegador; *Sair do desenvolvedor* encerra antes (fecha o Construir loja, perguntando se houver alterações, e o ajuste das etiquetas).
 
-O painel tem quatro seções:
+O painel tem cinco seções:
 
 - **Módulos:** todos os módulos do app, em cartões: *Construir loja*, *Baixar planilha base*, *Importar planilha*, *Validação*, *Construção* (as duas pedem também a senha delas), *Ajustar etiquetas*, *Modo noturno*, *Abrir planilha* e *Ver o tutorial*. Escolher um fecha o painel; o cartão do que está ligado mostra *ligado*.
 - **Plantas** (painel de controle de cada planta, na ordem da cascata): nome (ao renomear, o nome antigo continua valendo na coluna *Planta* das abas), ↑ ↓ para mudar a **ordem da cascata**, quantos móveis de cada tipo ela tem, tamanho da loja (largura, fundo e altura das paredes), tamanho das etiquetas, largura do slide (vazia = automática) e as regras da cascata que tocam a planta. Botões: *Salvar alterações*, *Ver na planta*, *Abrir no Construir loja*, *Duplicar* (cria uma planta nova com o mesmo layout) e *Apagar* (pede confirmação; pode apagar também as linhas da ER nas abas *Movimentos* e *Painéis* e nos ciclos em construção, em todos os ciclos). *+ Nova planta* abre o Construir loja com uma planta em branco. Uma planta usada numa regra da cascata não pode ser apagada antes de sair da regra; uma planta padrão apagada não volta com as atualizações do código.
@@ -125,12 +125,25 @@ O painel tem quatro seções:
   - **Mudanças de espaço entre ERs** (ex.: na ER G, a ponta A e o meio A da gôndola 3 herdam a ponta B e o meio B da gôndola 2 da ER M): a ER em que a regra vale, as trocas (*espaço nesta ER* herda de *espaço na ER anterior*) e os espaços definidos de novo nela (não herdam).
   Cada bloco mostra se está no *padrão do código* ou *personalizado* e tem *Voltar ao padrão do código*.
 - **Senhas:** as do Desenvolvedor, da Validação e da Construção (ao menos 4 caracteres, uma diferente da outra). A nova senha do Desenvolvedor vale já na sessão aberta.
+- **Planilhas:** onde fica cada aba, com os links. Daqui, o layout das plantas vai para uma [planilha separada](#planilha-separada-para-o-layout) (ou volta para a principal).
+
+### Planilha separada para o layout
+
+Um Apps Script pode ler e gravar em **mais de uma planilha** do Google (cada uma aberta pelo ID). Para não pesar a planilha principal, o layout de todas as plantas (a aba **Layout**) pode ficar numa planilha só dele. Em *Desenvolvedor › Planilhas*:
+
+- **Criar uma planilha só para o layout:** cria *Plano de Varejo – Layout das plantas* no Drive de quem publicou o app, com o layout atual. Na principal, a aba antiga passa a se chamar *Layout (antigo)* e não é mais lida.
+- **Usar uma planilha que já existe:** cole o link. Se ela já tem a aba *Layout* com móveis, o app passa a usar o que está nela; senão, ela recebe o layout atual. A conta que publicou o app precisa poder editá-la.
+- **Voltar o layout para a planilha principal:** copia o layout de volta para a aba *Layout* da principal e deixa de usar a separada (que não é apagada).
+
+O ID da planilha do layout fica na propriedade do script `LAYOUT_SPREADSHEET_ID` (`CONFIG.PROPRIEDADE_PLANILHA_LAYOUT`). Tudo o que lê ou grava a aba Layout (o app, o *Construir loja*, o *Ajustar etiquetas*, a importação de uma planilha com a aba Layout, as atualizações do modelo e o menu *Restaurar layout padrão*) vai para ela sozinho (`ssDaAba_`, em `src/Code.gs`); as outras abas continuam na principal. Na versão web, os dados ficam no navegador e não há planilha separada.
 
 **Onde fica:** o que o Desenvolvedor muda vai para a aba **Config do app** da planilha (uma linha por chave, com o valor em JSON: `plantas`, `espacosPorEr`, `herancaEntreErs` e `senhas`), criada na primeira mudança; o que não está nela vale como no código (`src/Config.gs`). Quem edita a planilha consegue ver as senhas nessa aba. O servidor confere a senha do Desenvolvedor a cada gravação (`src/Desenvolvedor.gs`); na versão web, tudo fica no navegador.
 
 ## Construir loja (editor do layout)
 
-No painel do desenvolvedor (engrenagem), clique em **Construir loja** para abrir o editor ao lado da planta (*Fechar* sai). A planta **abre com o modelo atual** (os móveis salvos dela), pronta para editar; trocar de planta no editor também abre o modelo daquela planta. Fechar sem salvar não apaga nada. **Salvar planta** pergunta para onde vai o layout da tela: **Substituir uma planta existente** (a da tela, por padrão, ou outra escolhida na lista) ou **Criar uma planta nova** (com o nome dado; ela entra no fim da cascata, com o próximo número livre, e depois pode ser renomeada, reordenada ou apagada em *Desenvolvedor › Plantas*). Dá para salvar mesmo sem alterações, para copiar uma planta.
+No painel do desenvolvedor (engrenagem), clique em **Construir loja** para abrir o editor ao lado da planta (*Fechar* sai). A planta **abre com o modelo atual** (os móveis salvos dela), pronta para editar; trocar de planta no editor também abre o modelo daquela planta. **Tudo é salvo sozinho**: um instante depois de cada mudança, a planta vai para a aba **Layout** (que pode ficar numa [planilha separada](#planilha-separada-para-o-layout)); o rodapé do menu mostra *Mudanças a salvar…*, *Salvando na planilha…* ou *✓ Salvo na planilha* (se a gravação falhar, mostra o erro: clique nele para tentar de novo). Ao fechar o editor, trocar de planta ou fechar a página, o que estiver pendente é gravado na hora. **Desfazer** volta uma ação; **Desfazer tudo** volta a planta ao que era quando o editor abriu (e salva). **Salvar como…** leva o layout da tela para **uma planta nova** (com o nome dado; ela entra no fim da cascata, com o próximo número livre, e depois pode ser renomeada, reordenada ou apagada em *Desenvolvedor › Plantas*) ou **substitui outra planta existente**. A planta criada por *+ Criar nova planta* só começa a salvar sozinha depois de ganhar um nome em *Salvar como…*.
+
+O menu lateral tem o meio com rolagem e o rodapé (status, *Desfazer*, *Desfazer tudo*, *Salvar como…*) fixo embaixo, sem cobrir as seções.
 
 | Para… | Faça |
 |---|---|
@@ -140,7 +153,7 @@ No painel do desenvolvedor (engrenagem), clique em **Construir loja** para abrir
 | Girar / duplicar / excluir | Use a barra preta que aparece sobre o móvel, ou <kbd>R</kbd>, <kbd>Ctrl</kbd>+<kbd>D</kbd> e <kbd>Delete</kbd>. Girar troca largura e fundo; no balcão recepção, muda o canto do L (4 posições). |
 | Mudar nome, tipo, tamanho | Edite no painel, em **Móvel selecionado**. ID e elevação ficam em *Mais opções*. |
 | Voltar atrás | **Desfazer** ou <kbd>Ctrl</kbd>+<kbd>Z</kbd>. Desfaz uma ação por vez, inclusive exclusões. |
-| Guardar | **Salvar planta** (aba Layout no Apps Script; navegador na versão web). O rodapé mostra se há alterações não salvas. |
+| Guardar | Automático, a cada mudança (aba Layout no Apps Script; navegador na versão web). O rodapé mostra se já está salvo. |
 
 ### Os móveis
 
@@ -174,7 +187,7 @@ Seções recolhidas no painel:
 - **Imagem de referência:** coloque a tela original da planta por cima, semitransparente, para "decalcar". Ajuste transparência, zoom e posição até alinhar.
 - **Exibição e encaixe:** grade numerada no piso, mostrar ou não as cores do ciclo, e o passo do arraste.
 
-**Baixar código da loja** gera `layout-plantas-AAAA-MM-DD.json` com o layout de todas as plantas, no mesmo formato de [`src/Layouts.gs`](src/Layouts.gs). Mande esse arquivo para virar o layout padrão do projeto. **Carregar código…** aplica um arquivo desses de volta.
+O layout de todas as plantas fica na aba **Layout** da planilha (uma linha por móvel: posição, tamanho, giro, divisão da gôndola e posições das etiquetas; a linha `LOJA` de cada planta tem o tamanho da loja, das etiquetas e do slide). O antigo *Baixar código da loja* / *Carregar código…* saiu: o mapa das lojas não é mais copiado para o código (`src/Layouts.gs` é só o modelo inicial de uma planilha nova).
 
 ## Instalar ou atualizar no Apps Script
 

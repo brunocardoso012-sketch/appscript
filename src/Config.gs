@@ -36,6 +36,8 @@ const CONFIG = {
   MAX_LINHAS_IMPORTACAO: 10000,
   /** Usado quando o script NÃO está vinculado a uma planilha (projeto standalone). */
   PROPRIEDADE_PLANILHA: 'SPREADSHEET_ID',
+  /** Planilha separada só com a aba Layout (Desenvolvedor › Planilhas); sem ela, o Layout fica na principal. */
+  PROPRIEDADE_PLANILHA_LAYOUT: 'LAYOUT_SPREADSHEET_ID',
   /** Planta coringa: linhas com esse valor valem para todas as plantas. */
   PLANTA_TODAS: 'TODAS',
 };

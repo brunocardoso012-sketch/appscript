@@ -64,6 +64,7 @@ function criarAba(nome) {
   return encadeavel({
     _aba: aba,
     getName: () => nome,
+    setName: (n) => { nome = n; },
     getLastRow: ultimaLinha,
     getMaxRows: () => aba.maxLinhas,
     getMaxColumns: () => aba.maxColunas,
@@ -77,15 +78,17 @@ function criarAba(nome) {
   });
 }
 
-function criarPlanilha() {
+function criarPlanilha(id) {
   const abas = [criarAba('Página1')];
+  const codigo = id || 'TESTE';
   return encadeavel({
     getSheetByName: (n) => abas.find((a) => a.getName() === n) || null,
     insertSheet: (n) => { const a = criarAba(n); abas.push(a); return a; },
     getSheets: () => abas.slice(),
     deleteSheet: (a) => abas.splice(abas.indexOf(a), 1),
-    getUrl: () => 'https://docs.google.com/spreadsheets/d/TESTE',
-    getId: () => 'TESTE',
+    getUrl: () => 'https://docs.google.com/spreadsheets/d/' + codigo + '/edit',
+    getId: () => codigo,
+    getName: () => 'Planilha ' + codigo,
   });
 }
 
@@ -94,15 +97,29 @@ function servicosFalsos(opcoes) {
   const op = Object.assign({ vinculada: true }, opcoes);
   const planilha = criarPlanilha();
   const propriedades = {};
+  // Outras planilhas (ex.: a do layout, separada): create() cria uma nova; openById() abre pelo ID.
+  // Sem planilha vinculada, o primeiro create() devolve a principal (é o "Configurar planilha").
+  const outras = {};
+  let principalCriada = op.vinculada;
   const construtor = () => encadeavel({ build: () => ({}) });
   return {
     planilha,
     propriedades,
+    outras,
     globais: {
       SpreadsheetApp: {
         getActiveSpreadsheet: () => (op.vinculada ? planilha : null),
-        create: () => planilha,
-        openById: () => planilha,
+        create: () => {
+          if (!principalCriada) { principalCriada = true; return planilha; }
+          const id = 'EXTRA' + (Object.keys(outras).length + 1);
+          outras[id] = criarPlanilha(id);
+          return outras[id];
+        },
+        openById: (id) => {
+          if (outras[id]) return outras[id];
+          if (id === 'TESTE' || !String(id).startsWith('EXTRA')) return planilha;
+          throw new Error('Planilha não encontrada: ' + id);
+        },
         newConditionalFormatRule: construtor,
         newDataValidation: construtor,
       },
@@ -111,6 +128,7 @@ function servicosFalsos(opcoes) {
         getScriptProperties: () => ({
           getProperty: (k) => propriedades[k] || null,
           setProperty: (k, v) => { propriedades[k] = v; },
+          deleteProperty: (k) => { delete propriedades[k]; },
         }),
       },
     },

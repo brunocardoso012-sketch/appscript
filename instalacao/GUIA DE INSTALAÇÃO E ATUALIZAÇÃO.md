@@ -25,6 +25,8 @@ Este guia é para quem **já usa o app no Apps Script e já tem a planilha com o
 - **Engrenagem = Desenvolvedor (com senha):** a engrenagem pede a senha `desenvolvedor_exposicao` e abre o **painel do desenvolvedor** (escuro, com âmbar; enquanto ele está aberto, uma faixa *Modo desenvolvedor* fica no alto da tela). Nele ficam **todos os módulos** (que saíram do topo e da engrenagem): *Construir loja*, *Baixar planilha base*, *Importar planilha*, *Validação*, *Construção*, *Ajustar etiquetas*, *Modo noturno*, *Abrir planilha* e *Ver o tutorial*. **Atenção:** o validador e o construtor da estratégia passam a precisar também da senha do Desenvolvedor para chegar à Validação e à Construção. Avise quem usa.
 - **Controle das plantas (Desenvolvedor › Plantas):** renomear (o nome antigo continua valendo na planilha), mudar a ordem da cascata, mudar o tamanho da loja e das etiquetas, duplicar e apagar plantas. No *Construir loja*, **Salvar planta** pergunta se substitui uma planta existente ou cria uma nova.
 - **Regras da cascata (Desenvolvedor › Cascata entre ERs):** a ponta B da gôndola 1 (fixa de O.U.i numa ER e livre nas outras) e a gôndola 2 → gôndola 3 entre a ER M e a ER G passam a ser editáveis, e dá para criar outras regras desse tipo.
+- **Construir loja salva sozinho:** cada mudança vai para a aba *Layout* um instante depois (o rodapé mostra *✓ Salvo na planilha*). O botão *Salvar planta* virou **Salvar como…** (planta nova ou substituir outra), e *Baixar código da loja* e *Carregar código…* saíram.
+- **Layout numa planilha separada (opcional, Desenvolvedor › Planilhas):** o layout de todas as plantas pode ir para uma planilha só dele (*Criar uma planilha só para o layout* ou *Usar uma planilha que já existe*). Na principal, a aba antiga fica como *Layout (antigo)*. Na primeira vez, o Google pode pedir autorização de novo (o app passa a abrir outra planilha).
 - **Senhas (Desenvolvedor › Senhas):** as três senhas podem ser trocadas no app. O que o Desenvolvedor muda fica numa aba nova, **Config do app**, criada sozinha na primeira mudança (não apague nem edite à mão).
 - **Topo reorganizado:** *Comunicações ER* e *Analytics* ficam em destaque; a engrenagem é o Desenvolvedor. *Baixar PNG* fica no canto de baixo da planta.
 - **Ajustar etiquetas:** cada pilha de etiquetas se move sozinha, e dá para mudar o tamanho das etiquetas.
@@ -90,7 +92,7 @@ Siga os passos **B1 a B4** da Parte B (eles servem também para quem vem do visu
 
 O visualizador guardava o layout das lojas no código; o app completo guarda na aba **Layout** da planilha (é nela que o *Construir loja* grava). Recarregue a planilha e use o menu **Plano de Varejo › Configurar planilha (criar abas que faltam)**: ele cria a aba *Layout* com as plantas padrão (as mesmas do visualizador) e as outras abas que faltarem, sem mexer nas que já existem.
 
-Se o script não está ligado à planilha (caso do `SPREADSHEET_ID`, no A1), esse menu não aparece nela. Sem problema: sem a aba *Layout*, o app usa as plantas padrão, e o primeiro *Salvar planta* do *Construir loja* cria a aba.
+Se o script não está ligado à planilha (caso do `SPREADSHEET_ID`, no A1), esse menu não aparece nela. Sem problema: sem a aba *Layout*, o app usa as plantas padrão, e a primeira mudança no *Construir loja* (que salva sozinho) cria a aba.
 
 > Lembre do aviso do passo B1: o app completo **troca as linhas do "Ciclo exemplo"** pelas da versão nova. Se um ciclo de verdade se chama "Ciclo exemplo", renomeie antes.
 

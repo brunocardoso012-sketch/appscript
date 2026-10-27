@@ -192,7 +192,9 @@
           </div>
           <button id="cnsFechar" class="btn fantasma pequeno" type="button" title="Fechar o modo construção">Fechar</button>
         </header>
-        <p class="cns-dica">Arraste os móveis na planta. <kbd>Delete</kbd> exclui · <kbd>Ctrl</kbd>+<kbd>Z</kbd> desfaz · setas movem.</p>
+        <!-- Só o meio rola: o rodapé (status e botões) fica fixo embaixo, sem cobrir as seções. -->
+        <div class="cns-corpo">
+        <p class="cns-dica">Arraste os móveis na planta. <kbd>Delete</kbd> exclui · <kbd>Ctrl</kbd>+<kbd>Z</kbd> desfaz · setas movem. Tudo é salvo sozinho na planilha.</p>
         <div class="cns-salvos" id="cnsSalvos" hidden>
           <span>A planta começa vazia. Esta planta tem <b id="cnsQtdSalvos"></b> móveis salvos.</span>
           <button id="cnsCarregarSalvos" class="btn pequeno" type="button">Carregar móveis salvos</button>
@@ -286,18 +288,14 @@
           <p class="cns-ajuda">Segure <kbd>Alt</kbd> ao arrastar para mover fino.</p>
         </details>
 
+        </div>
         <footer class="cns-rodape">
-          <span id="cnsStatus"></span>
+          <span id="cnsStatus" role="status" aria-live="polite"></span>
           <div class="linha-botoes">
             <button id="cnsDesfazer" class="btn pequeno" type="button" title="Ctrl+Z">Desfazer</button>
-            <button id="cnsDescartar" class="btn pequeno fantasma" type="button">Descartar</button>
-            <button id="cnsSalvar" class="btn primario" type="button">Salvar planta</button>
+            <button id="cnsDescartar" class="btn pequeno fantasma" type="button" title="Volta a planta ao que era quando você abriu o Construir loja">Desfazer tudo</button>
+            <button id="cnsSalvar" class="btn primario" type="button" title="Cria uma planta nova com este layout ou substitui outra planta">Salvar como…</button>
           </div>
-          <div class="linha-botoes">
-            <button id="cnsBaixarCodigo" class="btn pequeno" type="button">Baixar código da loja</button>
-            <button id="cnsCarregarCodigo" class="btn pequeno fantasma" type="button">Carregar código…</button>
-          </div>
-          <input type="file" id="cnsArquivoCodigo" accept=".json,application/json" hidden>
         </footer>
       </aside>
       <div class="cns-flutuante" id="cnsFlutuante" hidden>
@@ -456,6 +454,7 @@
             <button class="dev-aba" type="button" role="tab" data-dev-aba="plantas" aria-selected="false"><span>02</span>Plantas</button>
             <button class="dev-aba" type="button" role="tab" data-dev-aba="cascata" aria-selected="false"><span>03</span>Cascata entre ERs</button>
             <button class="dev-aba" type="button" role="tab" data-dev-aba="senhas" aria-selected="false"><span>04</span>Senhas</button>
+            <button class="dev-aba" type="button" role="tab" data-dev-aba="planilhas" aria-selected="false"><span>05</span>Planilhas</button>
           </nav>
           <div class="dev-corpo">
             <p class="dev-msg" id="devMsg" role="status" hidden></p>
@@ -518,16 +517,17 @@
             <section class="dev-painel" data-dev-painel="plantas" id="devPlantas" aria-label="Plantas" hidden></section>
             <section class="dev-painel" data-dev-painel="cascata" id="devCascata" aria-label="Cascata entre ERs" hidden></section>
             <section class="dev-painel" data-dev-painel="senhas" id="devSenhas" aria-label="Senhas" hidden></section>
+            <section class="dev-painel" data-dev-painel="planilhas" id="devPlanilhas" aria-label="Planilhas" hidden></section>
           </div>
         </div>
       </div>
     </dialog>
 
-    <!-- Construir loja › Salvar planta: substituir uma planta existente ou criar uma nova (Construtor.html). -->
+    <!-- Construir loja › Salvar como…: criar uma planta nova ou substituir uma existente (Construtor.html). -->
     <dialog id="dlgSalvarPlanta" class="dialogo">
       <form id="formSalvarPlanta">
-        <h2>Salvar planta</h2>
-        <p class="sub">Para onde vai o layout que está na tela?</p>
+        <h2>Salvar como…</h2>
+        <p class="sub">A planta da tela já salva sozinha. Para onde mais vai este layout?</p>
         <label class="opcao"><input type="radio" name="spDestino" value="substituir" checked> <span>Substituir uma planta existente</span></label>
         <label class="campo bloco sp-campo"><select id="spPlanta" aria-label="Planta a substituir"></select></label>
         <label class="opcao"><input type="radio" name="spDestino" value="nova"> <span>Criar uma planta nova</span></label>

@@ -307,6 +307,9 @@
   .dev-lista { display: flex; flex-direction: column; gap: 6px; width: 100%; }
   .dev-troca { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .dev-troca input { flex: 1 1 220px; }
+  .dev-link { color: var(--dev-ambar-2); font-weight: 700; text-decoration: none; word-break: break-word; }
+  .dev-link:hover, .dev-link:focus-visible { text-decoration: underline; outline: none; }
+  .dev-troca input[type="text"] { flex: 1 1 260px; }
   .dev-selo-estado { font: 700 10px var(--dev-mono); letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--dev-borda); color: var(--dev-texto-2); }
   .dev-selo-estado.mudou { color: var(--dev-ambar-2); border-color: #5a4410; background: #1f1708; }
 
@@ -596,7 +599,7 @@
   .construtor {
     flex: 0 0 336px;
     max-height: calc(100vh - 140px);
-    overflow: auto;
+    overflow: hidden; /* só o meio (.cns-corpo) rola; o rodapé fica fixo embaixo */
     background: var(--superficie);
     border: 1px solid var(--borda);
     border-radius: 10px;
@@ -605,8 +608,9 @@
     display: flex;
     flex-direction: column;
   }
-  .construtor > * { padding-left: 14px; padding-right: 14px; }
-  .cns-topo { display: flex; justify-content: space-between; align-items: flex-start; padding-top: 12px; }
+  .construtor > *, .cns-corpo > * { padding-left: 14px; padding-right: 14px; }
+  .construtor > .cns-corpo { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0; overscroll-behavior: contain; }
+  .cns-topo { display: flex; justify-content: space-between; align-items: flex-start; padding-top: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--borda); flex: 0 0 auto; }
   .cns-topo h2 { margin: 0; font-size: 15px; }
   #cnsPlanta { font-size: 12px; color: var(--texto-2); font-weight: 600; }
   .cns-dica, .cns-ajuda { margin: 6px 0 10px; font-size: 12px; color: var(--texto-2); }
@@ -645,12 +649,14 @@
   .construtor .campo-linha input[type="range"] { flex: 1; }
 
   .cns-rodape {
-    position: sticky; bottom: 0; margin-top: auto;
+    flex: 0 0 auto;
     background: var(--superficie); border-top: 1px solid var(--borda);
+    box-shadow: 0 -6px 12px -10px rgba(0, 0, 0, .25);
     padding-top: 10px; padding-bottom: 6px;
   }
   #cnsStatus { display: block; font-size: 12px; font-weight: 600; color: #15803d; margin-bottom: 6px; }
-  #cnsStatus.sujo { color: #b45309; }
+  #cnsStatus.sujo, #cnsStatus.salvando { color: #b45309; }
+  #cnsStatus.erro { color: #b42318; cursor: pointer; }
 
   .cns-flutuante {
     position: absolute; z-index: 5; display: flex; gap: 2px;
@@ -664,7 +670,8 @@
   @media (max-width: 1100px) {
     body.construindo .palco { flex-wrap: wrap; }
     body.construindo .area-planta, body.construindo #slide { width: 100%; }
-    .construtor { flex: 1 1 100%; max-height: none; }
+    .construtor { flex: 1 1 100%; max-height: none; overflow: visible; }
+    .construtor > .cns-corpo { overflow: visible; }
   }
 
   .vazio {

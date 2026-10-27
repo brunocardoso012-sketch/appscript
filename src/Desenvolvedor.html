@@ -11,7 +11,8 @@
  *     etiquetas, abrir no Construir loja, duplicar e apagar);
  *   - Cascata entre ERs: espaços fixos de uma marca em algumas ERs e livres nas outras e espaços que mudam
  *     de nome de uma ER para a seguinte;
- *   - Senhas: as do Desenvolvedor, da Validação e da Construção.
+ *   - Senhas: as do Desenvolvedor, da Validação e da Construção;
+ *   - Planilhas: onde ficam as abas; o layout (aba Layout) pode ficar numa planilha separada (Code.gs).
  *  Enquanto a sessão está aberta, a faixa "Modo desenvolvedor" fica no alto da tela. A senha fica só nesta
  *  aba do navegador (sessionStorage) e o servidor a confere a cada gravação (Desenvolvedor.gs).
  */
@@ -24,6 +25,7 @@ const Desenvolvedor = (() => {
   let config = null; // resposta de getConfigDev (Desenvolvedor.gs)
   let edEspacos = null; // regras em edição (espaços fixos numa ER e livres nas outras)
   let edHeranca = null; // regras em edição (mudanças de espaço entre ERs)
+  let planilhas = null; // resposta de getPlanilhas (Code.gs)
 
   const sessao = {
     ler() { try { return JSON.parse(window.sessionStorage.getItem(CHAVE)); } catch (e) { return null; } },
@@ -154,6 +156,7 @@ const Desenvolvedor = (() => {
       edEspacos = null;
       edHeranca = null;
       desenharTudo();
+      recarregarPlanilhas();
     } catch (e) {
       if (/Senha incorreta/.test((e && e.message) || '')) {
         // A senha mudou em outro lugar: a sessão acaba.
@@ -217,7 +220,7 @@ const Desenvolvedor = (() => {
     const topo = n('div', 'dev-secao-topo', null, corpo);
     const t = n('div', null, null, topo);
     n('h3', 'dev-titulo', 'Plantas', t);
-    n('p', 'dev-nota', 'A ordem abaixo é a ordem da cascata: o que é definido numa ER vale para as seguintes, até a ER ter linha própria. Para criar uma planta, monte no Construir loja e use Salvar planta › Criar uma planta nova.', t);
+    n('p', 'dev-nota', 'A ordem abaixo é a ordem da cascata: o que é definido numa ER vale para as seguintes, até a ER ter linha própria. Para criar uma planta, monte no Construir loja e use Salvar como… › Criar uma planta nova. O Construir loja salva sozinho na aba Layout (veja Planilhas).', t);
     botao('+ Nova planta', 'primario', () => { fecharPainel(); app.novaPlanta(); }, topo);
 
     const lista = n('ol', 'dev-plantas', null, corpo);
@@ -552,6 +555,90 @@ const Desenvolvedor = (() => {
       botao('Voltar às senhas do código', '', async () => {
         aplicar(await mudar({ acao: 'padrao', chave: 'senhas' }, 'Senhas de volta ao padrão do código.'));
       }, a);
+    }
+  }
+
+  /* ------------------------------- planilhas -------------------------------- */
+
+  async function recarregarPlanilhas() {
+    try {
+      planilhas = await app.chamar('getPlanilhas', acesso);
+    } catch (e) {
+      planilhas = { erro: (e && e.message) || String(e) };
+    }
+    desenharPlanilhas();
+  }
+
+  async function mudarPlanilha(pedido, ok) {
+    mensagem('');
+    app.carregando(true, 'Mudando a planilha do layout…');
+    try {
+      planilhas = await app.chamar('mudarPlanilhaLayout', acesso, pedido);
+      await app.carregar({ planta: app.estado.planta });
+      desenharTudo();
+      desenharPlanilhas();
+      mensagem(ok);
+    } catch (e) {
+      mensagem((e && e.message) || String(e), true);
+    } finally {
+      app.carregando(false);
+    }
+  }
+
+  function linkPlanilha(info, pai) {
+    const a = n('a', 'dev-link', info.nome || 'Abrir planilha', pai);
+    a.href = info.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    return a;
+  }
+
+  function desenharPlanilhas() {
+    const corpo = $('devPlanilhas');
+    corpo.innerHTML = '';
+    n('h3', 'dev-titulo', 'Planilhas', corpo);
+    n('p', 'dev-nota', 'Um Apps Script pode ler e gravar em mais de uma planilha do Google. O layout de todas as plantas (aba Layout: a posição e o tamanho de cada móvel, a largura do slide e o tamanho e a posição das etiquetas) pode ficar numa planilha só dele, para não pesar a principal. Os ciclos, os comentários, os ciclos em construção e a configuração do app continuam na principal. O Construir loja e o Ajustar etiquetas gravam sozinhos onde o layout estiver.', corpo);
+    if (!planilhas) { n('p', 'dev-vazio', 'Carregando…', corpo); return; }
+    if (planilhas.web) { n('p', 'dev-vazio', 'Na versão web os dados ficam neste navegador; as planilhas só existem no Apps Script.', corpo); return; }
+    if (planilhas.erro) { n('p', 'dev-msg erro', planilhas.erro, corpo); return; }
+
+    const principal = n('div', 'dev-regra', null, corpo);
+    n('span', 'dev-rotulo', 'Planilha principal', principal);
+    linkPlanilha(planilhas.principal, principal);
+    n('p', 'dev-resumo', planilhas.layout ? 'Movimentos, Painéis, Tipos de movimento, Produtos, Comentários, Antecipações, Prateleiras, rascunhos e Config do app.' : 'Todas as abas, inclusive a do layout.', principal);
+
+    const lay = n('div', 'dev-regra', null, corpo);
+    n('span', 'dev-rotulo', 'Layout das plantas', lay);
+    if (planilhas.layout && planilhas.layout.erro) {
+      n('p', 'dev-msg erro', planilhas.layout.erro, lay);
+    } else if (planilhas.layout) {
+      linkPlanilha(planilhas.layout, lay);
+      n('p', 'dev-resumo', 'Numa planilha separada (aba Layout). Na principal, a aba antiga ficou como "Layout (antigo)" e não é mais lida.', lay);
+    } else {
+      n('p', 'dev-resumo', 'Na planilha principal (aba Layout).', lay);
+    }
+    const acoes = n('div', 'dev-planta-acoes', null, lay);
+    if (!planilhas.layout) {
+      botao('Criar uma planilha só para o layout', 'primario', () => {
+        if (window.confirm('Criar a planilha "Plano de Varejo – Layout das plantas" no Drive de quem publicou o app e levar o layout para ela?')) {
+          mudarPlanilha({ acao: 'criar' }, 'Layout levado para a planilha nova.');
+        }
+      }, acoes);
+    }
+    const vincular = n('div', 'dev-troca', null, lay);
+    const url = entrada(vincular, '', 'text', { placeholder: 'Link de uma planilha que já existe (https://docs.google.com/spreadsheets/d/…)' });
+    url.setAttribute('aria-label', 'Link da planilha do layout');
+    botao(planilhas.layout ? 'Trocar por esta planilha' : 'Usar esta planilha', '', () => {
+      if (!url.value.trim()) { url.focus(); return; }
+      mudarPlanilha({ acao: 'vincular', url: url.value.trim() }, 'O layout agora fica na planilha escolhida.');
+    }, vincular);
+    n('p', 'dev-nota', 'Ao usar uma planilha que já existe: se ela já tem a aba Layout com móveis, o app passa a usar o que está nela; senão, ela recebe o layout atual. A conta que publicou o app precisa poder editar a planilha.', lay);
+    if (planilhas.layout) {
+      botao('Voltar o layout para a planilha principal', 'perigo', () => {
+        if (window.confirm('Copiar o layout para a aba Layout da planilha principal e deixar de usar a planilha separada? (A planilha separada não é apagada.)')) {
+          mudarPlanilha({ acao: 'voltar' }, 'O layout voltou para a planilha principal.');
+        }
+      }, acoes);
     }
   }
 

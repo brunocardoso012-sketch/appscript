@@ -443,6 +443,41 @@ test('desenvolvedor: plantas (criar, renomear, ordenar, apagar), regras da casca
   assert.throws(() => run("salvarConfigDev({ senha: 'nova-dev' }, { acao: 'config', chave: 'senhas', valor: { DESENVOLVEDOR: 'a', VALIDADOR: 'bbbb', CONSTRUTOR: 'cccc' } })"), /4 caracteres/);
 });
 
+test('planilha separada para o layout: criar, ler e gravar nela, vincular e voltar para a principal', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  run('configurarPlanilha()');
+  assert.throws(() => run("getPlanilhas({ senha: 'x' })"), /Senha incorreta/);
+  assert.equal(run(`getPlanilhas(${DEV})`).layout, null, 'o layout começa na principal');
+
+  const info = run(`mudarPlanilhaLayout(${DEV}, { acao: 'criar' })`);
+  assert.equal(info.layout.id, 'EXTRA1');
+  const separada = f.outras.EXTRA1;
+  assert.ok(separada.getSheetByName('Layout').getLastRow() > 10, 'layout copiado para a planilha nova');
+  assert.ok(!separada.getSheetByName('Página1'), 'sem a aba vazia da planilha nova');
+  assert.ok(!f.planilha.getSheetByName('Layout'), 'a principal não tem mais a aba Layout');
+  assert.ok(f.planilha.getSheetByName('Layout (antigo)'), 'a antiga fica guardada com outro nome');
+  assert.deepEqual(run('getDados()').plantas.map((p) => p.id), ['01', '02', '03', '04'], 'lê o layout da planilha separada');
+
+  // Construir loja e Ajustar etiquetas gravam na planilha separada.
+  const layout = "{ loja: { largura: 10, profundidade: 8, alturaParede: 3 }, moveis: [{ id: 'PIRAMIDE 1', tipo: 'PIRAMIDE', x: 1, y: 1, w: 1, d: 1, h: 2 }] }";
+  run(`salvarLayout(${DEV}, '01', ${layout})`);
+  run("salvarAjustesEtiquetas('01', { 'PIRAMIDE 1': { x: 5, y: 6 } })");
+  assert.ok(!f.planilha.getSheetByName('Layout'));
+  const p1 = run('getDados()').plantas.find((p) => p.id === '01');
+  assert.deepEqual(p1.moveis.map((m) => [m.id, m.ajusteX, m.ajusteY]), [['PIRAMIDE 1', 5, 6]]);
+
+  // Vincular: link inválido, a própria principal e uma planilha que já tem o layout (vale o que está nela).
+  assert.throws(() => run(`mudarPlanilhaLayout(${DEV}, { acao: 'vincular', url: 'abc' })`), /Cole o link/);
+  assert.throws(() => run(`mudarPlanilhaLayout(${DEV}, { acao: 'vincular', url: 'https://docs.google.com/spreadsheets/d/TESTE00000000000000000000/edit' })`), /principal/);
+
+  // Voltar: o layout (com a mudança) volta para a principal.
+  run(`mudarPlanilhaLayout(${DEV}, { acao: 'voltar' })`);
+  assert.equal(run(`getPlanilhas(${DEV})`).layout, null);
+  assert.ok(f.planilha.getSheetByName('Layout'));
+  assert.equal(run('getDados()').plantas.find((p) => p.id === '01').moveis.length, 1);
+});
+
 test('validação: senha por papel, quem pode o quê e aba Comentários', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);

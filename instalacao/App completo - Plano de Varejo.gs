@@ -47,6 +47,8 @@ const CONFIG = {
   MAX_LINHAS_IMPORTACAO: 10000,
   /** Usado quando o script NÃO está vinculado a uma planilha (projeto standalone). */
   PROPRIEDADE_PLANILHA: 'SPREADSHEET_ID',
+  /** Planilha separada só com a aba Layout (Desenvolvedor › Planilhas); sem ela, o Layout fica na principal. */
+  PROPRIEDADE_PLANILHA_LAYOUT: 'LAYOUT_SPREADSHEET_ID',
   /** Planta coringa: linhas com esse valor valem para todas as plantas. */
   PLANTA_TODAS: 'TODAS',
 };
@@ -1199,7 +1201,7 @@ function getDados() {
   } catch (e) {
     return { precisaConfigurar: true, mensagem: e.message };
   }
-  if (ss.getSheetByName(CONFIG.ABAS.LAYOUT)) atualizarModelosNaPlanilha_(ss);
+  if (abaDe_(ss, CONFIG.ABAS.LAYOUT)) atualizarModelosNaPlanilha_(ss);
   const dados = montarDados_(
     lerAba_(ss, CONFIG.ABAS.LAYOUT, false),
     lerAba_(ss, CONFIG.ABAS.MOVIMENTOS, true),
@@ -1344,7 +1346,7 @@ function configurarPlanilha() {
   const criadas = comTrava_(function () {
     const lista = [];
     // Planilha nova já nasce com os modelos atuais.
-    if (!ss.getSheetByName(CONFIG.ABAS.LAYOUT)) gravarVersoesModelo_(versoesAtuais_());
+    if (!abaDe_(ss, CONFIG.ABAS.LAYOUT)) gravarVersoesModelo_(versoesAtuais_());
     if (criarSeVazia_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), valoresLayoutPadrao_())) {
       lista.push(CONFIG.ABAS.LAYOUT);
     }
@@ -1391,7 +1393,7 @@ function importarPlanilha(acesso, payload) {
   const resultado = { movimentos: 0, paineis: 0, tipos: 0, layout: 0, produtos: 0 };
   comTrava_(function () {
     prep.preparados.forEach(function (p) {
-      const sh = ss.getSheetByName(p.bloco.aba);
+      const sh = abaDe_(ss, p.bloco.aba);
       const existentes = sh ? sh.getDataRange().getValues() : [];
       escreverAba_(ss, p.bloco.aba, p.bloco.colunas, mesclarLinhas_(existentes, p.linhas, p.bloco.colunas, p.bloco.chave));
       resultado[p.bloco.campo] = p.linhas.length;
@@ -1483,10 +1485,10 @@ function salvarAjustesEtiquetas(planta, ajustes) {
   if (!planta || !ajustes || typeof ajustes !== 'object') throw new Error('Dados inválidos.');
   const ss = planilha_();
   return comTrava_(function () {
-    if (!ss.getSheetByName(CONFIG.ABAS.LAYOUT)) {
+    if (!abaDe_(ss, CONFIG.ABAS.LAYOUT)) {
       escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), valoresLayoutPadrao_());
     }
-    const sh = ss.getSheetByName(CONFIG.ABAS.LAYOUT);
+    const sh = abaDe_(ss, CONFIG.ABAS.LAYOUT);
     const valores = sh.getDataRange().getValues();
     const cab = valores[0].map(chave_);
     const cols = colunasLayout_();
@@ -1680,7 +1682,7 @@ function atualizarModelosNaPlanilha_(ss) {
   if (!modeloPendente_(versoes)) return;
   comTrava_(function () {
     const abas = {
-      layout: ss.getSheetByName(CONFIG.ABAS.LAYOUT).getDataRange().getValues(),
+      layout: abaDe_(ss, CONFIG.ABAS.LAYOUT).getDataRange().getValues(),
       movimentos: ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS) ? ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS).getDataRange().getValues() : [],
       paineis: ss.getSheetByName(CONFIG.ABAS.PAINEIS) ? ss.getSheetByName(CONFIG.ABAS.PAINEIS).getDataRange().getValues() : [],
       tipos: ss.getSheetByName(CONFIG.ABAS.TIPOS) ? ss.getSheetByName(CONFIG.ABAS.TIPOS).getDataRange().getValues() : [],
@@ -1700,6 +1702,119 @@ function planilha_() {
   return ss;
 }
 
+/* --------------------- planilha separada para o layout -------------------- */
+/*
+ * Um Apps Script pode ler e gravar em quantas planilhas quiser (SpreadsheetApp.openById). A aba Layout (as
+ * posições e os tamanhos dos móveis de todas as plantas) pode ficar numa planilha só dela: o ID fica na
+ * propriedade do script CONFIG.PROPRIEDADE_PLANILHA_LAYOUT. lerAba_, escreverAba_ e criarSeVazia_ mandam a
+ * aba Layout para lá sozinhas; as outras abas continuam na planilha principal.
+ */
+
+let planilhaLayoutAberta_ = null;
+
+/** A planilha em que a aba fica: a do layout (se houver uma separada) para a aba Layout; a principal para as outras. */
+function ssDaAba_(ss, nome) {
+  if (nome !== CONFIG.ABAS.LAYOUT) return ss;
+  const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT);
+  if (!id) return ss;
+  if (!planilhaLayoutAberta_ || planilhaLayoutAberta_.getId() !== id) {
+    try {
+      planilhaLayoutAberta_ = SpreadsheetApp.openById(id);
+    } catch (e) {
+      throw new Error('Não consegui abrir a planilha do layout (ID ' + id + '). Confira se ela existe e se a conta que publicou o app ' +
+        'tem acesso; ou, em Desenvolvedor › Planilhas, volte o layout para a planilha principal.');
+    }
+  }
+  return planilhaLayoutAberta_;
+}
+
+/** A aba (na planilha certa), ou null. */
+function abaDe_(ss, nome) {
+  return ssDaAba_(ss, nome).getSheetByName(nome);
+}
+
+/** ID de uma planilha a partir do link (…/spreadsheets/d/ID/edit) ou do próprio ID. */
+function idDePlanilha_(texto) {
+  const t = String(texto || '').trim();
+  const m = /\/d\/([a-zA-Z0-9_-]{20,})/.exec(t);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(t)) return t;
+  throw new Error('Cole o link da planilha (https://docs.google.com/spreadsheets/d/…) ou o ID dela.');
+}
+
+/** Onde está cada coisa: a planilha principal e a do layout (null = o Layout está na principal). */
+function infoPlanilhas_(ss) {
+  const info = { principal: { url: ss.getUrl(), nome: ss.getName() }, layout: null };
+  const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT);
+  if (!id) return info;
+  try {
+    const l = ssDaAba_(ss, CONFIG.ABAS.LAYOUT);
+    info.layout = { id: id, url: l.getUrl(), nome: l.getName() };
+  } catch (e) {
+    info.layout = { id: id, erro: e.message };
+  }
+  return info;
+}
+
+/** Desenvolvedor › Planilhas: onde ficam as abas do app. */
+function getPlanilhas(acesso) {
+  conferirDesenvolvedor_(acesso);
+  return infoPlanilhas_(planilha_());
+}
+
+/**
+ * Leva a aba Layout para uma planilha separada, ou a traz de volta para a principal.
+ *  - { acao: 'criar' }          cria uma planilha nova ("Plano de Varejo – Layout das plantas") com o layout atual;
+ *  - { acao: 'vincular', url }  usa uma planilha que já existe: se ela já tem a aba Layout com móveis, vale o que
+ *                               está nela; senão, recebe o layout atual;
+ *  - { acao: 'voltar' }         copia o layout da planilha separada para a principal e desliga a separada.
+ * Na principal, a aba Layout antiga ganha o nome "Layout (antigo)" (o app não lê mais) ao separar.
+ */
+function mudarPlanilhaLayout(acesso, pedido) {
+  conferirDesenvolvedor_(acesso);
+  const ss = planilha_();
+  const props = PropertiesService.getScriptProperties();
+  const p = pedido || {};
+  return comTrava_(function () {
+    const atual = lerAba_(ss, CONFIG.ABAS.LAYOUT, false);
+    const layout = atual && atual.length > 1 ? atual : valoresLayoutPadrao_();
+    if (p.acao === 'criar' || p.acao === 'vincular') {
+      let destino;
+      if (p.acao === 'criar') {
+        destino = SpreadsheetApp.create('Plano de Varejo – Layout das plantas');
+      } else {
+        const id = idDePlanilha_(p.url);
+        try {
+          destino = SpreadsheetApp.openById(id);
+        } catch (e) {
+          throw new Error('Não consegui abrir essa planilha. Confira o link e se a conta que publicou o app tem acesso de edição a ela.');
+        }
+      }
+      if (destino.getId() === ss.getId()) throw new Error('Essa é a planilha principal. Escolha outra planilha para o layout.');
+      const aba = destino.getSheetByName(CONFIG.ABAS.LAYOUT);
+      const jaTem = !!(aba && aba.getLastRow() > 1);
+      const velha = ss.getSheetByName(CONFIG.ABAS.LAYOUT);
+      props.setProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT, destino.getId());
+      planilhaLayoutAberta_ = destino;
+      if (!jaTem) escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), layout);
+      if (p.acao === 'criar') removerAbaPadraoVazia_(destino);
+      if (velha) {
+        let nome = 'Layout (antigo)';
+        for (let i = 2; ss.getSheetByName(nome); i++) nome = 'Layout (antigo ' + i + ')';
+        velha.setName(nome);
+      }
+    } else if (p.acao === 'voltar') {
+      if (!props.getProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT)) throw new Error('O layout já está na planilha principal.');
+      props.deleteProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT);
+      planilhaLayoutAberta_ = null;
+      escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), layout);
+    } else {
+      throw new Error('Ação desconhecida.');
+    }
+    return infoPlanilhas_(ss);
+  });
+}
+
 function abrirPlanilha_() {
   const ativa = SpreadsheetApp.getActiveSpreadsheet();
   if (ativa) return ativa;
@@ -1716,7 +1831,7 @@ function abrirPlanilha_() {
  * "10/2026" vire data ou "01" vire 1). Retorna null se a aba não existe.
  */
 function lerAba_(ss, nome, comoTexto) {
-  const sh = ss.getSheetByName(nome);
+  const sh = abaDe_(ss, nome);
   if (!sh || sh.getLastRow() < 1) return sh ? [] : null;
   const range = sh.getDataRange();
   return comoTexto ? range.getDisplayValues() : range.getValues();
@@ -1740,7 +1855,7 @@ function comTrava_(fn) {
 
 /** Cria/preenche a aba apenas se ela não existir ou estiver vazia. */
 function criarSeVazia_(ss, nome, colunas, valores) {
-  const sh = ss.getSheetByName(nome);
+  const sh = abaDe_(ss, nome);
   if (sh && sh.getLastRow() > 1) return false;
   escreverAba_(ss, nome, colunas, valores);
   return true;
@@ -1748,7 +1863,8 @@ function criarSeVazia_(ss, nome, colunas, valores) {
 
 /** Substitui todo o conteúdo da aba por "valores" (com cabeçalho) e formata. */
 function escreverAba_(ss, nome, colunas, valores) {
-  const sh = ss.getSheetByName(nome) || ss.insertSheet(nome);
+  const alvo = ssDaAba_(ss, nome);
+  const sh = alvo.getSheetByName(nome) || alvo.insertSheet(nome);
   const largura = valores[0].length;
   const linhas = valores.map(function (row) {
     const r = row.slice(0, largura);
@@ -1873,8 +1989,9 @@ function removerAbaPadraoVazia_(ss) {
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
  *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270),
  *          (ajuste das pilhas de etiquetas por espaço: { 'PONTA-A': {x, y} })]
- *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato; o botão "Baixar
- *  posições" (modo ajuste das etiquetas) gera os ajustes de etiqueta (índices 9, 10 e 13) e o tamanho.
+ *  Este é só o modelo inicial: depois, o layout de cada planta fica na aba Layout (o Construir loja salva
+ *  sozinho nela). O botão "Baixar posições" (modo ajuste das etiquetas) gera os ajustes de etiqueta
+ *  (índices 9, 10 e 13) e o tamanho, no formato daqui.
  */
 
 /**
@@ -4279,6 +4396,9 @@ const PAGINA_ = [
   "  .dev-lista { display: flex; flex-direction: column; gap: 6px; width: 100%; }",
   "  .dev-troca { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }",
   "  .dev-troca input { flex: 1 1 220px; }",
+  "  .dev-link { color: var(--dev-ambar-2); font-weight: 700; text-decoration: none; word-break: break-word; }",
+  "  .dev-link:hover, .dev-link:focus-visible { text-decoration: underline; outline: none; }",
+  "  .dev-troca input[type=\"text\"] { flex: 1 1 260px; }",
   "  .dev-selo-estado { font: 700 10px var(--dev-mono); letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--dev-borda); color: var(--dev-texto-2); }",
   "  .dev-selo-estado.mudou { color: var(--dev-ambar-2); border-color: #5a4410; background: #1f1708; }",
   "",
@@ -4568,7 +4688,7 @@ const PAGINA_ = [
   "  .construtor {",
   "    flex: 0 0 336px;",
   "    max-height: calc(100vh - 140px);",
-  "    overflow: auto;",
+  "    overflow: hidden; /* só o meio (.cns-corpo) rola; o rodapé fica fixo embaixo */",
   "    background: var(--superficie);",
   "    border: 1px solid var(--borda);",
   "    border-radius: 10px;",
@@ -4577,8 +4697,9 @@ const PAGINA_ = [
   "    display: flex;",
   "    flex-direction: column;",
   "  }",
-  "  .construtor > * { padding-left: 14px; padding-right: 14px; }",
-  "  .cns-topo { display: flex; justify-content: space-between; align-items: flex-start; padding-top: 12px; }",
+  "  .construtor > *, .cns-corpo > * { padding-left: 14px; padding-right: 14px; }",
+  "  .construtor > .cns-corpo { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0; overscroll-behavior: contain; }",
+  "  .cns-topo { display: flex; justify-content: space-between; align-items: flex-start; padding-top: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--borda); flex: 0 0 auto; }",
   "  .cns-topo h2 { margin: 0; font-size: 15px; }",
   "  #cnsPlanta { font-size: 12px; color: var(--texto-2); font-weight: 600; }",
   "  .cns-dica, .cns-ajuda { margin: 6px 0 10px; font-size: 12px; color: var(--texto-2); }",
@@ -4617,12 +4738,14 @@ const PAGINA_ = [
   "  .construtor .campo-linha input[type=\"range\"] { flex: 1; }",
   "",
   "  .cns-rodape {",
-  "    position: sticky; bottom: 0; margin-top: auto;",
+  "    flex: 0 0 auto;",
   "    background: var(--superficie); border-top: 1px solid var(--borda);",
+  "    box-shadow: 0 -6px 12px -10px rgba(0, 0, 0, .25);",
   "    padding-top: 10px; padding-bottom: 6px;",
   "  }",
   "  #cnsStatus { display: block; font-size: 12px; font-weight: 600; color: #15803d; margin-bottom: 6px; }",
-  "  #cnsStatus.sujo { color: #b45309; }",
+  "  #cnsStatus.sujo, #cnsStatus.salvando { color: #b45309; }",
+  "  #cnsStatus.erro { color: #b42318; cursor: pointer; }",
   "",
   "  .cns-flutuante {",
   "    position: absolute; z-index: 5; display: flex; gap: 2px;",
@@ -4636,7 +4759,8 @@ const PAGINA_ = [
   "  @media (max-width: 1100px) {",
   "    body.construindo .palco { flex-wrap: wrap; }",
   "    body.construindo .area-planta, body.construindo #slide { width: 100%; }",
-  "    .construtor { flex: 1 1 100%; max-height: none; }",
+  "    .construtor { flex: 1 1 100%; max-height: none; overflow: visible; }",
+  "    .construtor > .cns-corpo { overflow: visible; }",
   "  }",
   "",
   "  .vazio {",
@@ -5495,7 +5619,9 @@ const PAGINA_ = [
   "          </div>",
   "          <button id=\"cnsFechar\" class=\"btn fantasma pequeno\" type=\"button\" title=\"Fechar o modo construção\">Fechar</button>",
   "        </header>",
-  "        <p class=\"cns-dica\">Arraste os móveis na planta. <kbd>Delete</kbd> exclui · <kbd>Ctrl</kbd>+<kbd>Z</kbd> desfaz · setas movem.</p>",
+  "        <!-- Só o meio rola: o rodapé (status e botões) fica fixo embaixo, sem cobrir as seções. -->",
+  "        <div class=\"cns-corpo\">",
+  "        <p class=\"cns-dica\">Arraste os móveis na planta. <kbd>Delete</kbd> exclui · <kbd>Ctrl</kbd>+<kbd>Z</kbd> desfaz · setas movem. Tudo é salvo sozinho na planilha.</p>",
   "        <div class=\"cns-salvos\" id=\"cnsSalvos\" hidden>",
   "          <span>A planta começa vazia. Esta planta tem <b id=\"cnsQtdSalvos\"></b> móveis salvos.</span>",
   "          <button id=\"cnsCarregarSalvos\" class=\"btn pequeno\" type=\"button\">Carregar móveis salvos</button>",
@@ -5589,18 +5715,14 @@ const PAGINA_ = [
   "          <p class=\"cns-ajuda\">Segure <kbd>Alt</kbd> ao arrastar para mover fino.</p>",
   "        </details>",
   "",
+  "        </div>",
   "        <footer class=\"cns-rodape\">",
-  "          <span id=\"cnsStatus\"></span>",
+  "          <span id=\"cnsStatus\" role=\"status\" aria-live=\"polite\"></span>",
   "          <div class=\"linha-botoes\">",
   "            <button id=\"cnsDesfazer\" class=\"btn pequeno\" type=\"button\" title=\"Ctrl+Z\">Desfazer</button>",
-  "            <button id=\"cnsDescartar\" class=\"btn pequeno fantasma\" type=\"button\">Descartar</button>",
-  "            <button id=\"cnsSalvar\" class=\"btn primario\" type=\"button\">Salvar planta</button>",
+  "            <button id=\"cnsDescartar\" class=\"btn pequeno fantasma\" type=\"button\" title=\"Volta a planta ao que era quando você abriu o Construir loja\">Desfazer tudo</button>",
+  "            <button id=\"cnsSalvar\" class=\"btn primario\" type=\"button\" title=\"Cria uma planta nova com este layout ou substitui outra planta\">Salvar como…</button>",
   "          </div>",
-  "          <div class=\"linha-botoes\">",
-  "            <button id=\"cnsBaixarCodigo\" class=\"btn pequeno\" type=\"button\">Baixar código da loja</button>",
-  "            <button id=\"cnsCarregarCodigo\" class=\"btn pequeno fantasma\" type=\"button\">Carregar código…</button>",
-  "          </div>",
-  "          <input type=\"file\" id=\"cnsArquivoCodigo\" accept=\".json,application/json\" hidden>",
   "        </footer>",
   "      </aside>",
   "      <div class=\"cns-flutuante\" id=\"cnsFlutuante\" hidden>",
@@ -5759,6 +5881,7 @@ const PAGINA_ = [
   "            <button class=\"dev-aba\" type=\"button\" role=\"tab\" data-dev-aba=\"plantas\" aria-selected=\"false\"><span>02</span>Plantas</button>",
   "            <button class=\"dev-aba\" type=\"button\" role=\"tab\" data-dev-aba=\"cascata\" aria-selected=\"false\"><span>03</span>Cascata entre ERs</button>",
   "            <button class=\"dev-aba\" type=\"button\" role=\"tab\" data-dev-aba=\"senhas\" aria-selected=\"false\"><span>04</span>Senhas</button>",
+  "            <button class=\"dev-aba\" type=\"button\" role=\"tab\" data-dev-aba=\"planilhas\" aria-selected=\"false\"><span>05</span>Planilhas</button>",
   "          </nav>",
   "          <div class=\"dev-corpo\">",
   "            <p class=\"dev-msg\" id=\"devMsg\" role=\"status\" hidden></p>",
@@ -5821,16 +5944,17 @@ const PAGINA_ = [
   "            <section class=\"dev-painel\" data-dev-painel=\"plantas\" id=\"devPlantas\" aria-label=\"Plantas\" hidden></section>",
   "            <section class=\"dev-painel\" data-dev-painel=\"cascata\" id=\"devCascata\" aria-label=\"Cascata entre ERs\" hidden></section>",
   "            <section class=\"dev-painel\" data-dev-painel=\"senhas\" id=\"devSenhas\" aria-label=\"Senhas\" hidden></section>",
+  "            <section class=\"dev-painel\" data-dev-painel=\"planilhas\" id=\"devPlanilhas\" aria-label=\"Planilhas\" hidden></section>",
   "          </div>",
   "        </div>",
   "      </div>",
   "    </dialog>",
   "",
-  "    <!-- Construir loja › Salvar planta: substituir uma planta existente ou criar uma nova (Construtor.html). -->",
+  "    <!-- Construir loja › Salvar como…: criar uma planta nova ou substituir uma existente (Construtor.html). -->",
   "    <dialog id=\"dlgSalvarPlanta\" class=\"dialogo\">",
   "      <form id=\"formSalvarPlanta\">",
-  "        <h2>Salvar planta</h2>",
-  "        <p class=\"sub\">Para onde vai o layout que está na tela?</p>",
+  "        <h2>Salvar como…</h2>",
+  "        <p class=\"sub\">A planta da tela já salva sozinha. Para onde mais vai este layout?</p>",
   "        <label class=\"opcao\"><input type=\"radio\" name=\"spDestino\" value=\"substituir\" checked> <span>Substituir uma planta existente</span></label>",
   "        <label class=\"campo bloco sp-campo\"><select id=\"spPlanta\" aria-label=\"Planta a substituir\"></select></label>",
   "        <label class=\"opcao\"><input type=\"radio\" name=\"spDestino\" value=\"nova\"> <span>Criar uma planta nova</span></label>",
@@ -8794,8 +8918,8 @@ const PAGINA_ = [
   " *  - Barra flutuante sobre o selecionado: Girar · Duplicar · Excluir.",
   " *  - Atalhos: setas movem, Delete exclui, Ctrl+Z desfaz, Ctrl+D duplica,",
   " *    R gira, Esc desmarca.",
-  " *  - \"Salvar planta\" grava na aba Layout; \"Baixar código da loja\" gera o",
-  " *    layout de todas as plantas no formato de src/Layouts.gs.",
+  " *  - Cada mudança é gravada sozinha na aba Layout (um instante depois; pode estar numa",
+  " *    planilha separada, veja Code.gs). \"Salvar como…\" cria uma planta nova ou substitui outra.",
   " */",
   "const Construtor = (() => {",
   "  const COS30 = Math.cos(Math.PI / 6);",
@@ -8873,6 +8997,16 @@ const PAGINA_ = [
   "    referencias: {}, // planta → {src, opacidade, zoom, dx, dy}",
   "    escala: 1,",
   "    quadro: 0,",
+  "    // Salvamento automático: cada mudança sobe a versão; ela vai para a aba Layout um instante depois.",
+  "    versao: 0, // mudanças feitas nesta planta desde que ela abriu no editor",
+  "    versaoSalva: 0, // até qual versão já foi gravada",
+  "    sessao: 0, // muda a cada planta carregada (uma gravação antiga não marca a planta nova como salva)",
+  "    timer: 0,",
+  "    salvando: false,",
+  "    repetir: false,",
+  "    erroSalvar: '',",
+  "    arrastando: false,",
+  "    inicial: null, // a planta como estava ao abrir no editor (para \"Desfazer tudo\")",
   "  };",
   "  let app = null;",
   "  const $ = (id) => document.getElementById(id);",
@@ -8881,7 +9015,8 @@ const PAGINA_ = [
   "  /** Nome da planta (mesma regra de nomePlanta_ no Code.gs). */",
   "  const nomePlanta = (id) => (app.estado.dados.config.nomesPlantas || {})[id] || 'PLANTA ' + id;",
   "  const nomeTipo = (t) => (TIPOS[t] ? TIPOS[t].nome : t.charAt(0) + t.slice(1).toLowerCase().replace(/_/g, ' '));",
-  "  const sujo = () => c.nova || c.historico.length > 0;",
+  "  /** Há mudanças que ainda não estão na planilha (ou a planta nova ainda não tem nome)? */",
+  "  const sujo = () => c.nova || c.versao !== c.versaoSalva;",
   "",
   "  /* ------------------------------ estado ---------------------------------- */",
   "",
@@ -8896,6 +9031,16 @@ const PAGINA_ = [
   "  function aposDesenhar(r) {",
   "    if (r && r.escala) c.escala = r.escala;",
   "    posicionarBarra();",
+  "    ajustarAltura();",
+  "  }",
+  "",
+  "  /** O menu lateral vai do topo dele até o fim da tela, para o rodapé (status e botões) ficar sempre à vista. */",
+  "  function ajustarAltura() {",
+  "    const painel = $('painelConstrutor');",
+  "    if (!c.ativo || painel.hidden) return;",
+  "    if (window.matchMedia('(max-width: 1100px)').matches) { painel.style.maxHeight = ''; return; }",
+  "    const topo = Math.max(0, painel.getBoundingClientRect().top);",
+  "    painel.style.maxHeight = Math.max(320, window.innerHeight - topo - 12) + 'px';",
   "  }",
   "",
   "  const movelSelecionado = () => (c.planta ? c.planta.moveis.find((m) => m.id === c.selecionado) : null);",
@@ -8904,7 +9049,62 @@ const PAGINA_ = [
   "  function registrar() {",
   "    c.historico.push(JSON.stringify({ planta: c.planta, selecionado: c.selecionado }));",
   "    if (c.historico.length > MAX_HISTORICO) c.historico.shift();",
+  "    mudou();",
+  "  }",
+  "",
+  "  /* -------------------------- salvamento automático ------------------------ */",
+  "",
+  "  const ESPERA_SALVAR = 1200; // ms depois da última mudança",
+  "",
+  "  /** Marca uma mudança (a alteração em si acontece logo depois, no mesmo passo) e agenda a gravação. */",
+  "  function mudou() {",
+  "    c.versao++;",
+  "    agendarSalvar(ESPERA_SALVAR);",
   "    atualizarStatus();",
+  "  }",
+  "",
+  "  function agendarSalvar(ms) {",
+  "    clearTimeout(c.timer);",
+  "    c.timer = setTimeout(salvarAuto, ms);",
+  "  }",
+  "",
+  "  /**",
+  "   * Grava a planta da tela na aba Layout (salvarLayout), uma gravação por vez. A planta nova só é gravada",
+  "   * depois de ganhar um nome (Salvar como…). A planta salva também é atualizada nos dados do app.",
+  "   */",
+  "  async function salvarAuto() {",
+  "    clearTimeout(c.timer);",
+  "    c.timer = 0;",
+  "    if (!c.ativo || !c.planta || c.nova || c.versao === c.versaoSalva) return;",
+  "    if (c.arrastando) { agendarSalvar(400); return; }",
+  "    if (c.salvando) { c.repetir = true; return; }",
+  "    const sessao = c.sessao;",
+  "    const versao = c.versao;",
+  "    const planta = clonar(c.planta);",
+  "    c.salvando = true;",
+  "    c.erroSalvar = '';",
+  "    atualizarStatus();",
+  "    try {",
+  "      await app.chamar('salvarLayout', app.acesso(), planta.id, layoutDe(planta));",
+  "      if (sessao === c.sessao) c.versaoSalva = Math.max(c.versaoSalva, versao);",
+  "      const lista = app.estado.dados.plantas;",
+  "      const i = lista.findIndex((p) => p.id === planta.id);",
+  "      if (i >= 0) lista[i] = Object.assign({}, lista[i], { loja: planta.loja, moveis: planta.moveis });",
+  "    } catch (e) {",
+  "      if (sessao === c.sessao) c.erroSalvar = (e && e.message) || String(e);",
+  "    } finally {",
+  "      c.salvando = false;",
+  "      if (c.repetir || (sessao === c.sessao && c.versao !== c.versaoSalva && !c.erroSalvar)) {",
+  "        c.repetir = false;",
+  "        agendarSalvar(200);",
+  "      }",
+  "      atualizarStatus();",
+  "    }",
+  "  }",
+  "",
+  "  /** Grava já o que estiver pendente (ao fechar o editor ou trocar de planta). */",
+  "  function salvarPendente() {",
+  "    if (c.timer || (c.versao !== c.versaoSalva && !c.salvando)) salvarAuto();",
   "  }",
   "",
   "  function desfazer() {",
@@ -8913,6 +9113,7 @@ const PAGINA_ = [
   "    const o = JSON.parse(foto);",
   "    c.planta = o.planta;",
   "    c.selecionado = o.selecionado;",
+  "    mudou();",
   "    preencherTudo();",
   "    app.desenhar();",
   "  }",
@@ -8922,20 +9123,34 @@ const PAGINA_ = [
   "    c.quadro = requestAnimationFrame(() => app.desenhar());",
   "  }",
   "",
-  "  /** Pode trocar de planta / sair? (pergunta se há alterações não salvas) */",
+  "  /**",
+  "   * Pode trocar de planta / sair? O que está pendente é gravado na hora; só pergunta se a gravação falhou",
+  "   * ou se a planta nova ainda não foi criada (sem nome).",
+  "   */",
   "  function podeSair() {",
-  "    return !c.ativo || !sujo() || window.confirm('Há alterações não salvas no layout desta planta. Descartar?');",
+  "    if (!c.ativo) return true;",
+  "    if (c.nova) return window.confirm('A planta nova ainda não foi criada (use Salvar como… para dar o nome). Descartar?');",
+  "    if (c.erroSalvar && c.versao !== c.versaoSalva) return window.confirm('As últimas mudanças não foram salvas (' + c.erroSalvar + '). Sair mesmo assim?');",
+  "    salvarPendente();",
+  "    return true;",
   "  }",
   "",
   "  /** Itens fora da planta (Cestinhas etc.) não são apagados ao começar vazio. */",
   "  const ehExtra = (m) => m.tipo === 'EXTRA';",
   "",
   "  /**",
-  "   * Carrega a planta no editor. vazia = true começa sem móveis (o layout salvo",
-  "   * só é substituído se o usuário clicar em \"Salvar planta\").",
+  "   * Carrega a planta no editor. vazia = true começa sem móveis (o layout salvo é substituído",
+  "   * na primeira mudança, pelo salvamento automático).",
   "   */",
   "  function carregarPlanta(planta, vazia) {",
   "    c.planta = clonar(planta);",
+  "    c.inicial = clonar(planta);",
+  "    c.sessao++;",
+  "    c.versao = 0;",
+  "    c.versaoSalva = 0;",
+  "    c.erroSalvar = '';",
+  "    clearTimeout(c.timer);",
+  "    c.timer = 0;",
   "    c.salvos = planta.moveis.filter((m) => !ehExtra(m)).length;",
   "    c.vazia = !!vazia;",
   "    if (c.vazia) c.planta.moveis = c.planta.moveis.filter(ehExtra);",
@@ -8978,10 +9193,12 @@ const PAGINA_ = [
   "    $('painelConstrutor').hidden = false;",
   "    $('btnConstruir').setAttribute('aria-pressed', 'true');",
   "    app.desenhar();",
+  "    ajustarAltura();",
   "  }",
   "",
   "  function fechar() {",
   "    if (!podeSair()) return;",
+  "    salvarPendente();",
   "    c.ativo = false;",
   "    c.historico = [];",
   "    c.nova = false;",
@@ -9049,10 +9266,17 @@ const PAGINA_ = [
   "  }",
   "",
   "  function atualizarStatus() {",
-  "    const s = sujo();",
-  "    $('cnsStatus').textContent = s ? '● Alterações não salvas' : '✓ Tudo salvo';",
-  "    $('cnsStatus').classList.toggle('sujo', s);",
-  "    $('cnsDescartar').disabled = !s;",
+  "    const st = $('cnsStatus');",
+  "    let texto;",
+  "    let classe = '';",
+  "    if (c.nova) { texto = '● Planta nova: use Salvar como… para dar o nome (depois, ela salva sozinha)'; classe = 'sujo'; }",
+  "    else if (c.erroSalvar) { texto = '⚠ Não salvou: ' + c.erroSalvar + ' (clique para tentar de novo)'; classe = 'erro'; }",
+  "    else if (c.salvando) { texto = '↻ Salvando na planilha…'; classe = 'salvando'; }",
+  "    else if (sujo()) { texto = '● Mudanças a salvar…'; classe = 'sujo'; }",
+  "    else texto = c.versao ? '✓ Salvo na planilha' : '✓ Tudo salvo (salva sozinho a cada mudança)';",
+  "    st.textContent = texto;",
+  "    st.className = classe;",
+  "    $('cnsDescartar').disabled = !c.historico.length;",
   "    $('cnsDesfazer').disabled = !c.historico.length;",
   "  }",
   "",
@@ -9185,11 +9409,16 @@ const PAGINA_ = [
   "    };",
   "    c.nova = true;",
   "    c.historico = [];",
+  "    c.sessao++;",
+  "    c.versao = 0;",
+  "    c.versaoSalva = 0;",
+  "    c.erroSalvar = '';",
+  "    c.inicial = clonar(c.planta);",
   "    c.selecionado = '';",
   "    lerReferencia(id);",
   "    preencherTudo();",
   "    app.desenhar();",
-  "    app.toast(c.planta.nome + ' criada. Ajuste e clique em Salvar planta.');",
+  "    app.toast('Planta nova: monte o layout e use Salvar como… para dar o nome.');",
   "  }",
   "",
   "  /** Layout de uma planta no formato do salvarLayout (Code.gs). */",
@@ -9204,8 +9433,12 @@ const PAGINA_ = [
   "    };",
   "  }",
   "",
-  "  /** Salvar planta: pergunta se substitui uma planta existente (a da tela, por padrão) ou cria uma nova. */",
+  "  /**",
+  "   * Salvar como…: a planta da tela já salva sozinha; aqui o layout vai para uma planta nova (com nome) ou",
+  "   * substitui outra planta existente.",
+  "   */",
   "  function salvar() {",
+  "    salvarPendente();",
   "    const p = c.planta;",
   "    const plantas = app.estado.dados.plantas;",
   "    const existe = plantas.some((x) => x.id === p.id);",
@@ -9213,12 +9446,12 @@ const PAGINA_ = [
   "    sel.innerHTML = '';",
   "    plantas.forEach((x) => sel.add(new Option(x.nome + (x.id === p.id ? ' (a que está na tela)' : ''), x.id)));",
   "    if (existe) sel.value = p.id;",
-  "    $('formSalvarPlanta').querySelector('[value=\"' + (existe && !c.nova ? 'substituir' : 'nova') + '\"]').checked = true;",
+  "    $('formSalvarPlanta').querySelector('[value=\"nova\"]').checked = true;",
   "    $('spNome').value = '';",
   "    $('spErro').hidden = true;",
   "    atualizarDialogoSalvar();",
   "    $('dlgSalvarPlanta').showModal();",
-  "    (existe && !c.nova ? sel : $('spNome')).focus();",
+  "    $('spNome').focus();",
   "  }",
   "",
   "  function destinoSalvar() {",
@@ -9257,6 +9490,9 @@ const PAGINA_ = [
   "      c.historico = [];",
   "      c.nova = false;",
   "      c.vazia = false;",
+  "      c.sessao++;",
+  "      c.versao = 0;",
+  "      c.versaoSalva = 0;",
   "      c.planta.id = r.planta;",
   "      await app.carregar({ planta: r.planta });",
   "      app.toast((nova ? 'Planta criada: ' : 'Layout salvo: ') + r.nome + ' (' + r.moveis + ' móveis).');",
@@ -9269,80 +9505,14 @@ const PAGINA_ = [
   "    }",
   "  }",
   "",
+  "  /** Desfazer tudo: volta a planta ao que era quando abriu no editor (e salva). */",
   "  function descartar() {",
-  "    if (!sujo() || !window.confirm('Descartar todas as alterações desde o último salvamento?')) return;",
-  "    carregarPlanta(app.plantaAtual(), c.vazia);",
+  "    if (!c.historico.length || !window.confirm('Voltar a planta ao que era quando você abriu o Construir loja?')) return;",
+  "    registrar();",
+  "    c.planta = clonar(c.inicial);",
+  "    c.selecionado = '';",
+  "    preencherTudo();",
   "    app.desenhar();",
-  "  }",
-  "",
-  "  /* -------------------------- código da loja ------------------------------ */",
-  "",
-  "  /** Layout de todas as plantas (com a planta em edição), no formato de Layouts.gs. */",
-  "  function gerarCodigo() {",
-  "    const plantas = app.estado.dados.plantas.map((p) => (p.id === c.planta.id ? c.planta : p));",
-  "    if (!plantas.some((p) => p.id === c.planta.id)) plantas.push(c.planta);",
-  "    plantas.sort((a, b) => a.id.localeCompare(b.id, 'pt-BR', { numeric: true }));",
-  "    const L = [",
-  "      '{',",
-  "      '  \"formato\": \"plano-varejo-layout\",',",
-  "      '  \"versao\": 1,',",
-  "      '  \"geradoEm\": ' + JSON.stringify(new Date().toISOString()) + ',',",
-  "      '  \"legenda\": \"móvel = [ID, descrição, tipo, x, y, largura, profundidade, altura, elevação, ajuste etiqueta X, ajuste etiqueta Y, meios divididos, giro, (ajuste por espaço)]\",',",
-  "      '  \"plantas\": {',",
-  "    ];",
-  "    plantas.forEach((p, i) => {",
-  "      L.push('    ' + JSON.stringify(p.id) + ': {');",
-  "      const loja = [p.loja.largura, p.loja.profundidade, p.loja.alturaParede];",
-  "      if (p.loja.slide) loja.push(p.loja.escalaEtiquetas || 100, p.loja.slide); // posições fixas das etiquetas",
-  "      L.push('      \"loja\": ' + JSON.stringify(loja) + ',');",
-  "      L.push('      \"moveis\": [');",
-  "      p.moveis.forEach((m, j) => {",
-  "        const t = [m.id, m.descricao || '', m.tipo, m.x, m.y, m.w, m.d, m.h, m.z || 0, m.ajusteX || 0, m.ajusteY || 0, m.dividido || '', m.giro || 0];",
-  "        if (Object.keys(m.ajustesEspacos || {}).length) t.push(m.ajustesEspacos);",
-  "        L.push('        ' + JSON.stringify(t) + (j < p.moveis.length - 1 ? ',' : ''));",
-  "      });",
-  "      L.push('      ]');",
-  "      L.push('    }' + (i < plantas.length - 1 ? ',' : ''));",
-  "    });",
-  "    L.push('  }', '}', '');",
-  "    return L.join('\\n');",
-  "  }",
-  "",
-  "  function baixarCodigo() {",
-  "    const blob = new Blob([gerarCodigo()], { type: 'application/json' });",
-  "    const data = new Date().toISOString().slice(0, 10);",
-  "    Planilha.baixarBlob(blob, 'layout-plantas-' + data + '.json');",
-  "    app.toast(sujo() ? 'Código baixado (inclui alterações ainda não salvas).' : 'Código da loja baixado.');",
-  "  }",
-  "",
-  "  async function carregarCodigo(arquivo) {",
-  "    if (!arquivo) return;",
-  "    try {",
-  "      const json = JSON.parse(await arquivo.text());",
-  "      if (!json || json.formato !== 'plano-varejo-layout' || !json.plantas) throw new Error('Arquivo não é um código de loja deste app.');",
-  "      const ids = Object.keys(json.plantas);",
-  "      if (!window.confirm('Substituir o layout de: ' + ids.map(nomePlanta).join(', ') + '?')) return;",
-  "      app.carregando(true, 'Carregando layout…');",
-  "      for (const id of ids) {",
-  "        const p = json.plantas[id];",
-  "        await app.chamar('salvarLayout', app.acesso(), id, {",
-  "          loja: { largura: p.loja[0], profundidade: p.loja[1], alturaParede: p.loja[2], escalaEtiquetas: p.loja[3] || 100, slide: p.loja[4] || 0 },",
-  "          moveis: p.moveis.map((t) => ({",
-  "            id: t[0], descricao: t[1], tipo: t[2], x: t[3], y: t[4], w: t[5], d: t[6], h: t[7], z: t[8] || 0,",
-  "            ajusteX: t[9] || 0, ajusteY: t[10] || 0, dividido: t[11] || '', giro: t[12] || 0, ajustesEspacos: t[13] || {},",
-  "          })),",
-  "        });",
-  "      }",
-  "      c.historico = [];",
-  "      c.nova = false;",
-  "      await app.carregar({ planta: ids[0] });",
-  "      app.toast('Layout carregado (' + ids.length + ' planta(s)).');",
-  "    } catch (e) {",
-  "      app.erro(e);",
-  "    } finally {",
-  "      app.carregando(false);",
-  "      $('cnsArquivoCodigo').value = '';",
-  "    }",
   "  }",
   "",
   "  /* --------------------------- imagem de referência ------------------------ */",
@@ -9415,6 +9585,7 @@ const PAGINA_ = [
   "      const inicio = pontoSvg(svg, ev);",
   "      const orig = { x: m.x, y: m.y };",
   "      let registrou = false;",
+  "      c.arrastando = true;",
   "      $('cnsFlutuante').hidden = true;",
   "      svg.setPointerCapture(ev.pointerId);",
   "      const mover = (e) => {",
@@ -9434,6 +9605,8 @@ const PAGINA_ = [
   "        redesenhar();",
   "      };",
   "      const soltar = () => {",
+  "        c.arrastando = false;",
+  "        if (registrou) mudou();",
   "        svg.removeEventListener('pointermove', mover);",
   "        svg.removeEventListener('pointerup', soltar);",
   "        svg.removeEventListener('pointercancel', soltar);",
@@ -9476,7 +9649,7 @@ const PAGINA_ = [
   "        if (c.historico.length > MAX_HISTORICO) c.historico.shift();",
   "        foto = null;",
   "      }",
-  "      atualizarStatus();",
+  "      mudou();",
   "      redesenhar();",
   "    });",
   "  }",
@@ -9607,11 +9780,16 @@ const PAGINA_ = [
   "    $('formSalvarPlanta').addEventListener('change', atualizarDialogoSalvar);",
   "    $('spCancelar').addEventListener('click', () => $('dlgSalvarPlanta').close());",
   "    $('cnsDescartar').addEventListener('click', descartar);",
-  "    $('cnsBaixarCodigo').addEventListener('click', baixarCodigo);",
-  "    $('cnsCarregarCodigo').addEventListener('click', () => $('cnsArquivoCodigo').click());",
-  "    $('cnsArquivoCodigo').addEventListener('change', (e) => carregarCodigo(e.target.files[0]));",
+  "    $('cnsStatus').addEventListener('click', () => { if (c.erroSalvar) { c.erroSalvar = ''; salvarAuto(); } });",
+  "    // Fechar a página com uma gravação pendente: o navegador pergunta antes.",
+  "    window.addEventListener('beforeunload', (e) => {",
+  "      if (!c.ativo || !(c.timer || c.salvando || sujo())) return;",
+  "      salvarPendente();",
+  "      e.preventDefault();",
+  "      e.returnValue = '';",
+  "    });",
   "    $('cnsFechar').addEventListener('click', fechar);",
-  "    window.addEventListener('resize', posicionarBarra);",
+  "    window.addEventListener('resize', () => { posicionarBarra(); ajustarAltura(); });",
   "  }",
   "",
   "  function iniciar(api) {",
@@ -9629,7 +9807,6 @@ const PAGINA_ = [
   "    aposDesenhar,",
   "    sincronizar,",
   "    tecla,",
-  "    gerarCodigo,",
   "    layoutDe,",
   "    novaPlanta,",
   "  };",
@@ -9649,7 +9826,8 @@ const PAGINA_ = [
   " *     etiquetas, abrir no Construir loja, duplicar e apagar);",
   " *   - Cascata entre ERs: espaços fixos de uma marca em algumas ERs e livres nas outras e espaços que mudam",
   " *     de nome de uma ER para a seguinte;",
-  " *   - Senhas: as do Desenvolvedor, da Validação e da Construção.",
+  " *   - Senhas: as do Desenvolvedor, da Validação e da Construção;",
+  " *   - Planilhas: onde ficam as abas; o layout (aba Layout) pode ficar numa planilha separada (Code.gs).",
   " *  Enquanto a sessão está aberta, a faixa \"Modo desenvolvedor\" fica no alto da tela. A senha fica só nesta",
   " *  aba do navegador (sessionStorage) e o servidor a confere a cada gravação (Desenvolvedor.gs).",
   " */",
@@ -9662,6 +9840,7 @@ const PAGINA_ = [
   "  let config = null; // resposta de getConfigDev (Desenvolvedor.gs)",
   "  let edEspacos = null; // regras em edição (espaços fixos numa ER e livres nas outras)",
   "  let edHeranca = null; // regras em edição (mudanças de espaço entre ERs)",
+  "  let planilhas = null; // resposta de getPlanilhas (Code.gs)",
   "",
   "  const sessao = {",
   "    ler() { try { return JSON.parse(window.sessionStorage.getItem(CHAVE)); } catch (e) { return null; } },",
@@ -9792,6 +9971,7 @@ const PAGINA_ = [
   "      edEspacos = null;",
   "      edHeranca = null;",
   "      desenharTudo();",
+  "      recarregarPlanilhas();",
   "    } catch (e) {",
   "      if (/Senha incorreta/.test((e && e.message) || '')) {",
   "        // A senha mudou em outro lugar: a sessão acaba.",
@@ -9855,7 +10035,7 @@ const PAGINA_ = [
   "    const topo = n('div', 'dev-secao-topo', null, corpo);",
   "    const t = n('div', null, null, topo);",
   "    n('h3', 'dev-titulo', 'Plantas', t);",
-  "    n('p', 'dev-nota', 'A ordem abaixo é a ordem da cascata: o que é definido numa ER vale para as seguintes, até a ER ter linha própria. Para criar uma planta, monte no Construir loja e use Salvar planta › Criar uma planta nova.', t);",
+  "    n('p', 'dev-nota', 'A ordem abaixo é a ordem da cascata: o que é definido numa ER vale para as seguintes, até a ER ter linha própria. Para criar uma planta, monte no Construir loja e use Salvar como… › Criar uma planta nova. O Construir loja salva sozinho na aba Layout (veja Planilhas).', t);",
   "    botao('+ Nova planta', 'primario', () => { fecharPainel(); app.novaPlanta(); }, topo);",
   "",
   "    const lista = n('ol', 'dev-plantas', null, corpo);",
@@ -10190,6 +10370,90 @@ const PAGINA_ = [
   "      botao('Voltar às senhas do código', '', async () => {",
   "        aplicar(await mudar({ acao: 'padrao', chave: 'senhas' }, 'Senhas de volta ao padrão do código.'));",
   "      }, a);",
+  "    }",
+  "  }",
+  "",
+  "  /* ------------------------------- planilhas -------------------------------- */",
+  "",
+  "  async function recarregarPlanilhas() {",
+  "    try {",
+  "      planilhas = await app.chamar('getPlanilhas', acesso);",
+  "    } catch (e) {",
+  "      planilhas = { erro: (e && e.message) || String(e) };",
+  "    }",
+  "    desenharPlanilhas();",
+  "  }",
+  "",
+  "  async function mudarPlanilha(pedido, ok) {",
+  "    mensagem('');",
+  "    app.carregando(true, 'Mudando a planilha do layout…');",
+  "    try {",
+  "      planilhas = await app.chamar('mudarPlanilhaLayout', acesso, pedido);",
+  "      await app.carregar({ planta: app.estado.planta });",
+  "      desenharTudo();",
+  "      desenharPlanilhas();",
+  "      mensagem(ok);",
+  "    } catch (e) {",
+  "      mensagem((e && e.message) || String(e), true);",
+  "    } finally {",
+  "      app.carregando(false);",
+  "    }",
+  "  }",
+  "",
+  "  function linkPlanilha(info, pai) {",
+  "    const a = n('a', 'dev-link', info.nome || 'Abrir planilha', pai);",
+  "    a.href = info.url;",
+  "    a.target = '_blank';",
+  "    a.rel = 'noopener';",
+  "    return a;",
+  "  }",
+  "",
+  "  function desenharPlanilhas() {",
+  "    const corpo = $('devPlanilhas');",
+  "    corpo.innerHTML = '';",
+  "    n('h3', 'dev-titulo', 'Planilhas', corpo);",
+  "    n('p', 'dev-nota', 'Um Apps Script pode ler e gravar em mais de uma planilha do Google. O layout de todas as plantas (aba Layout: a posição e o tamanho de cada móvel, a largura do slide e o tamanho e a posição das etiquetas) pode ficar numa planilha só dele, para não pesar a principal. Os ciclos, os comentários, os ciclos em construção e a configuração do app continuam na principal. O Construir loja e o Ajustar etiquetas gravam sozinhos onde o layout estiver.', corpo);",
+  "    if (!planilhas) { n('p', 'dev-vazio', 'Carregando…', corpo); return; }",
+  "    if (planilhas.web) { n('p', 'dev-vazio', 'Na versão web os dados ficam neste navegador; as planilhas só existem no Apps Script.', corpo); return; }",
+  "    if (planilhas.erro) { n('p', 'dev-msg erro', planilhas.erro, corpo); return; }",
+  "",
+  "    const principal = n('div', 'dev-regra', null, corpo);",
+  "    n('span', 'dev-rotulo', 'Planilha principal', principal);",
+  "    linkPlanilha(planilhas.principal, principal);",
+  "    n('p', 'dev-resumo', planilhas.layout ? 'Movimentos, Painéis, Tipos de movimento, Produtos, Comentários, Antecipações, Prateleiras, rascunhos e Config do app.' : 'Todas as abas, inclusive a do layout.', principal);",
+  "",
+  "    const lay = n('div', 'dev-regra', null, corpo);",
+  "    n('span', 'dev-rotulo', 'Layout das plantas', lay);",
+  "    if (planilhas.layout && planilhas.layout.erro) {",
+  "      n('p', 'dev-msg erro', planilhas.layout.erro, lay);",
+  "    } else if (planilhas.layout) {",
+  "      linkPlanilha(planilhas.layout, lay);",
+  "      n('p', 'dev-resumo', 'Numa planilha separada (aba Layout). Na principal, a aba antiga ficou como \"Layout (antigo)\" e não é mais lida.', lay);",
+  "    } else {",
+  "      n('p', 'dev-resumo', 'Na planilha principal (aba Layout).', lay);",
+  "    }",
+  "    const acoes = n('div', 'dev-planta-acoes', null, lay);",
+  "    if (!planilhas.layout) {",
+  "      botao('Criar uma planilha só para o layout', 'primario', () => {",
+  "        if (window.confirm('Criar a planilha \"Plano de Varejo – Layout das plantas\" no Drive de quem publicou o app e levar o layout para ela?')) {",
+  "          mudarPlanilha({ acao: 'criar' }, 'Layout levado para a planilha nova.');",
+  "        }",
+  "      }, acoes);",
+  "    }",
+  "    const vincular = n('div', 'dev-troca', null, lay);",
+  "    const url = entrada(vincular, '', 'text', { placeholder: 'Link de uma planilha que já existe (https://docs.google.com/spreadsheets/d/…)' });",
+  "    url.setAttribute('aria-label', 'Link da planilha do layout');",
+  "    botao(planilhas.layout ? 'Trocar por esta planilha' : 'Usar esta planilha', '', () => {",
+  "      if (!url.value.trim()) { url.focus(); return; }",
+  "      mudarPlanilha({ acao: 'vincular', url: url.value.trim() }, 'O layout agora fica na planilha escolhida.');",
+  "    }, vincular);",
+  "    n('p', 'dev-nota', 'Ao usar uma planilha que já existe: se ela já tem a aba Layout com móveis, o app passa a usar o que está nela; senão, ela recebe o layout atual. A conta que publicou o app precisa poder editar a planilha.', lay);",
+  "    if (planilhas.layout) {",
+  "      botao('Voltar o layout para a planilha principal', 'perigo', () => {",
+  "        if (window.confirm('Copiar o layout para a aba Layout da planilha principal e deixar de usar a planilha separada? (A planilha separada não é apagada.)')) {",
+  "          mudarPlanilha({ acao: 'voltar' }, 'O layout voltou para a planilha principal.');",
+  "        }",
+  "      }, acoes);",
   "    }",
   "  }",
   "",

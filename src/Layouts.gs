@@ -18,8 +18,9 @@
  *  Móvel: [ID, descrição, tipo, x, y, largura, profundidade, altura, (elevação), (ajuste etiqueta X), (ajuste Y),
  *          (meios divididos da gôndola: '', 'A', 'B' ou 'AB'), (giro em graus: 0, 90, 180 ou 270),
  *          (ajuste das pilhas de etiquetas por espaço: { 'PONTA-A': {x, y} })]
- *  O botão "Baixar código da loja" (modo Construir loja) gera este mesmo formato; o botão "Baixar
- *  posições" (modo ajuste das etiquetas) gera os ajustes de etiqueta (índices 9, 10 e 13) e o tamanho.
+ *  Este é só o modelo inicial: depois, o layout de cada planta fica na aba Layout (o Construir loja salva
+ *  sozinho nela). O botão "Baixar posições" (modo ajuste das etiquetas) gera os ajustes de etiqueta
+ *  (índices 9, 10 e 13) e o tamanho, no formato daqui.
  */
 
 /**

@@ -106,6 +106,15 @@
       return executarSalvarLayout_(ioRascunhos(), acesso, planta, layout, nome);
     },
 
+    getPlanilhas(acesso) {
+      conferirDesenvolvedor_(acesso);
+      return { web: true };
+    },
+
+    mudarPlanilhaLayout() {
+      throw new Error('Na versão web, os dados ficam no navegador: a planilha separada do layout só existe no Apps Script.');
+    },
+
     getConfigDev(acesso) {
       return executarConfigDev_(ioRascunhos(), acesso, null);
     },

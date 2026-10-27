@@ -577,23 +577,21 @@ test('Construir loja: adicionar, desfazer e salvar um móvel', async (t) => {
   await p.click('#cnsDesfazer');
   await p.locator('#cnsPaleta button', { hasText: 'Pirâmide' }).first().click();
   await p.locator('#slide').press('ArrowRight');
-  await p.click('#cnsSalvar');
-  await p.waitForSelector('#dlgSalvarPlanta[open]');
-  assert.strictEqual(await p.inputValue('#spPlanta'), '02', 'substitui a planta da tela, por padrão');
-  await p.click('#spSalvar');
+  // Salva sozinho na planilha (sem clicar em nada).
   await p.waitForFunction((n) => App.estado.dados.plantas.find((x) => x.id === '02').moveis.length === n + 1, antes);
+  await p.waitForFunction(() => /Salvo na planilha/.test(document.getElementById('cnsStatus').textContent));
+  // O rodapé (status e botões) fica fixo embaixo do menu, sem cobrir as seções: só o meio rola.
+  const caixas = await p.evaluate(() => {
+    const r = (s) => document.querySelector(s).getBoundingClientRect();
+    return { corpo: r('#painelConstrutor .cns-corpo'), rodape: r('#painelConstrutor .cns-rodape') };
+  });
+  assert.ok(caixas.corpo.bottom <= caixas.rodape.top + 1, 'o rodapé cobre o menu');
+  assert.strictEqual(await p.locator('#cnsBaixarCodigo, #cnsCarregarCodigo').count(), 0, 'sem os botões do código da loja');
 
   await menuConfig(p, 'btnConstruir');
   assert.strictEqual(await p.isVisible('#painelConstrutor'), false);
-});
-
-test('Construir loja: baixar o código da loja', async (t) => {
-  const p = await abrir(t);
-  await entrarDesenvolvedor(p);
-  await menuConfig(p, 'btnConstruir');
-  const d = await baixar(p, () => p.click('#cnsBaixarCodigo'));
-  const json = JSON.parse(d.bytes.toString('utf8'));
-  assert.ok(Object.keys(json).length > 0, 'código da loja vazio');
+  await p.reload();
+  await p.waitForFunction((n) => App.estado.dados && App.estado.dados.plantas.find((x) => x.id === '02').moveis.length === n + 1, antes);
 });
 
 test('validação: senha errada, comentário, resposta e resolução', async (t) => {

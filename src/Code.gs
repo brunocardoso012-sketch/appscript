@@ -77,7 +77,7 @@ function getDados() {
   } catch (e) {
     return { precisaConfigurar: true, mensagem: e.message };
   }
-  if (ss.getSheetByName(CONFIG.ABAS.LAYOUT)) atualizarModelosNaPlanilha_(ss);
+  if (abaDe_(ss, CONFIG.ABAS.LAYOUT)) atualizarModelosNaPlanilha_(ss);
   const dados = montarDados_(
     lerAba_(ss, CONFIG.ABAS.LAYOUT, false),
     lerAba_(ss, CONFIG.ABAS.MOVIMENTOS, true),
@@ -222,7 +222,7 @@ function configurarPlanilha() {
   const criadas = comTrava_(function () {
     const lista = [];
     // Planilha nova já nasce com os modelos atuais.
-    if (!ss.getSheetByName(CONFIG.ABAS.LAYOUT)) gravarVersoesModelo_(versoesAtuais_());
+    if (!abaDe_(ss, CONFIG.ABAS.LAYOUT)) gravarVersoesModelo_(versoesAtuais_());
     if (criarSeVazia_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), valoresLayoutPadrao_())) {
       lista.push(CONFIG.ABAS.LAYOUT);
     }
@@ -269,7 +269,7 @@ function importarPlanilha(acesso, payload) {
   const resultado = { movimentos: 0, paineis: 0, tipos: 0, layout: 0, produtos: 0 };
   comTrava_(function () {
     prep.preparados.forEach(function (p) {
-      const sh = ss.getSheetByName(p.bloco.aba);
+      const sh = abaDe_(ss, p.bloco.aba);
       const existentes = sh ? sh.getDataRange().getValues() : [];
       escreverAba_(ss, p.bloco.aba, p.bloco.colunas, mesclarLinhas_(existentes, p.linhas, p.bloco.colunas, p.bloco.chave));
       resultado[p.bloco.campo] = p.linhas.length;
@@ -361,10 +361,10 @@ function salvarAjustesEtiquetas(planta, ajustes) {
   if (!planta || !ajustes || typeof ajustes !== 'object') throw new Error('Dados inválidos.');
   const ss = planilha_();
   return comTrava_(function () {
-    if (!ss.getSheetByName(CONFIG.ABAS.LAYOUT)) {
+    if (!abaDe_(ss, CONFIG.ABAS.LAYOUT)) {
       escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), valoresLayoutPadrao_());
     }
-    const sh = ss.getSheetByName(CONFIG.ABAS.LAYOUT);
+    const sh = abaDe_(ss, CONFIG.ABAS.LAYOUT);
     const valores = sh.getDataRange().getValues();
     const cab = valores[0].map(chave_);
     const cols = colunasLayout_();
@@ -558,7 +558,7 @@ function atualizarModelosNaPlanilha_(ss) {
   if (!modeloPendente_(versoes)) return;
   comTrava_(function () {
     const abas = {
-      layout: ss.getSheetByName(CONFIG.ABAS.LAYOUT).getDataRange().getValues(),
+      layout: abaDe_(ss, CONFIG.ABAS.LAYOUT).getDataRange().getValues(),
       movimentos: ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS) ? ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS).getDataRange().getValues() : [],
       paineis: ss.getSheetByName(CONFIG.ABAS.PAINEIS) ? ss.getSheetByName(CONFIG.ABAS.PAINEIS).getDataRange().getValues() : [],
       tipos: ss.getSheetByName(CONFIG.ABAS.TIPOS) ? ss.getSheetByName(CONFIG.ABAS.TIPOS).getDataRange().getValues() : [],
@@ -578,6 +578,119 @@ function planilha_() {
   return ss;
 }
 
+/* --------------------- planilha separada para o layout -------------------- */
+/*
+ * Um Apps Script pode ler e gravar em quantas planilhas quiser (SpreadsheetApp.openById). A aba Layout (as
+ * posições e os tamanhos dos móveis de todas as plantas) pode ficar numa planilha só dela: o ID fica na
+ * propriedade do script CONFIG.PROPRIEDADE_PLANILHA_LAYOUT. lerAba_, escreverAba_ e criarSeVazia_ mandam a
+ * aba Layout para lá sozinhas; as outras abas continuam na planilha principal.
+ */
+
+let planilhaLayoutAberta_ = null;
+
+/** A planilha em que a aba fica: a do layout (se houver uma separada) para a aba Layout; a principal para as outras. */
+function ssDaAba_(ss, nome) {
+  if (nome !== CONFIG.ABAS.LAYOUT) return ss;
+  const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT);
+  if (!id) return ss;
+  if (!planilhaLayoutAberta_ || planilhaLayoutAberta_.getId() !== id) {
+    try {
+      planilhaLayoutAberta_ = SpreadsheetApp.openById(id);
+    } catch (e) {
+      throw new Error('Não consegui abrir a planilha do layout (ID ' + id + '). Confira se ela existe e se a conta que publicou o app ' +
+        'tem acesso; ou, em Desenvolvedor › Planilhas, volte o layout para a planilha principal.');
+    }
+  }
+  return planilhaLayoutAberta_;
+}
+
+/** A aba (na planilha certa), ou null. */
+function abaDe_(ss, nome) {
+  return ssDaAba_(ss, nome).getSheetByName(nome);
+}
+
+/** ID de uma planilha a partir do link (…/spreadsheets/d/ID/edit) ou do próprio ID. */
+function idDePlanilha_(texto) {
+  const t = String(texto || '').trim();
+  const m = /\/d\/([a-zA-Z0-9_-]{20,})/.exec(t);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(t)) return t;
+  throw new Error('Cole o link da planilha (https://docs.google.com/spreadsheets/d/…) ou o ID dela.');
+}
+
+/** Onde está cada coisa: a planilha principal e a do layout (null = o Layout está na principal). */
+function infoPlanilhas_(ss) {
+  const info = { principal: { url: ss.getUrl(), nome: ss.getName() }, layout: null };
+  const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT);
+  if (!id) return info;
+  try {
+    const l = ssDaAba_(ss, CONFIG.ABAS.LAYOUT);
+    info.layout = { id: id, url: l.getUrl(), nome: l.getName() };
+  } catch (e) {
+    info.layout = { id: id, erro: e.message };
+  }
+  return info;
+}
+
+/** Desenvolvedor › Planilhas: onde ficam as abas do app. */
+function getPlanilhas(acesso) {
+  conferirDesenvolvedor_(acesso);
+  return infoPlanilhas_(planilha_());
+}
+
+/**
+ * Leva a aba Layout para uma planilha separada, ou a traz de volta para a principal.
+ *  - { acao: 'criar' }          cria uma planilha nova ("Plano de Varejo – Layout das plantas") com o layout atual;
+ *  - { acao: 'vincular', url }  usa uma planilha que já existe: se ela já tem a aba Layout com móveis, vale o que
+ *                               está nela; senão, recebe o layout atual;
+ *  - { acao: 'voltar' }         copia o layout da planilha separada para a principal e desliga a separada.
+ * Na principal, a aba Layout antiga ganha o nome "Layout (antigo)" (o app não lê mais) ao separar.
+ */
+function mudarPlanilhaLayout(acesso, pedido) {
+  conferirDesenvolvedor_(acesso);
+  const ss = planilha_();
+  const props = PropertiesService.getScriptProperties();
+  const p = pedido || {};
+  return comTrava_(function () {
+    const atual = lerAba_(ss, CONFIG.ABAS.LAYOUT, false);
+    const layout = atual && atual.length > 1 ? atual : valoresLayoutPadrao_();
+    if (p.acao === 'criar' || p.acao === 'vincular') {
+      let destino;
+      if (p.acao === 'criar') {
+        destino = SpreadsheetApp.create('Plano de Varejo – Layout das plantas');
+      } else {
+        const id = idDePlanilha_(p.url);
+        try {
+          destino = SpreadsheetApp.openById(id);
+        } catch (e) {
+          throw new Error('Não consegui abrir essa planilha. Confira o link e se a conta que publicou o app tem acesso de edição a ela.');
+        }
+      }
+      if (destino.getId() === ss.getId()) throw new Error('Essa é a planilha principal. Escolha outra planilha para o layout.');
+      const aba = destino.getSheetByName(CONFIG.ABAS.LAYOUT);
+      const jaTem = !!(aba && aba.getLastRow() > 1);
+      const velha = ss.getSheetByName(CONFIG.ABAS.LAYOUT);
+      props.setProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT, destino.getId());
+      planilhaLayoutAberta_ = destino;
+      if (!jaTem) escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), layout);
+      if (p.acao === 'criar') removerAbaPadraoVazia_(destino);
+      if (velha) {
+        let nome = 'Layout (antigo)';
+        for (let i = 2; ss.getSheetByName(nome); i++) nome = 'Layout (antigo ' + i + ')';
+        velha.setName(nome);
+      }
+    } else if (p.acao === 'voltar') {
+      if (!props.getProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT)) throw new Error('O layout já está na planilha principal.');
+      props.deleteProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT);
+      planilhaLayoutAberta_ = null;
+      escreverAba_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), layout);
+    } else {
+      throw new Error('Ação desconhecida.');
+    }
+    return infoPlanilhas_(ss);
+  });
+}
+
 function abrirPlanilha_() {
   const ativa = SpreadsheetApp.getActiveSpreadsheet();
   if (ativa) return ativa;
@@ -594,7 +707,7 @@ function abrirPlanilha_() {
  * "10/2026" vire data ou "01" vire 1). Retorna null se a aba não existe.
  */
 function lerAba_(ss, nome, comoTexto) {
-  const sh = ss.getSheetByName(nome);
+  const sh = abaDe_(ss, nome);
   if (!sh || sh.getLastRow() < 1) return sh ? [] : null;
   const range = sh.getDataRange();
   return comoTexto ? range.getDisplayValues() : range.getValues();
@@ -618,7 +731,7 @@ function comTrava_(fn) {
 
 /** Cria/preenche a aba apenas se ela não existir ou estiver vazia. */
 function criarSeVazia_(ss, nome, colunas, valores) {
-  const sh = ss.getSheetByName(nome);
+  const sh = abaDe_(ss, nome);
   if (sh && sh.getLastRow() > 1) return false;
   escreverAba_(ss, nome, colunas, valores);
   return true;
@@ -626,7 +739,8 @@ function criarSeVazia_(ss, nome, colunas, valores) {
 
 /** Substitui todo o conteúdo da aba por "valores" (com cabeçalho) e formata. */
 function escreverAba_(ss, nome, colunas, valores) {
-  const sh = ss.getSheetByName(nome) || ss.insertSheet(nome);
+  const alvo = ssDaAba_(ss, nome);
+  const sh = alvo.getSheetByName(nome) || alvo.insertSheet(nome);
   const largura = valores[0].length;
   const linhas = valores.map(function (row) {
     const r = row.slice(0, largura);
