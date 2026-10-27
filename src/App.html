@@ -367,13 +367,13 @@ const App = (() => {
     $('telaConfig').hidden = true;
     svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden
 
-    // Ao abrir, o app vai direto para o último ciclo aprovado (o último da planilha); o link pode pedir outro
-    // (ou a planta limpa). Depois, Atualizar mantém o ciclo da tela. Quem entrou na validação vai para o ciclo
-    // em construção do seu papel (Rascunho.html).
+    // Ao abrir, o app vai direto para o último ciclo aprovado (o último da planilha); o link pode pedir outro.
+    // Depois, Atualizar mantém o ciclo da tela. Quem entrou na validação vai para o ciclo em construção do
+    // seu papel (Rascunho.html). Não há opção "sem ciclo": sem ciclo, só quando a planilha não tem nenhum.
     const primeiraCarga = !cicloEscolhido;
     cicloEscolhido = true;
     const cicloPref = 'ciclo' in pref ? pref.ciclo : primeiraCarga ? ultimoAprovado() : estado.ciclo;
-    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 || Rascunho.tem(cicloPref) ? cicloPref : '';
+    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 || Rascunho.tem(cicloPref) ? cicloPref : ultimoAprovado();
     const plantaPref = pref.planta || estado.planta || memoria.ler('planta');
     // A planta pode vir pelo ID ou pelo nome ("ER M", do link).
     const achada = dados.plantas.find((p) => p.id === plantaPref) || dados.plantas.find((p) => p.nome === plantaPref);
@@ -426,7 +426,6 @@ const App = (() => {
       return;
     }
     sel.disabled = false;
-    sel.appendChild(new Option('Sem ciclo (planta limpa)', '', false, !estado.ciclo));
     estado.dados.ciclos.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.ciclo)));
     // Ciclos em construção (Rascunho.html): só para quem entrou na validação.
     const rascunhos = Rascunho.lista();
@@ -2590,6 +2589,19 @@ const App = (() => {
     ao('etqMenor', 'click', () => mudarTamanhoEtiquetas(tamanhoEtiquetas() - TAMANHO_ETQ.passo));
     ao('etqMaior', 'click', () => mudarTamanhoEtiquetas(tamanhoEtiquetas() + TAMANHO_ETQ.passo));
     ao('etqTamanho', 'click', () => mudarTamanhoEtiquetas(100));
+    // Menu de configurações (engrenagem): abre e fecha; fecha ao escolher um item, clicar fora ou Esc.
+    const menuCfg = $('menuConfigLista');
+    const abrirMenuCfg = (abrir) => {
+      menuCfg.hidden = !abrir;
+      $('btnConfig').setAttribute('aria-expanded', String(abrir));
+      if (abrir) { const i = menuCfg.querySelector('.menu-item:not(:disabled)'); if (i) i.focus(); }
+    };
+    ao('btnConfig', 'click', () => abrirMenuCfg(menuCfg.hidden));
+    menuCfg.addEventListener('click', (e) => { if (e.target.closest('.menu-item')) abrirMenuCfg(false); });
+    document.addEventListener('pointerdown', (e) => { if (!menuCfg.hidden && !e.target.closest('#menuConfig')) abrirMenuCfg(false); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !menuCfg.hidden) { abrirMenuCfg(false); $('btnConfig').focus(); }
+    });
     ao('btnTema', 'click', () => {
       const escuro = document.documentElement.dataset.tema !== 'escuro';
       memoria.gravar('tema', escuro ? 'escuro' : 'claro');
@@ -2613,7 +2625,7 @@ const App = (() => {
       Editor.abrir();
     });
     ao('btnRestaurar', 'click', () => {
-      if (window.confirm('Apagar os dados salvos neste navegador e voltar ao ciclo de exemplo?')) configurar();
+      if (window.confirm('Apagar os dados salvos neste navegador e voltar ao começo (sem ciclos)?')) configurar();
     });
     ao('btnAtualizar', 'click', () => {
       if (Object.keys(estado.ajustes).length && !window.confirm('Descartar ajustes de etiquetas não salvos?')) return;

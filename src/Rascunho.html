@@ -221,7 +221,7 @@ const Rascunho = (() => {
     mesclar(e.dados);
     reaplicarPendentes();
     abrirDoPapel();
-    // O ciclo da tela era um rascunho que não existe mais (aprovado por outra pessoa, excluído…): volta à planta limpa.
+    // O ciclo da tela era um rascunho que não existe mais (aprovado por outra pessoa, excluído…): volta ao último ciclo aprovado.
     if (e.ciclo && e.dados.ciclos.indexOf(e.ciclo) < 0 && !doCiclo(e.ciclo)) e.ciclo = app.ultimoAprovado();
     app.montarCiclos();
     app.desenhar();

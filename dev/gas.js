@@ -163,4 +163,19 @@ function servicosFalsos(opcoes) {
   };
 }
 
-module.exports = { carregarGas, servicosFalsos, SRC };
+/**
+ * Configura a planilha e grava nela os ciclos de exemplo de Layouts.gs ("Ciclo exemplo" e "Ciclo exemplo
+ * cheio"), usados como dados dos testes. O app não grava mais esses ciclos.
+ */
+function configurarComExemplo(run) {
+  const r = run('configurarPlanilha()');
+  run(`(function () {
+    const ss = planilha_();
+    escreverAba_(ss, CONFIG.ABAS.MOVIMENTOS, colunasMovimentos_(), valoresMovimentosExemplo_());
+    escreverAba_(ss, CONFIG.ABAS.PAINEIS, colunasPaineis_(), valoresPaineisExemplo_());
+    escreverAba_(ss, CONFIG.ABAS.TIPOS, colunasTipos_(), valoresTiposExemplo_());
+  })()`);
+  return r;
+}
+
+module.exports = { carregarGas, servicosFalsos, configurarComExemplo, SRC };

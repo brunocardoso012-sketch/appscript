@@ -13,9 +13,10 @@
   function exemplo() {
     return {
       layout: valoresLayoutPadrao_(),
-      movimentos: valoresMovimentosExemplo_(),
-      paineis: valoresPaineisExemplo_(),
-      tipos: valoresTiposExemplo_(),
+      // Sem ciclos de exemplo: o primeiro ciclo entra pelo Importar planilha ou pela Construção.
+      movimentos: valoresVazios_(colunasMovimentos_()),
+      paineis: valoresVazios_(colunasPaineis_()),
+      tipos: valoresVazios_(colunasTipos_()),
       produtos: valoresProdutosExemplo_(),
       versoesModelo: versoesAtuais_(),
     };

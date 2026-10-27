@@ -25,18 +25,19 @@
 
 /**
  * Versão do modelo base de cada planta. Ao mudar o modelo de uma planta aqui,
- * aumente o número dela: na próxima abertura, essa planta (layout + linhas do
- * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
+ * aumente o número dela: na próxima abertura, o layout dessa planta é atualizado
+ * para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
 const VERSAO_MODELO_PLANTAS = { '01': 13, '02': 12, '03': 9, '04': 11 };
 
 /**
- * Versão do ciclo de exemplo inteiro (Movimentos + Painéis, todas as plantas e TODAS).
- * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
- * abertura (os outros ciclos não mudam).
+ * Ciclos de exemplo na planilha. Até a versão 17, o app criava e atualizava o "Ciclo exemplo" e o
+ * "Ciclo exemplo cheio" nas abas Movimentos, Painéis e Tipos de movimento. A partir da 18, eles não
+ * fazem mais parte da base: na próxima abertura, as linhas deles saem dessas abas (os outros ciclos
+ * não mudam) e uma planilha nova começa sem ciclos.
  */
-const VERSAO_EXEMPLO = 17;
+const VERSAO_EXEMPLO = 18;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
@@ -176,7 +177,8 @@ const LAYOUT_PADRAO = {
 };
 
 /* --------------------------------------------------------------------------
- *  CICLO DE EXEMPLO (transcrito das telas de referência)
+ *  CICLO DE EXEMPLO (transcrito das telas de referência) — só para os testes (dev/): o app não o grava
+ *  mais na planilha nem na versão web (VERSAO_EXEMPLO).
  *  Móvel: ID → [marca do móvel, [[etiqueta, marca da etiqueta], ...], símbolo]
  *  Cascata: o que é definido numa planta vale também para as seguintes
  *  (ER P → ER M → ER G → ER GG), então cada móvel aparece só na primeira planta

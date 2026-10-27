@@ -226,13 +226,14 @@ function configurarPlanilha() {
     if (criarSeVazia_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), valoresLayoutPadrao_())) {
       lista.push(CONFIG.ABAS.LAYOUT);
     }
-    if (criarSeVazia_(ss, CONFIG.ABAS.MOVIMENTOS, colunasMovimentos_(), valoresMovimentosExemplo_())) {
+    // Os ciclos começam vazios (só o cabeçalho): o primeiro entra pelo Importar planilha ou pela Construção.
+    if (criarSeVazia_(ss, CONFIG.ABAS.MOVIMENTOS, colunasMovimentos_(), valoresVazios_(colunasMovimentos_()))) {
       lista.push(CONFIG.ABAS.MOVIMENTOS);
     }
-    if (criarSeVazia_(ss, CONFIG.ABAS.PAINEIS, colunasPaineis_(), valoresPaineisExemplo_())) {
+    if (criarSeVazia_(ss, CONFIG.ABAS.PAINEIS, colunasPaineis_(), valoresVazios_(colunasPaineis_()))) {
       lista.push(CONFIG.ABAS.PAINEIS);
     }
-    if (criarSeVazia_(ss, CONFIG.ABAS.TIPOS, colunasTipos_(), valoresTiposExemplo_())) {
+    if (criarSeVazia_(ss, CONFIG.ABAS.TIPOS, colunasTipos_(), valoresVazios_(colunasTipos_()))) {
       lista.push(CONFIG.ABAS.TIPOS);
     }
     if (criarSeVazia_(ss, CONFIG.ABAS.PRODUTOS, colunasProdutos_(), valoresProdutosExemplo_())) {
@@ -454,8 +455,9 @@ function modeloPendente_(versoes) {
 
 /**
  * Atualiza para o modelo base mais novo as plantas cuja versão salva é menor
- * que VERSAO_MODELO_PLANTAS (layout da planta + linhas dela no ciclo de exemplo).
- * Se VERSAO_EXEMPLO subiu, troca o "Ciclo exemplo" inteiro (Movimentos e Painéis).
+ * que VERSAO_MODELO_PLANTAS (o layout da planta).
+ * Se VERSAO_EXEMPLO subiu, tira as linhas dos ciclos de exemplo antigos ("Ciclo exemplo" e
+ * "Ciclo exemplo cheio") das abas Movimentos, Painéis e Tipos de movimento.
  * Função pura: recebe e devolve as matrizes das abas.
  * @param {{layout: Array, movimentos: Array, paineis: Array, tipos?: Array}} abas
  * @param {Object<string, number>} versoes  versões já aplicadas (planta → número)
@@ -474,8 +476,6 @@ function atualizarModelosPlantas_(abas, versoes) {
     const daPlanta = function (o) { return normPlanta_(o.planta) === planta; };
     const layout = objetosDeValores_(valoresLayoutPadrao_(), colunasLayout_()).linhas.filter(daPlanta);
     abas.layout = mesclarLinhas_(abas.layout || [], layout, colunasLayout_());
-    const exemplo = objetosDeValores_(valoresMovimentosExemplo_(), colunasMovimentos_()).linhas.filter(daPlanta);
-    if (exemplo.length) abas.movimentos = mesclarLinhas_(abas.movimentos || [], exemplo, colunasMovimentos_());
     novas[planta] = VERSAO_MODELO_PLANTAS[planta];
     mudaram.push(planta);
   });
@@ -486,13 +486,10 @@ function atualizarModelosPlantas_(abas, versoes) {
       const exemplos = [EXEMPLO_CICLO, EXEMPLO_CICLO_CHEIO];
       return i < 0 ? valores : [valores[0]].concat(valores.slice(1).filter(function (l) { return exemplos.indexOf(texto_(l[i])) < 0; }));
     };
-    const trocar = function (valores, padrao, colunas) {
-      const novos = objetosDeValores_(padrao, colunas).linhas;
-      return mesclarLinhas_(semExemplo(valores, colunas), novos, colunas);
-    };
-    abas.movimentos = trocar(abas.movimentos, valoresMovimentosExemplo_(), colunasMovimentos_());
-    abas.paineis = trocar(abas.paineis, valoresPaineisExemplo_(), colunasPaineis_());
-    abas.tipos = trocar(abas.tipos, valoresTiposExemplo_(), colunasTipos_());
+    abas.movimentos = semExemplo(abas.movimentos, colunasMovimentos_());
+    abas.paineis = semExemplo(abas.paineis, colunasPaineis_());
+    // Planilha antiga sem a aba Tipos de movimento: ela é criada (só com o cabeçalho).
+    abas.tipos = semExemplo(abas.tipos && abas.tipos.length ? abas.tipos : valoresVazios_(colunasTipos_()), colunasTipos_());
     novas._exemplo = VERSAO_EXEMPLO;
     mudaram.push('exemplo');
   }
@@ -730,9 +727,14 @@ function comTrava_(fn) {
 }
 
 /** Cria/preenche a aba apenas se ela não existir ou estiver vazia. */
+/** Matriz só com o cabeçalho das colunas. */
+function valoresVazios_(colunas) {
+  return [colunas.map(function (c) { return c.titulo; })];
+}
+
 function criarSeVazia_(ss, nome, colunas, valores) {
   const sh = abaDe_(ss, nome);
-  if (sh && sh.getLastRow() > 1) return false;
+  if (sh && sh.getLastRow() > (valores.length > 1 ? 1 : 0)) return false;
   escreverAba_(ss, nome, colunas, valores);
   return true;
 }

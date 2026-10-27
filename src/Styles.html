@@ -324,6 +324,34 @@
   .sp-campo { margin: 2px 0 10px 24px !important; }
   .sp-aviso { margin: 4px 0 8px !important; }
 
+  /* Menu de configurações (engrenagem): validação, construção, ajuste das etiquetas, … e o modo desenvolvedor. */
+  .menu-config { position: relative; }
+  .menu-config:has(.menu-item[aria-pressed="true"]:not(#btnTema):not(#btnDesenvolvedor)) #btnConfig { color: var(--texto); background: var(--destaque); }
+  .menu-lista {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 220px;
+    display: flex; flex-direction: column; padding: 6px; gap: 2px;
+    background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, .14);
+  }
+  .menu-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px;
+    background: transparent; color: var(--texto); font: 600 13px var(--fonte); text-align: left; cursor: pointer; white-space: nowrap;
+  }
+  a.menu-item { color: inherit; text-decoration: none; }
+  a.menu-item[hidden] { display: none; }
+  .menu-item:hover, .menu-item:focus-visible { background: #f0f1f3; outline: none; }
+  .menu-item:disabled { opacity: .5; cursor: default; background: transparent; }
+  .menu-item[aria-pressed="true"] { background: var(--destaque); }
+  .menu-item svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .menu-item .badge {
+    margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #E8590C; color: #fff;
+    font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+  }
+  .menu-divisor { height: 1px; margin: 4px 6px; background: var(--borda); }
+  /* Modo desenvolvedor: o item com o selo âmbar (pede senha; com a sessão aberta, fica âmbar). */
+  .menu-item.menu-dev svg { stroke: #b7791f; }
+  .menu-item.menu-dev[aria-pressed="true"] { background: var(--dev-ambar); color: #1a1205; }
+  .menu-item.menu-dev[aria-pressed="true"] svg { stroke: #1a1205; }
+
   /* Tamanho das etiquetas (modo ajuste). */
   .tamanho-etq { display: inline-flex; align-items: center; gap: 4px; }
   .tamanho-etq > span { font-size: 12px; margin-right: 4px; }
@@ -1300,6 +1328,11 @@
   [data-tema="escuro"] .lista-avisos { color: #f1c76b; }
   [data-tema="escuro"] .avisos { background: #2e2512; border-color: #6b5520; }
   [data-tema="escuro"] .aviso-local,
+  [data-tema="escuro"] .menu-item:not(:disabled):hover,
+  [data-tema="escuro"] .menu-item:focus-visible { background: #2a2e34; }
+  [data-tema="escuro"] .menu-item[aria-pressed="true"]:not(.menu-dev) { background: var(--destaque); }
+  [data-tema="escuro"] .menu-item.menu-dev[aria-pressed="true"] { background: var(--dev-ambar); }
+  [data-tema="escuro"] .menu-lista { box-shadow: 0 10px 28px rgba(0, 0, 0, .5); }
   [data-tema="escuro"] .cns-salvos { background: #1e2440; border-color: #3a4580; }
   [data-tema="escuro"] .acoes-paineis { background: #1e2440; border-color: #313b6e; }
   [data-tema="escuro"] .btn.painel-botao { color: #b9c4f5; }

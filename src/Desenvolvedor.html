@@ -1,12 +1,11 @@
 <script>
 /**
  * ============================================================================
- *  DESENVOLVEDOR (painel da engrenagem)
+ *  DESENVOLVEDOR (item "Modo desenvolvedor" da engrenagem)
  * ============================================================================
- *  A engrenagem pede a senha do Desenvolvedor (SENHAS_ACESSO.DESENVOLVEDOR, trocável aqui mesmo) e abre o
- *  painel do desenvolvedor, com quatro seções:
- *   - Módulos: todos os módulos do app (Construir loja, Baixar / Importar planilha, Validação, Construção,
- *     Ajustar etiquetas, Modo noturno, Abrir planilha, Tutorial); escolher um fecha o painel;
+ *  O item pede a senha do Desenvolvedor (SENHAS_ACESSO.DESENVOLVEDOR, trocável aqui mesmo), como a
+ *  Validação e a Construção pedem a delas, e abre o painel do desenvolvedor, com cinco seções:
+ *   - Construção da loja: Construir loja, Baixar planilha base e Importar planilha; escolher um fecha o painel;
  *   - Plantas: o painel de controle de cada planta (nome, ordem da cascata, tamanho da loja e das
  *     etiquetas, abrir no Construir loja, duplicar e apagar);
  *   - Cascata entre ERs: espaços fixos de uma marca em algumas ERs e livres nas outras e espaços que mudam
@@ -75,8 +74,8 @@ const Desenvolvedor = (() => {
     const dentro = !!acesso;
     document.body.classList.toggle('modo-dev', dentro);
     $('devFaixa').hidden = !dentro;
-    $('btnConfig').setAttribute('aria-pressed', String(dentro));
-    $('btnConfig').title = dentro ? 'Painel do desenvolvedor' : 'Desenvolvedor (pede senha)';
+    $('btnDesenvolvedor').setAttribute('aria-pressed', String(dentro));
+    $('btnDesenvolvedor').title = dentro ? 'Abrir o painel do desenvolvedor' : 'Construir loja, planilha base, plantas, regras da cascata, senhas e planilhas (pede senha)';
   }
 
   function abrirAcesso() {
@@ -116,7 +115,7 @@ const Desenvolvedor = (() => {
     app.toast('Você saiu do modo desenvolvedor.');
   }
 
-  /** Engrenagem: sem a senha, pede; com ela, abre o painel. */
+  /** Modo desenvolvedor (engrenagem): sem a senha, pede; com ela, abre o painel. */
   function abrir() {
     if (!app.estado.dados) return;
     if (!acesso) abrirAcesso();
@@ -540,7 +539,7 @@ const Desenvolvedor = (() => {
     const campos = n('div', 'dev-campos', null, corpo);
     const s = config.senhas;
     const ent = {};
-    [['DESENVOLVEDOR', 'Desenvolvedor (a engrenagem)'], ['VALIDADOR', 'Validação'], ['CONSTRUTOR', 'Construção']].forEach(([k, rotulo]) => {
+    [['DESENVOLVEDOR', 'Modo desenvolvedor'], ['VALIDADOR', 'Validação'], ['CONSTRUTOR', 'Construção']].forEach(([k, rotulo]) => {
       ent[k] = entrada(campo(rotulo, campos, 'largo'), s[k], 'text', { autocomplete: 'off', spellcheck: false });
       ent[k].dataset.senha = k;
     });
@@ -646,7 +645,7 @@ const Desenvolvedor = (() => {
 
   function iniciar(contexto) {
     app = contexto;
-    $('btnConfig').addEventListener('click', abrir);
+    $('btnDesenvolvedor').addEventListener('click', abrir);
     $('formDesenvolvedor').addEventListener('submit', entrar);
     $('devCancelar').addEventListener('click', () => $('dlgDesenvolvedor').close());
     $('devFechar').addEventListener('click', fecharPainel);

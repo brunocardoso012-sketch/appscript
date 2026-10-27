@@ -1350,13 +1350,14 @@ function configurarPlanilha() {
     if (criarSeVazia_(ss, CONFIG.ABAS.LAYOUT, colunasLayout_(), valoresLayoutPadrao_())) {
       lista.push(CONFIG.ABAS.LAYOUT);
     }
-    if (criarSeVazia_(ss, CONFIG.ABAS.MOVIMENTOS, colunasMovimentos_(), valoresMovimentosExemplo_())) {
+    // Os ciclos começam vazios (só o cabeçalho): o primeiro entra pelo Importar planilha ou pela Construção.
+    if (criarSeVazia_(ss, CONFIG.ABAS.MOVIMENTOS, colunasMovimentos_(), valoresVazios_(colunasMovimentos_()))) {
       lista.push(CONFIG.ABAS.MOVIMENTOS);
     }
-    if (criarSeVazia_(ss, CONFIG.ABAS.PAINEIS, colunasPaineis_(), valoresPaineisExemplo_())) {
+    if (criarSeVazia_(ss, CONFIG.ABAS.PAINEIS, colunasPaineis_(), valoresVazios_(colunasPaineis_()))) {
       lista.push(CONFIG.ABAS.PAINEIS);
     }
-    if (criarSeVazia_(ss, CONFIG.ABAS.TIPOS, colunasTipos_(), valoresTiposExemplo_())) {
+    if (criarSeVazia_(ss, CONFIG.ABAS.TIPOS, colunasTipos_(), valoresVazios_(colunasTipos_()))) {
       lista.push(CONFIG.ABAS.TIPOS);
     }
     if (criarSeVazia_(ss, CONFIG.ABAS.PRODUTOS, colunasProdutos_(), valoresProdutosExemplo_())) {
@@ -1578,8 +1579,9 @@ function modeloPendente_(versoes) {
 
 /**
  * Atualiza para o modelo base mais novo as plantas cuja versão salva é menor
- * que VERSAO_MODELO_PLANTAS (layout da planta + linhas dela no ciclo de exemplo).
- * Se VERSAO_EXEMPLO subiu, troca o "Ciclo exemplo" inteiro (Movimentos e Painéis).
+ * que VERSAO_MODELO_PLANTAS (o layout da planta).
+ * Se VERSAO_EXEMPLO subiu, tira as linhas dos ciclos de exemplo antigos ("Ciclo exemplo" e
+ * "Ciclo exemplo cheio") das abas Movimentos, Painéis e Tipos de movimento.
  * Função pura: recebe e devolve as matrizes das abas.
  * @param {{layout: Array, movimentos: Array, paineis: Array, tipos?: Array}} abas
  * @param {Object<string, number>} versoes  versões já aplicadas (planta → número)
@@ -1598,8 +1600,6 @@ function atualizarModelosPlantas_(abas, versoes) {
     const daPlanta = function (o) { return normPlanta_(o.planta) === planta; };
     const layout = objetosDeValores_(valoresLayoutPadrao_(), colunasLayout_()).linhas.filter(daPlanta);
     abas.layout = mesclarLinhas_(abas.layout || [], layout, colunasLayout_());
-    const exemplo = objetosDeValores_(valoresMovimentosExemplo_(), colunasMovimentos_()).linhas.filter(daPlanta);
-    if (exemplo.length) abas.movimentos = mesclarLinhas_(abas.movimentos || [], exemplo, colunasMovimentos_());
     novas[planta] = VERSAO_MODELO_PLANTAS[planta];
     mudaram.push(planta);
   });
@@ -1610,13 +1610,10 @@ function atualizarModelosPlantas_(abas, versoes) {
       const exemplos = [EXEMPLO_CICLO, EXEMPLO_CICLO_CHEIO];
       return i < 0 ? valores : [valores[0]].concat(valores.slice(1).filter(function (l) { return exemplos.indexOf(texto_(l[i])) < 0; }));
     };
-    const trocar = function (valores, padrao, colunas) {
-      const novos = objetosDeValores_(padrao, colunas).linhas;
-      return mesclarLinhas_(semExemplo(valores, colunas), novos, colunas);
-    };
-    abas.movimentos = trocar(abas.movimentos, valoresMovimentosExemplo_(), colunasMovimentos_());
-    abas.paineis = trocar(abas.paineis, valoresPaineisExemplo_(), colunasPaineis_());
-    abas.tipos = trocar(abas.tipos, valoresTiposExemplo_(), colunasTipos_());
+    abas.movimentos = semExemplo(abas.movimentos, colunasMovimentos_());
+    abas.paineis = semExemplo(abas.paineis, colunasPaineis_());
+    // Planilha antiga sem a aba Tipos de movimento: ela é criada (só com o cabeçalho).
+    abas.tipos = semExemplo(abas.tipos && abas.tipos.length ? abas.tipos : valoresVazios_(colunasTipos_()), colunasTipos_());
     novas._exemplo = VERSAO_EXEMPLO;
     mudaram.push('exemplo');
   }
@@ -1854,9 +1851,14 @@ function comTrava_(fn) {
 }
 
 /** Cria/preenche a aba apenas se ela não existir ou estiver vazia. */
+/** Matriz só com o cabeçalho das colunas. */
+function valoresVazios_(colunas) {
+  return [colunas.map(function (c) { return c.titulo; })];
+}
+
 function criarSeVazia_(ss, nome, colunas, valores) {
   const sh = abaDe_(ss, nome);
-  if (sh && sh.getLastRow() > 1) return false;
+  if (sh && sh.getLastRow() > (valores.length > 1 ? 1 : 0)) return false;
   escreverAba_(ss, nome, colunas, valores);
   return true;
 }
@@ -2005,18 +2007,19 @@ function removerAbaPadraoVazia_(ss) {
 
 /**
  * Versão do modelo base de cada planta. Ao mudar o modelo de uma planta aqui,
- * aumente o número dela: na próxima abertura, essa planta (layout + linhas do
- * ciclo de exemplo) é atualizada para o modelo novo; as demais ficam intactas.
+ * aumente o número dela: na próxima abertura, o layout dessa planta é atualizado
+ * para o modelo novo; as demais ficam intactas.
  * Plantas que não aparecem aqui estão na versão 1.
  */
 const VERSAO_MODELO_PLANTAS = { '01': 13, '02': 12, '03': 9, '04': 11 };
 
 /**
- * Versão do ciclo de exemplo inteiro (Movimentos + Painéis, todas as plantas e TODAS).
- * Ao aumentar, todas as linhas do "Ciclo exemplo" são trocadas pelas atuais na próxima
- * abertura (os outros ciclos não mudam).
+ * Ciclos de exemplo na planilha. Até a versão 17, o app criava e atualizava o "Ciclo exemplo" e o
+ * "Ciclo exemplo cheio" nas abas Movimentos, Painéis e Tipos de movimento. A partir da 18, eles não
+ * fazem mais parte da base: na próxima abertura, as linhas deles saem dessas abas (os outros ciclos
+ * não mudam) e uma planilha nova começa sem ciclos.
  */
-const VERSAO_EXEMPLO = 17;
+const VERSAO_EXEMPLO = 18;
 
 const LAYOUT_PADRAO = {
   // PLANTA 01 (ER P): layout montado no modo "Construir loja"; etiquetas em posições fixas (as do Ciclo exemplo cheio, valem em qualquer ciclo).
@@ -2156,7 +2159,8 @@ const LAYOUT_PADRAO = {
 };
 
 /* --------------------------------------------------------------------------
- *  CICLO DE EXEMPLO (transcrito das telas de referência)
+ *  CICLO DE EXEMPLO (transcrito das telas de referência) — só para os testes (dev/): o app não o grava
+ *  mais na planilha nem na versão web (VERSAO_EXEMPLO).
  *  Móvel: ID → [marca do móvel, [[etiqueta, marca da etiqueta], ...], símbolo]
  *  Cascata: o que é definido numa planta vale também para as seguintes
  *  (ER P → ER M → ER G → ER GG), então cada móvel aparece só na primeira planta
@@ -4422,6 +4426,34 @@ const PAGINA_ = [
   "  .sp-campo { margin: 2px 0 10px 24px !important; }",
   "  .sp-aviso { margin: 4px 0 8px !important; }",
   "",
+  "  /* Menu de configurações (engrenagem): validação, construção, ajuste das etiquetas, … e o modo desenvolvedor. */",
+  "  .menu-config { position: relative; }",
+  "  .menu-config:has(.menu-item[aria-pressed=\"true\"]:not(#btnTema):not(#btnDesenvolvedor)) #btnConfig { color: var(--texto); background: var(--destaque); }",
+  "  .menu-lista {",
+  "    position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 220px;",
+  "    display: flex; flex-direction: column; padding: 6px; gap: 2px;",
+  "    background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, .14);",
+  "  }",
+  "  .menu-item {",
+  "    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px;",
+  "    background: transparent; color: var(--texto); font: 600 13px var(--fonte); text-align: left; cursor: pointer; white-space: nowrap;",
+  "  }",
+  "  a.menu-item { color: inherit; text-decoration: none; }",
+  "  a.menu-item[hidden] { display: none; }",
+  "  .menu-item:hover, .menu-item:focus-visible { background: #f0f1f3; outline: none; }",
+  "  .menu-item:disabled { opacity: .5; cursor: default; background: transparent; }",
+  "  .menu-item[aria-pressed=\"true\"] { background: var(--destaque); }",
+  "  .menu-item svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }",
+  "  .menu-item .badge {",
+  "    margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #E8590C; color: #fff;",
+  "    font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;",
+  "  }",
+  "  .menu-divisor { height: 1px; margin: 4px 6px; background: var(--borda); }",
+  "  /* Modo desenvolvedor: o item com o selo âmbar (pede senha; com a sessão aberta, fica âmbar). */",
+  "  .menu-item.menu-dev svg { stroke: #b7791f; }",
+  "  .menu-item.menu-dev[aria-pressed=\"true\"] { background: var(--dev-ambar); color: #1a1205; }",
+  "  .menu-item.menu-dev[aria-pressed=\"true\"] svg { stroke: #1a1205; }",
+  "",
   "  /* Tamanho das etiquetas (modo ajuste). */",
   "  .tamanho-etq { display: inline-flex; align-items: center; gap: 4px; }",
   "  .tamanho-etq > span { font-size: 12px; margin-right: 4px; }",
@@ -5398,6 +5430,11 @@ const PAGINA_ = [
   "  [data-tema=\"escuro\"] .lista-avisos { color: #f1c76b; }",
   "  [data-tema=\"escuro\"] .avisos { background: #2e2512; border-color: #6b5520; }",
   "  [data-tema=\"escuro\"] .aviso-local,",
+  "  [data-tema=\"escuro\"] .menu-item:not(:disabled):hover,",
+  "  [data-tema=\"escuro\"] .menu-item:focus-visible { background: #2a2e34; }",
+  "  [data-tema=\"escuro\"] .menu-item[aria-pressed=\"true\"]:not(.menu-dev) { background: var(--destaque); }",
+  "  [data-tema=\"escuro\"] .menu-item.menu-dev[aria-pressed=\"true\"] { background: var(--dev-ambar); }",
+  "  [data-tema=\"escuro\"] .menu-lista { box-shadow: 0 10px 28px rgba(0, 0, 0, .5); }",
   "  [data-tema=\"escuro\"] .cns-salvos { background: #1e2440; border-color: #3a4580; }",
   "  [data-tema=\"escuro\"] .acoes-paineis { background: #1e2440; border-color: #313b6e; }",
   "  [data-tema=\"escuro\"] .btn.painel-botao { color: #b9c4f5; }",
@@ -5518,13 +5555,47 @@ const PAGINA_ = [
   "        <button id=\"btnApresentar\" class=\"btn fantasma icone\" type=\"button\" aria-label=\"Apresentar\" title=\"Apresentar: só a planta, em tela cheia (F)\">",
   "          <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"1.5\"/><path d=\"M12 16v4M8 20h8M10 8.2v4.6l4-2.3z\"/></svg>",
   "        </button>",
-  "        <!-- Engrenagem = Desenvolvedor: pede a senha e abre o painel do desenvolvedor (Desenvolvedor.html), com",
-  "             todos os módulos do app, as plantas, as regras da cascata e as senhas. -->",
-  "        <button id=\"btnConfig\" class=\"btn fantasma icone\" type=\"button\" aria-haspopup=\"dialog\" aria-controls=\"dlgDev\" aria-label=\"Desenvolvedor\" title=\"Desenvolvedor (pede senha)\">",
-  "          <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z\"/></svg>",
-  "          <span class=\"dev-rotulo-btn\">DEV</span>",
-  "          <span class=\"badge\" id=\"cfgBadge\" hidden></span>",
-  "        </button>",
+  "        <!-- Configurações (engrenagem): abre o menu com todos os itens; o Modo desenvolvedor pede senha (Desenvolvedor.html). -->",
+  "        <div class=\"menu-config\" id=\"menuConfig\">",
+  "          <button id=\"btnConfig\" class=\"btn fantasma icone\" type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" aria-controls=\"menuConfigLista\" aria-label=\"Configurações\" title=\"Configurações\">",
+  "            <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z\"/></svg>",
+  "            <span class=\"dev-rotulo-btn\">DEV</span>",
+  "            <span class=\"badge\" id=\"cfgBadge\" hidden></span>",
+  "          </button>",
+  "          <div class=\"menu-lista\" id=\"menuConfigLista\" role=\"menu\" hidden>",
+  "            <button id=\"btnValidacao\" class=\"menu-item\" type=\"button\" role=\"menuitem\" aria-pressed=\"false\" title=\"Validação da estratégia e aprovação dos ciclos novos (pede senha)\">",
+  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z\"/><path d=\"m8.5 12 2.3 2.3L15.5 9.5\"/></svg>",
+  "              Validação",
+  "              <span class=\"badge\" id=\"valBadge\" hidden></span>",
+  "            </button>",
+  "            <button id=\"btnConstrucao\" class=\"menu-item\" type=\"button\" role=\"menuitem\" aria-pressed=\"false\" title=\"Construção dos ciclos novos (pede senha)\">",
+  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 21h18M5 21V10l7-6 7 6v11\"/><path d=\"M9 21v-5h6v5\"/></svg>",
+  "              Construção",
+  "              <span class=\"badge\" id=\"consBadge\" hidden></span>",
+  "            </button>",
+  "            <button id=\"btnEditar\" class=\"menu-item\" type=\"button\" role=\"menuitem\" aria-pressed=\"false\">",
+  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3\"/></svg>",
+  "              Ajustar etiquetas",
+  "            </button>",
+  "            <button id=\"btnTema\" class=\"menu-item\" type=\"button\" role=\"menuitem\" aria-pressed=\"false\">",
+  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z\"/></svg>",
+  "              Modo noturno",
+  "            </button>",
+  "            <a id=\"lnkPlanilha\" class=\"menu-item\" role=\"menuitem\" target=\"_blank\" rel=\"noopener\" hidden title=\"Abre a planilha com os ciclos (numa aba nova)\">",
+  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5\"/></svg>",
+  "              Abrir planilha",
+  "            </a>",
+  "            <button id=\"btnTutorial\" class=\"menu-item\" type=\"button\" role=\"menuitem\">",
+  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.7-.8 1.2V14M12 17.2v.1\"/></svg>",
+  "              Ver o tutorial",
+  "            </button>",
+  "            <span class=\"menu-divisor\" aria-hidden=\"true\"></span>",
+  "            <button id=\"btnDesenvolvedor\" class=\"menu-item menu-dev\" type=\"button\" role=\"menuitem\" aria-pressed=\"false\" aria-haspopup=\"dialog\" aria-controls=\"dlgDev\" title=\"Construir loja, planilha base, plantas, regras da cascata, senhas e planilhas (pede senha)\">",
+  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m8 8-5 4 5 4M16 8l5 4-5 4M13.5 5l-3 14\"/></svg>",
+  "              Modo desenvolvedor",
+  "            </button>",
+  "          </div>",
+  "        </div>",
   "        <input type=\"file\" id=\"arquivo\" accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" hidden>",
   "      </div>",
   "    </header>",
@@ -5538,7 +5609,7 @@ const PAGINA_ = [
   "      </div>",
   "      <div class=\"aviso-local\" id=\"avisoLocal\" hidden>",
   "        <span>Modo local: os dados ficam salvos só neste navegador.</span>",
-  "        <button id=\"btnRestaurar\" class=\"btn pequeno fantasma\" type=\"button\">Restaurar exemplo</button>",
+  "        <button id=\"btnRestaurar\" class=\"btn pequeno fantasma\" type=\"button\">Apagar dados</button>",
   "      </div>",
   "            <details class=\"avisos\" id=\"avisos\" hidden>",
   "        <summary></summary>",
@@ -5876,7 +5947,7 @@ const PAGINA_ = [
   "            <span class=\"dev-selo\" aria-hidden=\"true\">&lt;/&gt;</span>",
   "            <div>",
   "              <h2 id=\"devTitulo\">Painel do desenvolvedor</h2>",
-  "              <p>Módulos do app, plantas, regras da cascata e senhas</p>",
+  "              <p>Construção da loja, plantas, regras da cascata, senhas e planilhas</p>",
   "            </div>",
   "          </div>",
   "          <div class=\"dev-topo-acoes\">",
@@ -5886,7 +5957,7 @@ const PAGINA_ = [
   "        </header>",
   "        <div class=\"dev-meio\">",
   "          <nav class=\"dev-abas\" role=\"tablist\" aria-label=\"Seções do painel\">",
-  "            <button class=\"dev-aba\" type=\"button\" role=\"tab\" data-dev-aba=\"modulos\" aria-selected=\"true\"><span>01</span>Módulos</button>",
+  "            <button class=\"dev-aba\" type=\"button\" role=\"tab\" data-dev-aba=\"modulos\" aria-selected=\"true\"><span>01</span>Construção da loja</button>",
   "            <button class=\"dev-aba\" type=\"button\" role=\"tab\" data-dev-aba=\"plantas\" aria-selected=\"false\"><span>02</span>Plantas</button>",
   "            <button class=\"dev-aba\" type=\"button\" role=\"tab\" data-dev-aba=\"cascata\" aria-selected=\"false\"><span>03</span>Cascata entre ERs</button>",
   "            <button class=\"dev-aba\" type=\"button\" role=\"tab\" data-dev-aba=\"senhas\" aria-selected=\"false\"><span>04</span>Senhas</button>",
@@ -5894,7 +5965,7 @@ const PAGINA_ = [
   "          </nav>",
   "          <div class=\"dev-corpo\">",
   "            <p class=\"dev-msg\" id=\"devMsg\" role=\"status\" hidden></p>",
-  "            <section class=\"dev-painel\" data-dev-painel=\"modulos\" aria-label=\"Módulos\">",
+  "            <section class=\"dev-painel\" data-dev-painel=\"modulos\" aria-label=\"Construção da loja\">",
   "              <h3 class=\"dev-titulo\">Construção da loja</h3>",
   "              <div class=\"dev-cards\">",
   "            <button id=\"btnConstruir\" class=\"dev-card\" type=\"button\" aria-pressed=\"false\">",
@@ -5910,42 +5981,6 @@ const PAGINA_ = [
   "            <button id=\"btnImportar\" class=\"dev-card\" type=\"button\" >",
   "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 16V4m0 0-5 5m5-5 5 5M4 19h16\"/></svg>",
   "              <span class=\"dev-card-texto\"><strong>Importar planilha</strong><small>Lê a planilha preenchida e grava os ciclos</small></span>",
-  "              <span class=\"dev-card-estado\">ligado</span>",
-  "            </button>",
-  "              </div>",
-  "              <h3 class=\"dev-titulo\">Estratégia</h3>",
-  "              <div class=\"dev-cards\">",
-  "            <button id=\"btnValidacao\" class=\"dev-card\" type=\"button\" aria-pressed=\"false\">",
-  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z\"/><path d=\"m8.5 12 2.3 2.3L15.5 9.5\"/></svg>",
-  "              <span class=\"dev-card-texto\"><strong>Validação</strong><small>Comentar a estratégia e aprovar os ciclos novos (pede a senha da validação)</small></span><span class=\"badge\" id=\"valBadge\" hidden></span>",
-  "              <span class=\"dev-card-estado\">ligado</span>",
-  "            </button>",
-  "            <button id=\"btnConstrucao\" class=\"dev-card\" type=\"button\" aria-pressed=\"false\">",
-  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 21h18M5 21V10l7-6 7 6v11\"/><path d=\"M9 21v-5h6v5\"/></svg>",
-  "              <span class=\"dev-card-texto\"><strong>Construção</strong><small>Montar os ciclos novos e responder aos comentários (pede a senha da construção)</small></span><span class=\"badge\" id=\"consBadge\" hidden></span>",
-  "              <span class=\"dev-card-estado\">ligado</span>",
-  "            </button>",
-  "            <button id=\"btnEditar\" class=\"dev-card\" type=\"button\" aria-pressed=\"false\">",
-  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3\"/></svg>",
-  "              <span class=\"dev-card-texto\"><strong>Ajustar etiquetas</strong><small>Arrastar as pilhas de etiquetas e mudar o tamanho delas</small></span>",
-  "              <span class=\"dev-card-estado\">ligado</span>",
-  "            </button>",
-  "              </div>",
-  "              <h3 class=\"dev-titulo\">App</h3>",
-  "              <div class=\"dev-cards\">",
-  "            <button id=\"btnTema\" class=\"dev-card\" type=\"button\" aria-pressed=\"false\" data-mantem-painel>",
-  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z\"/></svg>",
-  "              <span class=\"dev-card-texto\"><strong>Modo noturno</strong><small>Deixa o app escuro (lembrado neste navegador)</small></span>",
-  "              <span class=\"dev-card-estado\">ligado</span>",
-  "            </button>",
-  "            <a id=\"lnkPlanilha\" class=\"dev-card\" target=\"_blank\" rel=\"noopener\" hidden >",
-  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M14 4h6v6m0-6L10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5\"/></svg>",
-  "              <span class=\"dev-card-texto\"><strong>Abrir planilha</strong><small>A planilha com os ciclos, numa aba nova</small></span>",
-  "              <span class=\"dev-card-estado\">ligado</span>",
-  "            </a>",
-  "            <button id=\"btnTutorial\" class=\"dev-card\" type=\"button\" >",
-  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.7-.8 1.2V14M12 17.2v.1\"/></svg>",
-  "              <span class=\"dev-card-texto\"><strong>Ver o tutorial</strong><small>O tour curto pela tela</small></span>",
   "              <span class=\"dev-card-estado\">ligado</span>",
   "            </button>",
   "              </div>",
@@ -5980,7 +6015,7 @@ const PAGINA_ = [
   "    <dialog id=\"dlgDesenvolvedor\" class=\"dialogo dev-acesso\">",
   "      <form id=\"formDesenvolvedor\">",
   "        <h2>Desenvolvedor</h2>",
-  "        <p class=\"sub\">Digite a senha para abrir o painel do desenvolvedor: módulos do app, plantas, regras da cascata e senhas.</p>",
+  "        <p class=\"sub\">Digite a senha para abrir o painel do desenvolvedor: construção da loja, plantas, regras da cascata, senhas e planilhas.</p>",
   "        <label class=\"acesso-campo\">Senha <input type=\"password\" id=\"devSenha\" autocomplete=\"current-password\" required></label>",
   "        <p class=\"acesso-erro\" id=\"devErro\" role=\"alert\" hidden></p>",
   "        <div class=\"rodape-dialogo\">",
@@ -9825,12 +9860,11 @@ const PAGINA_ = [
   "    <script>",
   "/**",
   " * ============================================================================",
-  " *  DESENVOLVEDOR (painel da engrenagem)",
+  " *  DESENVOLVEDOR (item \"Modo desenvolvedor\" da engrenagem)",
   " * ============================================================================",
-  " *  A engrenagem pede a senha do Desenvolvedor (SENHAS_ACESSO.DESENVOLVEDOR, trocável aqui mesmo) e abre o",
-  " *  painel do desenvolvedor, com quatro seções:",
-  " *   - Módulos: todos os módulos do app (Construir loja, Baixar / Importar planilha, Validação, Construção,",
-  " *     Ajustar etiquetas, Modo noturno, Abrir planilha, Tutorial); escolher um fecha o painel;",
+  " *  O item pede a senha do Desenvolvedor (SENHAS_ACESSO.DESENVOLVEDOR, trocável aqui mesmo), como a",
+  " *  Validação e a Construção pedem a delas, e abre o painel do desenvolvedor, com cinco seções:",
+  " *   - Construção da loja: Construir loja, Baixar planilha base e Importar planilha; escolher um fecha o painel;",
   " *   - Plantas: o painel de controle de cada planta (nome, ordem da cascata, tamanho da loja e das",
   " *     etiquetas, abrir no Construir loja, duplicar e apagar);",
   " *   - Cascata entre ERs: espaços fixos de uma marca em algumas ERs e livres nas outras e espaços que mudam",
@@ -9899,8 +9933,8 @@ const PAGINA_ = [
   "    const dentro = !!acesso;",
   "    document.body.classList.toggle('modo-dev', dentro);",
   "    $('devFaixa').hidden = !dentro;",
-  "    $('btnConfig').setAttribute('aria-pressed', String(dentro));",
-  "    $('btnConfig').title = dentro ? 'Painel do desenvolvedor' : 'Desenvolvedor (pede senha)';",
+  "    $('btnDesenvolvedor').setAttribute('aria-pressed', String(dentro));",
+  "    $('btnDesenvolvedor').title = dentro ? 'Abrir o painel do desenvolvedor' : 'Construir loja, planilha base, plantas, regras da cascata, senhas e planilhas (pede senha)';",
   "  }",
   "",
   "  function abrirAcesso() {",
@@ -9940,7 +9974,7 @@ const PAGINA_ = [
   "    app.toast('Você saiu do modo desenvolvedor.');",
   "  }",
   "",
-  "  /** Engrenagem: sem a senha, pede; com ela, abre o painel. */",
+  "  /** Modo desenvolvedor (engrenagem): sem a senha, pede; com ela, abre o painel. */",
   "  function abrir() {",
   "    if (!app.estado.dados) return;",
   "    if (!acesso) abrirAcesso();",
@@ -10364,7 +10398,7 @@ const PAGINA_ = [
   "    const campos = n('div', 'dev-campos', null, corpo);",
   "    const s = config.senhas;",
   "    const ent = {};",
-  "    [['DESENVOLVEDOR', 'Desenvolvedor (a engrenagem)'], ['VALIDADOR', 'Validação'], ['CONSTRUTOR', 'Construção']].forEach(([k, rotulo]) => {",
+  "    [['DESENVOLVEDOR', 'Modo desenvolvedor'], ['VALIDADOR', 'Validação'], ['CONSTRUTOR', 'Construção']].forEach(([k, rotulo]) => {",
   "      ent[k] = entrada(campo(rotulo, campos, 'largo'), s[k], 'text', { autocomplete: 'off', spellcheck: false });",
   "      ent[k].dataset.senha = k;",
   "    });",
@@ -10470,7 +10504,7 @@ const PAGINA_ = [
   "",
   "  function iniciar(contexto) {",
   "    app = contexto;",
-  "    $('btnConfig').addEventListener('click', abrir);",
+  "    $('btnDesenvolvedor').addEventListener('click', abrir);",
   "    $('formDesenvolvedor').addEventListener('submit', entrar);",
   "    $('devCancelar').addEventListener('click', () => $('dlgDesenvolvedor').close());",
   "    $('devFechar').addEventListener('click', fecharPainel);",
@@ -11153,7 +11187,7 @@ const PAGINA_ = [
   "    mesclar(e.dados);",
   "    reaplicarPendentes();",
   "    abrirDoPapel();",
-  "    // O ciclo da tela era um rascunho que não existe mais (aprovado por outra pessoa, excluído…): volta à planta limpa.",
+  "    // O ciclo da tela era um rascunho que não existe mais (aprovado por outra pessoa, excluído…): volta ao último ciclo aprovado.",
   "    if (e.ciclo && e.dados.ciclos.indexOf(e.ciclo) < 0 && !doCiclo(e.ciclo)) e.ciclo = app.ultimoAprovado();",
   "    app.montarCiclos();",
   "    app.desenhar();",
@@ -14045,8 +14079,8 @@ const PAGINA_ = [
   "      },",
   "      {",
   "        alvo: '#btnConfig',",
-  "        titulo: 'Desenvolvedor',",
-  "        texto: 'Desenvolvedor (com senha): todos os módulos do app, as plantas, as regras da cascata e as senhas.',",
+  "        titulo: 'Configurações',",
+  "        texto: 'Validação e Construção (cada uma com a sua senha), ajuste das etiquetas, modo noturno, planilha, este tutorial e o modo desenvolvedor (com senha).',",
   "      },",
   "    ];",
   "  }",
@@ -14646,13 +14680,13 @@ const PAGINA_ = [
   "    $('telaConfig').hidden = true;",
   "    svg.toggleAttribute('hidden', false); // SVG não tem a propriedade .hidden",
   "",
-  "    // Ao abrir, o app vai direto para o último ciclo aprovado (o último da planilha); o link pode pedir outro",
-  "    // (ou a planta limpa). Depois, Atualizar mantém o ciclo da tela. Quem entrou na validação vai para o ciclo",
-  "    // em construção do seu papel (Rascunho.html).",
+  "    // Ao abrir, o app vai direto para o último ciclo aprovado (o último da planilha); o link pode pedir outro.",
+  "    // Depois, Atualizar mantém o ciclo da tela. Quem entrou na validação vai para o ciclo em construção do",
+  "    // seu papel (Rascunho.html). Não há opção \"sem ciclo\": sem ciclo, só quando a planilha não tem nenhum.",
   "    const primeiraCarga = !cicloEscolhido;",
   "    cicloEscolhido = true;",
   "    const cicloPref = 'ciclo' in pref ? pref.ciclo : primeiraCarga ? ultimoAprovado() : estado.ciclo;",
-  "    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 || Rascunho.tem(cicloPref) ? cicloPref : '';",
+  "    estado.ciclo = dados.ciclos.indexOf(cicloPref) >= 0 || Rascunho.tem(cicloPref) ? cicloPref : ultimoAprovado();",
   "    const plantaPref = pref.planta || estado.planta || memoria.ler('planta');",
   "    // A planta pode vir pelo ID ou pelo nome (\"ER M\", do link).",
   "    const achada = dados.plantas.find((p) => p.id === plantaPref) || dados.plantas.find((p) => p.nome === plantaPref);",
@@ -14705,7 +14739,6 @@ const PAGINA_ = [
   "      return;",
   "    }",
   "    sel.disabled = false;",
-  "    sel.appendChild(new Option('Sem ciclo (planta limpa)', '', false, !estado.ciclo));",
   "    estado.dados.ciclos.forEach((c) => sel.appendChild(new Option(c, c, false, c === estado.ciclo)));",
   "    // Ciclos em construção (Rascunho.html): só para quem entrou na validação.",
   "    const rascunhos = Rascunho.lista();",
@@ -16869,6 +16902,19 @@ const PAGINA_ = [
   "    ao('etqMenor', 'click', () => mudarTamanhoEtiquetas(tamanhoEtiquetas() - TAMANHO_ETQ.passo));",
   "    ao('etqMaior', 'click', () => mudarTamanhoEtiquetas(tamanhoEtiquetas() + TAMANHO_ETQ.passo));",
   "    ao('etqTamanho', 'click', () => mudarTamanhoEtiquetas(100));",
+  "    // Menu de configurações (engrenagem): abre e fecha; fecha ao escolher um item, clicar fora ou Esc.",
+  "    const menuCfg = $('menuConfigLista');",
+  "    const abrirMenuCfg = (abrir) => {",
+  "      menuCfg.hidden = !abrir;",
+  "      $('btnConfig').setAttribute('aria-expanded', String(abrir));",
+  "      if (abrir) { const i = menuCfg.querySelector('.menu-item:not(:disabled)'); if (i) i.focus(); }",
+  "    };",
+  "    ao('btnConfig', 'click', () => abrirMenuCfg(menuCfg.hidden));",
+  "    menuCfg.addEventListener('click', (e) => { if (e.target.closest('.menu-item')) abrirMenuCfg(false); });",
+  "    document.addEventListener('pointerdown', (e) => { if (!menuCfg.hidden && !e.target.closest('#menuConfig')) abrirMenuCfg(false); });",
+  "    document.addEventListener('keydown', (e) => {",
+  "      if (e.key === 'Escape' && !menuCfg.hidden) { abrirMenuCfg(false); $('btnConfig').focus(); }",
+  "    });",
   "    ao('btnTema', 'click', () => {",
   "      const escuro = document.documentElement.dataset.tema !== 'escuro';",
   "      memoria.gravar('tema', escuro ? 'escuro' : 'claro');",
@@ -16892,7 +16938,7 @@ const PAGINA_ = [
   "      Editor.abrir();",
   "    });",
   "    ao('btnRestaurar', 'click', () => {",
-  "      if (window.confirm('Apagar os dados salvos neste navegador e voltar ao ciclo de exemplo?')) configurar();",
+  "      if (window.confirm('Apagar os dados salvos neste navegador e voltar ao começo (sem ciclos)?')) configurar();",
   "    });",
   "    ao('btnAtualizar', 'click', () => {",
   "      if (Object.keys(estado.ajustes).length && !window.confirm('Descartar ajustes de etiquetas não salvos?')) return;",

@@ -35,6 +35,23 @@ function excelLocal() {
 }
 
 const { chromium } = exigir('playwright');
+const { carregarGas } = require('./gas');
+
+/**
+ * Dados dos testes no navegador: o app não tem mais ciclos de exemplo, então cada teste começa com os
+ * de Layouts.gs ("Ciclo exemplo" e "Ciclo exemplo cheio") gravados no armazenamento da versão web.
+ */
+const SEMENTE = (() => {
+  const { run } = carregarGas();
+  return JSON.stringify({
+    layout: run('valoresLayoutPadrao_()'),
+    movimentos: run('valoresMovimentosExemplo_()'),
+    paineis: run('valoresPaineisExemplo_()'),
+    tipos: run('valoresTiposExemplo_()'),
+    produtos: run('valoresProdutosExemplo_()'),
+    versoesModelo: run('versoesAtuais_()'),
+  });
+})();
 const EXCEL_LOCAL = excelLocal();
 const PASTA = fs.mkdtempSync(path.join(os.tmpdir(), 'plano-varejo-e2e-'));
 
@@ -67,9 +84,15 @@ test.after(async () => {
  * Por padrão marca o tutorial como visto, para o cartão de boas-vindas não cobrir a tela.
  */
 async function abrir(t, opcoes) {
-  const op = Object.assign({ tutorial: false, largura: 1440, altura: 900 }, opcoes);
+  const op = Object.assign({ tutorial: false, largura: 1440, altura: 900, exemplo: true }, opcoes);
   const ctx = await navegador.newContext({ viewport: { width: op.largura, height: op.altura }, acceptDownloads: true });
   if (!op.tutorial) await ctx.addInitScript(() => localStorage.setItem('planoVarejo.tutorialVisto', '1'));
+  // Só quando o navegador ainda não tem dados: depois de recarregar, valem as mudanças feitas no teste.
+  if (op.exemplo) {
+    await ctx.addInitScript((semente) => {
+      if (!localStorage.getItem('planoVarejo.planilhaLocal.v1')) localStorage.setItem('planoVarejo.planilhaLocal.v1', semente);
+    }, SEMENTE);
+  }
   // Fonte do Google: resposta vazia (sem depender da rede; o app usa a fonte de reserva).
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   if (EXCEL_LOCAL) await ctx.route('**/exceljs.min.js', (r) => r.fulfill({ path: EXCEL_LOCAL, contentType: 'text/javascript' }));
@@ -80,7 +103,7 @@ async function abrir(t, opcoes) {
   pagina.on('console', (m) => { if (m.type() === 'error') erros.push('console.error: ' + m.text()); });
   pagina.on('dialog', (d) => d.accept()); // window.confirm (Restaurar exemplo, descartar…)
   await pagina.goto(INDEX + (op.hash || ''));
-  await pagina.waitForFunction(() => typeof App !== 'undefined' && App.estado.dados && App.estado.dados.ciclos.length);
+  await pagina.waitForFunction((comCiclos) => typeof App !== 'undefined' && App.estado.dados && (!comCiclos || App.estado.dados.ciclos.length), op.exemplo);
 
   t.after(async () => {
     // Toast de erro na tela também conta como erro.
@@ -102,12 +125,16 @@ const SENHA = { VALIDADOR: 'validacao_exposicao', CONSTRUTOR: 'construcao_exposi
 const escolherCiclo = (p, ciclo) => p.selectOption('#selCiclo', ciclo);
 const abaPlanta = (p, nome) => p.locator('#abasPlanta .aba', { hasText: new RegExp('^' + nome + '$') });
 
+/** Módulos que ficam no painel do desenvolvedor; os outros itens ficam direto no menu da engrenagem. */
+const DO_PAINEL = ['btnConstruir', 'btnModelo', 'btnImportar'];
+
 /**
- * Abre o painel do desenvolvedor pela engrenagem (com a senha, se a sessão ainda não tem) e volta
- * para a seção Módulos.
+ * Abre o painel do desenvolvedor: engrenagem › Modo desenvolvedor (com a senha, se a sessão ainda não tem),
+ * na seção Construção da loja.
  */
 async function abrirPainelDev(p) {
   await p.click('#btnConfig');
+  await p.click('#btnDesenvolvedor');
   await p.waitForSelector('#dlgDesenvolvedor[open], #dlgDev[open]');
   if (await p.locator('#dlgDesenvolvedor[open]').count()) {
     await p.fill('#devSenha', SENHA.DESENVOLVEDOR);
@@ -117,14 +144,19 @@ async function abrirPainelDev(p) {
   await p.click('#dlgDev [data-dev-aba="modulos"]');
 }
 
-/** Escolhe um módulo no painel do desenvolvedor (o painel fecha; o modo noturno o deixa aberto e o teste fecha). */
+/** Escolhe um item: no menu da engrenagem ou, para a construção da loja, no painel do desenvolvedor. */
 async function menuConfig(p, id) {
+  if (DO_PAINEL.indexOf(id) < 0) {
+    await p.click('#btnConfig');
+    await p.click('#' + id);
+    return;
+  }
   await abrirPainelDev(p);
   await p.click('#' + id);
   if (await p.locator('#dlgDev[open]').count()) await p.click('#devFechar');
 }
 
-/** Entra no Desenvolvedor (a engrenagem) e fecha o painel. */
+/** Entra no modo desenvolvedor e fecha o painel. */
 async function entrarDesenvolvedor(p) {
   await abrirPainelDev(p);
   await p.click('#devFechar');
@@ -148,16 +180,16 @@ test('abre no último ciclo aprovado, com as 4 plantas, em modo local', async (t
   assert.deepStrictEqual(await p.locator('#abasPlanta .aba').allTextContents(), ['ER P', 'ER M', 'ER G', 'ER GG']);
   assert.strictEqual(await p.inputValue('#selCiclo'), 'Ciclo exemplo cheio', 'o último ciclo da planilha');
   assert.ok(await p.locator('#slide .grupo-etiquetas').count() > 0, 'a planta abre com as etiquetas do ciclo');
-  // Atualizar mantém o ciclo escolhido (inclusive a planta limpa).
-  await escolherCiclo(p, '');
+  // Atualizar mantém o ciclo escolhido; não há opção "sem ciclo".
+  await escolherCiclo(p, 'Ciclo exemplo');
   await p.click('#btnAtualizar');
   await p.waitForSelector('#carregando', { state: 'hidden' });
-  assert.strictEqual(await estado(p, () => App.estado.ciclo), '');
-  // Copiar link fica no topo; Abrir planilha, no painel do desenvolvedor (no modo local não há planilha).
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), 'Ciclo exemplo');
+  // Copiar link fica no topo; Abrir planilha, na engrenagem (no modo local não há planilha).
   assert.ok(await p.isVisible('#btnLink'));
-  assert.ok(await p.locator('#dlgDev #lnkPlanilha').count() === 1);
+  assert.ok(await p.locator('#menuConfigLista #lnkPlanilha').count() === 1);
   const opcoes = await p.locator('#selCiclo option').allTextContents();
-  assert.ok(opcoes.includes('Ciclo exemplo') && opcoes.includes('Ciclo exemplo cheio'), opcoes.join(', '));
+  assert.deepStrictEqual(opcoes, ['Ciclo exemplo', 'Ciclo exemplo cheio']);
   assert.ok(await p.isVisible('#avisoLocal'));
   assert.ok(await p.locator('#slide [data-movel]').count() > 10, 'a planta deveria ter móveis desenhados');
   assert.strictEqual(await p.isVisible('#telaConfig'), false);
@@ -165,7 +197,7 @@ test('abre no último ciclo aprovado, com as 4 plantas, em modo local', async (t
 
 test('ciclos × plantas × visões desenham sem erro', async (t) => {
   const p = await abrir(t);
-  for (const ciclo of ['Ciclo exemplo', 'Ciclo exemplo cheio', '']) {
+  for (const ciclo of ['Ciclo exemplo', 'Ciclo exemplo cheio']) {
     await escolherCiclo(p, ciclo);
     for (const nome of ['ER P', 'ER M', 'ER G', 'ER GG']) {
       await abaPlanta(p, nome).click();
@@ -412,14 +444,16 @@ test('todas as ERs num PowerPoint: um slide por ER', async (t) => {
   assert.ok(!nomes.includes('ppt/slides/slide' + (nPlantas + 1) + '.xml'), 'slide a mais');
 });
 
-test('desenvolvedor: a engrenagem pede a senha e abre o painel com os módulos, as plantas, a cascata e as senhas', async (t) => {
+test('engrenagem: todos os itens no menu; o modo desenvolvedor pede senha e abre o painel', async (t) => {
   const p = await abrir(t);
-  // Fora do painel não há módulo nenhum: a engrenagem pede a senha.
-  for (const id of ['btnModelo', 'btnImportar', 'btnConstruir', 'btnValidacao', 'btnConstrucao', 'btnEditar', 'btnTema', 'btnTutorial']) {
-    assert.strictEqual(await p.isVisible('#' + id), false, id + ' aparece sem a senha');
-  }
-  assert.strictEqual(await p.isVisible('#devFaixa'), false);
   await p.click('#btnConfig');
+  for (const id of ['btnValidacao', 'btnConstrucao', 'btnEditar', 'btnTema', 'btnTutorial', 'btnDesenvolvedor']) {
+    assert.ok(await p.isVisible('#menuConfigLista #' + id), id + ' não está no menu');
+  }
+  // A construção da loja fica no painel do desenvolvedor (com senha).
+  for (const id of DO_PAINEL) assert.strictEqual(await p.isVisible('#' + id), false, id + ' aparece sem a senha');
+  assert.strictEqual(await p.isVisible('#devFaixa'), false);
+  await p.click('#btnDesenvolvedor');
   await p.waitForSelector('#dlgDesenvolvedor[open]');
   await p.fill('#devSenha', SENHA.CONSTRUTOR);
   await p.click('#devEntrar');
@@ -428,9 +462,12 @@ test('desenvolvedor: a engrenagem pede a senha e abre o painel com os módulos, 
   await p.click('#devCancelar');
 
   await abrirPainelDev(p);
-  for (const id of ['btnModelo', 'btnImportar', 'btnConstruir', 'btnValidacao', 'btnConstrucao', 'btnEditar', 'btnTema', 'btnTutorial']) {
-    assert.ok(await p.isVisible('#' + id), id + ' não aparece no painel');
-  }
+  for (const id of DO_PAINEL) assert.ok(await p.isVisible('#' + id), id + ' não aparece no painel');
+  await p.click('#devFechar');
+  await p.click('#btnConfig');
+  assert.strictEqual(await p.getAttribute('#btnDesenvolvedor', 'aria-pressed'), 'true', 'o item fica marcado com a sessão aberta');
+  await p.click('#btnConfig');
+  await abrirPainelDev(p);
   // Visual do modo desenvolvedor: faixa no alto e a classe no corpo.
   assert.ok(await p.isVisible('#devFaixa'));
   assert.ok(await estado(p, () => document.body.classList.contains('modo-dev')));
@@ -488,6 +525,7 @@ test('desenvolvedor: a engrenagem pede a senha e abre o painel com os módulos, 
   await p.click('#devFaixaSair');
   assert.strictEqual(await p.isVisible('#devFaixa'), false);
   await p.click('#btnConfig');
+  await p.click('#btnDesenvolvedor');
   await p.waitForSelector('#dlgDesenvolvedor[open]');
   await p.click('#devCancelar');
 });
@@ -516,9 +554,16 @@ test('planilha base: baixar e importar de volta como ciclo novo', async (t) => {
   await p.reload();
   await p.waitForFunction(() => App.estado.dados && App.estado.dados.ciclos.includes('C99/2026'));
 
-  // Restaurar exemplo volta ao estado inicial.
+  // Apagar dados volta ao começo: sem nenhum ciclo (nem os de exemplo).
   await p.click('#btnRestaurar');
-  await p.waitForFunction(() => !App.estado.dados.ciclos.includes('C99/2026'));
+  await p.waitForFunction(() => App.estado.dados.ciclos.length === 0);
+});
+
+test('o app começa sem ciclos de exemplo', async (t) => {
+  const p = await abrir(t, { exemplo: false });
+  assert.deepStrictEqual(await estado(p, () => App.estado.dados.ciclos), []);
+  assert.strictEqual(await p.isDisabled('#selCiclo'), true);
+  assert.match(await p.textContent('#selCiclo'), /nenhum ciclo/);
 });
 
 test('planilha base em branco, só uma planta', async (t) => {
@@ -1238,9 +1283,9 @@ test('tela de celular: abre e troca de ciclo sem erro', async (t) => {
   assert.ok(await p.locator('#slide [data-movel]').count() > 0);
 });
 
-test('dados corrompidos no navegador voltam ao exemplo', async (t) => {
+test('dados corrompidos no navegador voltam ao começo (as plantas, sem ciclos)', async (t) => {
   const p = await abrir(t);
   await p.evaluate(() => localStorage.setItem('planoVarejo.planilhaLocal.v1', '{quebrado'));
   await p.reload();
-  await p.waitForFunction(() => App.estado.dados && App.estado.dados.ciclos.includes('Ciclo exemplo'));
+  await p.waitForFunction(() => App.estado.dados && App.estado.dados.plantas.length === 4 && App.estado.dados.ciclos.length === 0);
 });

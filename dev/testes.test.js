@@ -4,7 +4,7 @@
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { carregarGas, servicosFalsos } = require('./gas');
+const { carregarGas, servicosFalsos, configurarComExemplo } = require('./gas');
 
 /** Acesso do módulo Desenvolvedor (Construir loja, Baixar / Importar planilha). */
 const DEV = "{ senha: 'desenvolvedor_exposicao' }";
@@ -89,9 +89,13 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.ok(f.planilha.getSheetByName('Página1'), 'aba do usuário é mantida');
   assert.equal(f.planilha.getSheetByName('Movimentos')._aba.congeladas, 3);
   assert.equal(run('configurarPlanilha()').criadas.length, 0, 'não sobrescreve abas existentes');
+  const d0 = run('getDados()');
+  assert.equal(d0.precisaConfigurar, false);
+  assert.deepEqual(Array.from(d0.ciclos), [], 'a planilha nova começa sem ciclos (nem os de exemplo)');
+  assert.deepEqual(Array.from(d0.avisos), []);
 
+  configurarComExemplo(run);
   const d1 = run('getDados()');
-  assert.equal(d1.precisaConfigurar, false);
   assert.deepEqual(Array.from(d1.avisos), []);
   assert.ok(d1.movimentos['Ciclo exemplo']['01'], 'planta "01" continua texto');
 
@@ -156,7 +160,7 @@ test('ajuste das pilhas por espaço: texto da planilha ↔ objeto', () => {
 test('importação com colunas obrigatórias faltando dá erro claro', () => {
   const f = servicosFalsos();
   const { ctx, run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   ctx.__ruim = { movimentos: [['Ciclo', 'Planta', 'Etiqueta 1'], ['C1', '01', 'x']] };
   assert.throws(() => run(`importarPlanilha(${DEV}, __ruim)`), /ID Móvel/);
   assert.throws(() => run(`importarPlanilha(${DEV}, {})`), /Movimentos/);
@@ -166,7 +170,7 @@ test('modo standalone cria a planilha e guarda o ID', () => {
   const f = servicosFalsos({ vinculada: false });
   const { run } = carregarGas(f.globais);
   assert.equal(run('getDados()').precisaConfigurar, true);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   assert.equal(f.propriedades.SPREADSHEET_ID, 'TESTE');
   assert.deepEqual(f.planilha.getSheets().map((s) => s.getName()), ['Layout', 'Movimentos', 'Painéis', 'Tipos de movimento', 'Produtos']);
   assert.equal(run('getDados()').plantas.length, 4);
@@ -175,7 +179,7 @@ test('modo standalone cria a planilha e guarda o ID', () => {
 test('importar aba Layout substitui só as plantas presentes e mantém números', () => {
   const f = servicosFalsos();
   const { ctx, run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   ctx.__layout = {
     layout: [
       ['Planta', 'ID Móvel', 'Tipo', 'X', 'Y', 'Largura (eixo X)', 'Profundidade (eixo Y)', 'Altura'],
@@ -222,7 +226,7 @@ test('gôndola: espaços, divisão dos meios e IDs de espaço na planilha', () =
   assert.equal(linhas[2].dividido, '', 'divisão só vale para gôndola');
 });
 
-test('modelo base novo de uma planta substitui só aquela planta (e o exemplo dela)', () => {
+test('modelo base novo de uma planta substitui só o layout daquela planta', () => {
   const { run } = carregarGas();
   const r = run(`(function () {
     const layout = valoresLayoutPadrao_().filter(function (l, i) { return i === 0 || l[0] !== '02'; });
@@ -239,9 +243,7 @@ test('modelo base novo de uma planta substitui só aquela planta (e o exemplo de
   assert.ok(!ids('02').includes('VELHO-01') && ids('02').includes('MESA DESTAQUE 1') && ids('02').includes('LOJA'), 'planta 02 com o modelo novo');
   assert.ok(ids('01').includes('MEU-01'), 'planta 01 intacta');
   const mov = r.abas.movimentos.slice(1).filter((l) => l[1] === '02');
-  assert.ok(mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'GONDOLA 2/PONTA-A'), 'exemplo da planta 02 atualizado');
-  assert.ok(!mov.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'VELHO-01'));
-  assert.ok(mov.some((l) => l[0] === 'C9'), 'outros ciclos da planta 02 intactos');
+  assert.deepEqual(mov.map((l) => l[0]), ['Ciclo exemplo', 'C9'], 'os ciclos não mudam (o modelo não grava mais o exemplo)');
   const de_novo = run(`atualizarModelosPlantas_({ layout: valoresLayoutPadrao_(), movimentos: [] }, versoesAtuais_())`);
   assert.deepEqual(de_novo.plantas, [], 'não repete quando a versão já foi aplicada');
 });
@@ -284,7 +286,7 @@ test('giro do balcão e testeiras do móvel make', () => {
   assert.equal(linhas[1].giro, 270);
 });
 
-test('ciclo de exemplo novo troca todas as linhas dele (e só dele)', () => {
+test('versão 18: os ciclos de exemplo saem da base (e só eles)', () => {
   const { run } = carregarGas();
   const r = run(`atualizarModelosPlantas_({
     layout: valoresLayoutPadrao_(),
@@ -294,9 +296,9 @@ test('ciclo de exemplo novo troca todas as linhas dele (e só dele)', () => {
       ['Ciclo exemplo', 'TODAS', 'CALLOUT', 'velho', 'BOT', 'PAR-02'], ['C9', 'TODAS', 'NOTA', 'minha nota', '', '']],
   }, { '01': 13, '02': 12, '03': 9, '04': 11, _exemplo: 1 })`);
   assert.deepEqual(r.plantas, ['exemplo']);
-  assert.ok(!r.abas.movimentos.some((l) => l[2] === 'GON-01'), 'linha antiga do exemplo sai');
+  assert.equal(r.versoes._exemplo, 18);
+  assert.ok(!r.abas.movimentos.some((l) => /^Ciclo exemplo/.test(l[0])), 'as linhas do exemplo saem e não voltam');
   assert.ok(r.abas.movimentos.some((l) => l[0] === 'C9'), 'outro ciclo fica');
-  assert.ok(r.abas.movimentos.some((l) => l[0] === 'Ciclo exemplo' && l[2] === 'MOVEL MAKE 1/TESTEIRA-2'));
   assert.ok(!r.abas.paineis.some((l) => l[3] === 'velho'));
   assert.ok(r.abas.paineis.some((l) => l[3] === 'minha nota'));
   assert.equal(run("normId_('Móvel de  fila 3')"), 'MOVEL DE FILA 3');
@@ -370,7 +372,7 @@ test('gôndola, mesas, totem e móvel make: linha do móvel inteiro é ignorada 
 test('desenvolvedor: senha própria para importar a planilha e salvar o layout', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   assert.deepEqual(run(`entrarDesenvolvedor(${DEV})`), { ok: true });
   assert.throws(() => run("entrarDesenvolvedor({ senha: 'errada' })"), /Senha incorreta/);
   assert.throws(() => run('entrarDesenvolvedor()'), /Senha incorreta/);
@@ -389,7 +391,7 @@ test('desenvolvedor: senha própria para importar a planilha e salvar o layout',
 test('desenvolvedor: plantas (criar, renomear, ordenar, apagar), regras da cascata e senhas', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   const cfg = () => run(`getConfigDev(${DEV})`);
   const salvar = (pedido) => run(`salvarConfigDev(${DEV}, ${JSON.stringify(pedido)})`);
   assert.throws(() => run("getConfigDev({ senha: 'x' })"), /Senha incorreta/);
@@ -446,7 +448,7 @@ test('desenvolvedor: plantas (criar, renomear, ordenar, apagar), regras da casca
 test('planilha separada para o layout: criar, ler e gravar nela, vincular e voltar para a principal', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   assert.throws(() => run("getPlanilhas({ senha: 'x' })"), /Senha incorreta/);
   assert.equal(run(`getPlanilhas(${DEV})`).layout, null, 'o layout começa na principal');
 
@@ -482,7 +484,7 @@ test('regra de validação da planilha que rejeita valores não impede o app de 
   // Planilha com a coluna Classificação validada à mão ("rejeitar entrada"), com outra lista de valores.
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   const aba = f.planilha.getSheetByName('Tipos de movimento');
   const lista = ['Promoção', 'Exaustão', 'Institucional', 'Lançamento'];
   aba.getRange(2, 3, 500, 1).setDataValidation(f.globais.SpreadsheetApp.newDataValidation().requireValueInList(lista).setAllowInvalid(false).build());
@@ -537,7 +539,7 @@ test('validação: senha por papel, quem pode o quê e aba Comentários', () => 
 test('ciclo em construção: criar, editar, enviar, devolver e aprovar', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
   const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   const salvar = (quem, pedido) => run(`salvarRascunho(${quem}, ${JSON.stringify(pedido)})`);
@@ -692,7 +694,7 @@ test('tipos de movimento: classificação e GMV esperado por etiqueta do ciclo',
 test('importar aba Tipos de movimento substitui só o ciclo presente', () => {
   const f = servicosFalsos();
   const { ctx, run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   ctx.__tipos = { tipos: [
     ['Ciclo', 'Movimento (etiqueta)', 'Classificação', 'GMV esperado (R$)'],
     ['C20', 'BOTIPROMO', 'Promoção', 300000],
@@ -706,7 +708,7 @@ test('importar aba Tipos de movimento substitui só o ciclo presente', () => {
 test('tamanho das etiquetas da planta fica na linha LOJA do Layout', () => {
   const f = servicosFalsos();
   const { run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   assert.equal(run('getDados()').plantas[0].loja.escalaEtiquetas, 100);
   run("salvarAjustesEtiquetas('01', { LOJA: { escala: 140 }, 'PIRAMIDE 1': { x: 3, y: 4 } })");
   const p = run('getDados()').plantas[0];
@@ -783,7 +785,7 @@ test('ER P: posições fixas das etiquetas no layout padrão', () => {
 test('antecipação: item do próximo ciclo num espaço do ciclo atual, a partir de uma data', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
   const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   const salvar = (quem, pedido) => run(`salvarAntecipacao(${quem}, ${JSON.stringify(pedido)})`);
@@ -830,7 +832,7 @@ test('antecipação: item do próximo ciclo num espaço do ciclo atual, a partir
 test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba Produtos', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
   const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   const salvar = (quem, pedido) => run(`salvarPrateleiras(${quem}, ${JSON.stringify(pedido)})`);
@@ -911,7 +913,7 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
 test('produtos: a aba Produtos da planilha importada substitui o catálogo', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   const r = run(`importarPlanilha(${DEV}, { produtos: [['SKU', 'Nome', 'Marca', 'Categoria'], ['A1', 'Batom', 'qdb', 'Make'], ['', 'sem sku'], ['A2', 'Base', 'EUD', '']] })`);
   assert.equal(r.produtos, 2);
   assert.deepEqual(run('getDados()').produtos.map((p) => [p.sku, p.nome, p.marca]), [['A2', 'Base', 'EUD'], ['A1', 'Batom', 'QDB']]);
@@ -946,7 +948,7 @@ test('observação da etiqueta depois do "|": aparece na etiqueta, mas o movimen
 test('ciclo em construção: etiqueta com observação usa o movimento cadastrado nos tipos', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   const salvar = (pedido) => run(`salvarRascunho(${C}, ${JSON.stringify(pedido)})`);
   salvar({ acao: 'criar', ciclo: 'C30' });
@@ -980,7 +982,7 @@ test('símbolo por etiqueta: colunas "Símbolo Etiqueta N" e, com a antecipaçã
 test('ciclo em construção: símbolo e data de antecipação por etiqueta vão para a aba e voltam', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
-  run('configurarPlanilha()');
+  configurarComExemplo(run);
   const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
   const salvar = (pedido) => run(`salvarRascunho(${C}, ${JSON.stringify(pedido)})`);
   salvar({ acao: 'criar', ciclo: 'C31' });

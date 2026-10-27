@@ -35,10 +35,11 @@ test('app completo em arquivo único: serve a página embutida, sem Index.html n
   run('doGet()');
   assert.equal(run('globalThis.__pagina'), pagina);
   run('configurarPlanilha()');
-  assert.ok(run('getDados()').tiposMovimento['Ciclo exemplo'], 'cria a aba Tipos de movimento');
+  assert.ok(falsos.planilha.getSheetByName('Tipos de movimento'), 'cria a aba Tipos de movimento');
+  assert.deepEqual(run('getDados()').ciclos, [], 'sem ciclos de exemplo');
 });
 
-test('atualização numa planilha que já existe: ganha a aba Tipos de movimento e mantém os ciclos do usuário', () => {
+test('atualização numa planilha que já existe: ganha a aba Tipos de movimento, perde os ciclos de exemplo e mantém os do usuário', () => {
   // Planilha "antiga": Layout, Movimentos e Painéis com um ciclo próprio, sem a aba Tipos de movimento,
   // e o script com as versões de antes desta atualização (exemplo 8).
   const falsos = servicosFalsos({ vinculada: true });
@@ -57,5 +58,5 @@ test('atualização numa planilha que já existe: ganha a aba Tipos de movimento
   const d = run('getDados()');
   assert.ok(falsos.planilha.getSheetByName('Tipos de movimento'), 'aba criada na primeira abertura');
   assert.equal(d.movimentos['C15/2026']['01']['PIRAMIDE 1'].etiquetas[0].texto, 'MEU MOVIMENTO', 'ciclo do usuário intacto');
-  assert.deepEqual(d.ciclos.sort(), ['C15/2026', 'Ciclo exemplo', 'Ciclo exemplo cheio']);
+  assert.deepEqual(d.ciclos, ['C15/2026'], 'os ciclos de exemplo saem da planilha');
 });
