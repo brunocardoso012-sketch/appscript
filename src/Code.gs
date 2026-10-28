@@ -90,6 +90,7 @@ function getDados() {
   dados.inventario = inventarioDeValores_(lerAbaSemAcento_(ss, CONFIG.ABAS.INVENTARIO));
   dados.calendario = lerCalendario_(ss);
   dados.ordemCalendario = ordemCalendarioDeValores_(lerAba_(ss, CONFIG.ABAS.ORDEM_CALENDARIO, true));
+  dados.selosCalendario = selosCalendarioDeValores_(lerAba_(ss, CONFIG.ABAS.SELOS_CALENDARIO, true));
   dados.calendario.avisos.forEach(function (a) { if (dados.avisos.length < 60) dados.avisos.push(a); });
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
@@ -206,6 +207,15 @@ function salvarAntecipacao(acesso, pedido) {
  */
 function salvarOrdemCalendario(acesso, pedido) {
   return executarOrdemCalendario_(ioRascunhos_(planilha_()), acesso, pedido);
+}
+
+/**
+ * Grava os selos (hotspot e medalha) dos movimentos de um ciclo no calendário (veja executarSelosCalendario_).
+ * Só o construtor da estratégia; todo mundo recebe os selos no getDados.
+ * @return {Object} ciclo → chave do movimento → { texto, hotspot, medalha }
+ */
+function salvarSelosCalendario(acesso, pedido) {
+  return executarSelosCalendario_(ioRascunhos_(planilha_()), acesso, pedido);
 }
 
 /* ============================= PRATELEIRAS =============================== */

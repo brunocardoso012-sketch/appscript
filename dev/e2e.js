@@ -347,8 +347,8 @@ async function semearCalendario(p) {
   await p.waitForFunction(() => App.estado.dados && App.estado.dados.calendario.ciclos.EUD.length === 2);
 }
 
-test('calendário dos ciclos: o construtor muda a ordem dos movimentos de um ciclo e salva', async (t) => {
-  const p = await abrir(t);
+test('calendário dos ciclos: o construtor muda a ordem e os selos dos movimentos de um ciclo e salva; PNG do calendário', async (t) => {
+  const p = await abrir(t, { altura: 1400 }); // alta o bastante para os itens arrastados ficarem à vista
   await semearCalendario(p);
   await escolherCiclo(p, 'Ciclo exemplo cheio');
   // Sem o login da Construção, não dá para ordenar; as medidas são só GMV e exposição.
@@ -373,13 +373,24 @@ test('calendário dos ciclos: o construtor muda a ordem dos movimentos de um cic
   const antes = await lista();
   // ↑ sobe o terceiro; arrastar leva o quinto para o topo; a linha do tempo mostra a ordem nova antes de salvar.
   await p.locator('#calCorpo .cal-ordem li').nth(2).locator('button[aria-label^="Subir"]').click();
-  await p.locator('#calCorpo .cal-ordem li').nth(4).dragTo(p.locator('#calCorpo .cal-ordem li').nth(0));
+  // Arrasta pela alça (à esquerda do item).
+  await p.locator('#calCorpo .cal-ordem li').nth(4).dragTo(p.locator('#calCorpo .cal-ordem li').nth(0), { sourcePosition: { x: 8, y: 12 }, targetPosition: { x: 8, y: 12 } });
   const nova = await lista();
   assert.deepStrictEqual(nova.slice(0, 4), [antes[4], antes[0], antes[2], antes[1]]);
   assert.deepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4), 'a linha do tempo acompanha a lista');
-  assert.match(await p.textContent('#calCorpo .cal-ordem-estado'), /não salva/);
-  await p.click('#calCorpo .cal-ordem button:has-text("Salvar ordem")');
-  await p.waitForFunction(() => App.estado.dados.ordemCalendario['Ciclo exemplo cheio']);
+  assert.match(await p.textContent('#calCorpo .cal-ordem-estado'), /não salvas/);
+  // Selos: hotspot e medalha no primeiro, prata no segundo; a linha do tempo mostra antes de salvar.
+  const item = (i) => p.locator('#calCorpo .cal-ordem li').nth(i);
+  await item(0).locator('.cal-ordem-hot').click();
+  await item(0).locator('.cal-ordem-medalha').selectOption('OURO');
+  await item(1).locator('.cal-ordem-medalha').selectOption('PRATA');
+  const selosNaTela = () => p.locator('#calCorpo .cal-mov[data-ciclo="Ciclo exemplo cheio"][data-selos]').evaluateAll((l) => l.map((x) => x.dataset.movimento + ':' + x.dataset.selos).sort());
+  assert.deepStrictEqual(await selosNaTela(), [nova[0] + ':OURO HOTSPOT', nova[1] + ':PRATA'].sort());
+  assert.strictEqual(await p.locator('#calCorpo .cal-mov[data-movimento="' + nova[0] + '"] .cal-hotspot').count(), 1);
+  await p.click('#calCorpo .cal-ordem button:text-is("Salvar")');
+  await p.waitForFunction(() => App.estado.dados.ordemCalendario['Ciclo exemplo cheio'] && App.estado.dados.selosCalendario['Ciclo exemplo cheio']);
+  const selos = await estado(p, () => App.estado.dados.selosCalendario['Ciclo exemplo cheio']);
+  assert.deepStrictEqual(Object.values(selos).map((x) => [x.texto, x.hotspot, x.medalha]).sort(), [[nova[0], true, 'OURO'], [nova[1], false, 'PRATA']].sort());
   assert.strictEqual(await p.locator('#calCorpo .cal-ordem').count(), 0, 'salvar fecha a ordenação');
   assert.strictEqual(await p.getAttribute('#calCorpo .cal-controle button[data-valor="definida"]', 'aria-pressed'), 'true');
   assert.deepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4));
@@ -394,7 +405,26 @@ test('calendário dos ciclos: o construtor muda a ordem dos movimentos de um cic
   await p.waitForSelector('#calCorpo .cal-mov');
   assert.strictEqual(await p.getAttribute('#calCorpo .cal-controle button[data-valor="definida"]', 'aria-pressed'), 'true');
   assert.deepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4));
+  assert.deepStrictEqual(await selosNaTela(), [nova[0] + ':OURO HOTSPOT', nova[1] + ':PRATA'].sort(), 'os selos ficam para todo mundo');
   assert.strictEqual(await p.locator('#calCorpo .cal-ordenar').count(), 0);
+  // Baixar PNG com o calendário aberto: já vem no calendário do ciclo; slide 16:9 e PNG recortado.
+  await p.click('#btnPng');
+  await p.waitForSelector('#dlgPng[open]');
+  assert.ok(await p.isChecked('#dlgPng input[name="pngConteudo"][value="calendario"]'));
+  assert.ok(await p.isDisabled('#dlgPng input[name="pngErs"][value="todas"]'), 'o calendário não sai por ER');
+  assert.strictEqual(await p.inputValue('#pngCicloCal'), 'Ciclo exemplo cheio');
+  assert.deepStrictEqual(await p.locator('#pngCicloCal option').allTextContents(), ['Ciclo exemplo', 'Ciclo exemplo cheio']);
+  await p.check('#dlgPng input[name="pngFormato"][value="slide"]');
+  const slide = await baixar(p, () => p.click('#pngBaixar'));
+  assert.strictEqual(slide.nome, 'Calendario - Ciclo exemplo cheio - slide.png');
+  assert.ok(ehPng(slide.bytes));
+  assert.strictEqual(slide.bytes.readUInt32BE(16), 3840, 'slide com 3840 px de largura');
+  await p.click('#btnPng');
+  await p.selectOption('#pngCicloCal', 'Ciclo exemplo');
+  await p.check('#dlgPng input[name="pngFormato"][value="png"]');
+  const recorte = await baixar(p, () => p.click('#pngBaixar'));
+  assert.strictEqual(recorte.nome, 'Calendario - Ciclo exemplo.png');
+  assert.ok(ehPng(recorte.bytes) && recorte.bytes.readUInt32BE(16) <= 3840);
   // As outras ordens continuam a um clique.
   await p.click('#calCorpo .cal-controle button[data-valor="gmv"]');
   assert.notDeepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4));

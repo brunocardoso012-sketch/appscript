@@ -611,7 +611,7 @@
   /* Construção: a ordem dos movimentos de um ciclo, ao lado da linha do tempo. */
   .cal-ordenar[aria-pressed="true"] { background: var(--destaque); }
   .cal-ordem {
-    flex: 0 0 330px; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px;
+    flex: 0 0 340px; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px;
     border: 1px solid var(--borda-forte); border-top: 3px solid #E8590C; border-radius: 10px; background: var(--superficie);
   }
   .cal-ordem h3 { margin: 0; font-size: 14px; }
@@ -621,9 +621,15 @@
   [data-tema="escuro"] .cal-ordem-estado { color: #ffb38a; }
   .cal-ordem-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
   .cal-ordem-lista li {
-    display: flex; align-items: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--borda); border-left: 4px solid; border-radius: 7px;
-    background: var(--superficie); cursor: grab;
+    display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; align-items: center; gap: 4px 6px; padding: 5px 6px;
+    border: 1px solid var(--borda); border-left: 4px solid; border-radius: 7px; background: var(--superficie); cursor: grab;
   }
+  .cal-ordem-lista li > .cal-ordem-alca { grid-area: 1 / 1 / 3 / 2; }
+  .cal-ordem-lista li > .cal-mov-pos { grid-area: 1 / 2 / 3 / 3; }
+  .cal-ordem-lista li > .cal-ordem-texto { grid-area: 1 / 3; }
+  .cal-ordem-lista li > .sobe { grid-area: 1 / 4; }
+  .cal-ordem-lista li > .desce { grid-area: 1 / 5; }
+  .cal-ordem-selos { grid-area: 2 / 3 / 3 / 6; display: flex; align-items: center; gap: 6px; }
   .cal-ordem-lista li.arrastando { opacity: .45; }
   .cal-ordem-lista li.alvo { box-shadow: 0 -3px 0 #3346b8; }
   .cal-ordem-alca { color: var(--texto-2); font-size: 12px; letter-spacing: -2px; }
@@ -693,6 +699,19 @@
   }
   .cal-mov-nome { font: 800 12.5px var(--fonte-etq); overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
   .cal-bolinha { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); }
+  /* Selos dos movimentos: medalha (ouro, prata, bronze) e hotspot. */
+  .cal-medalha { flex: 0 0 auto; display: block; }
+  .cal-hotspot {
+    flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px 1px 5px; border-radius: 999px;
+    background: #E8590C; color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .5px;
+  }
+  .cal-ordem-hot {
+    flex: 0 0 auto; width: 26px; height: 24px; padding: 0; display: grid; place-items: center; border: 1px solid var(--borda);
+    border-radius: 6px; background: var(--fundo); color: var(--texto-2); cursor: pointer;
+  }
+  .cal-ordem-hot[aria-pressed="true"] { background: #E8590C; border-color: #E8590C; color: #fff; }
+  .cal-ordem-medalha { flex: 0 0 auto; min-width: 0; width: 86px; padding: 2px 4px; font-size: 11px; }
+  .png-ciclo-cal { margin: -4px 0 12px 24px !important; }
   .cal-mov-classe { flex: 0 0 auto; font-size: 10.5px; padding: 0 6px; border: 1px solid; border-radius: 999px; color: var(--texto-2); }
   .cal-mov-l2 { gap: 12px; overflow: hidden; }
   .cal-medida { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--texto-2); flex: 0 0 auto; }

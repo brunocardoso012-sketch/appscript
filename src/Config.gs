@@ -35,6 +35,8 @@ const CONFIG = {
     FERIADOS: 'Feriados',
     // Ordem dos movimentos de cada ciclo no calendário, definida pelo construtor (Rascunhos.gs).
     ORDEM_CALENDARIO: 'Ordem do calendário',
+    // Selos especiais dos movimentos de cada ciclo no calendário (hotspot e medalha), definidos pelo construtor.
+    SELOS_CALENDARIO: 'Selos dos movimentos',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -390,6 +392,25 @@ function colunasOrdemCalendario_() {
     { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true },
     { chave: 'posicao', titulo: 'Posição', obrigatoria: true },
     { chave: 'etiqueta', titulo: 'Movimento (etiqueta)', obrigatoria: true, texto: true, apelidos: ['Movimento', 'Etiqueta'] },
+    { chave: 'atualizadoPor', titulo: 'Atualizado por', texto: true },
+    { chave: 'atualizadoEm', titulo: 'Atualizado em', texto: true },
+  ];
+}
+
+/** Medalhas que o construtor pode dar a um movimento do ciclo (calendário dos ciclos e PNG). */
+const MEDALHAS = {
+  OURO: { nome: 'Ouro', cor: '#D4A20B', borda: '#9A7406' },
+  PRATA: { nome: 'Prata', cor: '#A7ADB3', borda: '#6F767D' },
+  BRONZE: { nome: 'Bronze', cor: '#B8733A', borda: '#7E4A1F' },
+};
+
+/** Aba "Selos dos movimentos": os selos especiais de cada movimento do ciclo (hotspot e medalha). */
+function colunasSelosCalendario_() {
+  return [
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true },
+    { chave: 'etiqueta', titulo: 'Movimento (etiqueta)', obrigatoria: true, texto: true, apelidos: ['Movimento', 'Etiqueta'] },
+    { chave: 'hotspot', titulo: 'Hotspot', texto: true },
+    { chave: 'medalha', titulo: 'Medalha', texto: true },
     { chave: 'atualizadoPor', titulo: 'Atualizado por', texto: true },
     { chave: 'atualizadoEm', titulo: 'Atualizado em', texto: true },
   ];

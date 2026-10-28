@@ -1528,7 +1528,8 @@ const App = (() => {
    * movimento segue o calendário da marca que tem mais espaço nele: só a Eudora tem calendário próprio; as
    * outras marcas (e o movimento sem marca) seguem o do Boticário. Se o ciclo não estiver no calendário da
    * marca, valem as datas do outro calendário. ordemSalva: a ordem dos movimentos que o construtor salvou para
-   * o ciclo (aba Ordem do calendário), ou null.
+   * o ciclo (aba Ordem do calendário), ou null. selo de cada movimento: { hotspot, medalha } (aba Selos dos
+   * movimentos), ou null.
    * Exposição: a fatia do espaço de exposição (sem VM) da ER que vai para o movimento; sem `er`, a média das
    * ERs (cada ER é um tamanho médio da rede: nada soma ERs). GMV: o esperado, da aba Tipos de movimento.
    * Em cada ciclo, fatiaExposicao e fatiaGmv são a parte do movimento na exposição e no GMV do ciclo (somam
@@ -1618,11 +1619,13 @@ const App = (() => {
     // Um grupo por ciclo do app com datas: todos os movimentos dele, cada um nas datas do seu calendário.
     const grupos = Object.keys(datasDoApp).map((app) => {
       const porCal = datasDoApp[app];
+      const selos = (estado.dados.selosCalendario || {})[app] || {};
       const movimentos = movimentosDoCiclo(app).map((m) => {
         const proprio = porCal[m.calendario];
         const datasMov = proprio || porCal.BOT || porCal[Object.keys(porCal)[0]];
         return Object.assign({}, m, {
           inicio: datasMov.inicio, fim: datasMov.fim, datasDoOutro: !proprio,
+          selo: selos[chaveEtiqueta(m.texto)] || null,
           nomeCalendario: (cal.calendarios[m.calendario] || {}).nome || m.calendario,
         });
       });
@@ -1637,6 +1640,7 @@ const App = (() => {
       ers: estado.dados.plantas.map((p) => ({ id: p.id, nome: p.nome })),
       cicloAtual: estado.ciclo,
       semDatas: todosOsCiclos().filter((c) => !datasDoApp[c]),
+      medalhas: estado.dados.medalhas || {},
     };
   }
 
@@ -1671,6 +1675,20 @@ const App = (() => {
           estado.dados.ordemCalendario = await chamar('salvarOrdemCalendario', Validacao.acesso(),
             movimentos ? { ciclo, movimentos } : { ciclo, limpar: true });
           toast(movimentos ? 'Ordem do ' + ciclo + ' salva.' : 'O ' + ciclo + ' voltou à ordem automática.');
+          return true;
+        } catch (e) {
+          erro(e);
+          return false;
+        } finally {
+          carregando(false);
+        }
+      },
+      // Selos (hotspot e medalha) dos movimentos de um ciclo: [{ movimento, hotspot, medalha }].
+      salvarSelos: async (ciclo, selos) => {
+        carregando(true, 'Salvando os selos…');
+        try {
+          estado.dados.selosCalendario = await chamar('salvarSelosCalendario', Validacao.acesso(), { ciclo, selos });
+          toast('Selos do ' + ciclo + ' salvos.');
           return true;
         } catch (e) {
           erro(e);
@@ -2317,8 +2335,17 @@ const App = (() => {
     const estr = dlg.querySelector('input[name="pngConteudo"][value="estrategia"]');
     estr.disabled = !estado.ciclo;
     estr.closest('label').title = estado.ciclo ? '' : 'Escolha um ciclo para baixar a estratégia';
+    // Calendário do ciclo: os ciclos do app com datas no calendário (começa no da tela).
+    const comDatas = dadosCalendario('').grupos.map((g) => g.cicloApp);
+    const cal = dlg.querySelector('input[name="pngConteudo"][value="calendario"]');
+    cal.disabled = !comDatas.length;
+    cal.closest('label').title = comDatas.length ? '' : 'Nenhum ciclo do app tem datas no calendário dos ciclos';
+    const selCal = $('pngCicloCal');
+    selCal.textContent = '';
+    comDatas.forEach((c) => selCal.add(new Option(c, c, false, c === estado.ciclo)));
     const atual = dlg.querySelector('input[name="pngConteudo"]:checked');
-    if (!atual || atual.disabled || atual.value !== 'estrategia') {
+    if (estado.calendario && comDatas.length) cal.checked = true; // com o calendário aberto, já vem nele
+    else if (!atual || atual.disabled || (atual.value !== 'estrategia' && atual.value !== 'calendario')) {
       dlg.querySelector('input[name="pngConteudo"][value="' + (estado.visao === 'simplificada' ? 'simplificada' : 'planta') + '"]').checked = true;
     }
     $('pngEsta').textContent = plantaAtual().nome;
@@ -2338,17 +2365,24 @@ const App = (() => {
     const dlg = $('dlgPng');
     const conteudo = dlg.querySelector('input[name="pngConteudo"]:checked').value;
     // Todas as ERs: um PowerPoint com o slide completo de cada ER (o formato fica fixo).
+    const calendario = conteudo === 'calendario';
+    // O calendário do ciclo é um só (as ERs entram na exposição como no calendário da tela).
+    const rTodas = dlg.querySelector('input[name="pngErs"][value="todas"]');
+    rTodas.disabled = calendario;
+    if (calendario) dlg.querySelector('input[name="pngErs"][value="esta"]').checked = true;
+    $('pngCicloCalCampo').hidden = !calendario;
     const todas = dlg.querySelector('input[name="pngErs"]:checked').value === 'todas';
     dlg.querySelectorAll('input[name="pngFormato"]').forEach((r) => { r.disabled = todas; });
     if (todas) dlg.querySelector('input[name="pngFormato"][value="slide"]').checked = true;
     $('pngBaixar').textContent = todas ? 'Baixar .pptx' : 'Baixar PNG';
     const estrategia = conteudo === 'estrategia';
     $('pngFormatoPng').textContent = estrategia ? '— só os gráficos, recortados e com fundo transparente'
-      : '— só o conteúdo, recortado e com fundo transparente';
-    $('pngFormatoSlide').textContent = estrategia ? '— 16:9 (3840 px), com título e fundo, pronto para a apresentação'
+      : calendario ? '— só a linha do tempo e os movimentos, recortados e com fundo transparente'
+        : '— só o conteúdo, recortado e com fundo transparente';
+    $('pngFormatoSlide').textContent = estrategia || calendario ? '— 16:9 (3840 px), com título e fundo, pronto para a apresentação'
       : '— 16:9 (3840 px), com fundo, painéis e notas, pronto para a apresentação';
-    // O filtro da tela vale para a planta e a visão simplificada; a estratégia mostra o ciclo inteiro.
-    $('pngFiltroTexto').hidden = estrategia || !$('pngFiltroTexto').textContent;
+    // O filtro da tela vale para a planta e a visão simplificada; a estratégia e o calendário mostram o ciclo inteiro.
+    $('pngFiltroTexto').hidden = estrategia || calendario || !$('pngFiltroTexto').textContent;
   }
 
   /**
@@ -2397,7 +2431,10 @@ const App = (() => {
       const soPlanta = modo === 'planta';
       const r = conteudo === 'estrategia'
         ? { tela: Estrategia.desenhar(temp, dadosEstrategia(planta, estado.ciclo), { recorte: soPlanta }) }
-        : Render.desenhar(temp, Object.assign(contextoDesenho(planta), {
+        : conteudo === 'calendario'
+          // O calendário do ciclo, com as escolhas do calendário da tela (ordem e exposição).
+          ? { tela: Calendario.slide(temp, dadosCalendario(Calendario.vista().er), { ciclo: $('pngCicloCal').value, recorte: soPlanta }) }
+          : Render.desenhar(temp, Object.assign(contextoDesenho(planta), {
           somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null, escuro: false,
           visao: conteudo === 'simplificada' ? 'simplificada' : 'planta',
         }));
@@ -2476,7 +2513,8 @@ const App = (() => {
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
     await img.decode();
     // Slide completo: sempre 3840 px de largura (16:9), mesmo quando o slide cresceu para caber as fichas.
-    const escala = modo === 'planta' ? 2 : 3840 / caixa.w;
+    // O calendário do ciclo cresce com os movimentos: recortado, fica com até 3840 px de largura.
+    const escala = modo === 'planta' ? (conteudo === 'calendario' ? Math.min(2, 3840 / caixa.w) : 2) : 3840 / caixa.w;
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(caixa.w * escala);
     canvas.height = Math.round(caixa.h * escala);
@@ -2506,6 +2544,10 @@ const App = (() => {
       const blob = await gerarPng(modo, conteudo, planta);
       const marca = estado.filtro && estado.dados.marcas[estado.filtro];
       const estrategia = conteudo === 'estrategia';
+      if (conteudo === 'calendario') {
+        baixarArquivo(blob, nomeDeArquivo(['Calendario', $('pngCicloCal').value, modo === 'slide' ? 'slide' : ''], '.png'));
+        return;
+      }
       baixarArquivo(blob, nomeDeArquivo([planta.nome, estado.ciclo, estrategia ? 'estrategia' : conteudo === 'simplificada' ? 'visao simplificada' : 'planta',
         modo === 'slide' ? 'slide' : '', !estrategia && marca ? marca.nome : ''], '.png'));
     } catch (e) {

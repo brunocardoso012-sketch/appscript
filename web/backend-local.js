@@ -79,6 +79,7 @@
       // Calendário dos ciclos e feriados: no Apps Script, vêm da planilha do calendário; aqui, do navegador.
       dados.calendario = calendarioDeValores_(abas['aba:' + CONFIG.ABAS.CICLOS], abas['aba:' + CONFIG.ABAS.FERIADOS]);
       dados.ordemCalendario = ordemCalendarioDeValores_(abas['aba:' + CONFIG.ABAS.ORDEM_CALENDARIO]);
+      dados.selosCalendario = selosCalendarioDeValores_(abas['aba:' + CONFIG.ABAS.SELOS_CALENDARIO]);
       dados.calendario.avisos.forEach((a) => { if (dados.avisos.length < 60) dados.avisos.push(a); });
       dados.planilhaUrl = '';
       dados.precisaConfigurar = false;
@@ -171,6 +172,10 @@
 
     salvarOrdemCalendario(acesso, pedido) {
       return executarOrdemCalendario_(ioRascunhos(), acesso, pedido);
+    },
+
+    salvarSelosCalendario(acesso, pedido) {
+      return executarSelosCalendario_(ioRascunhos(), acesso, pedido);
     },
 
     salvarPrateleiras(acesso, pedido) {

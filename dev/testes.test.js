@@ -563,6 +563,42 @@ test('ordem dos movimentos no calendário: o construtor salva a ordem de um cicl
   assert.deepEqual(Object.keys(run('getDados()').ordemCalendario), ['Ciclo exemplo cheio']);
 });
 
+test('selos dos movimentos no calendário: hotspot e medalha (ouro, prata, bronze), só o construtor', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  configurarComExemplo(run);
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const salvar = (acesso, pedido) => run(`salvarSelosCalendario(${acesso}, ${JSON.stringify(pedido)})`);
+  assert.deepEqual(run('getDados()').selosCalendario, {});
+  assert.deepEqual(Object.keys(run('getDados()').medalhas), ['OURO', 'PRATA', 'BRONZE']);
+  assert.throws(() => salvar(V, { ciclo: 'Ciclo exemplo', selos: [{ movimento: 'BOTIPROMO', hotspot: true }] }), /Só o construtor/);
+  assert.throws(() => salvar(C, { ciclo: 'Outro', selos: [] }), /não existe no app/);
+  assert.throws(() => salvar(C, { ciclo: 'Ciclo exemplo', selos: [{ movimento: 'BOTIPROMO', medalha: 'platina' }] }), /Medalha desconhecida/);
+
+  salvar(C, { ciclo: 'Ciclo exemplo', selos: [
+    { movimento: 'BOTIPROMO | kit', hotspot: true, medalha: 'ouro' },
+    { movimento: 'LÇTO EGEO', medalha: 'PRATA' },
+    { movimento: 'JUICY MOOD', hotspot: false, medalha: '' }, // sem selo: não entra
+  ] });
+  salvar(C, { ciclo: 'Ciclo exemplo cheio', selos: [{ movimento: 'BOTIK', medalha: 'Bronze' }] });
+  let selos = run('getDados()').selosCalendario;
+  assert.deepEqual(selos['Ciclo exemplo'], {
+    BOTIPROMO: { texto: 'BOTIPROMO', hotspot: true, medalha: 'OURO' },
+    'LÇTO EGEO': { texto: 'LÇTO EGEO', hotspot: false, medalha: 'PRATA' },
+  });
+  assert.equal(selos['Ciclo exemplo cheio'].BOTIK.medalha, 'BRONZE');
+  const aba = f.planilha.getSheetByName('Selos dos movimentos');
+  assert.deepEqual(aba.getRange(2, 1, 1, 4).getValues()[0], ['Ciclo exemplo', 'BOTIPROMO', 'SIM', 'Ouro']);
+
+  // Salvar de novo troca só os do ciclo; a aba editada à mão também vale ("x" no hotspot, "ouro" minúsculo).
+  salvar(C, { ciclo: 'Ciclo exemplo', selos: [] });
+  selos = run('getDados()').selosCalendario;
+  assert.ok(!selos['Ciclo exemplo'] && selos['Ciclo exemplo cheio']);
+  run("planilha_().getSheetByName('Selos dos movimentos').getRange(3, 1, 1, 4).setValues([['Ciclo exemplo', 'JUICY MOOD', 'x', 'ouro']])");
+  assert.deepEqual(run('getDados()').selosCalendario['Ciclo exemplo']['JUICY MOOD'], { texto: 'JUICY MOOD', hotspot: true, medalha: 'OURO' });
+});
+
 test('planilha separada para o layout: criar, ler e gravar nela, vincular e voltar para a principal', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
