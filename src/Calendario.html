@@ -15,7 +15,8 @@
  *   - equilíbrio (a principal): a média entre a fatia do movimento no GMV esperado do ciclo e a fatia dele
  *     na exposição (destaque) do ciclo;
  *   - só GMV esperado;
- *   - só exposição (a fatia do espaço de exposição da ER que vai para o movimento);
+ *   - só exposição (a fatia dos espaços de exposição da rede que vai para o movimento: com a aba Inventario, cada
+ *     espaço pesa as lojas que o têm, como na coluna "Na rede" do Analytics; sem ela, a fatia de cada ER);
  *   - a ordem da construção: a que o construtor do ciclo salvou para o ciclo (aba Ordem do calendário),
  *     a padrão quando existe; os movimentos que não estão nela (e os ciclos sem ela) seguem o equilíbrio.
  *  Com o login da Construção, "Ordem e selos" abre ao lado da linha do tempo a lista dos movimentos de um ciclo:
@@ -164,6 +165,13 @@ const Calendario = (() => {
     return temSalva;
   }
 
+  /** De onde vem a exposição: a rede (aba Inventario), a média das ERs ou uma ER. */
+  function textoExposicao(d) {
+    const er = vista.er ? (d.ers.find((e) => e.id === vista.er) || {}).nome || vista.er : '';
+    if (d.naRede) return er ? 'os espaços da ' + er + ' na rede' : 'os espaços na rede';
+    return er ? 'na ' + er : 'média das ERs';
+  }
+
   /** Selos do movimento na tela: os em edição (construtor) ou os salvos. */
   const seloDe = (g, m) => (edicao && edicao.ciclo === g.cicloApp ? edicao.selos[m.texto] : m.selo) || {};
 
@@ -249,7 +257,7 @@ const Calendario = (() => {
     // Controles.
     const barra = novo('div', 'cal-barra', null, corpo);
     segmentado(barra, 'Empilhar por', (temSalva ? [ORDEM_DEFINIDA] : []).concat(ORDENS), vista.ordem, (v) => redesenhar({ ordem: v }));
-    seletor(barra, 'Exposição', [['', 'Média das ERs']].concat(d.ers.map((e) => [e.id, 'Na ' + e.nome])), vista.er, (v) => redesenhar({ er: v }));
+    seletor(barra, 'Exposição', [['', d.naRede ? 'Na rede (inventário)' : 'Média das ERs']].concat(d.ers.map((e) => [e.id, 'Na ' + e.nome])), vista.er, (v) => redesenhar({ er: v }));
     seletor(barra, 'Movimentos por ciclo', [[5, '5 primeiros'], [10, '10 primeiros'], [20, '20 primeiros'], [0, 'Todos']], vista.limite, (v) => redesenhar({ limite: +v }));
     segmentado(barra, 'Escala', [['compacta', 'Compacta'], ['normal', 'Normal'], ['ampla', 'Ampla']], vista.escala, (v) => redesenhar({ escala: v }));
     const bHoje = novo('button', 'btn pequeno cal-hoje', 'Hoje', barra);
@@ -278,7 +286,8 @@ const Calendario = (() => {
       gmv: 'Os movimentos de cada ciclo estão empilhados pelo GMV esperado (aba Tipos de movimento), do maior (em cima) para o menor; os sem GMV ficam por último.',
       exposicao: 'Os movimentos de cada ciclo estão empilhados pela exposição (a fatia do espaço de exposição que o movimento ocupa), da maior (em cima) para a menor.',
       definida: 'Os movimentos de cada ciclo estão na ordem definida na construção (o primeiro em cima). Ciclos sem ordem definida, e movimentos que não estavam nela, seguem o equilíbrio entre o GMV esperado e a exposição.',
-    }[vista.ordem] + ' Exposição: ' + (vista.er ? 'na ER escolhida' : 'média das ERs') + '. Cada retângulo vai do início ao fim do ciclo no calendário da marca dele (Eudora no da Eudora; as outras marcas no do Boticário). Clique num movimento para vê-lo na planta.';
+    }[vista.ordem] + ' Exposição: ' + textoExposicao(d)
+      + (d.naRede ? ' (cada espaço pesa as lojas que o têm, pela aba Inventario, como a coluna "Na rede" do Analytics)' : '') + '. Cada retângulo vai do início ao fim do ciclo no calendário da marca dele (Eudora no da Eudora; as outras marcas no do Boticário). Clique num movimento para vê-lo na planta.';
 
     if (d.semDatas.length) {
       novo('p', 'cal-aviso', (d.semDatas.length === 1 ? 'Ciclo do app sem datas no calendário: ' : 'Ciclos do app sem datas no calendário: ')
@@ -455,7 +464,9 @@ const Calendario = (() => {
         'Calendário ' + m.nomeCalendario + ': ' + datas.br(m.inicio) + ' a ' + datas.br(m.fim) + (m.datasDoOutro ? ' (o ' + it.g.cicloApp + ' não está no calendário ' + m.nomeCalendario + ': datas do outro calendário)' : ''),
         m.marcas.map((mc) => mc.nome + ' ' + fmtPct(mc.valor)).join(' · ') + (m.classe ? ' · ' + m.classe.nome : ''),
         'GMV esperado: ' + (m.gmv ? gmvCompleto.format(m.gmv) + ' · ' + fmtPct(m.fatiaGmv) + ' do GMV do ciclo' : 'sem GMV'),
-        'Exposição: ' + fmtPct(m.exposicao) + ' do espaço de exposição' + (vista.er ? '' : ' (média das ERs)') + ' · ' + fmtNum(m.espacos) + (m.espacos === 1 ? ' espaço' : ' espaços')
+        'Exposição: ' + fmtPct(m.exposicao) + (m.naRede
+          ? ' dos espaços de exposição ' + (vista.er ? 'da ER na rede' : 'da rede') + ' · ≈' + fmtNum(m.espacos) + ' espaços nas lojas'
+          : ' do espaço de exposição' + (vista.er ? '' : ' (média das ERs)') + ' · ' + fmtNum(m.espacos) + (m.espacos === 1 ? ' espaço' : ' espaços'))
           + ' · ' + fmtPct(m.fatiaExposicao) + ' da exposição do ciclo',
         'Equilíbrio (média das duas fatias): ' + fmtPct(m.equilibrio),
         m.espacos ? 'Clique para ver na planta' : 'Sem espaço de exposição no ciclo',
@@ -674,7 +685,7 @@ const Calendario = (() => {
       textoSvg(svg, M, 138, ciclosCal.map((x2) => x2.cal.nome + ': ' + datas.br(x2.c.inicio) + ' a ' + datas.br(x2.c.fim)
         + ' (' + x2.c.dias + ' dias, ' + x2.c.uteis + ' úteis)').join('   ·   '), { 'font-size': 22, fill: SLIDE.tinta2 });
       textoSvg(svg, M, 172, movs.length + (movs.length === 1 ? ' movimento' : ' movimentos') + ', de cima para baixo pela '
-        + NOMES_ORDEM[vista.ordem] + ' · exposição: ' + (vista.er ? 'na ' + ((d.ers.find((e) => e.id === vista.er) || {}).nome || vista.er) : 'média das ERs'),
+        + NOMES_ORDEM[vista.ordem] + ' · exposição: ' + textoExposicao(d),
       { 'font-size': 19, fill: SLIDE.tinta3 });
     }
 

@@ -828,6 +828,13 @@ test('ciclo em construção: criar, editar, enviar, devolver e publicar', () => 
     marca: 'BOT', simbolo: 'FIXO', observacao: '',
     etiquetas: [{ texto: 'BOTIPROMO', marca: 'BOT', posicao: 1 }, { texto: 'LÇTO EGEO', marca: '', posicao: 2 }],
   });
+  // Duas marcas no espaço e na etiqueta (até duas, ou MM): gravadas como "BOT+QDB" e lidas de volta.
+  r = salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: 'ER M', movel: 'PIRAMIDE 1', linha: {
+    marca: 'bot+qdb', etiquetas: [{ texto: 'BOTIPROMO', marca: 'EUD+OUI' }, { texto: 'LÇTO EGEO', marca: 'MULTI' }],
+  } });
+  assert.deepEqual(r.movimentos.C11['02']['PIRAMIDE 1'].marca, 'BOT+QDB');
+  assert.deepEqual(r.movimentos.C11['02']['PIRAMIDE 1'].etiquetas.map((e) => e.marca), ['EUD+OUI', 'MULTI']);
+  r = salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: 'ER M', movel: 'PIRAMIDE 1', linha: { etiquetas: [] } });
   r = salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: '02', movel: 'GONDOLA 1/PONTA-A', linha: { etiquetas: [] } });
   assert.ok(!(r.movimentos.C11['02'] || {})['GONDOLA 1/PONTA-A']);
 

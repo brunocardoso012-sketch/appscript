@@ -443,6 +443,36 @@ test('calendário dos ciclos: o construtor muda a ordem e os selos dos movimento
   assert.notDeepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4));
 });
 
+test('calendário dos ciclos: com a aba Inventario, a exposição é a dos espaços na rede', async (t) => {
+  const p = await abrir(t);
+  await semearCalendario(p);
+  await escolherCiclo(p, 'Ciclo exemplo');
+  await p.click('#btnCalendario');
+  await p.waitForSelector('#calCorpo .cal-mov');
+  await p.click('#calCorpo .cal-controle button[data-valor="exposicao"]');
+  const ordem = () => p.locator('#calCorpo .cal-mov[data-ciclo="Ciclo exemplo"]').evaluateAll((l) => l.sort((a, b) => a.dataset.posicao - b.dataset.posicao).map((x) => x.dataset.movimento));
+  const semRede = await ordem();
+  assert.strictEqual(await p.locator('#calCorpo .cal-controle select').first().locator('option').first().textContent(), 'Média das ERs');
+  // Inventário: o móvel de fila 1 está em quase todas as lojas e o resto em poucas; o movimento dele passa a ser o mais exposto.
+  await p.click('#calFechar');
+  await comInventario(p, {});
+  await p.evaluate(() => {
+    const inv = App.estado.dados.inventario;
+    Object.keys(inv.lojas).forEach((k) => { inv.lojas[k] = 5; });
+    inv.lojas['MOVEL DE FILA 1'] = 990;
+  });
+  await p.click('#btnCalendario');
+  await p.waitForSelector('#calCorpo .cal-mov');
+  assert.strictEqual(await p.locator('#calCorpo .cal-controle select').first().locator('option').first().textContent(), 'Na rede (inventário)');
+  assert.match(await p.textContent('#calCorpo .cal-nota'), /os espaços na rede/);
+  const comRede = await ordem();
+  assert.notDeepStrictEqual(comRede, semRede, 'a ordem por exposição muda com o peso das lojas');
+  const primeiro = p.locator('#calCorpo .cal-mov[data-ciclo="Ciclo exemplo"][data-posicao="1"]');
+  assert.match(await primeiro.getAttribute('title'), /dos espaços de exposição da rede · ≈[\d.,]+ espaços nas lojas/);
+  const pct = +(await primeiro.locator('.cal-medida.expo b').textContent()).replace('%', '');
+  assert.ok(pct >= 20, 'o movimento do móvel que está em quase todas as lojas fica com a maior fatia: ' + pct + '%');
+});
+
 test('calendário dos ciclos: linha do tempo com Boticário e Eudora sobrepostos e os movimentos empilhados', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo cheio');
@@ -1134,10 +1164,20 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   await ponta.locator('.rs-etq select:not(.rs-marca):not(.rs-etq-simbolo)').first().selectOption('NOVO MOVIMENTO OUI');
   assert.ok(await p.locator('#slide .grupo-etiquetas', { hasText: 'NOVO MOVIMENTO OUI' }).count() > 0, 'a etiqueta aparece na planta na hora');
   assert.notStrictEqual(await p.textContent('#pcGravacao'), 'Tudo salvo', 'ainda não gravou');
-  await ponta.locator('.rs-etq select.rs-marca').first().selectOption('OUI');
+  // Marca da etiqueta: uma marca, MM ou duas marcas juntas (a multimarca não entra nas duplas).
+  const selMarcaEtq = ponta.locator('.rs-etq select.rs-marca').first();
+  assert.deepStrictEqual(await selMarcaEtq.locator('optgroup[label="Uma marca"] option').allTextContents(), ['BOT', 'EUD', 'QDB', 'OUI', 'MM']);
+  assert.deepStrictEqual(await selMarcaEtq.locator('optgroup[label="Duas marcas"] option').allTextContents(),
+    ['BOT + EUD', 'BOT + QDB', 'BOT + OUI', 'EUD + QDB', 'EUD + OUI', 'QDB + OUI']);
+  await selMarcaEtq.selectOption('OUI+QDB'.split('+').reverse().join('+')); // "QDB+OUI"
   await gravado();
-  const linha = (await espacos())['01']['GONDOLA 1/PONTA-A'];
+  let linha = (await espacos())['01']['GONDOLA 1/PONTA-A'];
   assert.strictEqual(linha.simbolo, 'FIXO');
+  assert.deepStrictEqual(linha.etiquetas[0], { texto: 'NOVO MOVIMENTO OUI', marca: 'QDB+OUI', posicao: 1 });
+  assert.match(await selMarcaEtq.evaluate((el) => el.style.background), /gradient/, 'a dupla fica com as duas cores');
+  await selMarcaEtq.selectOption('OUI');
+  await gravado();
+  linha = (await espacos())['01']['GONDOLA 1/PONTA-A'];
   assert.deepStrictEqual(linha.etiquetas[0], { texto: 'NOVO MOVIMENTO OUI', marca: 'OUI', posicao: 1 });
   // O servidor tem a mesma linha (Atualizar recarrega tudo).
   await p.click('#btnAtualizar');
@@ -1304,7 +1344,8 @@ test('ciclo em construção: fixos na planta, meio dividido, etiquetas e cores d
 
   // Cores: a marca escolhida pinta o fundo do select, e as opções seguem a ordem BOT | EUD | QDB | OUI | MM.
   const marca = ponta.locator('select.rs-marca').first();
-  assert.deepStrictEqual(await marca.locator('option').allTextContents(), ['Sem marca (branco)', 'BOT', 'EUD', 'QDB', 'OUI', 'MM']);
+  assert.deepStrictEqual(await marca.locator('option').allTextContents(), ['Sem marca (branco)', 'BOT', 'EUD', 'QDB', 'OUI', 'MM',
+    'BOT + EUD', 'BOT + QDB', 'BOT + OUI', 'EUD + QDB', 'EUD + OUI', 'QDB + OUI']);
   await marca.selectOption('EUD');
   const fundo = await marca.evaluate((el) => getComputedStyle(el).backgroundColor);
   assert.strictEqual(fundo, 'rgb(161, 31, 201)');

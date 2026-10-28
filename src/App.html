@@ -1531,8 +1531,11 @@ const App = (() => {
    * marca, valem as datas do outro calendário. ordemSalva: a ordem dos movimentos que o construtor salvou para
    * o ciclo (aba Ordem do calendário), ou null. selo de cada movimento: { hotspot, medalha } (aba Selos dos
    * movimentos), ou null.
-   * Exposição: a fatia do espaço de exposição (sem VM) da ER que vai para o movimento; sem `er`, a média das
-   * ERs (cada ER é um tamanho médio da rede: nada soma ERs). GMV: o esperado, da aba Tipos de movimento.
+   * Exposição: com a aba Inventario, a fatia dos espaços de exposição (sem VM) da rede que vai para o movimento —
+   * cada espaço pesa as lojas que o têm (lojasNaEr, a mesma conta da coluna "Na rede" do Analytics), então um
+   * espaço que está em 900 lojas conta mais que um que está em 50; com `er`, só os espaços daquela ER. Sem a aba
+   * (ou sem dado dos espaços do ciclo), a fatia do espaço de exposição da ER; sem `er`, a média das ERs (cada ER
+   * é um tamanho médio da rede: nada soma ERs). GMV: o esperado, da aba Tipos de movimento.
    * Em cada ciclo, fatiaExposicao e fatiaGmv são a parte do movimento na exposição e no GMV do ciclo (somam
    * 100% entre os movimentos) e o equilíbrio é a média das duas.
    */
@@ -1547,22 +1550,29 @@ const App = (() => {
     const movimentosDoCiclo = (ciclo) => {
       if (porCiclo[ciclo]) return porCiclo[ciclo];
       const movs = {};
-      const daChave = (k, texto) => movs[k] || (movs[k] = { chave: k, texto: Render.movimentoDaEtiqueta(texto), porEr: {}, marcas: {}, espacos: 0 });
+      const daChave = (k, texto) => movs[k] || (movs[k] = { chave: k, texto: Render.movimentoDaEtiqueta(texto), porEr: {}, marcas: {}, espacos: 0, rede: 0 });
+      let totalRede = 0; // espaços de exposição na rede (cada espaço × as lojas que o têm)
       const ers = plantas.map((p) => {
         const partes = partesDeEspaco(p, ciclo).filter((pt) => !pt.vm);
         const total = partes.reduce((s, pt) => s + pt.peso, 0);
-        partes.forEach((pt) => movimentosDaParte(pt).forEach((g) => {
-          const m = daChave(g.chave, g.etiquetas[0].texto);
-          m.porEr[p.id] = (m.porEr[p.id] || 0) + g.valor;
-          m.espacos += g.valor;
-          const codigos = g.etiquetas.map((x) => x.marca).filter(Boolean)
-            .reduce((l, x) => l.concat(String(x).split('+').map((c) => c.trim())), [])
-            .map((c) => (estado.dados.marcas[c] ? c : 'OUTRA'));
-          const unicos = (codigos.length ? codigos : ['NEUTRO']).filter((c, i, l) => l.indexOf(c) === i);
-          unicos.forEach((c) => { m.marcas[c] = (m.marcas[c] || 0) + g.valor / unicos.length; });
-        }));
+        partes.forEach((pt) => {
+          const lojas = estado.dados.inventario ? lojasNaEr(p.id, pt.movel.id, pt.espaco && pt.espaco.id) : null;
+          if (lojas !== null) totalRede += pt.peso * lojas;
+          movimentosDaParte(pt).forEach((g) => {
+            const m = daChave(g.chave, g.etiquetas[0].texto);
+            m.porEr[p.id] = (m.porEr[p.id] || 0) + g.valor;
+            m.espacos += g.valor;
+            if (lojas !== null) m.rede += g.valor * lojas;
+            const codigos = g.etiquetas.map((x) => x.marca).filter(Boolean)
+              .reduce((l, x) => l.concat(String(x).split('+').map((c) => c.trim())), [])
+              .map((c) => (estado.dados.marcas[c] ? c : 'OUTRA'));
+            const unicos = (codigos.length ? codigos : ['NEUTRO']).filter((c, i, l) => l.indexOf(c) === i);
+            unicos.forEach((c) => { m.marcas[c] = (m.marcas[c] || 0) + g.valor / unicos.length; });
+          });
+        });
         return { id: p.id, total };
       });
+      const naRede = totalRede > 0;
       // Movimentos cadastrados nos tipos sem espaço no ciclo também entram (só com o GMV).
       Object.values((estado.dados.tiposMovimento || {})[ciclo] || {}).forEach((t) => daChave(chaveEtiqueta(t.texto), t.texto));
       const comEspaco = ers.filter((e) => e.total);
@@ -1581,8 +1591,11 @@ const App = (() => {
           cor: principal && principal.cod !== 'NEUTRO' ? principal.cor : COR_SEM_MARCA,
           classe: classe === SEM_CLASSIFICACAO ? null : { cod: classe, nome: nomeClassificacao(classe), cor: corClassificacao(classe) },
           gmv: tipo && typeof tipo.gmv === 'number' && tipo.gmv > 0 ? tipo.gmv : 0,
-          espacos: comEspaco.length ? m.espacos / comEspaco.length : 0,
-          exposicao: comEspaco.length ? comEspaco.reduce((s, e) => s + (m.porEr[e.id] || 0) / e.total, 0) / comEspaco.length : 0,
+          // Na rede: os espaços do movimento em todas as lojas; sem o inventário, a média de espaços por ER.
+          espacos: naRede ? m.rede : comEspaco.length ? m.espacos / comEspaco.length : 0,
+          exposicao: naRede ? m.rede / totalRede
+            : comEspaco.length ? comEspaco.reduce((s, e) => s + (m.porEr[e.id] || 0) / e.total, 0) / comEspaco.length : 0,
+          naRede,
           er: ersDoMov.indexOf(estado.planta) >= 0 ? estado.planta : ersDoMov[0] || estado.planta,
         };
       });
@@ -1642,6 +1655,8 @@ const App = (() => {
       cicloAtual: estado.ciclo,
       semDatas: todosOsCiclos().filter((c) => !datasDoApp[c]),
       medalhas: estado.dados.medalhas || {},
+      // Com a aba Inventario, a exposição é a dos espaços na rede (o peso de cada espaço é o número de lojas).
+      naRede: !!estado.dados.inventario,
     };
   }
 

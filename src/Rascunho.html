@@ -304,13 +304,34 @@ const Rascunho = (() => {
     if (primeiro) primeiro.focus();
   }
 
-  /** Select de marca: sem marca + as marcas do app (e o valor atual, se for uma combinação ou cor). */
+  /**
+   * Select de marca: sem marca, uma marca (BOT, EUD, QDB, OUI ou MM) ou duas marcas juntas ("BOT + QDB": o
+   * espaço ou a etiqueta fica com as duas cores, em degradê, e conta meio a meio nas contas por marca). A
+   * multimarca (MM) já é a mistura das marcas: ela vem sozinha. Um valor de fora das opções (outra combinação
+   * ou uma cor livre, vindo da planilha) aparece no fim, para não se perder.
+   */
   function selectMarca(pai, valor, rotuloVazio) {
     const sel = n('select', 'rs-marca', null, pai);
     n('option', null, rotuloVazio || 'Sem marca', sel).value = '';
     const marcas = app.estado.dados.marcas;
-    Object.keys(marcas).filter((c) => c !== 'NEUTRO').forEach((c) => { n('option', null, marcas[c].nome, sel).value = c; });
-    if (valor && valor !== 'NEUTRO' && !marcas[valor]) n('option', null, app.nomeDaMarca(valor), sel).value = valor;
+    const codigos = Object.keys(marcas).filter((c) => c !== 'NEUTRO');
+    const uma = n('optgroup', null, null, sel);
+    uma.label = 'Uma marca';
+    codigos.forEach((c) => { n('option', null, marcas[c].nome, uma).value = c; });
+    const duas = n('optgroup', null, null, sel);
+    duas.label = 'Duas marcas';
+    const juntaveis = codigos.filter((c) => c !== 'MULTI');
+    const opcoes = [];
+    juntaveis.forEach((c1, i) => juntaveis.slice(i + 1).forEach((c2) => {
+      const v = c1 + '+' + c2;
+      opcoes.push(v);
+      n('option', null, app.nomeDaMarca(v), duas).value = v;
+    }));
+    // A mesma dupla em outra ordem (da planilha) vira a da lista.
+    const mesmaDupla = valor && String(valor).indexOf('+') > 0
+      ? opcoes.find((v) => v.split('+').sort().join('+') === String(valor).split('+').map((x) => x.trim()).sort().join('+')) : null;
+    if (mesmaDupla) valor = mesmaDupla;
+    if (valor && valor !== 'NEUTRO' && !marcas[valor] && opcoes.indexOf(valor) < 0) n('option', null, app.nomeDaMarca(valor), sel).value = valor;
     sel.value = valor && valor !== 'NEUTRO' ? valor : '';
     app.colorirSelectMarca(sel);
     return sel;
