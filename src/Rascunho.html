@@ -54,7 +54,8 @@ const Rascunho = (() => {
   /** O ciclo da tela, se for um ciclo em construção. */
   const atual = () => (app && app.estado.ciclo ? doCiclo(app.estado.ciclo) : null);
   /** O construtor pode editar o ciclo da tela (em construção, ainda não enviado). */
-  const editavel = () => papel() === 'CONSTRUTOR' && !!atual() && atual().status === 'EM_CONSTRUCAO';
+  // Só na aba Ciclo da Construção (na aba Planograma, o construtor mexe nas prateleiras).
+  const editavel = () => papel() === 'CONSTRUTOR' && app.aba() === 'CICLO' && !!atual() && atual().status === 'EM_CONSTRUCAO';
 
   /** Tipos de movimento do ciclo da tela: [{ chave, texto, classificacao, gmv, observacao }], em ordem alfabética. */
   function tiposDoCiclo() {
@@ -427,12 +428,11 @@ const Rascunho = (() => {
     n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, info);
     const msg = construtor
       ? (enviado ? 'Enviado para o validador. Você ou o validador podem publicar.'
-        : 'Você está montando este ciclo. Ele só aparece para todos depois de publicado.')
+        : app.aba() === 'PLANOGRAMA' ? 'Aba Planograma: clique num móvel para definir os produtos das prateleiras deste ciclo.'
+          : 'Você está montando este ciclo. Ele só aparece para todos depois de publicado.')
       : validador
         ? (enviado ? 'Confira as ERs e publique ou devolva para o construtor.' : 'O construtor ainda está montando este ciclo (não foi enviado para aprovação).')
-        : papel() === 'PLANOGRAMA'
-          ? (enviado ? 'Enviado para aprovação: as prateleiras só voltam a ser editadas se o validador devolver.' : 'Dá para definir os produtos das prateleiras deste ciclo (clique num móvel).')
-          : '';
+        : '';
     if (msg) n('span', 'rs-faixa-msg', msg, info);
     const acoes = $('rascunhoAcoes');
     acoes.innerHTML = '';

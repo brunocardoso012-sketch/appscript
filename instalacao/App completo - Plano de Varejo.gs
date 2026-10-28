@@ -66,14 +66,13 @@ const CONFIG = {
 };
 
 /**
- * Senhas padrão dos módulos: Desenvolvedor (a engrenagem) e, dentro dele, Validação, Construção do ciclo e
- * Construção de planogramas (uma por papel). O Desenvolvedor pode trocá-las (aba "Config do app", veja
- * Desenvolvedor.gs).
+ * Senhas padrão dos módulos: Desenvolvedor (a engrenagem) e, dentro dele, Validação e Construção (uma por
+ * papel; a Construção tem as abas Ciclo e Planograma, com a mesma senha). O Desenvolvedor pode trocá-las (aba
+ * "Config do app", veja Desenvolvedor.gs).
  */
 const SENHAS_ACESSO = {
   VALIDADOR: 'validacao_exposicao',
   CONSTRUTOR: 'construcao_exposicao',
-  PLANOGRAMA: 'planograma_exposicao',
   DESENVOLVEDOR: 'desenvolvedor_exposicao',
 };
 
@@ -1518,7 +1517,7 @@ function salvarAntecipacao(acesso, pedido) {
 
 /**
  * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário (veja executarOrdemCalendario_). Só o
- * construtor do ciclo; todo mundo recebe a ordem no getDados.
+ * construtor; todo mundo recebe a ordem no getDados.
  * @return {Object} ciclo → { movimentos, por, em }
  */
 function salvarOrdemCalendario(acesso, pedido) {
@@ -1527,7 +1526,7 @@ function salvarOrdemCalendario(acesso, pedido) {
 
 /**
  * Grava os selos (hotspot e medalha) dos movimentos de um ciclo no calendário (veja executarSelosCalendario_).
- * Só o construtor do ciclo; todo mundo recebe os selos no getDados.
+ * Só o construtor; todo mundo recebe os selos no getDados.
  * @return {Object} ciclo → chave do movimento → { texto, hotspot, medalha }
  */
 function salvarSelosCalendario(acesso, pedido) {
@@ -2183,13 +2182,13 @@ function mudarPastaBriefings(acesso, pedido) {
 
 /**
  * Salva o briefing em PDF na pasta dos briefings, na subpasta do ciclo (criada na primeira vez). Só quem entrou
- * num módulo de construção (do ciclo ou de planogramas). Um arquivo com o mesmo nome na subpasta vai para a lixeira (o novo o substitui).
+ * na Construção (a aba Planograma, onde fica o botão do briefing). Um arquivo com o mesmo nome na subpasta vai para a lixeira (o novo o substitui).
  * @param {{ciclo: string, er: string, base64: string}} pedido  er: o nome da ER (vazio = todas as ERs)
  * @return {{nome, url, pasta, pastaUrl, substituidos: number}}
  */
 function salvarBriefingNoDrive(acesso, pedido) {
   const quem = conferirAcesso_(acesso);
-  if (PAPEIS_CONSTRUCAO.indexOf(quem.papel) < 0) throw new Error('Só quem entrou na Construção (do ciclo ou de planogramas) salva o briefing na pasta do Drive.');
+  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só quem entrou na Construção (aba Planograma) salva o briefing na pasta do Drive.');
   const p = pedido || {};
   const base64 = String(p.base64 || '').replace(/^data:[^,]*,/, '');
   if (!base64) throw new Error('O PDF do briefing veio vazio.');
@@ -2975,7 +2974,7 @@ function valoresPaineisExemplo_() {
  *  VALIDAÇÃO DA ESTRATÉGIA (comentários do validador para o construtor)
  * ============================================================================
  *  O validador comenta a estratégia de um ciclo (numa planta ou num móvel); o
- *  construtor do ciclo vê, responde e marca como resolvido. Cada acesso
+ *  construtor vê, responde e marca como resolvido. Cada acesso
  *  pede o papel e a senha (SENHAS_ACESSO, em Config.gs), conferidos aqui a cada
  *  gravação.
  *
@@ -2988,19 +2987,23 @@ function valoresPaineisExemplo_() {
 /**
  * Papéis de quem entra (um módulo da engrenagem para cada, com a sua senha):
  *  - VALIDADOR: Validação (comenta a estratégia e aprova ou devolve os ciclos novos);
- *  - CONSTRUTOR: Construção do ciclo (monta os ciclos: os movimentos de cada espaço dos móveis, os tipos, as
- *    Comunicações ER, as antecipações e a ordem e os selos do calendário; responde aos comentários);
- *  - PLANOGRAMA: Construção de planogramas (os produtos dentro das prateleiras de cada espaço).
- * Os dois módulos de construção também baixam (e salvam no Drive) o briefing das gôndolas e pirâmides.
+ *  - CONSTRUTOR: Construção, com duas abas na tela: Ciclo (os ciclos em construção, os movimentos de cada espaço
+ *    dos móveis, os tipos, as Comunicações ER, as antecipações e a ordem e os selos do calendário) e Planograma
+ *    (os produtos dentro das prateleiras e o briefing das gôndolas e pirâmides).
+ * A Validação tem as mesmas duas abas: os comentários de cada uma são separados (TIPOS_COMENTARIO).
  */
 const PAPEIS_ACESSO = {
   VALIDADOR: 'Validador',
-  CONSTRUTOR: 'Construtor do ciclo',
-  PLANOGRAMA: 'Construtor de planogramas',
+  CONSTRUTOR: 'Construtor',
 };
 
-/** Papéis dos módulos de construção (do ciclo e de planogramas). */
-const PAPEIS_CONSTRUCAO = ['CONSTRUTOR', 'PLANOGRAMA'];
+/** Do que trata o comentário: a construção do ciclo (os móveis) ou a do planograma (as prateleiras). */
+const TIPOS_COMENTARIO = { CICLO: 'Ciclo', PLANOGRAMA: 'Planograma' };
+
+/** "planograma" / "Planograma" → "PLANOGRAMA"; vazio ou outro texto → "CICLO" (os comentários de antes). */
+function normTipoComentario_(v) {
+  return chave_(v) === 'PLANOGRAMA' ? 'PLANOGRAMA' : 'CICLO';
+}
 
 const STATUS_COMENTARIO = { ABERTO: 'ABERTO', RESOLVIDO: 'RESOLVIDO' };
 
@@ -3017,6 +3020,7 @@ function colunasComentarios_() {
     { titulo: 'Data', chave: 'data', texto: true },
     { titulo: 'Texto', chave: 'texto', obrigatoria: true, texto: true },
     { titulo: 'Status', chave: 'status', texto: true },
+    { titulo: 'Tipo', chave: 'tipo', texto: true, apelidos: ['Aba'] },
   ];
 }
 
@@ -3036,7 +3040,7 @@ function senhasDeAcesso_() {
 function conferirAcesso_(acesso) {
   const a = acesso || {};
   const papel = String(a.papel || '').toUpperCase();
-  if (!PAPEIS_ACESSO[papel]) throw new Error('Escolha o módulo: Validação, Construção do ciclo ou Construção de planogramas.');
+  if (!PAPEIS_ACESSO[papel]) throw new Error('Escolha o módulo: Validação ou Construção.');
   const senha = senhasDeAcesso_()[papel];
   if (!senha || String(a.senha || '') !== String(senha)) throw new Error('Senha incorreta.');
   const autor = String(a.nome || '').trim().slice(0, 60);
@@ -3061,7 +3065,8 @@ function valoresComentariosVazios_() {
 
 /**
  * Comentários da aba, já com as respostas dentro de cada um (ordem de criação).
- * @return {Array<{id, ciclo, planta, movel, papel, autor, data, texto, status, respostas: Array}>}
+ * @return {Array<{id, ciclo, planta, movel, tipo, papel, autor, data, texto, status, respostas: Array}>}
+ *   tipo: CICLO ou PLANOGRAMA (TIPOS_COMENTARIO); sem a coluna (comentários de antes), CICLO
  */
 function comentariosDeValores_(valores) {
   if (!valores || !valores.length) return [];
@@ -3075,6 +3080,7 @@ function comentariosDeValores_(valores) {
       ciclo: texto_(l.ciclo),
       planta: normPlanta_(l.planta),
       movel: l.movel ? normId_(l.movel) : '',
+      tipo: normTipoComentario_(l.tipo),
       papel: String(texto_(l.papel)).toUpperCase(),
       autor: texto_(l.autor),
       data: texto_(l.data),
@@ -3098,7 +3104,8 @@ function comentariosDeValores_(valores) {
 
 /**
  * Aplica uma ação aos comentários e devolve a matriz nova da aba (sem gravar nada).
- *  - novo:      { acao: 'novo', ciclo, planta, movel?, texto }   — só o validador;
+ *  - novo:      { acao: 'novo', ciclo, planta, movel?, tipo?, texto } — só o validador; tipo: CICLO (padrão)
+ *               ou PLANOGRAMA (a aba da Validação em que ele foi feito); as respostas ficam no tipo do comentário;
  *  - responder: { acao: 'responder', id, texto }                 — os dois papéis;
  *  - status:    { acao: 'status', id, status: ABERTO|RESOLVIDO } — o construtor resolve;
  *               o validador resolve ou reabre;
@@ -3111,8 +3118,6 @@ function comentariosDeValores_(valores) {
  */
 function aplicarAcaoComentario_(valores, quem, pedido, agora) {
   const p = pedido || {};
-  // Os comentários são entre o validador e o construtor do ciclo.
-  if (quem.papel !== 'VALIDADOR' && quem.papel !== 'CONSTRUTOR') throw new Error('Só a Validação e a Construção do ciclo comentam a estratégia.');
   const cols = colunasComentarios_();
   const base = valores && valores.length ? valores : valoresComentariosVazios_();
   const cab = base[0].map(chave_);
@@ -3159,6 +3164,7 @@ function aplicarAcaoComentario_(valores, quem, pedido, agora) {
     nova({
       id: novoId, pai: '', ciclo: ciclo, planta: nomePlanta_(planta), movel: p.movel ? normId_(p.movel) : '',
       papel: quem.papel, autor: quem.autor, data: data, texto: textoDe(p.texto), status: STATUS_COMENTARIO.ABERTO,
+      tipo: TIPOS_COMENTARIO[normTipoComentario_(p.tipo)],
     });
     return { valores: linhas, id: novoId };
   }
@@ -3167,6 +3173,7 @@ function aplicarAcaoComentario_(valores, quem, pedido, agora) {
     nova({
       id: novoId, pai: texto_(linhas[i][idx.id]), ciclo: linhas[i][idx.ciclo], planta: linhas[i][idx.planta], movel: linhas[i][idx.movel],
       papel: quem.papel, autor: quem.autor, data: data, texto: textoDe(p.texto), status: '',
+      tipo: TIPOS_COMENTARIO[normTipoComentario_(linhas[i][idx.tipo])],
     });
     return { valores: linhas, id: novoId };
   }
@@ -3245,7 +3252,7 @@ function executarComentario_(ss, acesso, pedido) {
  * ============================================================================
  *  CICLOS EM CONSTRUÇÃO (rascunhos montados na planta e aprovados pelo validador)
  * ============================================================================
- *  O construtor do ciclo cria um ciclo novo (em branco ou copiando outro),
+ *  O construtor cria um ciclo novo (em branco ou copiando outro),
  *  preenche os espaços, as Comunicações ER e os Tipos de movimento direto no app
  *  e envia para aprovação. O validador aprova (o ciclo passa para as abas
  *  Movimentos, Painéis e Tipos de movimento, junto com os demais) ou devolve
@@ -3651,7 +3658,7 @@ function executarRascunho_(io, acesso, pedido) {
 /* ------------------ ordem dos movimentos no calendário ------------------- */
 /*
  * No calendário dos ciclos (Calendario.html), os movimentos de cada ciclo ficam empilhados pelo equilíbrio entre
- * o GMV esperado e a exposição. O construtor do ciclo pode mudar essa ordem e salvar: ela fica na aba
+ * o GMV esperado e a exposição. O construtor pode mudar essa ordem e salvar: ela fica na aba
  * "Ordem do calendário" (uma linha por movimento do ciclo, na ordem) e passa a ser a ordem do calendário para
  * todos. Movimentos que não estão na ordem salva (ex.: entraram depois) vêm depois dela, pelo equilíbrio.
  */
@@ -3684,7 +3691,7 @@ function ordemCalendarioDeValores_(valores) {
 }
 
 /**
- * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário. Só o construtor do ciclo.
+ * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário. Só o construtor.
  *  - { ciclo, movimentos: ['LÇTO EGEO', 'BOTIPROMO', …] }  a ordem nova (de cima para baixo);
  *  - { ciclo, limpar: true }                               volta à ordem automática (pelo equilíbrio).
  * O ciclo precisa existir (publicado ou em construção).
@@ -3692,7 +3699,7 @@ function ordemCalendarioDeValores_(valores) {
  */
 /** Confere o construtor e o ciclo (publicado ou em construção) para gravar algo do calendário. */
 function conferirCicloDoCalendario_(io, quem, ciclo, oQue) {
-  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor do ciclo ' + oQue + '.');
+  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor ' + oQue + '.');
   const ciclos = ciclosPublicados_({
     movimentos: io.ler(CONFIG.ABAS.MOVIMENTOS) || [], paineis: io.ler(CONFIG.ABAS.PAINEIS) || [], tipos: io.ler(CONFIG.ABAS.TIPOS) || [],
   });
@@ -3768,7 +3775,7 @@ function selosCalendarioDeValores_(valores) {
 }
 
 /**
- * Grava os selos dos movimentos de um ciclo (troca todos os do ciclo). Só o construtor do ciclo.
+ * Grava os selos dos movimentos de um ciclo (troca todos os do ciclo). Só o construtor.
  *  { ciclo, selos: [{ movimento, hotspot: boolean, medalha: 'OURO' | 'PRATA' | 'BRONZE' | '' }] }
  * Movimento sem selo nenhum sai da aba.
  * @return {Object} os selos de todos os ciclos (selosCalendarioDeValores_)
@@ -3809,7 +3816,7 @@ function executarSelosCalendario_(io, acesso, pedido) {
  * ============================================================================
  *  Uma mudança de estratégia de curto prazo: um movimento que estava para o
  *  próximo ciclo é adiantado para um espaço do ciclo atual, a partir de uma
- *  data. Quem entrou na validação (validador ou construtor do ciclo) cria,
+ *  data. Quem entrou na validação (validador ou construtor) cria,
  *  edita e exclui; todo mundo vê na planta: o espaço passa a mostrar o
  *  movimento antecipado, com o símbolo de antecipação (SIMBOLOS.ANTECIPADO).
  *
@@ -3936,8 +3943,6 @@ function espacoDaAntecipacao_(plantas, planta, id) {
  */
 function aplicarAcaoAntecipacao_(valores, contexto, quem, pedido, agora) {
   const p = pedido || {};
-  // Antecipação é estratégia do ciclo: Validação ou Construção do ciclo (não a de planogramas).
-  if (quem.papel !== 'VALIDADOR' && quem.papel !== 'CONSTRUTOR') throw new Error('Só a Validação ou a Construção do ciclo mexe nas antecipações.');
   const cols = colunasAntecipacoes_();
   const objetos = valores && valores.length ? objetosDaMatriz_(valores, cols) : [];
   const id = texto_(p.id);
@@ -4016,7 +4021,7 @@ function executarAntecipacao_(io, acesso, pedido) {
  *  PRATELEIRAS (os quadrados de cada prateleira e os produtos de cada quadrado)
  * ============================================================================
  *  Depois da estratégia dos movimentos (que movimento fica em cada espaço), o
- *  construtor de planogramas desenha o planograma de cada prateleira: quadrados
+ *  construtor (Construção, aba Planograma) desenha o planograma de cada prateleira: quadrados
  *  lado a lado, na altura toda da prateleira (início e largura, em % dela; um
  *  quadrado não fica em cima de outro) e, em cada quadrado, o movimento e
  *  os produtos, escolhidos na aba "Produtos" (o catálogo: SKU, nome, marca,
@@ -4294,7 +4299,7 @@ function linhasDePrateleiras_(ciclo, planta, espaco, n, prateleiras, catalogo, q
  *            produtos: [{sku, frentes}]}]}] }  troca as prateleiras do espaço nessa ER (lista vazia apaga); planta = a
  *            ER ou "TODAS" (cada ER que tem o espaço recebe as mesmas prateleiras); x e w em % da prateleira (os
  *            quadrados ficam lado a lado, na altura toda).
- * Só a Construção de planogramas (papel PLANOGRAMA), num ciclo publicado ou num ciclo em construção ainda não enviado.
+ * Só a Construção (aba Planograma), num ciclo publicado ou num ciclo em construção ainda não enviado.
  * @param {Array<Array>} valores  matriz atual da aba (com cabeçalho), ou vazia
  * @param {{plantas: Array, ciclos: Object, rascunhos: Object, produtos: Array}} contexto  plantas do layout
  *   (montarPlantas_), ciclos publicados, o status de cada ciclo em construção e o catálogo (produtosDeValores_)
@@ -4304,7 +4309,7 @@ function linhasDePrateleiras_(ciclo, planta, espaco, n, prateleiras, catalogo, q
 function aplicarAcaoPrateleiras_(valores, contexto, quem, pedido, agora) {
   const p = pedido || {};
   if (p.acao !== 'salvar') throw new Error('Ação inválida.');
-  if (quem.papel !== 'PLANOGRAMA') throw new Error('Só a Construção de planogramas detalha as prateleiras.');
+  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só a Construção (aba Planograma) detalha as prateleiras.');
   const ciclo = texto_(p.ciclo).slice(0, 60);
   if (!ciclo) throw new Error('Escolha o ciclo.');
   const status = contexto.rascunhos[ciclo];
@@ -4412,7 +4417,7 @@ function executarPrateleiras_(io, acesso, pedido) {
  *     criar (Construir loja › Salvar planta › Criar nova) e apagar;
  *   - espacosPorEr: espaços fixos de uma marca em algumas ERs e livres nas outras (ESPACOS_POR_ER);
  *   - herancaEntreErs: espaços que mudam de nome de uma ER para a seguinte (HERANCA_ENTRE_ERS);
- *   - senhas: as do Desenvolvedor, da Validação, da Construção do ciclo e da Construção de planogramas.
+ *   - senhas: as do Desenvolvedor, da Validação e da Construção.
  *  O que muda fica na aba "Config do app" (uma linha por chave, o valor em JSON); o que não está nela
  *  vale como no código (Config.gs). aplicarConfigApp_ põe a configuração nas constantes de Config.gs.
  *
@@ -4425,7 +4430,7 @@ const CHAVES_CONFIG_APP = {
   plantas: 'Nomes, nomes antigos (apelidos), ordem (da cascata) e plantas apagadas.',
   espacosPorEr: 'Espaços fixos de uma marca em algumas ERs e livres nas outras.',
   herancaEntreErs: 'Espaços que mudam de nome de uma ER para a seguinte (cascata).',
-  senhas: 'Senhas do Desenvolvedor, da Validação, da Construção do ciclo e da Construção de planogramas.',
+  senhas: 'Senhas do Desenvolvedor, da Validação e da Construção.',
 };
 
 function colunasConfigApp_() {
@@ -4584,10 +4589,9 @@ function normalizarHeranca_(valor, ids) {
 
 function normalizarSenhas_(valor) {
   const s = {};
-  const nomes = { DESENVOLVEDOR: 'do Desenvolvedor', VALIDADOR: 'da Validação', CONSTRUTOR: 'da Construção do ciclo', PLANOGRAMA: 'da Construção de planogramas' };
+  const nomes = { DESENVOLVEDOR: 'do Desenvolvedor', VALIDADOR: 'da Validação', CONSTRUTOR: 'da Construção' };
   Object.keys(nomes).forEach(function (papel) {
-    // Sem a senha da Construção de planogramas (pedidos de antes dela), fica a que vale hoje.
-    const v = String((valor || {})[papel] || (papel === 'PLANOGRAMA' ? SENHAS_ACESSO.PLANOGRAMA : '') || '').trim();
+    const v = String((valor || {})[papel] || '').trim();
     if (v.length < 4) throw new Error('A senha ' + nomes[papel] + ' precisa de ao menos 4 caracteres.');
     s[papel] = v;
   });
@@ -4862,6 +4866,24 @@ const PAGINA_ = [
   "  .btn[aria-pressed=\"true\"] { background: var(--destaque); border-color: #e2c64a; }",
   "",
   "  /* ---------- legenda e avisos ---------- */",
+  "  /* Validação e Construção: abas Ciclo | Planograma (na faixa, antes das marcas). */",
+  "  .modo-abas { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }",
+  "  .modo-abas[hidden] { display: none; }",
+  "  .modo-abas-rotulo { font-weight: 700; text-transform: uppercase; letter-spacing: .4px; font-size: 11px; color: #8a4510; }",
+  "  [data-tema=\"escuro\"] .modo-abas-rotulo { color: #ffb38a; }",
+  "  .modo-abas-grupo { display: inline-flex; padding: 2px; border-radius: 9px; background: #fde8d9; border: 1px solid #f4c3a1; }",
+  "  [data-tema=\"escuro\"] .modo-abas-grupo { background: #3a2410; border-color: #6b3d18; }",
+  "  .modo-aba {",
+  "    display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 5px 12px; border-radius: 7px;",
+  "    font: 700 12.5px var(--fonte); color: #8a4510; cursor: pointer;",
+  "  }",
+  "  [data-tema=\"escuro\"] .modo-aba { color: #ffb38a; }",
+  "  .modo-aba[aria-selected=\"true\"] { background: #E8590C; color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .18); }",
+  "  .modo-aba .badge {",
+  "    min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px; background: #fff; color: #E8590C;",
+  "    font-size: 10.5px; line-height: 17px; text-align: center;",
+  "  }",
+  "  .modo-aba:not([aria-selected=\"true\"]) .badge { background: #E8590C; color: #fff; }",
   "  .faixa {",
   "    display: flex;",
   "    flex-wrap: wrap;",
@@ -6400,14 +6422,10 @@ const PAGINA_ = [
   "              Validação",
   "              <span class=\"badge\" id=\"valBadge\" hidden></span>",
   "            </button>",
-  "            <button id=\"btnConstrucao\" class=\"menu-item\" type=\"button\" role=\"menuitem\" aria-pressed=\"false\" title=\"Construção do ciclo: os movimentos de cada espaço dos móveis (pede senha)\">",
+  "            <button id=\"btnConstrucao\" class=\"menu-item\" type=\"button\" role=\"menuitem\" aria-pressed=\"false\" title=\"Construção dos ciclos (aba Ciclo) e dos planogramas (aba Planograma) (pede senha)\">",
   "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 21h18M5 21V10l7-6 7 6v11\"/><path d=\"M9 21v-5h6v5\"/></svg>",
-  "              Construção do ciclo",
+  "              Construção",
   "              <span class=\"badge\" id=\"consBadge\" hidden></span>",
-  "            </button>",
-  "            <button id=\"btnPlanogramas\" class=\"menu-item\" type=\"button\" role=\"menuitem\" aria-pressed=\"false\" title=\"Construção de planogramas: os produtos dentro das prateleiras (pede senha)\">",
-  "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"4\" y=\"3\" width=\"16\" height=\"18\" rx=\"1.5\"/><path d=\"M4 9h16M4 15h16M8 6v0M8 12h3M14 12h2M8 18h2M13 18h3\"/></svg>",
-  "              Construção de planogramas",
   "            </button>",
   "            <button id=\"btnEditar\" class=\"menu-item\" type=\"button\" role=\"menuitem\" aria-pressed=\"false\">",
   "              <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3\"/></svg>",
@@ -6433,6 +6451,8 @@ const PAGINA_ = [
   "    </header>",
   "",
   "    <div class=\"faixa\">",
+  "      <!-- Validação e Construção: as abas Ciclo e Planograma (Validacao.html). -->",
+  "      <div class=\"modo-abas\" id=\"modoAbas\" hidden></div>",
   "      <div class=\"legenda\" id=\"legenda\" aria-label=\"Marcas\"></div>",
   "      <div class=\"zoom\" id=\"zoomControles\" hidden title=\"Zoom: role o mouse sobre a planta, use a pinça no celular ou as teclas + e −. Com zoom, arraste para mover. Clique num móvel para ver a estratégia dele.\">",
   "        <button id=\"zoomMenos\" class=\"btn pequeno\" type=\"button\" aria-label=\"Diminuir zoom\">−</button>",
@@ -11291,7 +11311,7 @@ const PAGINA_ = [
   "    const campos = n('div', 'dev-campos', null, corpo);",
   "    const s = config.senhas;",
   "    const ent = {};",
-  "    [['DESENVOLVEDOR', 'Modo desenvolvedor'], ['VALIDADOR', 'Validação'], ['CONSTRUTOR', 'Construção do ciclo'], ['PLANOGRAMA', 'Construção de planogramas']].forEach(([k, rotulo]) => {",
+  "    [['DESENVOLVEDOR', 'Modo desenvolvedor'], ['VALIDADOR', 'Validação'], ['CONSTRUTOR', 'Construção (abas Ciclo e Planograma)']].forEach(([k, rotulo]) => {",
   "      ent[k] = entrada(campo(rotulo, campos, 'largo'), s[k], 'text', { autocomplete: 'off', spellcheck: false });",
   "      ent[k].dataset.senha = k;",
   "    });",
@@ -11535,11 +11555,14 @@ const PAGINA_ = [
   " * ============================================================================",
   " *  VALIDAÇÃO DA ESTRATÉGIA (página)",
   " * ============================================================================",
-  " *  Três itens na engrenagem, cada um com a sua senha (nome + senha): \"Validação\" entra como validador,",
-  " *  \"Construção do ciclo\" como construtor do ciclo (os movimentos de cada espaço dos móveis) e \"Construção de",
-  " *  planogramas\" como construtor de planogramas (os produtos dentro das prateleiras, na tela do móvel). O",
-  " *  validador comenta a planta ou um móvel no ciclo escolhido; o construtor do ciclo vê, responde e marca como",
-  " *  resolvido. Painel ao lado da planta com",
+  " *  Dois itens na engrenagem, cada um com a sua senha (nome + senha): \"Validação\" entra como validador e",
+  " *  \"Construção\" como construtor. Os dois módulos têm as mesmas duas abas (na faixa abaixo do topo):",
+  " *   - Ciclo: a construção do ciclo (os movimentos de cada espaço dos móveis, os ciclos em construção, as",
+  " *     antecipações, a ordem e os selos do calendário);",
+  " *   - Planograma: os produtos dentro das prateleiras (tela do móvel) e o briefing das gôndolas e pirâmides.",
+  " *  Os comentários também são separados pelas abas: o validador comenta a planta ou um móvel na aba em que está",
+  " *  (o comentário leva o tipo, CICLO ou PLANOGRAMA); o construtor vê os da aba dele, responde e marca como",
+  " *  resolvido. Cada aba mostra quantos comentários abertos ela tem. Painel ao lado da planta com",
   " *  os comentários do ciclo e da planta, marcadores nos móveis com comentários",
   " *  abertos e a seção \"Comentários da validação\" na tela do móvel.",
   " *  As regras (senha, quem pode o quê) são conferidas no servidor (Validacao.gs).",
@@ -11552,6 +11575,10 @@ const PAGINA_ = [
   "  let comentarios = [];",
   "  let painelAberto = false;",
   "  let filtro = 'ABERTO'; // ABERTO | RESOLVIDO | TODOS",
+  "  // Aba da Validação e da Construção: CICLO (a construção do ciclo) ou PLANOGRAMA (as prateleiras).",
+  "  const ABAS = { CICLO: 'Ciclo', PLANOGRAMA: 'Planograma' };",
+  "  const CHAVE_ABA = 'planoVarejo.abaConstrucao';",
+  "  let aba = (() => { try { return window.sessionStorage.getItem(CHAVE_ABA) === 'PLANOGRAMA' ? 'PLANOGRAMA' : 'CICLO'; } catch (e) { return 'CICLO'; } })();",
   "  let escolhendo = false; // o próximo clique num móvel escolhe o móvel do comentário novo",
   "  let movelNovo = ''; // móvel do comentário novo ('' = planta em geral)",
   "  let secaoMovel = null; // { pai, id } da seção aberta na tela do móvel",
@@ -11585,10 +11612,49 @@ const PAGINA_ = [
   "    return m && m.descricao && m.descricao !== id ? id + ' · ' + m.descricao : id;",
   "  };",
   "",
-  "  /** Comentários do ciclo atual (de uma planta, ou de todas). */",
-  "  function doCiclo(planta) {",
+  "  /** Comentários do ciclo atual (de uma planta, ou de todas) na aba da tela (ou na aba pedida). */",
+  "  function doCiclo(planta, daAba) {",
   "    const e = app.estado;",
-  "    return comentarios.filter((c) => c.ciclo === e.ciclo && (!planta || c.planta === planta));",
+  "    const t = daAba || aba;",
+  "    return comentarios.filter((c) => c.ciclo === e.ciclo && (!planta || c.planta === planta) && (c.tipo || 'CICLO') === t);",
+  "  }",
+  "  const abertosDaAba = (t) => (ativo() && app.estado.ciclo ? doCiclo(null, t).filter((c) => c.status === 'ABERTO').length : 0);",
+  "",
+  "  /** Troca a aba (Ciclo ou Planograma): a tela inteira segue a aba (painel, prateleiras, briefing, comentários). */",
+  "  function trocarAba(t) {",
+  "    if (!ABAS[t] || t === aba) return;",
+  "    aba = t;",
+  "    try { window.sessionStorage.setItem(CHAVE_ABA, t); } catch (e) { /* sem armazenamento */ }",
+  "    escolhendo = false;",
+  "    app.desenhar();",
+  "  }",
+  "",
+  "  /** Abas Ciclo | Planograma na faixa abaixo do topo, com os comentários abertos de cada uma. */",
+  "  function desenharAbas() {",
+  "    const box = $('modoAbas');",
+  "    if (!box) return;",
+  "    box.hidden = !ativo();",
+  "    box.innerHTML = '';",
+  "    if (!ativo()) return;",
+  "    n('span', 'modo-abas-rotulo', MODULOS[acesso.papel].titulo, box);",
+  "    const grupo = n('div', 'modo-abas-grupo', null, box);",
+  "    grupo.setAttribute('role', 'tablist');",
+  "    grupo.setAttribute('aria-label', MODULOS[acesso.papel].titulo + ': abas');",
+  "    Object.keys(ABAS).forEach((t) => {",
+  "      const b = n('button', 'modo-aba', null, grupo);",
+  "      b.type = 'button';",
+  "      b.setAttribute('role', 'tab');",
+  "      b.dataset.aba = t;",
+  "      b.setAttribute('aria-selected', String(t === aba));",
+  "      b.title = t === 'CICLO' ? 'Construção do ciclo: os movimentos de cada espaço dos móveis' : 'Construção do planograma: os produtos dentro das prateleiras';",
+  "      n('span', null, ABAS[t], b);",
+  "      const qtd = abertosDaAba(t);",
+  "      if (qtd) {",
+  "        const bd = n('span', 'badge', String(qtd), b);",
+  "        bd.title = qtd + (qtd === 1 ? ' comentário aberto' : ' comentários abertos');",
+  "      }",
+  "      b.addEventListener('click', () => trocarAba(t));",
+  "    });",
   "  }",
   "",
   "  /* ------------------------------- acesso --------------------------------- */",
@@ -11600,16 +11666,12 @@ const PAGINA_ = [
   "      sub: 'Para o validador: comente a estratégia do ciclo e aprove (ou devolva) os ciclos novos.',",
   "    },",
   "    CONSTRUTOR: {",
-  "      titulo: 'Construção do ciclo',",
-  "      sub: 'Para o construtor do ciclo: monte os ciclos novos na planta (os movimentos de cada espaço dos móveis), responda aos comentários do validador e marque como resolvido.',",
-  "    },",
-  "    PLANOGRAMA: {",
-  "      titulo: 'Construção de planogramas',",
-  "      sub: 'Para quem monta os planogramas: clique num móvel e defina os produtos dentro de cada prateleira.',",
+  "      titulo: 'Construção',",
+  "      sub: 'Para o construtor: na aba Ciclo, monte os ciclos novos na planta (os movimentos de cada espaço dos móveis); na aba Planograma, defina os produtos das prateleiras. Responda aos comentários do validador e marque como resolvido.',",
   "    },",
   "  };",
   "",
-  "  /** Diálogo de acesso ao módulo de um papel ('VALIDADOR', 'CONSTRUTOR' ou 'PLANOGRAMA'), com a senha dele. */",
+  "  /** Diálogo de acesso ao módulo de um papel ('VALIDADOR' ou 'CONSTRUTOR'), com a senha dele. */",
   "  function abrirAcesso(papel) {",
   "    const m = MODULOS[papel] || MODULOS.VALIDADOR;",
   "    $('acessoPapel').value = MODULOS[papel] ? papel : 'VALIDADOR';",
@@ -11666,8 +11728,6 @@ const PAGINA_ = [
   "",
   "  async function recarregar() {",
   "    if (!acesso) return;",
-  "    // A Construção de planogramas não vê os comentários (nem os balões nos móveis).",
-  "    if (acesso.papel === 'PLANOGRAMA') { comentarios = []; app.desenhar(); return; }",
   "    try {",
   "      comentarios = await app.chamar('getComentarios', acesso);",
   "    } catch (e) {",
@@ -11711,11 +11771,12 @@ const PAGINA_ = [
   "  function atualizar() {",
   "    const e = app.estado;",
   "    const planta = app.plantaAtual();",
-  "    const abertos = ativo() && e.ciclo ? doCiclo().filter((c) => c.status === 'ABERTO').length : 0;",
+  "    // Os comentários abertos das duas abas (cada aba mostra os dela).",
+  "    const abertos = abertosDaAba('CICLO') + abertosDaAba('PLANOGRAMA');",
+  "    desenharAbas();",
   "    // Um item por módulo na engrenagem: o do papel que entrou fica marcado e mostra os comentários abertos.",
   "    [['btnValidacao', 'valBadge', 'VALIDADOR', 'Validação da estratégia e aprovação dos ciclos novos (pede senha)'],",
-  "      ['btnConstrucao', 'consBadge', 'CONSTRUTOR', 'Construção do ciclo: os movimentos de cada espaço dos móveis (pede senha)'],",
-  "      ['btnPlanogramas', '', 'PLANOGRAMA', 'Construção de planogramas: os produtos dentro das prateleiras (pede senha)']].forEach(([id, badge, papel, dica]) => {",
+  "      ['btnConstrucao', 'consBadge', 'CONSTRUTOR', 'Construção dos ciclos (aba Ciclo) e dos planogramas (aba Planograma) (pede senha)']].forEach(([id, badge, papel, dica]) => {",
   "      const btn = $(id);",
   "      if (!btn) return;",
   "      const meu = ativo() && acesso.papel === papel;",
@@ -11743,7 +11804,7 @@ const PAGINA_ = [
   "",
   "  function montarPainel(planta) {",
   "    const e = app.estado;",
-  "    $('valTitulo').textContent = MODULOS[acesso.papel] ? MODULOS[acesso.papel].titulo : 'Validação';",
+  "    $('valTitulo').textContent = (MODULOS[acesso.papel] ? MODULOS[acesso.papel].titulo : 'Validação') + ' · ' + ABAS[aba];",
   "    $('valSub').textContent = planta.nome + (e.ciclo ? ' · ' + e.ciclo : '');",
   "    const corpo = $('valCorpo');",
   "    corpo.innerHTML = '';",
@@ -11755,17 +11816,20 @@ const PAGINA_ = [
   "    n('span', null, acesso.nomePapel, t);",
   "    botao('Sair', 'fantasma', sair, quem);",
   "",
-  "    // Construção de planogramas: os produtos ficam na tela de cada móvel (seção \"Construção das prateleiras\").",
-  "    if (acesso.papel === 'PLANOGRAMA') {",
-  "      n('p', 'val-dica', e.ciclo",
-  "        ? 'Clique num móvel da planta (gôndola, pirâmide, mesa, móvel de fila…) e, na tela dele, use \"Construção das prateleiras\" para definir os produtos de cada prateleira. Vale nos ciclos publicados e nos ciclos em construção ainda não enviados.'",
-  "        : 'Escolha um ciclo no seletor e clique num móvel da planta para definir os produtos das prateleiras.', corpo);",
-  "      n('p', 'val-dica', 'O Briefing (PDF), no topo, baixa (ou salva no Drive) o planograma das gôndolas e pirâmides.', corpo);",
-  "      return;",
+  "    // Aba Planograma: os produtos ficam na tela de cada móvel (seção \"Construção das prateleiras\"); aqui, os",
+  "    // comentários do planograma. Aba Ciclo: os ciclos em construção, as antecipações e os comentários do ciclo.",
+  "    if (aba === 'PLANOGRAMA') {",
+  "      if (acesso.papel === 'CONSTRUTOR') {",
+  "        n('p', 'val-dica', e.ciclo",
+  "          ? 'Clique num móvel da planta (gôndola, pirâmide, mesa, móvel de fila…) e, na tela dele, use \"Construção das prateleiras\" para definir os produtos de cada prateleira. Vale nos ciclos publicados e nos ciclos em construção ainda não enviados. O Briefing (PDF), no topo, baixa (ou salva no Drive) o planograma das gôndolas e pirâmides.'",
+  "          : 'Escolha um ciclo no seletor e clique num móvel da planta para definir os produtos das prateleiras.', corpo);",
+  "      } else {",
+  "        n('p', 'val-dica', 'Comentários sobre o planograma: os produtos dentro das prateleiras (veja na tela de cada móvel).', corpo);",
+  "      }",
+  "    } else if (app.montarRascunhos) {",
+  "      // Ciclos em construção (Rascunho.html): novo ciclo, status e aprovação; e as antecipações.",
+  "      app.montarRascunhos(corpo);",
   "    }",
-  "",
-  "    // Ciclos em construção (Rascunho.html): novo ciclo, status e aprovação.",
-  "    if (app.montarRascunhos) app.montarRascunhos(corpo);",
   "",
   "    if (!e.ciclo) {",
   "      n('p', 'mv-vazio', 'Escolha um ciclo no seletor para ver e fazer comentários da estratégia.', corpo);",
@@ -11773,7 +11837,7 @@ const PAGINA_ = [
   "    }",
   "",
   "    if (ehValidador()) formNovo(corpo, planta, null);",
-  "    else n('p', 'val-dica', 'Os comentários do validador aparecem aqui. Responda e marque como resolvido quando ajustar a estratégia.', corpo);",
+  "    else n('p', 'val-dica', 'Os comentários do validador sobre ' + (aba === 'PLANOGRAMA' ? 'o planograma' : 'o ciclo') + ' aparecem aqui. Responda e marque como resolvido quando ajustar.', corpo);",
   "",
   "    const daPlanta = doCiclo(planta.id);",
   "    const qtd = (s) => daPlanta.filter((c) => s === 'TODOS' || c.status === s).length;",
@@ -11803,7 +11867,7 @@ const PAGINA_ = [
   "  /** Formulário de comentário novo (validador). movelFixo: na tela do móvel, o comentário já é desse móvel. */",
   "  function formNovo(pai, planta, movelFixo) {",
   "    const f = n('form', 'val-novo', null, pai);",
-  "    n('h3', null, 'Novo comentário', f);",
+  "    n('h3', null, 'Novo comentário · ' + ABAS[aba], f);",
   "    if (!movelFixo) {",
   "      const linha = n('div', 'val-alvo', null, f);",
   "      const sel = n('select', null, null, linha);",
@@ -11825,7 +11889,9 @@ const PAGINA_ = [
   "    txt.value = rascunhos[chave] || '';",
   "    txt.addEventListener('input', () => { rascunhos[chave] = txt.value; });",
   "    txt.rows = 3;",
-  "    txt.placeholder = movelFixo ? 'O que precisa mudar neste móvel?' : 'O que precisa mudar na estratégia?';",
+  "    txt.placeholder = aba === 'PLANOGRAMA'",
+  "      ? (movelFixo ? 'O que precisa mudar no planograma deste móvel?' : 'O que precisa mudar nos planogramas?')",
+  "      : (movelFixo ? 'O que precisa mudar neste móvel?' : 'O que precisa mudar na estratégia?');",
   "    txt.required = true;",
   "    const acoes = n('div', 'val-acoes', null, f);",
   "    const enviar = n('button', 'btn pequeno primario', 'Comentar', acoes);",
@@ -11835,7 +11901,7 @@ const PAGINA_ = [
   "      if (!txt.value.trim()) return;",
   "      enviar.disabled = true;",
   "      const ok = await salvar({",
-  "        acao: 'novo', ciclo: app.estado.ciclo, planta: planta.id, movel: movelFixo || movelNovo, texto: txt.value,",
+  "        acao: 'novo', ciclo: app.estado.ciclo, planta: planta.id, movel: movelFixo || movelNovo, tipo: aba, texto: txt.value,",
   "      }, 'Comentário enviado.');",
   "      enviar.disabled = false;",
   "      if (ok) { delete rascunhos[chave]; filtro = 'ABERTO'; if (!movelFixo) movelNovo = ''; atualizar(); }",
@@ -11901,13 +11967,12 @@ const PAGINA_ = [
   "  function montarSecaoMovel(pai, id) {",
   "    secaoMovel = { pai, id };",
   "    pai.innerHTML = '';",
-  "    // Os comentários são entre o validador e o construtor do ciclo (a Construção de planogramas não os vê).",
-  "    if (!ativo() || acesso.papel === 'PLANOGRAMA') {",
+  "    if (!ativo()) {",
   "      pai.hidden = true;",
   "      return;",
   "    }",
   "    pai.hidden = false;",
-  "    n('h3', null, 'Comentários da validação', pai);",
+  "    n('h3', null, 'Comentários da validação · ' + ABAS[aba], pai);",
   "    const planta = app.plantaAtual();",
   "    if (!app.estado.ciclo) {",
   "      n('p', 'mv-vazio', 'Escolha um ciclo para ver os comentários.', pai);",
@@ -11967,7 +12032,6 @@ const PAGINA_ = [
   "    };",
   "    $('btnValidacao').addEventListener('click', () => alternar('VALIDADOR'));",
   "    if ($('btnConstrucao')) $('btnConstrucao').addEventListener('click', () => alternar('CONSTRUTOR'));",
-  "    if ($('btnPlanogramas')) $('btnPlanogramas').addEventListener('click', () => alternar('PLANOGRAMA'));",
   "    $('valFechar').addEventListener('click', fecharPainel);",
   "    $('formAcesso').addEventListener('submit', entrar);",
   "    $('acessoCancelar').addEventListener('click', () => $('dlgAcesso').close());",
@@ -11979,11 +12043,12 @@ const PAGINA_ = [
   "    if (salvo && salvo.senha && salvo.papel) acesso = salvo;",
   "  }",
   "",
-  "  /** Comentários abertos no ciclo da tela (para o botão \"Comentários\" do painel de construção). */",
-  "  const abertosNoCiclo = () => (ativo() && app.estado.ciclo ? doCiclo().filter((c) => c.status === 'ABERTO').length : 0);",
+  "  /** Comentários abertos do ciclo (aba Ciclo) na tela (para o botão \"Comentários\" do painel de construção). */",
+  "  const abertosNoCiclo = () => abertosDaAba('CICLO');",
   "",
   "  return {",
   "    iniciar, atualizar, recarregar, marcadores, aoClicarMovel, focar, montarSecaoMovel, abrirPainel, fecharPainel, ativo, abertosNoCiclo,",
+  "    aba: () => aba, trocarAba,",
   "    acesso: () => acesso,",
   "  };",
   "})();",
@@ -12045,7 +12110,8 @@ const PAGINA_ = [
   "  /** O ciclo da tela, se for um ciclo em construção. */",
   "  const atual = () => (app && app.estado.ciclo ? doCiclo(app.estado.ciclo) : null);",
   "  /** O construtor pode editar o ciclo da tela (em construção, ainda não enviado). */",
-  "  const editavel = () => papel() === 'CONSTRUTOR' && !!atual() && atual().status === 'EM_CONSTRUCAO';",
+  "  // Só na aba Ciclo da Construção (na aba Planograma, o construtor mexe nas prateleiras).",
+  "  const editavel = () => papel() === 'CONSTRUTOR' && app.aba() === 'CICLO' && !!atual() && atual().status === 'EM_CONSTRUCAO';",
   "",
   "  /** Tipos de movimento do ciclo da tela: [{ chave, texto, classificacao, gmv, observacao }], em ordem alfabética. */",
   "  function tiposDoCiclo() {",
@@ -12418,12 +12484,11 @@ const PAGINA_ = [
   "    n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, info);",
   "    const msg = construtor",
   "      ? (enviado ? 'Enviado para o validador. Você ou o validador podem publicar.'",
-  "        : 'Você está montando este ciclo. Ele só aparece para todos depois de publicado.')",
+  "        : app.aba() === 'PLANOGRAMA' ? 'Aba Planograma: clique num móvel para definir os produtos das prateleiras deste ciclo.'",
+  "          : 'Você está montando este ciclo. Ele só aparece para todos depois de publicado.')",
   "      : validador",
   "        ? (enviado ? 'Confira as ERs e publique ou devolva para o construtor.' : 'O construtor ainda está montando este ciclo (não foi enviado para aprovação).')",
-  "        : papel() === 'PLANOGRAMA'",
-  "          ? (enviado ? 'Enviado para aprovação: as prateleiras só voltam a ser editadas se o validador devolver.' : 'Dá para definir os produtos das prateleiras deste ciclo (clique num móvel).')",
-  "          : '';",
+  "        : '';",
   "    if (msg) n('span', 'rs-faixa-msg', msg, info);",
   "    const acoes = $('rascunhoAcoes');",
   "    acoes.innerHTML = '';",
@@ -13572,8 +13637,8 @@ const PAGINA_ = [
   " *  no catálogo (aba Produtos da planilha: SKU, nome, marca, categoria e",
   " *  movimento). O que foi definido aparece para todo mundo no planograma da",
   " *  tela do móvel (\"como as prateleiras estão divididas\", em App.html, com",
-  " *  desenharQuadrados). A edição fica só na Construção de planogramas (login",
-  " *  da Construção de planogramas, com senha): a seção \"Construção das prateleiras\", com o botão",
+  " *  desenharQuadrados). A edição fica só na Construção, na aba Planograma",
+  " *  (login da Construção, com senha): a seção \"Construção das prateleiras\", com o botão",
   " *  \"Desenhar\" de cada espaço. Cada ER tem as suas prateleiras; \"Vale em todas",
   " *  as ERs\" grava as mesmas em cada ER que tem o espaço. As regras ficam em",
   " *  Prateleiras.gs (conferidas no servidor).",
@@ -13615,10 +13680,10 @@ const PAGINA_ = [
   "    return todas().find((g) => g.ciclo === ciclo && g.planta === planta && g.espaco === id) || null;",
   "  }",
   "",
-  "  /** A Construção de planogramas edita num ciclo publicado ou num ciclo em construção que ainda não foi enviado. */",
+  "  /** A Construção (aba Planograma) edita num ciclo publicado ou num ciclo em construção que ainda não foi enviado. */",
   "  function podeEditar(ciclo) {",
   "    const a = app.acesso();",
-  "    if (!a || a.papel !== 'PLANOGRAMA' || !ciclo) return false;",
+  "    if (!a || a.papel !== 'CONSTRUTOR' || app.aba() !== 'PLANOGRAMA' || !ciclo) return false;",
   "    if (dados().ciclos.indexOf(ciclo) >= 0) return true;",
   "    const r = app.rascunhos().find((x) => x.ciclo === ciclo);",
   "    return !!r && r.status === 'EM_CONSTRUCAO';",
@@ -13711,7 +13776,7 @@ const PAGINA_ = [
   "  /* ---------------------------- construção ------------------------------- */",
   "",
   "  /**",
-  "   * Seção \"Construção das prateleiras\" da tela do móvel: só na Construção de planogramas (login dela), com um",
+  "   * Seção \"Construção das prateleiras\" da tela do móvel: só na Construção, aba Planograma, com um",
   "   * cartão por espaço que leva produtos (as colunas do planograma com id) e o botão de desenhar. O desenho salvo",
   "   * aparece no planograma, acima.",
   "   * @param {{ciclo, planta, movel, plano}} ctx  plano: o de planogramaDe (App.html)",
@@ -14205,8 +14270,7 @@ const PAGINA_ = [
   " *  A biblioteca jsPDF é carregada sob demanda do cdnjs (como o ExcelJS).",
   " *  O arquivo leva o ciclo e a ER no nome (\"Briefing - C15-2026 - ER M.pdf\"). Com uma pasta do Drive vinculada",
   " *  (Desenvolvedor › Planilhas), o PDF pode ser salvo nela, na subpasta do ciclo, no lugar do briefing anterior com",
-  " *  o mesmo nome (salvarBriefingNoDrive, Code.gs). O botão só aparece nos módulos de construção (do ciclo e de",
-  " *  planogramas): construcao().",
+  " *  o mesmo nome (salvarBriefingNoDrive, Code.gs). O botão só aparece na Construção, aba Planograma: construcao().",
   " */",
   "const Briefing = (() => {",
   "  const $ = (id) => document.getElementById(id);",
@@ -14654,18 +14718,18 @@ const PAGINA_ = [
   "  /** \"Briefing - C15-2026 - ER M.pdf\" (sem ER: \"… - Todas as ERs.pdf\"); o mesmo nome do nomeBriefing_ do Code.gs. */",
   "  const nomeDoArquivo = (ciclo, er) => 'Briefing - ' + nomeDaPasta(ciclo) + ' - ' + (parteDoNome(er) || 'Todas as ERs') + '.pdf';",
   "",
-  "  /** Quem entrou num módulo de construção (do ciclo ou de planogramas): só ele vê o briefing. */",
+  "  /** Construção, aba Planograma: só ali o briefing aparece. */",
   "  function construcao() {",
   "    const a = app.acesso && app.acesso();",
-  "    return !!a && (a.papel === 'CONSTRUTOR' || a.papel === 'PLANOGRAMA');",
+  "    return !!a && a.papel === 'CONSTRUTOR' && app.aba() === 'PLANOGRAMA';",
   "  }",
   "",
-  "  /** Salvar no Drive: com a pasta vinculada (e num módulo de construção, como o próprio botão). */",
+  "  /** Salvar no Drive: com a pasta vinculada (e na aba Planograma da Construção, como o próprio botão). */",
   "  function podeSalvarNoDrive() {",
   "    return { pasta: !!dados().pastaBriefings, construtor: construcao() };",
   "  }",
   "",
-  "  /** Mostra o botão \"Briefing (PDF)\" só nos módulos de construção (chamado depois de cada desenho). */",
+  "  /** Mostra o botão \"Briefing (PDF)\" só na aba Planograma da Construção (chamado depois de cada desenho). */",
   "  function atualizar() {",
   "    const b = $('btnBriefing');",
   "    if (b) b.hidden = !construcao();",
@@ -16469,7 +16533,7 @@ const PAGINA_ = [
   "      {",
   "        alvo: '#btnConfig',",
   "        titulo: 'Configurações',",
-  "        texto: 'Validação, Construção do ciclo e Construção de planogramas (cada uma com a sua senha), ajuste das etiquetas, modo noturno, planilha, este tutorial e o modo desenvolvedor (com senha).',",
+  "        texto: 'Validação e Construção (cada uma com a sua senha e as abas Ciclo e Planograma), ajuste das etiquetas, modo noturno, planilha, este tutorial e o modo desenvolvedor (com senha).',",
   "      },",
   "    ];",
   "  }",
@@ -18371,7 +18435,7 @@ const PAGINA_ = [
   "        verNaPlanta({ etiqueta: o.texto, er: o.er });",
   "      },",
   "      // Construção: o construtor muda a ordem dos movimentos de um ciclo e salva (movimentos null = volta à automática).",
-  "      construtor: () => !!Validacao.acesso() && Validacao.acesso().papel === 'CONSTRUTOR',",
+  "      construtor: () => !!Validacao.acesso() && Validacao.acesso().papel === 'CONSTRUTOR' && Validacao.aba() === 'CICLO',",
   "      salvarOrdem: async (ciclo, movimentos) => {",
   "        carregando(true, 'Salvando a ordem…');",
   "        try {",
@@ -19724,6 +19788,7 @@ const PAGINA_ = [
   "  Rascunho.iniciar({",
   "    estado, ultimoAprovado, chamar, toast, erro, desenhar, plantaAtual, carregar, paineisDe, nomeDaMarca, montarCiclos,",
   "    acesso: () => Validacao.acesso(),",
+  "    aba: () => Validacao.aba(),",
   "    recarregarComentarios: () => Validacao.recarregar(),",
   "    abrirMovel, blocosDoMovel, espacoPorEr, ersDaLinha, corDaMarca, colorirSelectMarca, movimentoDe,",
   "    comentariosAbertos: () => Validacao.abertosNoCiclo(),",
@@ -19738,6 +19803,7 @@ const PAGINA_ = [
   "  Briefing.iniciar({",
   "    estado, chamar, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca,",
   "    acesso: () => Validacao.acesso(),",
+  "    aba: () => Validacao.aba(),",
   "    // Resultado com links (ex.: o briefing salvo no Drive): título, texto e [{ texto, url }].",
   "    mostrarResultado: (titulo, texto, links) => {",
   "      $('resTitulo').textContent = titulo;",
@@ -19758,6 +19824,7 @@ const PAGINA_ = [
   "  Prateleira.iniciar({",
   "    estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,",
   "    acesso: () => Validacao.acesso(),",
+  "    aba: () => Validacao.aba(),",
   "    rascunhos: () => Rascunho.lista(),",
   "  });",
   "  // Na primeira visita, depois de carregar, oferece o tutorial guiado.",

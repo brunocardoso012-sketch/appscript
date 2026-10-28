@@ -128,10 +128,13 @@ async function abrir(t, opcoes) {
 
 const estado = (p, expr) => p.evaluate(expr);
 // Validação e Construção: um item na engrenagem e uma senha para cada papel (SENHAS_ACESSO, em Config.gs).
-const MENU = { VALIDADOR: 'btnValidacao', CONSTRUTOR: 'btnConstrucao', PLANOGRAMA: 'btnPlanogramas' };
-const SENHA = { VALIDADOR: 'validacao_exposicao', CONSTRUTOR: 'construcao_exposicao', PLANOGRAMA: 'planograma_exposicao', DESENVOLVEDOR: 'desenvolvedor_exposicao' };
+const MENU = { VALIDADOR: 'btnValidacao', CONSTRUTOR: 'btnConstrucao' };
+const SENHA = { VALIDADOR: 'validacao_exposicao', CONSTRUTOR: 'construcao_exposicao', DESENVOLVEDOR: 'desenvolvedor_exposicao' };
 
-/** Entra num módulo da engrenagem (Validação, Construção do ciclo ou Construção de planogramas). */
+/** Aba da Validação ou da Construção (na faixa): 'CICLO' ou 'PLANOGRAMA'. */
+const abaModo = (p, aba) => p.click('#modoAbas .modo-aba[data-aba="' + aba + '"]');
+
+/** Entra num módulo da engrenagem (Validação ou Construção). */
 async function entrarModulo(p, papel, nome) {
   await menuConfig(p, MENU[papel]);
   await p.waitForSelector('#dlgAcesso[open]');
@@ -714,7 +717,7 @@ test('todas as ERs num PowerPoint: um slide por ER', async (t) => {
 test('engrenagem: todos os itens no menu; o modo desenvolvedor pede senha e abre o painel', async (t) => {
   const p = await abrir(t);
   await p.click('#btnConfig');
-  for (const id of ['btnValidacao', 'btnConstrucao', 'btnPlanogramas', 'btnEditar', 'btnTema', 'btnTutorial', 'btnDesenvolvedor']) {
+  for (const id of ['btnValidacao', 'btnConstrucao', 'btnEditar', 'btnTema', 'btnTutorial', 'btnDesenvolvedor']) {
     assert.ok(await p.isVisible('#menuConfigLista #' + id), id + ' não está no menu');
   }
   // A construção da loja fica no painel do desenvolvedor (com senha).
@@ -933,11 +936,24 @@ test('validação: senha errada, comentário, resposta e resolução', async (t)
   await p.click('#valCorpo .val-novo button[type="submit"]');
   await p.waitForSelector('#valCorpo .val-cartao');
   assert.match(await p.textContent('#valBadge'), /1/);
+  // Aba Planograma: os comentários são outros (o do ciclo não aparece); cada aba conta os dela.
+  await abaModo(p, 'PLANOGRAMA');
+  assert.strictEqual(await p.textContent('#valTitulo'), 'Validação · Planograma');
+  assert.strictEqual(await p.locator('#valCorpo .val-cartao').count(), 0);
+  await p.fill('#valCorpo .val-novo textarea', 'Faltam frentes no meio A');
+  await p.click('#valCorpo .val-novo button[type="submit"]');
+  await p.waitForSelector('#valCorpo .val-cartao');
+  assert.match(await p.textContent('#valCorpo .val-cartao'), /Faltam frentes/);
+  assert.deepStrictEqual(await p.locator('#modoAbas .modo-aba .badge').allTextContents(), ['1', '1']);
+  assert.match(await p.textContent('#valBadge'), /2/, 'o item da engrenagem soma as duas abas');
+  await abaModo(p, 'CICLO');
+  assert.strictEqual(await p.locator('#valCorpo .val-cartao').count(), 1);
+  assert.doesNotMatch(await p.textContent('#valCorpo .val-cartao'), /Faltam frentes/);
   await p.click('#valCorpo button:has-text("Sair")');
 
   await entrar('CONSTRUTOR', 'Construtor E2E', SENHA.CONSTRUTOR);
   await p.waitForSelector('#valCorpo .val-cartao');
-  assert.strictEqual(await p.textContent('#valTitulo'), 'Construção do ciclo', 'o painel mostra o módulo de construção');
+  assert.strictEqual(await p.textContent('#valTitulo'), 'Construção · Ciclo', 'o painel mostra o módulo de construção e a aba');
   assert.strictEqual(await p.getAttribute('#btnConstrucao', 'aria-pressed'), 'true');
   assert.strictEqual(await p.getAttribute('#btnValidacao', 'aria-pressed'), 'false');
   const cartao = p.locator('#valCorpo .val-cartao').first();
@@ -946,7 +962,14 @@ test('validação: senha errada, comentário, resposta e resolução', async (t)
   await cartao.locator('.val-responder button[type="submit"]').click();
   await p.waitForFunction(() => document.querySelector('#valCorpo .val-cartao').textContent.includes('Feito.'));
   await p.locator('#valCorpo .val-cartao button', { hasText: 'Marcar como resolvido' }).first().click();
-  await p.waitForFunction(() => document.getElementById('valBadge').hidden);
+  // Ainda há o comentário aberto do planograma, na aba dele.
+  await p.waitForFunction(() => document.getElementById('consBadge').textContent === '1');
+  await abaModo(p, 'PLANOGRAMA');
+  assert.strictEqual(await p.textContent('#valTitulo'), 'Construção · Planograma');
+  assert.match(await p.textContent('#valCorpo .val-cartao'), /Faltam frentes/);
+  await p.locator('#valCorpo .val-cartao button', { hasText: 'Marcar como resolvido' }).first().click();
+  await p.waitForFunction(() => document.getElementById('consBadge').hidden && document.getElementById('valBadge').hidden);
+  await abaModo(p, 'CICLO');
   await p.click('#valFechar');
 });
 
@@ -1336,7 +1359,7 @@ test('ciclo em construção: fixos na planta, meio dividido, etiquetas e cores d
   assert.ok(await p.locator('#slide .movel[data-movel="GONDOLA 2"][data-espaco="MEIO-B-1"]').count() > 0);
 });
 
-test('prateleiras: a Construção de planogramas desenha os quadrados e escolhe os produtos do catálogo', async (t) => {
+test('prateleiras: a Construção, na aba Planograma, desenha os quadrados e escolhe os produtos do catálogo', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo cheio');
   await abaPlanta(p, 'ER P').click();
@@ -1344,24 +1367,24 @@ test('prateleiras: a Construção de planogramas desenha os quadrados e escolhe 
     const g = [...document.querySelectorAll('#slide [data-movel]')].find((e) => /^GONDOLA 1(\/|$)/.test(e.getAttribute('data-movel')));
     g.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
-  // Sem login: só o planograma; a construção das prateleiras fica na Construção de planogramas.
+  // Sem login: só o planograma; a construção das prateleiras fica na aba Planograma da Construção.
   await abrirGondola();
   await p.waitForSelector('#dlgMovel[open] .mv-plano');
   assert.strictEqual(await p.locator('.pr-secao').count(), 0);
   assert.strictEqual(await p.locator('[data-acao="editar-prateleiras"]').count(), 0);
   await p.keyboard.press('Escape');
-  // A Construção do ciclo também não mexe nas prateleiras (ela define os movimentos de cada espaço).
+  // Na aba Ciclo, a Construção não mexe nas prateleiras (ela define os movimentos de cada espaço).
   await entrarModulo(p, 'CONSTRUTOR', 'Bia');
+  assert.strictEqual(await p.getAttribute('#modoAbas .modo-aba[data-aba="CICLO"]', 'aria-selected'), 'true', 'começa na aba Ciclo');
   await abrirGondola();
   await p.waitForSelector('#dlgMovel[open] .mv-plano');
   assert.strictEqual(await p.locator('.pr-secao').count(), 0);
   await p.keyboard.press('Escape');
 
-  // Construção de planogramas: o painel explica onde ficam as prateleiras; sem comentários da validação.
-  await entrarModulo(p, 'PLANOGRAMA', 'Pli');
-  assert.strictEqual(await p.textContent('#valTitulo'), 'Construção de planogramas');
+  // Aba Planograma: o painel explica onde ficam as prateleiras.
+  await abaModo(p, 'PLANOGRAMA');
+  assert.strictEqual(await p.textContent('#valTitulo'), 'Construção · Planograma');
   assert.match(await p.textContent('#valCorpo'), /Construção das prateleiras/);
-  assert.strictEqual(await p.getAttribute('#btnPlanogramas', 'aria-pressed'), 'true');
   await abrirGondola();
   await p.locator('.pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] [data-acao="editar-prateleiras"]').click();
   const card = p.locator('.pr-espaco.editando');
@@ -1436,7 +1459,7 @@ test('briefing das gôndolas e pirâmides: PDF com o planograma desenhado de cad
   await abaPlanta(p, 'ER P').click();
   // Um espaço da gôndola e uma pirâmide desenhados (o mesmo que o editor grava).
   await p.evaluate(async () => {
-    const C = { papel: 'PLANOGRAMA', senha: 'planograma_exposicao', nome: 'Pli' };
+    const C = { papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' };
     const salvar = (pedido) => new Promise((ok, falha) => google.script.run.withSuccessHandler(ok).withFailureHandler(falha).salvarPrateleiras(C, pedido));
     await salvar({
       acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'GONDOLA 1/PONTA-A',
@@ -1448,11 +1471,15 @@ test('briefing das gôndolas e pirâmides: PDF com o planograma desenhado de cad
     });
     await App.carregar({ ciclo: 'Ciclo exemplo cheio' });
   });
-  // O botão do briefing só aparece nos módulos de construção (do ciclo ou de planogramas).
+  // O botão do briefing só aparece na aba Planograma da Construção.
   assert.strictEqual(await p.isVisible('#btnBriefing'), false);
   await entrarModulo(p, 'VALIDADOR', 'Ana');
+  await abaModo(p, 'PLANOGRAMA');
   assert.strictEqual(await p.isVisible('#btnBriefing'), false, 'nem na Validação');
-  await entrarModulo(p, 'PLANOGRAMA', 'Pli');
+  await entrarModulo(p, 'CONSTRUTOR', 'Bia');
+  await abaModo(p, 'CICLO');
+  assert.strictEqual(await p.isVisible('#btnBriefing'), false, 'nem na aba Ciclo');
+  await abaModo(p, 'PLANOGRAMA');
   await abaPlanta(p, 'ER P').click();
   await p.click('#btnBriefing');
   await p.waitForSelector('#dlgBriefing[open]');
@@ -1477,8 +1504,7 @@ test('briefing das gôndolas e pirâmides: PDF com o planograma desenhado de cad
   assert.match(await p.textContent('#toast'), new RegExp(gondolas + ' gôndolas e ' + piramides + ' pirâmides'));
 
   // Com uma pasta do Drive vinculada (no Apps Script), aparece o destino "Salvar na pasta do Drive": o arquivo vai
-  // para a subpasta do ciclo. Vale também na Construção do ciclo.
-  await entrarModulo(p, 'CONSTRUTOR', 'Bia');
+  // para a subpasta do ciclo.
   await p.evaluate(() => { App.estado.dados.pastaBriefings = true; });
   await p.click('#btnBriefing');
   await p.waitForSelector('#dlgBriefing[open]');

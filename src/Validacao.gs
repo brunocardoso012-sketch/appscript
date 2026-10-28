@@ -3,7 +3,7 @@
  *  VALIDAÇÃO DA ESTRATÉGIA (comentários do validador para o construtor)
  * ============================================================================
  *  O validador comenta a estratégia de um ciclo (numa planta ou num móvel); o
- *  construtor do ciclo vê, responde e marca como resolvido. Cada acesso
+ *  construtor vê, responde e marca como resolvido. Cada acesso
  *  pede o papel e a senha (SENHAS_ACESSO, em Config.gs), conferidos aqui a cada
  *  gravação.
  *
@@ -16,19 +16,23 @@
 /**
  * Papéis de quem entra (um módulo da engrenagem para cada, com a sua senha):
  *  - VALIDADOR: Validação (comenta a estratégia e aprova ou devolve os ciclos novos);
- *  - CONSTRUTOR: Construção do ciclo (monta os ciclos: os movimentos de cada espaço dos móveis, os tipos, as
- *    Comunicações ER, as antecipações e a ordem e os selos do calendário; responde aos comentários);
- *  - PLANOGRAMA: Construção de planogramas (os produtos dentro das prateleiras de cada espaço).
- * Os dois módulos de construção também baixam (e salvam no Drive) o briefing das gôndolas e pirâmides.
+ *  - CONSTRUTOR: Construção, com duas abas na tela: Ciclo (os ciclos em construção, os movimentos de cada espaço
+ *    dos móveis, os tipos, as Comunicações ER, as antecipações e a ordem e os selos do calendário) e Planograma
+ *    (os produtos dentro das prateleiras e o briefing das gôndolas e pirâmides).
+ * A Validação tem as mesmas duas abas: os comentários de cada uma são separados (TIPOS_COMENTARIO).
  */
 const PAPEIS_ACESSO = {
   VALIDADOR: 'Validador',
-  CONSTRUTOR: 'Construtor do ciclo',
-  PLANOGRAMA: 'Construtor de planogramas',
+  CONSTRUTOR: 'Construtor',
 };
 
-/** Papéis dos módulos de construção (do ciclo e de planogramas). */
-const PAPEIS_CONSTRUCAO = ['CONSTRUTOR', 'PLANOGRAMA'];
+/** Do que trata o comentário: a construção do ciclo (os móveis) ou a do planograma (as prateleiras). */
+const TIPOS_COMENTARIO = { CICLO: 'Ciclo', PLANOGRAMA: 'Planograma' };
+
+/** "planograma" / "Planograma" → "PLANOGRAMA"; vazio ou outro texto → "CICLO" (os comentários de antes). */
+function normTipoComentario_(v) {
+  return chave_(v) === 'PLANOGRAMA' ? 'PLANOGRAMA' : 'CICLO';
+}
 
 const STATUS_COMENTARIO = { ABERTO: 'ABERTO', RESOLVIDO: 'RESOLVIDO' };
 
@@ -45,6 +49,7 @@ function colunasComentarios_() {
     { titulo: 'Data', chave: 'data', texto: true },
     { titulo: 'Texto', chave: 'texto', obrigatoria: true, texto: true },
     { titulo: 'Status', chave: 'status', texto: true },
+    { titulo: 'Tipo', chave: 'tipo', texto: true, apelidos: ['Aba'] },
   ];
 }
 
@@ -64,7 +69,7 @@ function senhasDeAcesso_() {
 function conferirAcesso_(acesso) {
   const a = acesso || {};
   const papel = String(a.papel || '').toUpperCase();
-  if (!PAPEIS_ACESSO[papel]) throw new Error('Escolha o módulo: Validação, Construção do ciclo ou Construção de planogramas.');
+  if (!PAPEIS_ACESSO[papel]) throw new Error('Escolha o módulo: Validação ou Construção.');
   const senha = senhasDeAcesso_()[papel];
   if (!senha || String(a.senha || '') !== String(senha)) throw new Error('Senha incorreta.');
   const autor = String(a.nome || '').trim().slice(0, 60);
@@ -89,7 +94,8 @@ function valoresComentariosVazios_() {
 
 /**
  * Comentários da aba, já com as respostas dentro de cada um (ordem de criação).
- * @return {Array<{id, ciclo, planta, movel, papel, autor, data, texto, status, respostas: Array}>}
+ * @return {Array<{id, ciclo, planta, movel, tipo, papel, autor, data, texto, status, respostas: Array}>}
+ *   tipo: CICLO ou PLANOGRAMA (TIPOS_COMENTARIO); sem a coluna (comentários de antes), CICLO
  */
 function comentariosDeValores_(valores) {
   if (!valores || !valores.length) return [];
@@ -103,6 +109,7 @@ function comentariosDeValores_(valores) {
       ciclo: texto_(l.ciclo),
       planta: normPlanta_(l.planta),
       movel: l.movel ? normId_(l.movel) : '',
+      tipo: normTipoComentario_(l.tipo),
       papel: String(texto_(l.papel)).toUpperCase(),
       autor: texto_(l.autor),
       data: texto_(l.data),
@@ -126,7 +133,8 @@ function comentariosDeValores_(valores) {
 
 /**
  * Aplica uma ação aos comentários e devolve a matriz nova da aba (sem gravar nada).
- *  - novo:      { acao: 'novo', ciclo, planta, movel?, texto }   — só o validador;
+ *  - novo:      { acao: 'novo', ciclo, planta, movel?, tipo?, texto } — só o validador; tipo: CICLO (padrão)
+ *               ou PLANOGRAMA (a aba da Validação em que ele foi feito); as respostas ficam no tipo do comentário;
  *  - responder: { acao: 'responder', id, texto }                 — os dois papéis;
  *  - status:    { acao: 'status', id, status: ABERTO|RESOLVIDO } — o construtor resolve;
  *               o validador resolve ou reabre;
@@ -139,8 +147,6 @@ function comentariosDeValores_(valores) {
  */
 function aplicarAcaoComentario_(valores, quem, pedido, agora) {
   const p = pedido || {};
-  // Os comentários são entre o validador e o construtor do ciclo.
-  if (quem.papel !== 'VALIDADOR' && quem.papel !== 'CONSTRUTOR') throw new Error('Só a Validação e a Construção do ciclo comentam a estratégia.');
   const cols = colunasComentarios_();
   const base = valores && valores.length ? valores : valoresComentariosVazios_();
   const cab = base[0].map(chave_);
@@ -187,6 +193,7 @@ function aplicarAcaoComentario_(valores, quem, pedido, agora) {
     nova({
       id: novoId, pai: '', ciclo: ciclo, planta: nomePlanta_(planta), movel: p.movel ? normId_(p.movel) : '',
       papel: quem.papel, autor: quem.autor, data: data, texto: textoDe(p.texto), status: STATUS_COMENTARIO.ABERTO,
+      tipo: TIPOS_COMENTARIO[normTipoComentario_(p.tipo)],
     });
     return { valores: linhas, id: novoId };
   }
@@ -195,6 +202,7 @@ function aplicarAcaoComentario_(valores, quem, pedido, agora) {
     nova({
       id: novoId, pai: texto_(linhas[i][idx.id]), ciclo: linhas[i][idx.ciclo], planta: linhas[i][idx.planta], movel: linhas[i][idx.movel],
       papel: quem.papel, autor: quem.autor, data: data, texto: textoDe(p.texto), status: '',
+      tipo: TIPOS_COMENTARIO[normTipoComentario_(linhas[i][idx.tipo])],
     });
     return { valores: linhas, id: novoId };
   }

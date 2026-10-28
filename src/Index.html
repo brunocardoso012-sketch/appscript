@@ -103,14 +103,10 @@
               Validação
               <span class="badge" id="valBadge" hidden></span>
             </button>
-            <button id="btnConstrucao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Construção do ciclo: os movimentos de cada espaço dos móveis (pede senha)">
+            <button id="btnConstrucao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Construção dos ciclos (aba Ciclo) e dos planogramas (aba Planograma) (pede senha)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V10l7-6 7 6v11"/><path d="M9 21v-5h6v5"/></svg>
-              Construção do ciclo
+              Construção
               <span class="badge" id="consBadge" hidden></span>
-            </button>
-            <button id="btnPlanogramas" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Construção de planogramas: os produtos dentro das prateleiras (pede senha)">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M4 9h16M4 15h16M8 6v0M8 12h3M14 12h2M8 18h2M13 18h3"/></svg>
-              Construção de planogramas
             </button>
             <button id="btnEditar" class="menu-item" type="button" role="menuitem" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
@@ -136,6 +132,8 @@
     </header>
 
     <div class="faixa">
+      <!-- Validação e Construção: as abas Ciclo e Planograma (Validacao.html). -->
+      <div class="modo-abas" id="modoAbas" hidden></div>
       <div class="legenda" id="legenda" aria-label="Marcas"></div>
       <div class="zoom" id="zoomControles" hidden title="Zoom: role o mouse sobre a planta, use a pinça no celular ou as teclas + e −. Com zoom, arraste para mover. Clique num móvel para ver a estratégia dele.">
         <button id="zoomMenos" class="btn pequeno" type="button" aria-label="Diminuir zoom">−</button>

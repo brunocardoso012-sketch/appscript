@@ -2,7 +2,7 @@
  * ============================================================================
  *  CICLOS EM CONSTRUÇÃO (rascunhos montados na planta e aprovados pelo validador)
  * ============================================================================
- *  O construtor do ciclo cria um ciclo novo (em branco ou copiando outro),
+ *  O construtor cria um ciclo novo (em branco ou copiando outro),
  *  preenche os espaços, as Comunicações ER e os Tipos de movimento direto no app
  *  e envia para aprovação. O validador aprova (o ciclo passa para as abas
  *  Movimentos, Painéis e Tipos de movimento, junto com os demais) ou devolve
@@ -408,7 +408,7 @@ function executarRascunho_(io, acesso, pedido) {
 /* ------------------ ordem dos movimentos no calendário ------------------- */
 /*
  * No calendário dos ciclos (Calendario.html), os movimentos de cada ciclo ficam empilhados pelo equilíbrio entre
- * o GMV esperado e a exposição. O construtor do ciclo pode mudar essa ordem e salvar: ela fica na aba
+ * o GMV esperado e a exposição. O construtor pode mudar essa ordem e salvar: ela fica na aba
  * "Ordem do calendário" (uma linha por movimento do ciclo, na ordem) e passa a ser a ordem do calendário para
  * todos. Movimentos que não estão na ordem salva (ex.: entraram depois) vêm depois dela, pelo equilíbrio.
  */
@@ -441,7 +441,7 @@ function ordemCalendarioDeValores_(valores) {
 }
 
 /**
- * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário. Só o construtor do ciclo.
+ * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário. Só o construtor.
  *  - { ciclo, movimentos: ['LÇTO EGEO', 'BOTIPROMO', …] }  a ordem nova (de cima para baixo);
  *  - { ciclo, limpar: true }                               volta à ordem automática (pelo equilíbrio).
  * O ciclo precisa existir (publicado ou em construção).
@@ -449,7 +449,7 @@ function ordemCalendarioDeValores_(valores) {
  */
 /** Confere o construtor e o ciclo (publicado ou em construção) para gravar algo do calendário. */
 function conferirCicloDoCalendario_(io, quem, ciclo, oQue) {
-  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor do ciclo ' + oQue + '.');
+  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor ' + oQue + '.');
   const ciclos = ciclosPublicados_({
     movimentos: io.ler(CONFIG.ABAS.MOVIMENTOS) || [], paineis: io.ler(CONFIG.ABAS.PAINEIS) || [], tipos: io.ler(CONFIG.ABAS.TIPOS) || [],
   });
@@ -525,7 +525,7 @@ function selosCalendarioDeValores_(valores) {
 }
 
 /**
- * Grava os selos dos movimentos de um ciclo (troca todos os do ciclo). Só o construtor do ciclo.
+ * Grava os selos dos movimentos de um ciclo (troca todos os do ciclo). Só o construtor.
  *  { ciclo, selos: [{ movimento, hotspot: boolean, medalha: 'OURO' | 'PRATA' | 'BRONZE' | '' }] }
  * Movimento sem selo nenhum sai da aba.
  * @return {Object} os selos de todos os ciclos (selosCalendarioDeValores_)

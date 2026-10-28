@@ -541,7 +541,7 @@ const Desenvolvedor = (() => {
     const campos = n('div', 'dev-campos', null, corpo);
     const s = config.senhas;
     const ent = {};
-    [['DESENVOLVEDOR', 'Modo desenvolvedor'], ['VALIDADOR', 'Validação'], ['CONSTRUTOR', 'Construção do ciclo'], ['PLANOGRAMA', 'Construção de planogramas']].forEach(([k, rotulo]) => {
+    [['DESENVOLVEDOR', 'Modo desenvolvedor'], ['VALIDADOR', 'Validação'], ['CONSTRUTOR', 'Construção (abas Ciclo e Planograma)']].forEach(([k, rotulo]) => {
       ent[k] = entrada(campo(rotulo, campos, 'largo'), s[k], 'text', { autocomplete: 'off', spellcheck: false });
       ent[k].dataset.senha = k;
     });
