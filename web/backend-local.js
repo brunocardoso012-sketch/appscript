@@ -122,6 +122,14 @@
       throw new Error('Na versão web, os dados ficam no navegador: a planilha separada do layout só existe no Apps Script.');
     },
 
+    mudarPastaBriefings() {
+      throw new Error('Na versão web, os dados ficam no navegador: a pasta dos briefings no Drive só existe no Apps Script.');
+    },
+
+    salvarBriefingNoDrive() {
+      throw new Error('Na versão web não há Drive: baixe o briefing.');
+    },
+
     mudarPlanilhaCalendario() {
       throw new Error('Na versão web, os dados ficam no navegador: a planilha do calendário dos ciclos só existe no Apps Script.');
     },

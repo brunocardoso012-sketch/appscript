@@ -59,6 +59,8 @@ const CONFIG = {
   PROPRIEDADE_PLANILHA_LAYOUT: 'LAYOUT_SPREADSHEET_ID',
   /** Planilha com o calendário dos ciclos e os feriados (Desenvolvedor › Planilhas); sem ela, as abas ficam na principal. */
   PROPRIEDADE_PLANILHA_CALENDARIO: 'CALENDARIO_SPREADSHEET_ID',
+  /** Pasta do Drive onde a Construção salva os briefings em PDF (Desenvolvedor › Planilhas), uma subpasta por ciclo. */
+  PROPRIEDADE_PASTA_BRIEFINGS: 'BRIEFINGS_FOLDER_ID',
   /** Planta coringa: linhas com esse valor valem para todas as plantas. */
   PLANTA_TODAS: 'TODAS',
 };
@@ -1402,6 +1404,8 @@ function getDados() {
   dados.ordemCalendario = ordemCalendarioDeValores_(lerAba_(ss, CONFIG.ABAS.ORDEM_CALENDARIO, true));
   dados.selosCalendario = selosCalendarioDeValores_(lerAba_(ss, CONFIG.ABAS.SELOS_CALENDARIO, true));
   dados.calendario.avisos.forEach(function (a) { if (dados.avisos.length < 60) dados.avisos.push(a); });
+  // Só se há uma pasta vinculada (o Drive é aberto só ao salvar um briefing).
+  dados.pastaBriefings = !!PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS);
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = !ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS);
@@ -2088,7 +2092,119 @@ function infoPlanilhas_(ss) {
     }
   }
   info.leituraCalendario = resumoCalendario_(lerCalendario_(ss));
+  const idPasta = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS);
+  info.pastaBriefings = null;
+  if (idPasta) {
+    try {
+      const pasta = pastaBriefings_();
+      info.pastaBriefings = { id: idPasta, url: pasta.getUrl(), nome: pasta.getName() };
+    } catch (e) {
+      info.pastaBriefings = { id: idPasta, erro: e.message };
+    }
+  }
   return info;
+}
+
+/* ------------------------ pasta dos briefings (Drive) ---------------------- */
+/*
+ * O briefing das gôndolas e pirâmides (Briefing.html) é montado no navegador. Com uma pasta do Drive vinculada
+ * (Desenvolvedor › Planilhas; o ID fica na propriedade CONFIG.PROPRIEDADE_PASTA_BRIEFINGS), quem entrou na
+ * Construção pode salvá-lo nela: cada ciclo tem a sua subpasta (nomePastaCiclo_) e o arquivo leva o ciclo e a
+ * ER no nome (nomeBriefing_). Um arquivo com o mesmo nome na subpasta vai para a lixeira (é substituído).
+ */
+
+/** ID de uma pasta do Drive a partir do link (…/folders/ID, …?id=ID) ou do próprio ID. */
+function idDePasta_(texto) {
+  const t = String(texto || '').trim();
+  const m = /\/folders\/([a-zA-Z0-9_-]{10,})/.exec(t) || /[?&]id=([a-zA-Z0-9_-]{10,})/.exec(t);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{10,}$/.test(t)) return t;
+  throw new Error('Cole o link da pasta do Drive (https://drive.google.com/drive/folders/…) ou o ID dela.');
+}
+
+/** Nome da subpasta do ciclo: "C15/2026" → "C15-2026" (sem os caracteres que o Drive e o Windows não aceitam bem). */
+function nomePastaCiclo_(ciclo) {
+  const n = texto_(ciclo).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
+  if (!n) throw new Error('Escolha um ciclo para salvar o briefing.');
+  return n.slice(0, 100);
+}
+
+/** Nome do arquivo do briefing: "Briefing - C15-2026 - ER M.pdf" (ou "… - Todas as ERs.pdf"). */
+function nomeBriefing_(ciclo, er) {
+  const parte = function (v) { return texto_(v).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim(); };
+  return 'Briefing - ' + nomePastaCiclo_(ciclo) + ' - ' + (parte(er) || 'Todas as ERs') + '.pdf';
+}
+
+/** A pasta vinculada (erro claro se não houver ou se ela sumiu). */
+function pastaBriefings_() {
+  const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS);
+  if (!id) throw new Error('Nenhuma pasta do Drive vinculada para os briefings. Peça ao desenvolvedor (engrenagem › Modo desenvolvedor › Planilhas).');
+  try {
+    return DriveApp.getFolderById(id);
+  } catch (e) {
+    throw new Error('Não consegui abrir a pasta dos briefings (ID ' + id + '). Confira se ela existe e se a conta que publicou o app tem acesso; '
+      + 'ou, em Desenvolvedor › Planilhas, vincule outra pasta.');
+  }
+}
+
+/**
+ * Desenvolvedor › Planilhas › Pasta dos briefings:
+ *  - { acao: 'criar' }          cria a pasta "Plano de Varejo – Briefings" no Drive de quem publicou o app;
+ *  - { acao: 'vincular', url }  usa uma pasta que já existe (a conta que publicou o app precisa poder editá-la);
+ *  - { acao: 'desvincular' }    deixa de usar a pasta (ela não é apagada).
+ */
+function mudarPastaBriefings(acesso, pedido) {
+  conferirDesenvolvedor_(acesso);
+  const ss = planilha_();
+  const props = PropertiesService.getScriptProperties();
+  const p = pedido || {};
+  if (p.acao === 'criar') {
+    props.setProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS, DriveApp.createFolder('Plano de Varejo – Briefings').getId());
+  } else if (p.acao === 'vincular') {
+    let pasta;
+    try {
+      pasta = DriveApp.getFolderById(idDePasta_(p.url));
+      pasta.getName();
+    } catch (e) {
+      if (/Cole o link/.test(e.message)) throw e;
+      throw new Error('Não consegui abrir essa pasta. Confira o link e se a conta que publicou o app tem acesso a ela.');
+    }
+    props.setProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS, pasta.getId());
+  } else if (p.acao === 'desvincular') {
+    if (!props.getProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS)) throw new Error('Nenhuma pasta dos briefings está vinculada.');
+    props.deleteProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS);
+  } else {
+    throw new Error('Ação desconhecida.');
+  }
+  return infoPlanilhas_(ss);
+}
+
+/**
+ * Salva o briefing em PDF na pasta dos briefings, na subpasta do ciclo (criada na primeira vez). Só quem entrou
+ * na Construção. Um arquivo com o mesmo nome na subpasta vai para a lixeira (o novo o substitui).
+ * @param {{ciclo: string, er: string, base64: string}} pedido  er: o nome da ER (vazio = todas as ERs)
+ * @return {{nome, url, pasta, pastaUrl, substituidos: number}}
+ */
+function salvarBriefingNoDrive(acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor da estratégia salva o briefing na pasta do Drive.');
+  const p = pedido || {};
+  const base64 = String(p.base64 || '').replace(/^data:[^,]*,/, '');
+  if (!base64) throw new Error('O PDF do briefing veio vazio.');
+  if (base64.length > 45 * 1024 * 1024) throw new Error('O PDF do briefing é grande demais para salvar no Drive pelo app. Baixe e envie à mão.');
+  const nomePasta = nomePastaCiclo_(p.ciclo);
+  const nome = nomeBriefing_(p.ciclo, p.er);
+  const raiz = pastaBriefings_();
+  return comTrava_(function () {
+    const existentes = raiz.getFoldersByName(nomePasta);
+    const sub = existentes.hasNext() ? existentes.next() : raiz.createFolder(nomePasta);
+    let substituidos = 0;
+    const iguais = sub.getFilesByName(nome);
+    while (iguais.hasNext()) { iguais.next().setTrashed(true); substituidos++; }
+    const arquivo = sub.createFile(Utilities.newBlob(Utilities.base64Decode(base64), 'application/pdf', nome));
+    arquivo.setDescription('Briefing das gôndolas e pirâmides · ' + texto_(p.ciclo) + ' · salvo por ' + quem.autor + ' em ' + formatarDataComentario_(new Date()));
+    return { nome: nome, url: arquivo.getUrl(), pasta: sub.getName(), pastaUrl: sub.getUrl(), substituidos: substituidos };
+  });
 }
 
 /** O que o painel do Desenvolvedor mostra do calendário lido: quantidades, avisos e observações. */
@@ -6590,6 +6706,12 @@ const PAGINA_ = [
   "          <label class=\"opcao\"><input type=\"radio\" name=\"briefingErs\" value=\"esta\" checked> <span>Só <b id=\"briefingEsta\">esta ER</b></span></label>",
   "          <label class=\"opcao\"><input type=\"radio\" name=\"briefingErs\" value=\"todas\"> <span>Todas as ERs <small>— as gôndolas e as pirâmides de cada ER, em ordem</small></span></label>",
   "        </fieldset>",
+  "        <fieldset class=\"campo bloco\" id=\"briefingDestinos\">",
+  "          <legend>Destino</legend>",
+  "          <label class=\"opcao\"><input type=\"radio\" name=\"briefingDestino\" value=\"baixar\" checked> <span>Baixar no computador</span></label>",
+  "          <label class=\"opcao\" id=\"briefingDriveOpcao\"><input type=\"radio\" name=\"briefingDestino\" value=\"drive\"> <span>Salvar na pasta do Drive <small id=\"briefingDriveTexto\">— na subpasta do ciclo, substituindo o briefing anterior com o mesmo nome</small></span></label>",
+  "        </fieldset>",
+  "        <p class=\"sub\" id=\"briefingNome\"></p>",
   "        <p class=\"sub\" id=\"briefingResumo\"></p>",
   "        <div class=\"rodape-dialogo\">",
   "          <button class=\"btn\" value=\"cancelar\" type=\"submit\" formnovalidate>Cancelar</button>",
@@ -10617,7 +10739,8 @@ const PAGINA_ = [
   " *     de nome de uma ER para a seguinte;",
   " *   - Senhas: as do Desenvolvedor, da Validação e da Construção;",
   " *   - Planilhas: onde ficam as abas; o layout (aba Layout) pode ficar numa planilha separada, e o calendário",
-  " *     dos ciclos e os feriados vêm de uma planilha vinculada (Code.gs).",
+  " *     dos ciclos e os feriados vêm de uma planilha vinculada, e os briefings em PDF podem ser salvos numa pasta do",
+  " *     Drive vinculada (Code.gs).",
   " *  Enquanto a sessão está aberta, a faixa \"Modo desenvolvedor\" fica no alto da tela. A senha fica só nesta",
   " *  aba do navegador (sessionStorage) e o servidor a confere a cada gravação (Desenvolvedor.gs).",
   " */",
@@ -11176,7 +11299,8 @@ const PAGINA_ = [
   "",
   "  async function mudarPlanilha(pedido, ok, funcao) {",
   "    mensagem('');",
-  "    app.carregando(true, funcao ? 'Mudando a planilha do calendário…' : 'Mudando a planilha do layout…');",
+  "    app.carregando(true, { mudarPlanilhaCalendario: 'Mudando a planilha do calendário…', mudarPastaBriefings: 'Mudando a pasta dos briefings…' }[funcao]",
+  "      || 'Mudando a planilha do layout…');",
   "    try {",
   "      planilhas = await app.chamar(funcao || 'mudarPlanilhaLayout', acesso, pedido);",
   "      await app.carregar({ planta: app.estado.planta });",
@@ -11207,6 +11331,7 @@ const PAGINA_ = [
   "    if (planilhas.web) {",
   "      n('p', 'dev-vazio', 'Na versão web os dados ficam neste navegador; as planilhas só existem no Apps Script.', corpo);",
   "      desenharPlanilhaCalendario(corpo);",
+  "      desenharPastaBriefings(corpo);",
   "      return;",
   "    }",
   "    if (planilhas.erro) { n('p', 'dev-msg erro', planilhas.erro, corpo); return; }",
@@ -11250,6 +11375,50 @@ const PAGINA_ = [
   "      }, acoes);",
   "    }",
   "    desenharPlanilhaCalendario(corpo);",
+  "    desenharPastaBriefings(corpo);",
+  "  }",
+  "",
+  "  /**",
+  "   * Pasta do Drive dos briefings: com ela, quem entrou na Construção salva o briefing em PDF ali, numa subpasta",
+  "   * por ciclo, no lugar do anterior com o mesmo nome.",
+  "   */",
+  "  function desenharPastaBriefings(corpo) {",
+  "    const b = n('div', 'dev-regra', null, corpo);",
+  "    b.dataset.planilha = 'briefings';",
+  "    n('span', 'dev-rotulo', 'Pasta dos briefings (Drive)', b);",
+  "    n('p', 'dev-nota', 'Com uma pasta do Drive vinculada, o Briefing (PDF) ganha a opção \"Salvar na pasta do Drive\" para quem entrou na Construção. Cada ciclo tem a sua subpasta (ex.: C15-2026) e o arquivo leva o ciclo e a ER no nome (ex.: Briefing - C15-2026 - ER M.pdf); salvar de novo substitui o anterior com o mesmo nome (ele vai para a lixeira do Drive).', b);",
+  "    if (planilhas.web) { n('p', 'dev-vazio', 'Na versão web não há Drive: o briefing só é baixado.', b); return; }",
+  "    const pasta = planilhas.pastaBriefings;",
+  "    if (pasta && pasta.erro) n('p', 'dev-msg erro', pasta.erro, b);",
+  "    else if (pasta) {",
+  "      linkPlanilha(pasta, b);",
+  "      n('p', 'dev-resumo', 'Pasta vinculada: os briefings salvos pela Construção vão para ela.', b);",
+  "    } else {",
+  "      n('p', 'dev-resumo', 'Nenhuma pasta vinculada: o briefing só é baixado.', b);",
+  "    }",
+  "    const acoes = n('div', 'dev-planta-acoes', null, b);",
+  "    if (!pasta) {",
+  "      botao('Criar uma pasta para os briefings', 'primario', () => {",
+  "        if (window.confirm('Criar a pasta \"Plano de Varejo – Briefings\" no Drive de quem publicou o app?')) {",
+  "          mudarPlanilha({ acao: 'criar' }, 'Pasta dos briefings criada e vinculada.', 'mudarPastaBriefings');",
+  "        }",
+  "      }, acoes);",
+  "    }",
+  "    const vincular = n('div', 'dev-troca', null, b);",
+  "    const url = entrada(vincular, '', 'text', { placeholder: 'Link da pasta do Drive (https://drive.google.com/drive/folders/…)' });",
+  "    url.setAttribute('aria-label', 'Link da pasta dos briefings');",
+  "    botao(pasta ? 'Trocar por esta pasta' : 'Vincular esta pasta', '', () => {",
+  "      if (!url.value.trim()) { url.focus(); return; }",
+  "      mudarPlanilha({ acao: 'vincular', url: url.value.trim() }, 'Pasta dos briefings vinculada.', 'mudarPastaBriefings');",
+  "    }, vincular);",
+  "    n('p', 'dev-nota', 'A conta que publicou o app precisa poder editar a pasta. Na primeira vez, o Google pode pedir autorização de novo (o app passa a gravar no Drive).', b);",
+  "    if (pasta) {",
+  "      botao('Desvincular a pasta', 'perigo', () => {",
+  "        if (window.confirm('Deixar de salvar os briefings nesta pasta? (Ela e os arquivos não são apagados.)')) {",
+  "          mudarPlanilha({ acao: 'desvincular' }, 'Pasta dos briefings desvinculada.', 'mudarPastaBriefings');",
+  "        }",
+  "      }, acoes);",
+  "    }",
   "  }",
   "",
   "  /**",
@@ -13987,6 +14156,9 @@ const PAGINA_ = [
   " *     layout), movimento e os produtos na ordem (SKU, nome e frentes).",
   " *  Os espaços ainda sem desenho saem com a divisão automática pelas etiquetas.",
   " *  A biblioteca jsPDF é carregada sob demanda do cdnjs (como o ExcelJS).",
+  " *  O arquivo leva o ciclo e a ER no nome (\"Briefing - C15-2026 - ER M.pdf\"). Com uma pasta do Drive vinculada",
+  " *  (Desenvolvedor › Planilhas), quem entrou na Construção pode salvar o PDF nela, na subpasta do ciclo, no lugar",
+  " *  do briefing anterior com o mesmo nome (salvarBriefingNoDrive, Code.gs).",
   " */",
   "const Briefing = (() => {",
   "  const $ = (id) => document.getElementById(id);",
@@ -13994,7 +14166,7 @@ const PAGINA_ = [
   "    src: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',",
   "    integrity: 'sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==',",
   "  };",
-  "  // { estado, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca }",
+  "  // { estado, chamar, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca, acesso, mostrarResultado }",
   "  let app = null;",
   "  let promessa = null;",
   "",
@@ -14422,9 +14594,22 @@ const PAGINA_ = [
   "    capa(doc, ciclo, plantas, indice);",
   "    doc.setPage(doc.internal.getNumberOfPages());",
   "    rodapes(doc, ciclo);",
-  "    const nome = ('briefing-planogramas-' + ciclo + (plantas.length === 1 ? '-' + plantas[0].nome : '')).replace(/[\\\\/:*?\"<>|]+/g, '-').replace(/\\s+/g, '-') + '.pdf';",
+  "    const nome = nomeDoArquivo(ciclo, plantas.length === 1 ? plantas[0].nome : '');",
   "    const moveis = [].concat(...grupos.map((gr) => gr.gondolas.map((g) => g.m)));",
   "    return { blob: doc.output('blob'), nome, paginas: doc.internal.getNumberOfPages(), gondolas: indice.length, resumo: contarTipos(moveis) };",
+  "  }",
+  "",
+  "  /** Texto sem os caracteres que o Drive e o Windows não aceitam bem: \"C15/2026\" → \"C15-2026\". */",
+  "  const parteDoNome = (v) => String(v || '').replace(/[\\\\/:*?\"<>|]+/g, '-').replace(/\\s+/g, ' ').trim();",
+  "  /** Subpasta do ciclo na pasta do Drive (o mesmo do nomePastaCiclo_ do Code.gs). */",
+  "  const nomeDaPasta = (ciclo) => parteDoNome(ciclo).slice(0, 100);",
+  "  /** \"Briefing - C15-2026 - ER M.pdf\" (sem ER: \"… - Todas as ERs.pdf\"); o mesmo nome do nomeBriefing_ do Code.gs. */",
+  "  const nomeDoArquivo = (ciclo, er) => 'Briefing - ' + nomeDaPasta(ciclo) + ' - ' + (parteDoNome(er) || 'Todas as ERs') + '.pdf';",
+  "",
+  "  /** Quem pode salvar no Drive: com a pasta vinculada e o login da Construção. */",
+  "  function podeSalvarNoDrive() {",
+  "    const a = app.acesso && app.acesso();",
+  "    return { pasta: !!dados().pastaBriefings, construtor: !!a && a.papel === 'CONSTRUTOR' };",
   "  }",
   "",
   "  function baixarBlob(blob, nome) {",
@@ -14444,13 +14629,24 @@ const PAGINA_ = [
   "    if (!app.estado.ciclo) { app.toast('Escolha um ciclo para baixar o briefing.', true); return; }",
   "    const dlg = $('dlgBriefing');",
   "    $('briefingEsta').textContent = planta.nome;",
+  "    // Destino: o Drive aparece com a pasta vinculada e só fica ligado para quem entrou na Construção.",
+  "    const drive = podeSalvarNoDrive();",
+  "    const rDrive = dlg.querySelector('input[name=\"briefingDestino\"][value=\"drive\"]');",
+  "    $('briefingDestinos').hidden = !drive.pasta;",
+  "    rDrive.disabled = !drive.construtor;",
+  "    $('briefingDriveOpcao').title = drive.construtor ? '' : 'Só quem entrou na Construção (engrenagem › Construção) salva na pasta do Drive';",
+  "    if (!drive.pasta || !drive.construtor) dlg.querySelector('input[name=\"briefingDestino\"][value=\"baixar\"]').checked = true;",
   "    const atualizar = () => {",
   "      const todas = dlg.querySelector('input[name=\"briefingErs\"]:checked').value === 'todas';",
+  "      const naPasta = dlg.querySelector('input[name=\"briefingDestino\"]:checked').value === 'drive';",
   "      const moveis = [].concat(...(todas ? dados().plantas : [planta]).map(gondolasDe));",
   "      $('briefingResumo').textContent = moveis.length ? contarTipos(moveis) + ' · ' + (/^ciclo\\b/i.test(app.estado.ciclo) ? app.estado.ciclo : 'Ciclo ' + app.estado.ciclo) : 'Nenhuma gôndola ou pirâmide nesta escolha.';",
+  "      const nome = nomeDoArquivo(app.estado.ciclo, todas ? '' : planta.nome);",
+  "      $('briefingNome').textContent = 'Arquivo: ' + (naPasta ? nomeDaPasta(app.estado.ciclo) + ' / ' : '') + nome;",
+  "      $('briefingBaixar').textContent = naPasta ? 'Salvar no Drive' : 'Baixar PDF';",
   "      $('briefingBaixar').disabled = !moveis.length;",
   "    };",
-  "    dlg.querySelectorAll('input[name=\"briefingErs\"]').forEach((r) => { r.onchange = atualizar; });",
+  "    dlg.querySelectorAll('input[name=\"briefingErs\"], input[name=\"briefingDestino\"]').forEach((r) => { r.onchange = atualizar; });",
   "    atualizar();",
   "    dlg.returnValue = '';",
   "    dlg.showModal();",
@@ -14460,10 +14656,25 @@ const PAGINA_ = [
   "    const dlg = $('dlgBriefing');",
   "    if (dlg.returnValue !== 'baixar') return;",
   "    const todas = dlg.querySelector('input[name=\"briefingErs\"]:checked').value === 'todas';",
+  "    const naPasta = dlg.querySelector('input[name=\"briefingDestino\"]:checked').value === 'drive' && !$('briefingDestinos').hidden;",
   "    const plantas = todas ? dados().plantas : [app.plantaAtual()];",
   "    app.carregando(true, 'Gerando o briefing em PDF…');",
   "    try {",
   "      const r = await gerar(plantas);",
+  "      if (naPasta) {",
+  "        app.carregando(true, 'Salvando na pasta do Drive…');",
+  "        const base64 = await new Promise((ok, falha) => {",
+  "          const leitor = new FileReader();",
+  "          leitor.onload = () => ok(String(leitor.result).replace(/^data:[^,]*,/, ''));",
+  "          leitor.onerror = falha;",
+  "          leitor.readAsDataURL(r.blob);",
+  "        });",
+  "        const s = await app.chamar('salvarBriefingNoDrive', app.acesso(), { ciclo: app.estado.ciclo, er: todas ? '' : plantas[0].nome, base64 });",
+  "        app.mostrarResultado('Briefing salvo no Drive',",
+  "          s.nome + ' (' + r.resumo + ', ' + r.paginas + ' páginas) está na pasta ' + s.pasta + (s.substituidos ? ', no lugar do briefing anterior com o mesmo nome.' : '.'),",
+  "          [{ texto: 'Abrir o arquivo', url: s.url }, { texto: 'Abrir a pasta ' + s.pasta, url: s.pastaUrl }]);",
+  "        return;",
+  "      }",
   "      baixarBlob(r.blob, r.nome);",
   "      app.toast('Download iniciado: ' + r.nome + ' (' + r.resumo + ', ' + r.paginas + ' páginas)');",
   "    } catch (e) {",
@@ -19464,7 +19675,26 @@ const PAGINA_ = [
   "    acesso: () => Validacao.acesso(),",
   "    movimentoDaPlanilha,",
   "  });",
-  "  Briefing.iniciar({ estado, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca });",
+  "  Briefing.iniciar({",
+  "    estado, chamar, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca,",
+  "    acesso: () => Validacao.acesso(),",
+  "    // Resultado com links (ex.: o briefing salvo no Drive): título, texto e [{ texto, url }].",
+  "    mostrarResultado: (titulo, texto, links) => {",
+  "      $('resTitulo').textContent = titulo;",
+  "      $('resTexto').textContent = texto;",
+  "      const ul = $('resAvisos');",
+  "      ul.textContent = '';",
+  "      (links || []).forEach((l) => {",
+  "        const a = document.createElement('a');",
+  "        a.href = l.url;",
+  "        a.target = '_blank';",
+  "        a.rel = 'noopener';",
+  "        a.textContent = l.texto;",
+  "        ul.appendChild(document.createElement('li')).appendChild(a);",
+  "      });",
+  "      $('dlgResultado').showModal();",
+  "    },",
+  "  });",
   "  Prateleira.iniciar({",
   "    estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,",
   "    acesso: () => Validacao.acesso(),",

@@ -3032,7 +3032,26 @@ const App = (() => {
     acesso: () => Validacao.acesso(),
     movimentoDaPlanilha,
   });
-  Briefing.iniciar({ estado, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca });
+  Briefing.iniciar({
+    estado, chamar, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca,
+    acesso: () => Validacao.acesso(),
+    // Resultado com links (ex.: o briefing salvo no Drive): título, texto e [{ texto, url }].
+    mostrarResultado: (titulo, texto, links) => {
+      $('resTitulo').textContent = titulo;
+      $('resTexto').textContent = texto;
+      const ul = $('resAvisos');
+      ul.textContent = '';
+      (links || []).forEach((l) => {
+        const a = document.createElement('a');
+        a.href = l.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = l.texto;
+        ul.appendChild(document.createElement('li')).appendChild(a);
+      });
+      $('dlgResultado').showModal();
+    },
+  });
   Prateleira.iniciar({
     estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,
     acesso: () => Validacao.acesso(),

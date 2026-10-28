@@ -599,6 +599,87 @@ test('selos dos movimentos no calendário: hotspot e medalha (ouro, prata, bronz
   assert.deepEqual(run('getDados()').selosCalendario['Ciclo exemplo']['JUICY MOOD'], { texto: 'JUICY MOOD', hotspot: true, medalha: 'OURO' });
 });
 
+/** Drive em memória (DriveApp e Utilities), só o que a pasta dos briefings usa. */
+function driveFalso() {
+  const pastas = {};
+  let n = 0;
+  const iterador = (l) => { let i = 0; return { hasNext: () => i < l.length, next: () => l[i++] }; };
+  const pasta = (nome) => {
+    const id = 'PASTA' + (++n) + 'ABCDEFGHIJKL';
+    const p = {
+      nome, filhos: [], arquivos: [],
+      getId: () => id, getName: () => nome, getUrl: () => 'https://drive.google.com/drive/folders/' + id,
+      getFoldersByName: (x) => iterador(p.filhos.filter((f) => f.nome === x)),
+      createFolder: (x) => { const f = pasta(x); p.filhos.push(f); return f; },
+      getFilesByName: (x) => iterador(p.arquivos.filter((a) => a.nome === x && !a.lixeira)),
+      createFile: (blob) => {
+        const a = { nome: blob.nome, tipo: blob.tipo, texto: Buffer.from(blob.bytes).toString(), lixeira: false, descricao: '' };
+        Object.assign(a, { setTrashed: (v) => { a.lixeira = v; }, setDescription: (d) => { a.descricao = d; }, getUrl: () => 'https://drive.google.com/file/d/' + a.nome });
+        p.arquivos.push(a);
+        return a;
+      },
+    };
+    pastas[id] = p;
+    return p;
+  };
+  return {
+    pastas,
+    globais: {
+      DriveApp: { createFolder: pasta, getFolderById: (id) => { if (!pastas[id]) throw new Error('Pasta não encontrada'); return pastas[id]; } },
+      Utilities: { base64Decode: (b) => Array.from(Buffer.from(b, 'base64')), newBlob: (bytes, tipo, nome) => ({ bytes, tipo, nome }) },
+    },
+  };
+}
+
+test('briefing na pasta do Drive: o desenvolvedor vincula a pasta; a Construção salva numa subpasta por ciclo, substituindo', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const drive = driveFalso();
+  const { run } = carregarGas(Object.assign(f.globais, drive.globais));
+  configurarComExemplo(run);
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const pdf = (t) => Buffer.from(t).toString('base64');
+  const salvar = (acesso, pedido) => run(`salvarBriefingNoDrive(${acesso}, ${JSON.stringify(pedido)})`);
+  assert.equal(run('getDados()').pastaBriefings, false);
+  assert.equal(run(`getPlanilhas(${DEV})`).pastaBriefings, null);
+  assert.throws(() => salvar(C, { ciclo: 'C15/2026', er: 'ER M', base64: pdf('PDF') }), /Nenhuma pasta do Drive vinculada/);
+
+  // Criar a pasta (só o desenvolvedor).
+  assert.throws(() => run("mudarPastaBriefings({ senha: 'x' }, { acao: 'criar' })"), /Senha incorreta/);
+  const info = run(`mudarPastaBriefings(${DEV}, { acao: 'criar' })`);
+  assert.equal(info.pastaBriefings.nome, 'Plano de Varejo – Briefings');
+  assert.equal(run('getDados()').pastaBriefings, true);
+  const raiz = drive.pastas[info.pastaBriefings.id];
+
+  // Só a Construção salva; o nome leva o ciclo e a ER; a subpasta é a do ciclo.
+  assert.throws(() => salvar(V, { ciclo: 'C15/2026', er: 'ER M', base64: pdf('PDF') }), /Só o construtor/);
+  assert.throws(() => salvar(C, { ciclo: '', er: 'ER M', base64: pdf('PDF') }), /Escolha um ciclo/);
+  let r = salvar(C, { ciclo: 'C15/2026', er: 'ER M', base64: 'data:application/pdf;base64,' + pdf('PDF 1') });
+  assert.deepEqual([r.nome, r.pasta, r.substituidos], ['Briefing - C15-2026 - ER M.pdf', 'C15-2026', 0]);
+  assert.ok(r.url && r.pastaUrl);
+  // De novo: substitui (o anterior vai para a lixeira); a subpasta é a mesma.
+  r = salvar(C, { ciclo: 'C15/2026', er: 'ER M', base64: pdf('PDF 2') });
+  assert.equal(r.substituidos, 1);
+  salvar(C, { ciclo: 'C15/2026', er: '', base64: pdf('TODAS') });
+  salvar(C, { ciclo: 'C16/2026', er: 'ER P', base64: pdf('OUTRO') });
+  assert.deepEqual(raiz.filhos.map((x) => x.nome), ['C15-2026', 'C16-2026']);
+  const ativos = raiz.filhos[0].arquivos.filter((a) => !a.lixeira);
+  assert.deepEqual(ativos.map((a) => [a.nome, a.texto, a.tipo]), [
+    ['Briefing - C15-2026 - ER M.pdf', 'PDF 2', 'application/pdf'],
+    ['Briefing - C15-2026 - Todas as ERs.pdf', 'TODAS', 'application/pdf'],
+  ]);
+  assert.match(ativos[0].descricao, /salvo por Bia/);
+
+  // Vincular outra pasta (link do Drive) e desvincular.
+  const outra = run("DriveApp.createFolder('Briefings 2027').getId()");
+  assert.throws(() => run(`mudarPastaBriefings(${DEV}, { acao: 'vincular', url: 'abc' })`), /Cole o link/);
+  assert.throws(() => run(`mudarPastaBriefings(${DEV}, { acao: 'vincular', url: 'https://drive.google.com/drive/folders/NAOEXISTE123456' })`), /Não consegui abrir essa pasta/);
+  assert.equal(run(`mudarPastaBriefings(${DEV}, { acao: 'vincular', url: 'https://drive.google.com/drive/folders/${outra}?usp=sharing' })`).pastaBriefings.nome, 'Briefings 2027');
+  run(`mudarPastaBriefings(${DEV}, { acao: 'desvincular' })`);
+  assert.equal(run('getDados()').pastaBriefings, false);
+  assert.throws(() => run(`mudarPastaBriefings(${DEV}, { acao: 'desvincular' })`), /Nenhuma pasta/);
+});
+
 test('planilha separada para o layout: criar, ler e gravar nela, vincular e voltar para a principal', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);

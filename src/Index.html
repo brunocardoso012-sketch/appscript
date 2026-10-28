@@ -428,6 +428,12 @@
           <label class="opcao"><input type="radio" name="briefingErs" value="esta" checked> <span>Só <b id="briefingEsta">esta ER</b></span></label>
           <label class="opcao"><input type="radio" name="briefingErs" value="todas"> <span>Todas as ERs <small>— as gôndolas e as pirâmides de cada ER, em ordem</small></span></label>
         </fieldset>
+        <fieldset class="campo bloco" id="briefingDestinos">
+          <legend>Destino</legend>
+          <label class="opcao"><input type="radio" name="briefingDestino" value="baixar" checked> <span>Baixar no computador</span></label>
+          <label class="opcao" id="briefingDriveOpcao"><input type="radio" name="briefingDestino" value="drive"> <span>Salvar na pasta do Drive <small id="briefingDriveTexto">— na subpasta do ciclo, substituindo o briefing anterior com o mesmo nome</small></span></label>
+        </fieldset>
+        <p class="sub" id="briefingNome"></p>
         <p class="sub" id="briefingResumo"></p>
         <div class="rodape-dialogo">
           <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>

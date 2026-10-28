@@ -1438,19 +1438,46 @@ test('briefing das gôndolas e pirâmides: PDF com o planograma desenhado de cad
   await p.waitForSelector('#dlgBriefing[open]');
   const naEr = await estado(p, () => App.estado.dados.plantas.find((x) => x.nome === 'ER P').moveis.filter((m) => m.tipo === 'PIRAMIDE').length);
   assert.match(await p.textContent('#briefingResumo'), new RegExp('1 gôndola e ' + naEr + ' pirâmide'));
+  // O nome leva o ciclo e a ER; sem pasta do Drive vinculada (sempre, na versão web), o PDF só é baixado.
+  assert.strictEqual(await p.textContent('#briefingNome'), 'Arquivo: Briefing - Ciclo exemplo cheio - ER P.pdf');
+  assert.strictEqual(await p.isVisible('#briefingDestinos'), false);
   await p.check('input[name="briefingErs"][value="todas"]');
+  assert.strictEqual(await p.textContent('#briefingNome'), 'Arquivo: Briefing - Ciclo exemplo cheio - Todas as ERs.pdf');
   const conta = (tipo) => p.evaluate((t) => App.estado.dados.plantas.reduce((s, x) => s + x.moveis.filter((m) => m.tipo === t).length, 0), tipo);
   const gondolas = await conta('GONDOLA');
   const piramides = await conta('PIRAMIDE');
   const n = gondolas + piramides;
   assert.match(await p.textContent('#briefingResumo'), new RegExp(gondolas + ' gôndolas e ' + piramides + ' pirâmides'));
   const d = await baixar(p, () => p.click('#briefingBaixar'));
-  assert.match(d.nome, /^briefing-planogramas-Ciclo-exemplo-cheio\.pdf$/);
+  assert.strictEqual(d.nome, 'Briefing - Ciclo exemplo cheio - Todas as ERs.pdf');
   assert.strictEqual(d.bytes.subarray(0, 5).toString(), '%PDF-');
   // Capa + uma página por gôndola (no mínimo).
   const paginas = (d.bytes.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
   assert.ok(paginas >= n + 1, paginas + ' páginas para ' + n + ' gôndolas e pirâmides');
   assert.match(await p.textContent('#toast'), new RegExp(gondolas + ' gôndolas e ' + piramides + ' pirâmides'));
+
+  // Com uma pasta do Drive vinculada (no Apps Script), aparece o destino "Salvar na pasta do Drive", que só a
+  // Construção usa: o arquivo vai para a subpasta do ciclo.
+  await p.evaluate(() => { App.estado.dados.pastaBriefings = true; });
+  await p.click('#btnBriefing');
+  await p.waitForSelector('#dlgBriefing[open]');
+  assert.ok(await p.isVisible('#briefingDestinos'));
+  assert.ok(await p.isDisabled('input[name="briefingDestino"][value="drive"]'), 'sem o login da Construção');
+  await p.click('#dlgBriefing button[value="cancelar"]');
+  await menuConfig(p, 'btnConstrucao');
+  await p.waitForSelector('#dlgAcesso[open]');
+  await p.fill('#acessoNome', 'Bia');
+  await p.fill('#acessoSenha', SENHA.CONSTRUTOR);
+  await p.click('#acessoEntrar');
+  await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
+  await p.evaluate(() => { App.estado.dados.pastaBriefings = true; });
+  await p.click('#btnBriefing');
+  await p.waitForSelector('#dlgBriefing[open]');
+  await p.check('input[name="briefingErs"][value="esta"]');
+  await p.check('input[name="briefingDestino"][value="drive"]');
+  assert.strictEqual(await p.textContent('#briefingBaixar'), 'Salvar no Drive');
+  assert.strictEqual(await p.textContent('#briefingNome'), 'Arquivo: Ciclo exemplo cheio / Briefing - Ciclo exemplo cheio - ER P.pdf');
+  await p.click('#dlgBriefing button[value="cancelar"]');
 });
 
 test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo ⏩', async (t) => {

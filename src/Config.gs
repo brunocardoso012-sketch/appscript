@@ -48,6 +48,8 @@ const CONFIG = {
   PROPRIEDADE_PLANILHA_LAYOUT: 'LAYOUT_SPREADSHEET_ID',
   /** Planilha com o calendário dos ciclos e os feriados (Desenvolvedor › Planilhas); sem ela, as abas ficam na principal. */
   PROPRIEDADE_PLANILHA_CALENDARIO: 'CALENDARIO_SPREADSHEET_ID',
+  /** Pasta do Drive onde a Construção salva os briefings em PDF (Desenvolvedor › Planilhas), uma subpasta por ciclo. */
+  PROPRIEDADE_PASTA_BRIEFINGS: 'BRIEFINGS_FOLDER_ID',
   /** Planta coringa: linhas com esse valor valem para todas as plantas. */
   PLANTA_TODAS: 'TODAS',
 };
