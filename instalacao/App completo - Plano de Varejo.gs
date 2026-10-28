@@ -40,6 +40,14 @@ const CONFIG = {
     INVENTARIO: 'Inventario',
     // O que o Desenvolvedor muda no app (Desenvolvedor.gs): nomes e ordem das plantas, regras da cascata e senhas.
     CONFIG_APP: 'Config do app',
+    // Calendário dos ciclos (início e fim de cada ciclo do Boticário e da Eudora) e feriados: na planilha do
+    // calendário (Desenvolvedor › Planilhas) ou, sem ela, na principal (calendarioDeValores_).
+    CICLOS: 'Calendário de ciclos',
+    FERIADOS: 'Feriados',
+    // Ordem dos movimentos de cada ciclo no calendário, definida pelo construtor (Rascunhos.gs).
+    ORDEM_CALENDARIO: 'Ordem do calendário',
+    // Selos especiais dos movimentos de cada ciclo no calendário (hotspot e medalha), definidos pelo construtor.
+    SELOS_CALENDARIO: 'Selos dos movimentos',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -49,6 +57,10 @@ const CONFIG = {
   PROPRIEDADE_PLANILHA: 'SPREADSHEET_ID',
   /** Planilha separada só com a aba Layout (Desenvolvedor › Planilhas); sem ela, o Layout fica na principal. */
   PROPRIEDADE_PLANILHA_LAYOUT: 'LAYOUT_SPREADSHEET_ID',
+  /** Planilha com o calendário dos ciclos e os feriados (Desenvolvedor › Planilhas); sem ela, as abas ficam na principal. */
+  PROPRIEDADE_PLANILHA_CALENDARIO: 'CALENDARIO_SPREADSHEET_ID',
+  /** Pasta do Drive onde a Construção salva os briefings em PDF (Desenvolvedor › Planilhas), uma subpasta por ciclo. */
+  PROPRIEDADE_PASTA_BRIEFINGS: 'BRIEFINGS_FOLDER_ID',
   /** Planta coringa: linhas com esse valor valem para todas as plantas. */
   PLANTA_TODAS: 'TODAS',
 };
@@ -109,6 +121,16 @@ const HERANCA_ENTRE_ERS = [
     semHeranca: ['GONDOLA 2/PONTA-B', 'GONDOLA 2/MEIO-B'],
   },
 ];
+
+/**
+ * Calendários dos ciclos (aba "Calendário de ciclos", coluna Marca): só a Eudora tem calendário próprio;
+ * todas as outras marcas (Boticário, QDB, O.U.i, multimarca…) seguem o do Boticário (calendarioDaMarca_).
+ * O nome do ciclo liga a linha ao ciclo do app (o do seletor), sem diferença de maiúsculas, acentos e espaços.
+ */
+const CALENDARIOS = {
+  BOT: { nome: 'Boticário', descricao: 'Boticário e todas as outras marcas' },
+  EUD: { nome: 'Eudora', descricao: 'Só a Eudora' },
+};
 
 /**
  * Quantas etiquetas a linha de um móvel de um espaço só mostra (as outras colunas
@@ -367,6 +389,54 @@ function colunasTipos_() {
   ];
 }
 
+/** Aba "Calendário de ciclos": uma linha por ciclo de cada calendário (Boticário ou Eudora). */
+function colunasCiclos_() {
+  return [
+    { chave: 'calendario', titulo: 'Marca', obrigatoria: true, texto: true, apelidos: ['Calendário', 'Calendario', 'Marca do calendário'] },
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true, apelidos: ['Nome do ciclo'] },
+    { chave: 'inicio', titulo: 'Início', obrigatoria: true, apelidos: ['Inicio', 'Data de início', 'Data início', 'Começo', 'De'] },
+    { chave: 'fim', titulo: 'Fim', obrigatoria: true, apelidos: ['Data de fim', 'Data fim', 'Término', 'Termino', 'Final', 'Até'] },
+  ];
+}
+
+/** Aba "Ordem do calendário": a posição de cada movimento do ciclo no calendário (1 = o de cima). */
+function colunasOrdemCalendario_() {
+  return [
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true },
+    { chave: 'posicao', titulo: 'Posição', obrigatoria: true },
+    { chave: 'etiqueta', titulo: 'Movimento (etiqueta)', obrigatoria: true, texto: true, apelidos: ['Movimento', 'Etiqueta'] },
+    { chave: 'atualizadoPor', titulo: 'Atualizado por', texto: true },
+    { chave: 'atualizadoEm', titulo: 'Atualizado em', texto: true },
+  ];
+}
+
+/** Medalhas que o construtor pode dar a um movimento do ciclo (calendário dos ciclos e PNG). */
+const MEDALHAS = {
+  OURO: { nome: 'Ouro', cor: '#D4A20B', borda: '#9A7406' },
+  PRATA: { nome: 'Prata', cor: '#A7ADB3', borda: '#6F767D' },
+  BRONZE: { nome: 'Bronze', cor: '#B8733A', borda: '#7E4A1F' },
+};
+
+/** Aba "Selos dos movimentos": os selos especiais de cada movimento do ciclo (hotspot e medalha). */
+function colunasSelosCalendario_() {
+  return [
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true },
+    { chave: 'etiqueta', titulo: 'Movimento (etiqueta)', obrigatoria: true, texto: true, apelidos: ['Movimento', 'Etiqueta'] },
+    { chave: 'hotspot', titulo: 'Hotspot', texto: true },
+    { chave: 'medalha', titulo: 'Medalha', texto: true },
+    { chave: 'atualizadoPor', titulo: 'Atualizado por', texto: true },
+    { chave: 'atualizadoEm', titulo: 'Atualizado em', texto: true },
+  ];
+}
+
+/** Aba "Feriados": uma linha por feriado. */
+function colunasFeriados_() {
+  return [
+    { chave: 'data', titulo: 'Data', obrigatoria: true },
+    { chave: 'nome', titulo: 'Feriado', texto: true, apelidos: ['Nome', 'Descrição', 'Descricao'] },
+  ];
+}
+
 function colunasLayout_() {
   return [
     { chave: 'planta', titulo: 'Planta', obrigatoria: true, texto: true },
@@ -575,6 +645,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     secoes: SECOES_PAINEL,
     tipos: TIPOS_MOVEL,
     tiposConstrucao: TIPOS_CONSTRUCAO,
+    medalhas: MEDALHAS,
     colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), tipos: colunasTipos_(), layout: colunasLayout_(), produtos: colunasProdutos_() },
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
@@ -700,6 +771,123 @@ function acharColuna_(cabecalhoNormalizado, coluna) {
     if (i >= 0) return i;
   }
   return -1;
+}
+
+/* ------------------------- Calendário dos ciclos -------------------------- */
+
+/** Calendário dos ciclos que a marca segue: só a Eudora tem o dela; todas as outras seguem o do Boticário. */
+function calendarioDaMarca_(marca) {
+  return normMarca_(marca) === 'EUD' ? 'EUD' : 'BOT';
+}
+
+/** "2026-10-25" → dia corrido (para contar dias sem fuso nem horário de verão). */
+function diaDaData_(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000) : NaN;
+}
+
+/** Dias úteis entre duas datas (inclusive): de segunda a sexta, menos os feriados. */
+function diasUteis_(inicio, fim, feriados) {
+  const fer = {};
+  (feriados || []).forEach(function (f) { fer[diaDaData_(f.data)] = true; });
+  let n = 0;
+  for (let d = diaDaData_(inicio); d <= diaDaData_(fim); d++) {
+    const semana = new Date(d * 86400000).getUTCDay();
+    if (semana !== 0 && semana !== 6 && !fer[d]) n++;
+  }
+  return n;
+}
+
+/**
+ * Calendário dos ciclos e feriados, das abas "Calendário de ciclos" (Marca, Ciclo, Início, Fim) e "Feriados"
+ * (Data, Feriado). A Marca diz o calendário: Eudora (EUD) tem o dela; qualquer outra (ou vazia), o do Boticário.
+ * Datas: data do Sheets, dd/mm/aaaa ou aaaa-mm-dd. Linhas com problema ficam de fora, com aviso; ciclos que se
+ * sobrepõem no mesmo calendário ficam, com aviso.
+ * @return {{calendarios, ciclos: {BOT: Array<{ciclo, inicio, fim}>, EUD: Array}, feriados: Array<{data, nome}>,
+ *   avisos: string[], observacoes: string[], abas: {ciclos: boolean, feriados: boolean}}}
+ *   avisos: problemas de leitura; observacoes: dias sem ciclo entre dois ciclos e ciclos que começam num
+ *   feriado ou fim de semana (só informativo)
+ */
+function calendarioDeValores_(valoresCiclos, valoresFeriados) {
+  const avisos = [];
+  const aviso = function (msg) { if (avisos.length < 40) avisos.push(msg); };
+  const ciclos = {};
+  Object.keys(CALENDARIOS).forEach(function (k) { ciclos[k] = []; });
+  const dataBr = function (iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4); };
+
+  if (valoresCiclos && valoresCiclos.length) {
+    const lido = objetosDeValores_(valoresCiclos, colunasCiclos_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.CICLOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    } else {
+      const vistos = {};
+      lido.linhas.forEach(function (l) {
+        const onde = CONFIG.ABAS.CICLOS + ', linha ' + l._linha;
+        const ciclo = texto_(l.ciclo).replace(/\s+/g, ' ');
+        const inicio = dataAntecipacao_(l.inicio);
+        const fim = dataAntecipacao_(l.fim);
+        if (!ciclo) { aviso(onde + ': sem o nome do ciclo — linha ignorada.'); return; }
+        if (!inicio || !fim) { aviso(onde + ' (' + ciclo + '): o início ou o fim não é uma data — linha ignorada.'); return; }
+        if (fim < inicio) { aviso(onde + ' (' + ciclo + '): o fim vem antes do início — linha ignorada.'); return; }
+        const cal = calendarioDaMarca_(l.calendario);
+        const k = cal + '|' + chave_(ciclo);
+        if (vistos[k]) { aviso(onde + ': o ' + ciclo + ' já aparece antes no calendário ' + CALENDARIOS[cal].nome + ' — linha ignorada.'); return; }
+        vistos[k] = true;
+        ciclos[cal].push({ ciclo: ciclo, inicio: inicio, fim: fim });
+      });
+    }
+  }
+  Object.keys(ciclos).forEach(function (k) {
+    ciclos[k].sort(function (a, b) { return a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : 0; });
+    ciclos[k].forEach(function (c, i) {
+      const ant = ciclos[k][i - 1];
+      if (ant && c.inicio <= ant.fim) aviso(CONFIG.ABAS.CICLOS + ': no calendário ' + CALENDARIOS[k].nome + ', o ' + c.ciclo + ' se sobrepõe ao ' + ant.ciclo + '.');
+    });
+  });
+
+  const feriados = [];
+  if (valoresFeriados && valoresFeriados.length) {
+    const lido = objetosDeValores_(valoresFeriados, colunasFeriados_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.FERIADOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    } else {
+      const vistos = {};
+      lido.linhas.forEach(function (l) {
+        const data = dataAntecipacao_(l.data);
+        if (!data) { aviso(CONFIG.ABAS.FERIADOS + ', linha ' + l._linha + ': "' + texto_(l.data) + '" não é uma data — linha ignorada.'); return; }
+        if (vistos[data]) return;
+        vistos[data] = true;
+        feriados.push({ data: data, nome: texto_(l.nome).replace(/\s+/g, ' ') || 'Feriado' });
+      });
+      feriados.sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+    }
+  }
+
+  // Observações (não impedem nada): buracos entre os ciclos e começo em feriado ou fim de semana.
+  const observacoes = [];
+  const fer = {};
+  feriados.forEach(function (f) { fer[f.data] = f.nome; });
+  Object.keys(ciclos).forEach(function (k) {
+    const nomeCal = CALENDARIOS[k].nome;
+    ciclos[k].forEach(function (c, i) {
+      const ant = ciclos[k][i - 1];
+      const buraco = ant ? diaDaData_(c.inicio) - diaDaData_(ant.fim) - 1 : 0;
+      if (buraco > 0) observacoes.push(nomeCal + ': ' + buraco + (buraco === 1 ? ' dia' : ' dias') + ' sem ciclo entre o ' + ant.ciclo + ' e o ' + c.ciclo + '.');
+      if (fer[c.inicio]) observacoes.push(nomeCal + ': o ' + c.ciclo + ' começa num feriado (' + fer[c.inicio] + ', ' + dataBr(c.inicio) + ').');
+      else if ([0, 6].indexOf(new Date(diaDaData_(c.inicio) * 86400000).getUTCDay()) >= 0) {
+        observacoes.push(nomeCal + ': o ' + c.ciclo + ' começa num fim de semana (' + dataBr(c.inicio) + ').');
+      }
+    });
+  });
+
+  return {
+    calendarios: CALENDARIOS,
+    ciclos: ciclos,
+    feriados: feriados,
+    avisos: avisos,
+    observacoes: observacoes.slice(0, 40),
+    abas: { ciclos: !!valoresCiclos, feriados: !!valoresFeriados },
+  };
 }
 
 /* ------------------------------ Inventário -------------------------------- */
@@ -1212,6 +1400,12 @@ function getDados() {
   dados.produtos = produtosDeValores_(lerAba_(ss, CONFIG.ABAS.PRODUTOS, true));
   dados.prateleiras = prateleirasDeValores_(lerAba_(ss, CONFIG.ABAS.PRATELEIRAS, true), dados.produtos);
   dados.inventario = inventarioDeValores_(lerAbaSemAcento_(ss, CONFIG.ABAS.INVENTARIO));
+  dados.calendario = lerCalendario_(ss);
+  dados.ordemCalendario = ordemCalendarioDeValores_(lerAba_(ss, CONFIG.ABAS.ORDEM_CALENDARIO, true));
+  dados.selosCalendario = selosCalendarioDeValores_(lerAba_(ss, CONFIG.ABAS.SELOS_CALENDARIO, true));
+  dados.calendario.avisos.forEach(function (a) { if (dados.avisos.length < 60) dados.avisos.push(a); });
+  // Só se há uma pasta vinculada (o Drive é aberto só ao salvar um briefing).
+  dados.pastaBriefings = !!PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS);
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
   dados.precisaConfigurar = !ss.getSheetByName(CONFIG.ABAS.MOVIMENTOS);
@@ -1316,6 +1510,26 @@ function salvarRascunho(acesso, pedido) {
  */
 function salvarAntecipacao(acesso, pedido) {
   return executarAntecipacao_(ioRascunhos_(planilha_()), acesso, pedido);
+}
+
+/* ===================== ORDEM DOS MOVIMENTOS NO CALENDÁRIO ===================== */
+
+/**
+ * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário (veja executarOrdemCalendario_). Só o
+ * construtor da estratégia; todo mundo recebe a ordem no getDados.
+ * @return {Object} ciclo → { movimentos, por, em }
+ */
+function salvarOrdemCalendario(acesso, pedido) {
+  return executarOrdemCalendario_(ioRascunhos_(planilha_()), acesso, pedido);
+}
+
+/**
+ * Grava os selos (hotspot e medalha) dos movimentos de um ciclo no calendário (veja executarSelosCalendario_).
+ * Só o construtor da estratégia; todo mundo recebe os selos no getDados.
+ * @return {Object} ciclo → chave do movimento → { texto, hotspot, medalha }
+ */
+function salvarSelosCalendario(acesso, pedido) {
+  return executarSelosCalendario_(ioRascunhos_(planilha_()), acesso, pedido);
 }
 
 /* ============================= PRATELEIRAS =============================== */
@@ -1709,8 +1923,12 @@ function planilha_() {
 
 let planilhaLayoutAberta_ = null;
 
-/** A planilha em que a aba fica: a do layout (se houver uma separada) para a aba Layout; a principal para as outras. */
+/**
+ * A planilha em que a aba fica: a do layout (se houver uma separada) para a aba Layout; a do calendário (se
+ * houver uma vinculada) para as abas do calendário dos ciclos e dos feriados; a principal para as outras.
+ */
 function ssDaAba_(ss, nome) {
+  if (nome === CONFIG.ABAS.CICLOS || nome === CONFIG.ABAS.FERIADOS) return planilhaCalendario_(ss);
   if (nome !== CONFIG.ABAS.LAYOUT) return ss;
   const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT);
   if (!id) return ss;
@@ -1723,6 +1941,116 @@ function ssDaAba_(ss, nome) {
     }
   }
   return planilhaLayoutAberta_;
+}
+
+/* ------------------- planilha do calendário dos ciclos --------------------- */
+/*
+ * O calendário dos ciclos (aba "Calendário de ciclos": Marca, Ciclo, Início, Fim) e os feriados (aba "Feriados":
+ * Data, Feriado) vêm de uma planilha vinculada em Desenvolvedor › Planilhas (o ID fica na propriedade do
+ * script CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO). Sem ela, o app procura as duas abas na planilha principal.
+ * O app só lê essas abas: as datas são mantidas na própria planilha.
+ */
+
+let planilhaCalendarioAberta_ = null;
+
+/** A planilha do calendário (a vinculada; sem ela, a principal). */
+function planilhaCalendario_(ss) {
+  const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO);
+  if (!id) return ss;
+  if (!planilhaCalendarioAberta_ || planilhaCalendarioAberta_.getId() !== id) {
+    try {
+      planilhaCalendarioAberta_ = SpreadsheetApp.openById(id);
+    } catch (e) {
+      throw new Error('Não consegui abrir a planilha do calendário dos ciclos (ID ' + id + '). Confira se ela existe e se a conta que ' +
+        'publicou o app tem acesso; ou, em Desenvolvedor › Planilhas, desvincule a planilha do calendário.');
+    }
+  }
+  return planilhaCalendarioAberta_;
+}
+
+/** Nomes aceitos para as abas do calendário (sem diferença de acento e maiúsculas). */
+const NOMES_ABA_CICLOS_ = ['Calendário de ciclos', 'Calendário dos ciclos', 'Ciclos', 'Calendário'];
+const NOMES_ABA_FERIADOS_ = ['Feriados', 'Feriado'];
+
+/** Valores de uma aba da planilha, por um dos nomes aceitos (null sem a aba). */
+function lerAbaPorNomes_(alvo, nomes) {
+  const chaves = nomes.map(chave_);
+  const sh = alvo.getSheets().filter(function (s) { return chaves.indexOf(chave_(s.getName())) >= 0; })[0];
+  if (!sh) return null;
+  return sh.getLastRow() >= 1 ? sh.getDataRange().getValues() : [];
+}
+
+/** Calendário dos ciclos e feriados (calendarioDeValores_), da planilha do calendário. Erro ao abrir vira aviso. */
+function lerCalendario_(ss) {
+  let alvo;
+  try {
+    alvo = planilhaCalendario_(ss);
+  } catch (e) {
+    const vazio = calendarioDeValores_(null, null);
+    vazio.avisos.push(e.message);
+    vazio.erro = e.message;
+    return vazio;
+  }
+  return calendarioDeValores_(lerAbaPorNomes_(alvo, NOMES_ABA_CICLOS_), lerAbaPorNomes_(alvo, NOMES_ABA_FERIADOS_));
+}
+
+/** Cria as abas do calendário que faltam na planilha (só o cabeçalho, com um exemplo na aba dos ciclos). */
+function criarAbasCalendario_(ss) {
+  const alvo = planilhaCalendario_(ss);
+  if (!lerAbaPorNomes_(alvo, NOMES_ABA_CICLOS_)) {
+    escreverAba_(ss, CONFIG.ABAS.CICLOS, colunasCiclos_(), valoresVazios_(colunasCiclos_()));
+  }
+  if (!lerAbaPorNomes_(alvo, NOMES_ABA_FERIADOS_)) {
+    escreverAba_(ss, CONFIG.ABAS.FERIADOS, colunasFeriados_(), valoresVazios_(colunasFeriados_()));
+  }
+}
+
+/**
+ * Desenvolvedor › Planilhas › Calendário dos ciclos:
+ *  - { acao: 'criar' }          cria a planilha "Plano de Varejo – Calendário dos ciclos", com as abas "Calendário de
+ *                               ciclos" e "Feriados" (levando as da principal, se ela já tinha);
+ *  - { acao: 'vincular', url }  usa uma planilha que já existe (as abas que faltam são criadas, só com o cabeçalho);
+ *  - { acao: 'desvincular' }    deixa de usar a planilha vinculada (ela não é apagada): o app volta a procurar as
+ *                               abas na principal.
+ */
+function mudarPlanilhaCalendario(acesso, pedido) {
+  conferirDesenvolvedor_(acesso);
+  const ss = planilha_();
+  const props = PropertiesService.getScriptProperties();
+  const p = pedido || {};
+  return comTrava_(function () {
+    if (p.acao === 'criar' || p.acao === 'vincular') {
+      let destino;
+      // Na criação, leva as abas que já estavam na planilha de onde o app lia o calendário.
+      const antes = p.acao === 'criar' ? planilhaCalendario_(ss) : null;
+      const ciclos = antes && lerAbaPorNomes_(antes, NOMES_ABA_CICLOS_);
+      const feriados = antes && lerAbaPorNomes_(antes, NOMES_ABA_FERIADOS_);
+      if (p.acao === 'criar') {
+        destino = SpreadsheetApp.create('Plano de Varejo – Calendário dos ciclos');
+      } else {
+        const id = idDePlanilha_(p.url);
+        try {
+          destino = SpreadsheetApp.openById(id);
+        } catch (e) {
+          throw new Error('Não consegui abrir essa planilha. Confira o link e se a conta que publicou o app tem acesso a ela.');
+        }
+      }
+      if (destino.getId() === ss.getId()) throw new Error('Essa é a planilha principal. Para usar as abas da principal, desvincule a planilha do calendário.');
+      props.setProperty(CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO, destino.getId());
+      planilhaCalendarioAberta_ = destino;
+      if (ciclos && ciclos.length > 1) escreverAba_(ss, CONFIG.ABAS.CICLOS, colunasCiclos_(), ciclos);
+      if (feriados && feriados.length > 1) escreverAba_(ss, CONFIG.ABAS.FERIADOS, colunasFeriados_(), feriados);
+      criarAbasCalendario_(ss);
+      if (p.acao === 'criar') removerAbaPadraoVazia_(destino);
+    } else if (p.acao === 'desvincular') {
+      if (!props.getProperty(CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO)) throw new Error('Nenhuma planilha do calendário está vinculada.');
+      props.deleteProperty(CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO);
+      planilhaCalendarioAberta_ = null;
+    } else {
+      throw new Error('Ação desconhecida.');
+    }
+    return infoPlanilhas_(ss);
+  });
 }
 
 /** A aba (na planilha certa), ou null. */
@@ -1739,18 +2067,155 @@ function idDePlanilha_(texto) {
   throw new Error('Cole o link da planilha (https://docs.google.com/spreadsheets/d/…) ou o ID dela.');
 }
 
-/** Onde está cada coisa: a planilha principal e a do layout (null = o Layout está na principal). */
+/**
+ * Onde está cada coisa: a planilha principal, a do layout (null = o Layout está na principal) e a do calendário
+ * dos ciclos (null = as abas do calendário são procuradas na principal), com o que foi lido do calendário.
+ */
 function infoPlanilhas_(ss) {
-  const info = { principal: { url: ss.getUrl(), nome: ss.getName() }, layout: null };
+  const info = { principal: { url: ss.getUrl(), nome: ss.getName() }, layout: null, calendario: null };
   const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_LAYOUT);
-  if (!id) return info;
-  try {
-    const l = ssDaAba_(ss, CONFIG.ABAS.LAYOUT);
-    info.layout = { id: id, url: l.getUrl(), nome: l.getName() };
-  } catch (e) {
-    info.layout = { id: id, erro: e.message };
+  if (id) {
+    try {
+      const l = ssDaAba_(ss, CONFIG.ABAS.LAYOUT);
+      info.layout = { id: id, url: l.getUrl(), nome: l.getName() };
+    } catch (e) {
+      info.layout = { id: id, erro: e.message };
+    }
+  }
+  const idCal = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PLANILHA_CALENDARIO);
+  if (idCal) {
+    try {
+      const c = planilhaCalendario_(ss);
+      info.calendario = { id: idCal, url: c.getUrl(), nome: c.getName() };
+    } catch (e) {
+      info.calendario = { id: idCal, erro: e.message };
+    }
+  }
+  info.leituraCalendario = resumoCalendario_(lerCalendario_(ss));
+  const idPasta = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS);
+  info.pastaBriefings = null;
+  if (idPasta) {
+    try {
+      const pasta = pastaBriefings_();
+      info.pastaBriefings = { id: idPasta, url: pasta.getUrl(), nome: pasta.getName() };
+    } catch (e) {
+      info.pastaBriefings = { id: idPasta, erro: e.message };
+    }
   }
   return info;
+}
+
+/* ------------------------ pasta dos briefings (Drive) ---------------------- */
+/*
+ * O briefing das gôndolas e pirâmides (Briefing.html) é montado no navegador. Com uma pasta do Drive vinculada
+ * (Desenvolvedor › Planilhas; o ID fica na propriedade CONFIG.PROPRIEDADE_PASTA_BRIEFINGS), quem entrou na
+ * Construção pode salvá-lo nela: cada ciclo tem a sua subpasta (nomePastaCiclo_) e o arquivo leva o ciclo e a
+ * ER no nome (nomeBriefing_). Um arquivo com o mesmo nome na subpasta vai para a lixeira (é substituído).
+ */
+
+/** ID de uma pasta do Drive a partir do link (…/folders/ID, …?id=ID) ou do próprio ID. */
+function idDePasta_(texto) {
+  const t = String(texto || '').trim();
+  const m = /\/folders\/([a-zA-Z0-9_-]{10,})/.exec(t) || /[?&]id=([a-zA-Z0-9_-]{10,})/.exec(t);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{10,}$/.test(t)) return t;
+  throw new Error('Cole o link da pasta do Drive (https://drive.google.com/drive/folders/…) ou o ID dela.');
+}
+
+/** Nome da subpasta do ciclo: "C15/2026" → "C15-2026" (sem os caracteres que o Drive e o Windows não aceitam bem). */
+function nomePastaCiclo_(ciclo) {
+  const n = texto_(ciclo).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
+  if (!n) throw new Error('Escolha um ciclo para salvar o briefing.');
+  return n.slice(0, 100);
+}
+
+/** Nome do arquivo do briefing: "Briefing - C15-2026 - ER M.pdf" (ou "… - Todas as ERs.pdf"). */
+function nomeBriefing_(ciclo, er) {
+  const parte = function (v) { return texto_(v).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim(); };
+  return 'Briefing - ' + nomePastaCiclo_(ciclo) + ' - ' + (parte(er) || 'Todas as ERs') + '.pdf';
+}
+
+/** A pasta vinculada (erro claro se não houver ou se ela sumiu). */
+function pastaBriefings_() {
+  const id = PropertiesService.getScriptProperties().getProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS);
+  if (!id) throw new Error('Nenhuma pasta do Drive vinculada para os briefings. Peça ao desenvolvedor (engrenagem › Modo desenvolvedor › Planilhas).');
+  try {
+    return DriveApp.getFolderById(id);
+  } catch (e) {
+    throw new Error('Não consegui abrir a pasta dos briefings (ID ' + id + '). Confira se ela existe e se a conta que publicou o app tem acesso; '
+      + 'ou, em Desenvolvedor › Planilhas, vincule outra pasta.');
+  }
+}
+
+/**
+ * Desenvolvedor › Planilhas › Pasta dos briefings:
+ *  - { acao: 'criar' }          cria a pasta "Plano de Varejo – Briefings" no Drive de quem publicou o app;
+ *  - { acao: 'vincular', url }  usa uma pasta que já existe (a conta que publicou o app precisa poder editá-la);
+ *  - { acao: 'desvincular' }    deixa de usar a pasta (ela não é apagada).
+ */
+function mudarPastaBriefings(acesso, pedido) {
+  conferirDesenvolvedor_(acesso);
+  const ss = planilha_();
+  const props = PropertiesService.getScriptProperties();
+  const p = pedido || {};
+  if (p.acao === 'criar') {
+    props.setProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS, DriveApp.createFolder('Plano de Varejo – Briefings').getId());
+  } else if (p.acao === 'vincular') {
+    let pasta;
+    try {
+      pasta = DriveApp.getFolderById(idDePasta_(p.url));
+      pasta.getName();
+    } catch (e) {
+      if (/Cole o link/.test(e.message)) throw e;
+      throw new Error('Não consegui abrir essa pasta. Confira o link e se a conta que publicou o app tem acesso a ela.');
+    }
+    props.setProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS, pasta.getId());
+  } else if (p.acao === 'desvincular') {
+    if (!props.getProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS)) throw new Error('Nenhuma pasta dos briefings está vinculada.');
+    props.deleteProperty(CONFIG.PROPRIEDADE_PASTA_BRIEFINGS);
+  } else {
+    throw new Error('Ação desconhecida.');
+  }
+  return infoPlanilhas_(ss);
+}
+
+/**
+ * Salva o briefing em PDF na pasta dos briefings, na subpasta do ciclo (criada na primeira vez). Só quem entrou
+ * na Construção. Um arquivo com o mesmo nome na subpasta vai para a lixeira (o novo o substitui).
+ * @param {{ciclo: string, er: string, base64: string}} pedido  er: o nome da ER (vazio = todas as ERs)
+ * @return {{nome, url, pasta, pastaUrl, substituidos: number}}
+ */
+function salvarBriefingNoDrive(acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor da estratégia salva o briefing na pasta do Drive.');
+  const p = pedido || {};
+  const base64 = String(p.base64 || '').replace(/^data:[^,]*,/, '');
+  if (!base64) throw new Error('O PDF do briefing veio vazio.');
+  if (base64.length > 45 * 1024 * 1024) throw new Error('O PDF do briefing é grande demais para salvar no Drive pelo app. Baixe e envie à mão.');
+  const nomePasta = nomePastaCiclo_(p.ciclo);
+  const nome = nomeBriefing_(p.ciclo, p.er);
+  const raiz = pastaBriefings_();
+  return comTrava_(function () {
+    const existentes = raiz.getFoldersByName(nomePasta);
+    const sub = existentes.hasNext() ? existentes.next() : raiz.createFolder(nomePasta);
+    let substituidos = 0;
+    const iguais = sub.getFilesByName(nome);
+    while (iguais.hasNext()) { iguais.next().setTrashed(true); substituidos++; }
+    const arquivo = sub.createFile(Utilities.newBlob(Utilities.base64Decode(base64), 'application/pdf', nome));
+    arquivo.setDescription('Briefing das gôndolas e pirâmides · ' + texto_(p.ciclo) + ' · salvo por ' + quem.autor + ' em ' + formatarDataComentario_(new Date()));
+    return { nome: nome, url: arquivo.getUrl(), pasta: sub.getName(), pastaUrl: sub.getUrl(), substituidos: substituidos };
+  });
+}
+
+/** O que o painel do Desenvolvedor mostra do calendário lido: quantidades, avisos e observações. */
+function resumoCalendario_(cal) {
+  return {
+    abas: cal.abas,
+    ciclos: Object.keys(cal.ciclos).map(function (k) { return { cod: k, nome: CALENDARIOS[k].nome, qtd: cal.ciclos[k].length }; }),
+    feriados: cal.feriados.length,
+    avisos: cal.avisos,
+    observacoes: cal.observacoes,
+  };
 }
 
 /** Desenvolvedor › Planilhas: onde ficam as abas do app. */
@@ -1955,6 +2420,12 @@ function formatarAba_(sh, colunas, cab, maxLinhas, linhas) {
       });
     } else if (c.chave === 'gmv') {
       coluna.setNumberFormat('"R$" #,##0');
+    } else if (c.chave === 'calendario') {
+      lista = Object.keys(CALENDARIOS).map(function (k) { return CALENDARIOS[k].nome; });
+      ajuda = 'Eudora tem o calendário dela; qualquer outra marca segue o do Boticário.';
+    } else if ((c.chave === 'inicio' || c.chave === 'fim' || c.chave === 'data') && !c.texto) {
+      // Datas do calendário dos ciclos e dos feriados (as outras abas guardam a data como texto).
+      coluna.setNumberFormat('dd/mm/yyyy');
     }
     if (lista) {
       coluna.setDataValidation(
@@ -3158,6 +3629,160 @@ function executarRascunho_(io, acesso, pedido) {
       atuais = r.abas;
     }
     return dadosDosRascunhos_(io.layout(), atuais);
+  });
+}
+
+/* ------------------ ordem dos movimentos no calendário ------------------- */
+/*
+ * No calendário dos ciclos (Calendario.html), os movimentos de cada ciclo ficam empilhados pelo equilíbrio entre
+ * o GMV esperado e a exposição. O construtor da estratégia pode mudar essa ordem e salvar: ela fica na aba
+ * "Ordem do calendário" (uma linha por movimento do ciclo, na ordem) e passa a ser a ordem do calendário para
+ * todos. Movimentos que não estão na ordem salva (ex.: entraram depois) vêm depois dela, pelo equilíbrio.
+ */
+
+/**
+ * Ordem salva de cada ciclo.
+ * @return {Object<string, {movimentos: string[], por: string, em: string}>} ciclo → movimentos na ordem (o texto)
+ */
+function ordemCalendarioDeValores_(valores) {
+  const porCiclo = {};
+  objetosDaMatriz_(valores || [], colunasOrdemCalendario_()).forEach(function (l) {
+    const ciclo = texto_(l.ciclo);
+    const etiqueta = movimentoDaEtiqueta_(texto_(l.etiqueta));
+    if (!ciclo || !etiqueta) return;
+    const c = porCiclo[ciclo] || (porCiclo[ciclo] = { linhas: [], por: texto_(l.atualizadoPor), em: texto_(l.atualizadoEm) });
+    c.linhas.push({ posicao: numero_(l.posicao, 9999), etiqueta: etiqueta });
+  });
+  const saida = {};
+  Object.keys(porCiclo).forEach(function (ciclo) {
+    const vistos = {};
+    const c = porCiclo[ciclo];
+    saida[ciclo] = {
+      movimentos: c.linhas.sort(function (a, b) { return a.posicao - b.posicao; }).map(function (x) { return x.etiqueta; })
+        .filter(function (e) { const k = chaveEtiqueta_(e); if (vistos[k]) return false; vistos[k] = true; return true; }),
+      por: c.por,
+      em: c.em,
+    };
+  });
+  return saida;
+}
+
+/**
+ * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário. Só o construtor da estratégia.
+ *  - { ciclo, movimentos: ['LÇTO EGEO', 'BOTIPROMO', …] }  a ordem nova (de cima para baixo);
+ *  - { ciclo, limpar: true }                               volta à ordem automática (pelo equilíbrio).
+ * O ciclo precisa existir (publicado ou em construção).
+ * @return {Object} a ordem de todos os ciclos (ordemCalendarioDeValores_)
+ */
+/** Confere o construtor e o ciclo (publicado ou em construção) para gravar algo do calendário. */
+function conferirCicloDoCalendario_(io, quem, ciclo, oQue) {
+  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor da estratégia ' + oQue + '.');
+  const ciclos = ciclosPublicados_({
+    movimentos: io.ler(CONFIG.ABAS.MOVIMENTOS) || [], paineis: io.ler(CONFIG.ABAS.PAINEIS) || [], tipos: io.ler(CONFIG.ABAS.TIPOS) || [],
+  });
+  objetosDaMatriz_(io.ler(CONFIG.ABAS.RASCUNHOS) || [], colunasRascunhos_()).forEach(function (r) {
+    if (texto_(r.ciclo) && texto_(r.status) !== 'APROVADO') ciclos[texto_(r.ciclo)] = true;
+  });
+  if (!ciclo || !ciclos[ciclo]) throw new Error('O ciclo "' + ciclo + '" não existe no app.');
+}
+
+/** Linhas da aba que não são do ciclo (para trocar só as dele). */
+function linhasDeOutrosCiclos_(valores, colunas, ciclo) {
+  return objetosDaMatriz_(valores || [], colunas).filter(function (l) { return texto_(l.ciclo) !== ciclo; })
+    .map(function (l) { return colunas.map(function (c) { return l[c.chave]; }); });
+}
+
+function executarOrdemCalendario_(io, acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  const p = pedido || {};
+  const ciclo = texto_(p.ciclo);
+  return io.travar(function () {
+    conferirCicloDoCalendario_(io, quem, ciclo, 'muda a ordem dos movimentos no calendário');
+    const vistos = {};
+    const movimentos = p.limpar ? [] : (Array.isArray(p.movimentos) ? p.movimentos : []).map(function (t) { return movimentoDaEtiqueta_(texto_(t)).slice(0, 200); })
+      .filter(function (t) { const k = chaveEtiqueta_(t); if (!k || vistos[k]) return false; vistos[k] = true; return true; });
+    if (!p.limpar && !movimentos.length) throw new Error('A ordem precisa de ao menos um movimento.');
+    if (movimentos.length > 500) throw new Error('Movimentos demais no ciclo (máx. 500).');
+    const colunas = colunasOrdemCalendario_();
+    const cab = colunas.map(function (c) { return c.titulo; });
+    const outras = linhasDeOutrosCiclos_(io.ler(CONFIG.ABAS.ORDEM_CALENDARIO), colunas, ciclo);
+    const em = formatarDataComentario_(new Date());
+    const novas = movimentos.map(function (t, i) { return [ciclo, i + 1, t, quem.autor, em]; });
+    const valores = [cab].concat(outras, novas);
+    io.gravar(CONFIG.ABAS.ORDEM_CALENDARIO, colunas, valores);
+    return ordemCalendarioDeValores_(valores);
+  });
+}
+
+/* ------------------- selos dos movimentos no calendário ------------------ */
+/*
+ * O construtor pode dar selos especiais aos movimentos de um ciclo: "hotspot" e uma medalha (ouro, prata ou
+ * bronze, MEDALHAS). Eles aparecem nos retângulos do calendário dos ciclos e no PNG do calendário. Ficam na
+ * aba "Selos dos movimentos" (uma linha por movimento com selo).
+ */
+
+/** "ouro" / "Ouro" / "🥇" → "OURO"; outro texto → "". */
+function normMedalha_(v) {
+  const k = chave_(v);
+  if (!k) return '';
+  const achado = Object.keys(MEDALHAS).filter(function (m) { return chave_(m) === k || chave_(MEDALHAS[m].nome) === k; })[0];
+  return achado || '';
+}
+
+/** "SIM", "x", "verdadeiro", "1" → true. */
+function simNao_(v) {
+  return ['SIM', 'S', 'X', 'TRUE', 'VERDADEIRO', '1', 'HOTSPOT'].indexOf(chave_(v)) >= 0;
+}
+
+/**
+ * Selos salvos de cada ciclo.
+ * @return {Object<string, Object<string, {texto, hotspot: boolean, medalha: string}>>} ciclo → chave do movimento → selos
+ */
+function selosCalendarioDeValores_(valores) {
+  const saida = {};
+  objetosDaMatriz_(valores || [], colunasSelosCalendario_()).forEach(function (l) {
+    const ciclo = texto_(l.ciclo);
+    const texto = movimentoDaEtiqueta_(texto_(l.etiqueta));
+    const hotspot = simNao_(l.hotspot);
+    const medalha = normMedalha_(l.medalha);
+    if (!ciclo || !texto || (!hotspot && !medalha)) return;
+    (saida[ciclo] = saida[ciclo] || {})[chaveEtiqueta_(texto)] = { texto: texto, hotspot: hotspot, medalha: medalha };
+  });
+  return saida;
+}
+
+/**
+ * Grava os selos dos movimentos de um ciclo (troca todos os do ciclo). Só o construtor da estratégia.
+ *  { ciclo, selos: [{ movimento, hotspot: boolean, medalha: 'OURO' | 'PRATA' | 'BRONZE' | '' }] }
+ * Movimento sem selo nenhum sai da aba.
+ * @return {Object} os selos de todos os ciclos (selosCalendarioDeValores_)
+ */
+function executarSelosCalendario_(io, acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  const p = pedido || {};
+  const ciclo = texto_(p.ciclo);
+  return io.travar(function () {
+    conferirCicloDoCalendario_(io, quem, ciclo, 'muda os selos dos movimentos');
+    const vistos = {};
+    const selos = (Array.isArray(p.selos) ? p.selos : []).map(function (s) {
+      const texto = movimentoDaEtiqueta_(texto_(s && s.movimento)).slice(0, 200);
+      const medalha = normMedalha_(s && s.medalha);
+      if (s && texto_(s.medalha) && !medalha) throw new Error('Medalha desconhecida: ' + texto_(s.medalha) + ' (use ouro, prata ou bronze).');
+      return { texto: texto, hotspot: !!(s && s.hotspot === true), medalha: medalha };
+    }).filter(function (s) {
+      const k = chaveEtiqueta_(s.texto);
+      if (!k || vistos[k] || (!s.hotspot && !s.medalha)) return false;
+      vistos[k] = true;
+      return true;
+    });
+    if (selos.length > 500) throw new Error('Movimentos demais no ciclo (máx. 500).');
+    const colunas = colunasSelosCalendario_();
+    const em = formatarDataComentario_(new Date());
+    const valores = [colunas.map(function (c) { return c.titulo; })]
+      .concat(linhasDeOutrosCiclos_(io.ler(CONFIG.ABAS.SELOS_CALENDARIO), colunas, ciclo))
+      .concat(selos.map(function (s) { return [ciclo, s.texto, s.hotspot ? 'SIM' : '', s.medalha ? MEDALHAS[s.medalha].nome : '', quem.autor, em]; }));
+    io.gravar(CONFIG.ABAS.SELOS_CALENDARIO, colunas, valores);
+    return selosCalendarioDeValores_(valores);
   });
 }
 
@@ -4435,6 +5060,9 @@ const PAGINA_ = [
   "  .dev-selo-estado { font: 700 10px var(--dev-mono); letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--dev-borda); color: var(--dev-texto-2); }",
   "  .dev-selo-estado.mudou { color: var(--dev-ambar-2); border-color: #5a4410; background: #1f1708; }",
   "",
+  "  /* Planilhas › calendário dos ciclos: avisos e observações da leitura. */",
+  "  .dev-avisos { margin: 0; padding-left: 18px; color: var(--dev-ambar-2); font-size: 13px; display: grid; gap: 4px; }",
+  "",
   "  @media (max-width: 760px) {",
   "    .dev-console { width: 100vw; height: 100vh; border-radius: 0; }",
   "    .dev-meio { flex-direction: column; }",
@@ -4702,6 +5330,153 @@ const PAGINA_ = [
   "  .an-disp-idx { margin-top: 2px; color: var(--texto); }",
   "  .an-disp-idx.alto { color: #1d6b47; }",
   "  .an-disp-idx.baixo { color: #8a4510; }",
+  "",
+  "  /* ---------- Calendário dos ciclos (no lugar da planta, na largura toda; as datas correm na horizontal) ---------- */",
+  "  .calendario { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fundo); }",
+  "  .calendario[hidden] { display: none; }",
+  "  body.com-calendario .palco { position: relative; }",
+  "  body.com-calendario .area-planta { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }",
+  "  body.com-calendario .painel-loja, body.com-calendario .painel-validacao, body.com-calendario .painel-construcao { display: none; }",
+  "  body.apresentando .calendario { display: none !important; }",
+  "  .cal-corpo { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 12px clamp(16px, 2.5vw, 32px) 16px; gap: 8px; font-size: 13px; }",
+  "  .cal-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }",
+  "  .cal-controle { display: inline-flex; align-items: center; gap: 8px; }",
+  "  .cal-controle select { min-width: 0; padding: 4px 8px; font-size: 12px; }",
+  "  .cal-rotulo { font-weight: 600; text-transform: uppercase; letter-spacing: .4px; font-size: 11px; color: var(--texto-2); }",
+  "  .cal-hoje { margin-left: auto; }",
+  "  .cal-nota { margin: 0; color: var(--texto-2); font-size: 12px; line-height: 1.45; max-width: 1200px; }",
+  "  .cal-aviso { margin: 0; padding: 6px 10px; border-radius: 8px; font-size: 12px; color: #7A4A00; background: #FFF4D6; border: 1px solid #F2D58A; }",
+  "  [data-tema=\"escuro\"] .cal-aviso { color: #FFD98A; background: #3A2E12; border-color: #5C4A1E; }",
+  "",
+  "  .cal-area { flex: 1 1 auto; min-height: 0; display: flex; gap: 10px; }",
+  "  .cal-rolagem { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; border: 1px solid var(--borda); border-radius: 10px; background: var(--superficie); }",
+  "  /* Construção: a ordem dos movimentos de um ciclo, ao lado da linha do tempo. */",
+  "  .cal-ordenar[aria-pressed=\"true\"] { background: var(--destaque); }",
+  "  .cal-ordem {",
+  "    flex: 0 0 340px; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px;",
+  "    border: 1px solid var(--borda-forte); border-top: 3px solid #E8590C; border-radius: 10px; background: var(--superficie);",
+  "  }",
+  "  .cal-ordem h3 { margin: 0; font-size: 14px; }",
+  "  .cal-ordem .cal-controle select { flex: 1 1 auto; }",
+  "  .cal-ordem-dica { margin: 0; font-size: 12px; color: var(--texto-2); line-height: 1.4; }",
+  "  .cal-ordem-estado { margin: 0; font-size: 12px; font-weight: 600; color: #8a4510; }",
+  "  [data-tema=\"escuro\"] .cal-ordem-estado { color: #ffb38a; }",
+  "  .cal-ordem-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }",
+  "  .cal-ordem-lista li {",
+  "    display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; align-items: center; gap: 4px 6px; padding: 5px 6px;",
+  "    border: 1px solid var(--borda); border-left: 4px solid; border-radius: 7px; background: var(--superficie); cursor: grab;",
+  "  }",
+  "  .cal-ordem-lista li > .cal-ordem-alca { grid-area: 1 / 1 / 3 / 2; }",
+  "  .cal-ordem-lista li > .cal-mov-pos { grid-area: 1 / 2 / 3 / 3; }",
+  "  .cal-ordem-lista li > .cal-ordem-texto { grid-area: 1 / 3; }",
+  "  .cal-ordem-lista li > .sobe { grid-area: 1 / 4; }",
+  "  .cal-ordem-lista li > .desce { grid-area: 1 / 5; }",
+  "  .cal-ordem-selos { grid-area: 2 / 3 / 3 / 6; display: flex; align-items: center; gap: 6px; }",
+  "  .cal-ordem-lista li.arrastando { opacity: .45; }",
+  "  .cal-ordem-lista li.alvo { box-shadow: 0 -3px 0 #3346b8; }",
+  "  .cal-ordem-alca { color: var(--texto-2); font-size: 12px; letter-spacing: -2px; }",
+  "  .cal-ordem-texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }",
+  "  .cal-ordem-texto strong { font: 800 12px var(--fonte-etq); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+  "  .cal-ordem-texto small { font-size: 10.5px; color: var(--texto-2); }",
+  "  .cal-ordem-mover {",
+  "    flex: 0 0 auto; width: 24px; height: 24px; padding: 0; border: 1px solid var(--borda); border-radius: 6px; background: var(--fundo);",
+  "    color: var(--texto); cursor: pointer;",
+  "  }",
+  "  .cal-ordem-mover:disabled { opacity: .35; cursor: default; }",
+  "  .cal-ordem-acoes { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; bottom: -12px; padding: 8px 0 0; background: var(--superficie); }",
+  "  .cal-quadro { position: relative; min-width: 100%; }",
+  "  /* Topo: meses, dias e as faixas dos ciclos (Boticário e Eudora), fixo ao rolar para baixo. */",
+  "  .cal-topo { position: sticky; top: 0; z-index: 4; background: var(--superficie); border-bottom: 1px solid var(--borda-forte); }",
+  "  .cal-meses, .cal-dias, .cal-trilha { position: relative; }",
+  "  .cal-meses { height: 22px; }",
+  "  .cal-mes { position: absolute; top: 0; height: 22px; border-left: 1px solid var(--borda-forte); box-sizing: border-box; }",
+  "  .cal-mes span {",
+  "    position: sticky; left: 0; display: inline-block; padding: 3px 8px; font-size: 11px; font-weight: 800; text-transform: uppercase;",
+  "    letter-spacing: .5px; color: var(--texto); white-space: nowrap;",
+  "  }",
+  "  .cal-dias { height: 30px; border-bottom: 1px solid var(--borda); }",
+  "  .cal-dia {",
+  "    position: absolute; top: 0; height: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center;",
+  "    box-sizing: border-box; border-left: 1px solid var(--borda); font-size: 10.5px; line-height: 1.1; color: var(--texto-2); font-variant-numeric: tabular-nums;",
+  "  }",
+  "  .cal-dia b { font-weight: 600; }",
+  "  .cal-dia small { font-size: 9px; }",
+  "  .cal-dia.fds { background: rgba(120, 128, 140, .12); }",
+  "  .cal-dia.feriado { background: rgba(214, 51, 51, .16); color: #b42318; }",
+  "  [data-tema=\"escuro\"] .cal-dia.feriado { color: #ff8f86; }",
+  "  .cal-dia.hoje { background: #E8590C; color: #fff; }",
+  "  .cal-trilha { height: 38px; border-bottom: 1px solid var(--borda); }",
+  "  .cal-trilha-nome {",
+  "    position: sticky; left: 0; z-index: 2; display: inline-flex; align-items: center; height: 100%; padding: 0 10px; box-sizing: border-box;",
+  "    font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--texto);",
+  "    background: var(--superficie); border-left: 5px solid; box-shadow: 4px 0 8px -6px rgba(0, 0, 0, .35);",
+  "  }",
+  "  .cal-ciclo {",
+  "    position: absolute; top: 4px; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 8px; box-sizing: border-box;",
+  "    border: 1px solid; border-radius: 6px; font: 11px var(--fonte); color: var(--texto-2); white-space: nowrap; overflow: hidden; text-align: left;",
+  "  }",
+  "  .cal-ciclo strong { font-size: 12.5px; color: var(--texto); }",
+  "  .cal-ciclo span { overflow: hidden; text-overflow: ellipsis; }",
+  "  button.cal-ciclo { cursor: pointer; }",
+  "  button.cal-ciclo:hover, button.cal-ciclo:focus-visible { box-shadow: 0 0 0 2px #3346b8; outline: none; }",
+  "  .cal-ciclo.atual { box-shadow: inset 0 0 0 1px currentColor; }",
+  "  .cal-ciclo.sem-app { border-style: dashed; }",
+  "  /* Movimentos: todos juntos, empilhados. */",
+  "  .cal-movs { position: relative; }",
+  "  .cal-fundo { position: absolute; top: 0; bottom: 0; background: rgba(120, 128, 140, .07); pointer-events: none; }",
+  "  .cal-fundo.feriado { background: rgba(214, 51, 51, .09); pointer-events: auto; }",
+  "  .cal-divisa { position: absolute; top: 0; bottom: 0; border-left: 1px solid; opacity: .45; pointer-events: none; }",
+  "  .cal-divisa.eud { border-left-style: dashed; }",
+  "  .cal-linha-hoje { position: absolute; top: 0; bottom: 0; border-left: 2px solid #E8590C; z-index: 3; pointer-events: none; }",
+  "  .cal-mov {",
+  "    position: absolute; z-index: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 4px 8px 4px 8px;",
+  "    box-sizing: border-box; text-align: left; font: 12px var(--fonte); color: var(--texto); border: 1px solid var(--borda); border-left: 5px solid;",
+  "    border-radius: 7px; overflow: hidden; cursor: pointer;",
+  "  }",
+  "  .cal-mov:hover, .cal-mov:focus-visible { box-shadow: 0 2px 10px rgba(0, 0, 0, .2); border-color: var(--borda-forte); outline: none; z-index: 2; }",
+  "  .cal-mov-l1, .cal-mov-l2 { display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0; }",
+  "  .cal-mov-pos {",
+  "    flex: 0 0 auto; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; display: grid; place-items: center; box-sizing: border-box;",
+  "    background: var(--texto); color: var(--superficie); font-size: 10.5px; font-weight: 800;",
+  "  }",
+  "  .cal-mov-nome { font: 800 12.5px var(--fonte-etq); overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }",
+  "  .cal-bolinha { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); }",
+  "  /* Selos dos movimentos: medalha (ouro, prata, bronze) e hotspot. */",
+  "  .cal-medalha { flex: 0 0 auto; display: block; }",
+  "  .cal-hotspot {",
+  "    flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px 1px 5px; border-radius: 999px;",
+  "    background: #E8590C; color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .5px;",
+  "  }",
+  "  .cal-ordem-hot {",
+  "    flex: 0 0 auto; width: 26px; height: 24px; padding: 0; display: grid; place-items: center; border: 1px solid var(--borda);",
+  "    border-radius: 6px; background: var(--fundo); color: var(--texto-2); cursor: pointer;",
+  "  }",
+  "  .cal-ordem-hot[aria-pressed=\"true\"] { background: #E8590C; border-color: #E8590C; color: #fff; }",
+  "  .cal-ordem-medalha { flex: 0 0 auto; min-width: 0; width: 86px; padding: 2px 4px; font-size: 11px; }",
+  "  .png-ciclo-cal { margin: -4px 0 12px 24px !important; }",
+  "  .cal-mov-classe { flex: 0 0 auto; font-size: 10.5px; padding: 0 6px; border: 1px solid; border-radius: 999px; color: var(--texto-2); }",
+  "  .cal-mov-l2 { gap: 12px; overflow: hidden; }",
+  "  .cal-medida { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--texto-2); flex: 0 0 auto; }",
+  "  .cal-medida b { color: var(--texto); font-variant-numeric: tabular-nums; }",
+  "  .cal-medida-trilho { display: inline-block; width: 42px; height: 5px; border-radius: 3px; background: rgba(120, 128, 140, .25); overflow: hidden; }",
+  "  .cal-medida-trilho > span { display: block; height: 100%; border-radius: 3px; }",
+  "  .cal-medida.expo .cal-medida-trilho > span { background: #3346b8; }",
+  "  .cal-medida.gmv .cal-medida-trilho > span { background: #1d8a5a; }",
+  "  [data-tema=\"escuro\"] .cal-medida.expo .cal-medida-trilho > span { background: #7d8ff0; }",
+  "  [data-tema=\"escuro\"] .cal-medida.gmv .cal-medida-trilho > span { background: #4cc38a; }",
+  "  .cal-mais {",
+  "    position: absolute; z-index: 1; padding: 0 12px; border: 1px dashed var(--borda-forte); border-radius: 7px; background: var(--superficie);",
+  "    font: 600 12px var(--fonte); color: var(--texto-2); cursor: pointer; white-space: nowrap;",
+  "  }",
+  "  .cal-mais:hover, .cal-mais:focus-visible { color: var(--texto); border-color: #3346b8; outline: none; }",
+  "  .cal-sem-movs { margin: 0; padding: 12px; color: var(--texto-2); font-style: italic; position: sticky; left: 0; }",
+  "  @media (max-width: 900px) {",
+  "    .cal-area { flex-direction: column; }",
+  "    .cal-ordem { flex: 0 0 auto; max-height: 45vh; }",
+  "  }",
+  "  @media (max-width: 600px) {",
+  "    .cal-hoje { margin-left: 0; }",
+  "  }",
   "",
   "  /* Telas estreitas: a página rola; o Analytics ocupa a largura toda e a planta fica invisível por baixo. */",
   "  @media (max-width: 900px) {",
@@ -5565,6 +6340,10 @@ const PAGINA_ = [
   "            <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 20V10m6 10V4m6 16v-7m4 7H3\"/></svg>",
   "            Analytics",
   "          </button>",
+  "          <button id=\"btnCalendario\" class=\"btn painel-botao\" type=\"button\" aria-pressed=\"false\" title=\"Calendário dos ciclos: quando cada ciclo (Boticário e Eudora) começa e termina, com os movimentos empilhados por GMV esperado e exposição\">",
+  "            <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3.5\" y=\"5\" width=\"17\" height=\"15.5\" rx=\"2\"/><path d=\"M3.5 10h17M8 3v4M16 3v4M8 13.5h3v4H8z\"/></svg>",
+  "            Calendário",
+  "          </button>",
   "        </div>",
   "        <span class=\"acoes-divisor\" aria-hidden=\"true\"></span>",
   "        <button id=\"btnAtualizar\" class=\"btn fantasma\" type=\"button\" title=\"Ler a planilha de novo\">",
@@ -5703,6 +6482,19 @@ const PAGINA_ = [
   "          <strong>Página em construção</strong> | pode conter erros nos dados e cálculos",
   "        </p>",
   "        <div id=\"anCorpo\" class=\"an-corpo\"></div>",
+  "      </section>",
+  "      <!-- Calendário dos ciclos (Calendario.html): no lugar da planta, na largura toda. -->",
+  "      <section class=\"calendario\" id=\"painelCalendario\" hidden aria-label=\"Calendário dos ciclos\">",
+  "        <header class=\"an-topo\">",
+  "          <div>",
+  "            <h2>Calendário dos ciclos</h2>",
+  "            <span id=\"calSub\"></span>",
+  "          </div>",
+  "          <div class=\"an-topo-acoes\">",
+  "            <button id=\"calFechar\" class=\"btn\" type=\"button\" title=\"Fechar o calendário (Esc)\">Fechar ✕</button>",
+  "          </div>",
+  "        </header>",
+  "        <div id=\"calCorpo\" class=\"cal-corpo\"></div>",
   "      </section>",
   "      <aside class=\"painel-espaco painel-validacao\" id=\"painelValidacao\" hidden aria-label=\"Validação da estratégia\">",
   "        <header class=\"esp-topo\">",
@@ -5888,6 +6680,8 @@ const PAGINA_ = [
   "          <label class=\"opcao\"><input type=\"radio\" name=\"pngConteudo\" value=\"planta\" checked> <span>Planta <small>— a loja com as etiquetas junto de cada espaço</small></span></label>",
   "          <label class=\"opcao\"><input type=\"radio\" name=\"pngConteudo\" value=\"simplificada\"> <span>Visão simplificada <small>— as fichas dos móveis, por tipo</small></span></label>",
   "          <label class=\"opcao\"><input type=\"radio\" name=\"pngConteudo\" value=\"estrategia\"> <span>Estratégia <small>— o espaço da ER por marca, movimento e classificação, em gráficos</small></span></label>",
+  "          <label class=\"opcao\"><input type=\"radio\" name=\"pngConteudo\" value=\"calendario\"> <span>Calendário do ciclo <small>— os movimentos do ciclo na linha do tempo, com as datas do Boticário e da Eudora</small></span></label>",
+  "          <label class=\"campo bloco png-ciclo-cal\" id=\"pngCicloCalCampo\" hidden><span>Ciclo do calendário</span><select id=\"pngCicloCal\" aria-label=\"Ciclo do calendário\"></select></label>",
   "        </fieldset>",
   "        <fieldset class=\"campo bloco\">",
   "          <legend>Formato</legend>",
@@ -5912,6 +6706,12 @@ const PAGINA_ = [
   "          <label class=\"opcao\"><input type=\"radio\" name=\"briefingErs\" value=\"esta\" checked> <span>Só <b id=\"briefingEsta\">esta ER</b></span></label>",
   "          <label class=\"opcao\"><input type=\"radio\" name=\"briefingErs\" value=\"todas\"> <span>Todas as ERs <small>— as gôndolas e as pirâmides de cada ER, em ordem</small></span></label>",
   "        </fieldset>",
+  "        <fieldset class=\"campo bloco\" id=\"briefingDestinos\">",
+  "          <legend>Destino</legend>",
+  "          <label class=\"opcao\"><input type=\"radio\" name=\"briefingDestino\" value=\"baixar\" checked> <span>Baixar no computador</span></label>",
+  "          <label class=\"opcao\" id=\"briefingDriveOpcao\"><input type=\"radio\" name=\"briefingDestino\" value=\"drive\"> <span>Salvar na pasta do Drive <small id=\"briefingDriveTexto\">— na subpasta do ciclo, substituindo o briefing anterior com o mesmo nome</small></span></label>",
+  "        </fieldset>",
+  "        <p class=\"sub\" id=\"briefingNome\"></p>",
   "        <p class=\"sub\" id=\"briefingResumo\"></p>",
   "        <div class=\"rodape-dialogo\">",
   "          <button class=\"btn\" value=\"cancelar\" type=\"submit\" formnovalidate>Cancelar</button>",
@@ -9938,7 +10738,9 @@ const PAGINA_ = [
   " *   - Cascata entre ERs: espaços fixos de uma marca em algumas ERs e livres nas outras e espaços que mudam",
   " *     de nome de uma ER para a seguinte;",
   " *   - Senhas: as do Desenvolvedor, da Validação e da Construção;",
-  " *   - Planilhas: onde ficam as abas; o layout (aba Layout) pode ficar numa planilha separada (Code.gs).",
+  " *   - Planilhas: onde ficam as abas; o layout (aba Layout) pode ficar numa planilha separada, e o calendário",
+  " *     dos ciclos e os feriados vêm de uma planilha vinculada, e os briefings em PDF podem ser salvos numa pasta do",
+  " *     Drive vinculada (Code.gs).",
   " *  Enquanto a sessão está aberta, a faixa \"Modo desenvolvedor\" fica no alto da tela. A senha fica só nesta",
   " *  aba do navegador (sessionStorage) e o servidor a confere a cada gravação (Desenvolvedor.gs).",
   " */",
@@ -10495,11 +11297,12 @@ const PAGINA_ = [
   "    desenharPlanilhas();",
   "  }",
   "",
-  "  async function mudarPlanilha(pedido, ok) {",
+  "  async function mudarPlanilha(pedido, ok, funcao) {",
   "    mensagem('');",
-  "    app.carregando(true, 'Mudando a planilha do layout…');",
+  "    app.carregando(true, { mudarPlanilhaCalendario: 'Mudando a planilha do calendário…', mudarPastaBriefings: 'Mudando a pasta dos briefings…' }[funcao]",
+  "      || 'Mudando a planilha do layout…');",
   "    try {",
-  "      planilhas = await app.chamar('mudarPlanilhaLayout', acesso, pedido);",
+  "      planilhas = await app.chamar(funcao || 'mudarPlanilhaLayout', acesso, pedido);",
   "      await app.carregar({ planta: app.estado.planta });",
   "      desenharTudo();",
   "      desenharPlanilhas();",
@@ -10523,15 +11326,20 @@ const PAGINA_ = [
   "    const corpo = $('devPlanilhas');",
   "    corpo.innerHTML = '';",
   "    n('h3', 'dev-titulo', 'Planilhas', corpo);",
-  "    n('p', 'dev-nota', 'Um Apps Script pode ler e gravar em mais de uma planilha do Google. O layout de todas as plantas (aba Layout: a posição e o tamanho de cada móvel, a largura do slide e o tamanho e a posição das etiquetas) pode ficar numa planilha só dele, para não pesar a principal. Os ciclos, os comentários, os ciclos em construção e a configuração do app continuam na principal. O Construir loja e o Ajustar etiquetas gravam sozinhos onde o layout estiver.', corpo);",
+  "    n('p', 'dev-nota', 'Um Apps Script pode ler e gravar em mais de uma planilha do Google. O calendário dos ciclos e os feriados vêm de uma planilha vinculada (veja abaixo). O layout de todas as plantas (aba Layout: a posição e o tamanho de cada móvel, a largura do slide e o tamanho e a posição das etiquetas) pode ficar numa planilha só dele, para não pesar a principal. Os ciclos, os comentários, os ciclos em construção e a configuração do app continuam na principal. O Construir loja e o Ajustar etiquetas gravam sozinhos onde o layout estiver.', corpo);",
   "    if (!planilhas) { n('p', 'dev-vazio', 'Carregando…', corpo); return; }",
-  "    if (planilhas.web) { n('p', 'dev-vazio', 'Na versão web os dados ficam neste navegador; as planilhas só existem no Apps Script.', corpo); return; }",
+  "    if (planilhas.web) {",
+  "      n('p', 'dev-vazio', 'Na versão web os dados ficam neste navegador; as planilhas só existem no Apps Script.', corpo);",
+  "      desenharPlanilhaCalendario(corpo);",
+  "      desenharPastaBriefings(corpo);",
+  "      return;",
+  "    }",
   "    if (planilhas.erro) { n('p', 'dev-msg erro', planilhas.erro, corpo); return; }",
   "",
   "    const principal = n('div', 'dev-regra', null, corpo);",
   "    n('span', 'dev-rotulo', 'Planilha principal', principal);",
   "    linkPlanilha(planilhas.principal, principal);",
-  "    n('p', 'dev-resumo', planilhas.layout ? 'Movimentos, Painéis, Tipos de movimento, Produtos, Comentários, Antecipações, Prateleiras, rascunhos e Config do app.' : 'Todas as abas, inclusive a do layout.', principal);",
+  "    n('p', 'dev-resumo', planilhas.layout ? 'Movimentos, Painéis, Tipos de movimento, Produtos, Comentários, Antecipações, Prateleiras, rascunhos e Config do app.' : 'Todas as abas, inclusive a do layout' + (planilhas.calendario ? '' : ' (e as do calendário, se estiverem nela)') + '.', principal);",
   "",
   "    const lay = n('div', 'dev-regra', null, corpo);",
   "    n('span', 'dev-rotulo', 'Layout das plantas', lay);",
@@ -10563,6 +11371,110 @@ const PAGINA_ = [
   "      botao('Voltar o layout para a planilha principal', 'perigo', () => {",
   "        if (window.confirm('Copiar o layout para a aba Layout da planilha principal e deixar de usar a planilha separada? (A planilha separada não é apagada.)')) {",
   "          mudarPlanilha({ acao: 'voltar' }, 'O layout voltou para a planilha principal.');",
+  "        }",
+  "      }, acoes);",
+  "    }",
+  "    desenharPlanilhaCalendario(corpo);",
+  "    desenharPastaBriefings(corpo);",
+  "  }",
+  "",
+  "  /**",
+  "   * Pasta do Drive dos briefings: com ela, quem entrou na Construção salva o briefing em PDF ali, numa subpasta",
+  "   * por ciclo, no lugar do anterior com o mesmo nome.",
+  "   */",
+  "  function desenharPastaBriefings(corpo) {",
+  "    const b = n('div', 'dev-regra', null, corpo);",
+  "    b.dataset.planilha = 'briefings';",
+  "    n('span', 'dev-rotulo', 'Pasta dos briefings (Drive)', b);",
+  "    n('p', 'dev-nota', 'Com uma pasta do Drive vinculada, o Briefing (PDF) ganha a opção \"Salvar na pasta do Drive\" para quem entrou na Construção. Cada ciclo tem a sua subpasta (ex.: C15-2026) e o arquivo leva o ciclo e a ER no nome (ex.: Briefing - C15-2026 - ER M.pdf); salvar de novo substitui o anterior com o mesmo nome (ele vai para a lixeira do Drive).', b);",
+  "    if (planilhas.web) { n('p', 'dev-vazio', 'Na versão web não há Drive: o briefing só é baixado.', b); return; }",
+  "    const pasta = planilhas.pastaBriefings;",
+  "    if (pasta && pasta.erro) n('p', 'dev-msg erro', pasta.erro, b);",
+  "    else if (pasta) {",
+  "      linkPlanilha(pasta, b);",
+  "      n('p', 'dev-resumo', 'Pasta vinculada: os briefings salvos pela Construção vão para ela.', b);",
+  "    } else {",
+  "      n('p', 'dev-resumo', 'Nenhuma pasta vinculada: o briefing só é baixado.', b);",
+  "    }",
+  "    const acoes = n('div', 'dev-planta-acoes', null, b);",
+  "    if (!pasta) {",
+  "      botao('Criar uma pasta para os briefings', 'primario', () => {",
+  "        if (window.confirm('Criar a pasta \"Plano de Varejo – Briefings\" no Drive de quem publicou o app?')) {",
+  "          mudarPlanilha({ acao: 'criar' }, 'Pasta dos briefings criada e vinculada.', 'mudarPastaBriefings');",
+  "        }",
+  "      }, acoes);",
+  "    }",
+  "    const vincular = n('div', 'dev-troca', null, b);",
+  "    const url = entrada(vincular, '', 'text', { placeholder: 'Link da pasta do Drive (https://drive.google.com/drive/folders/…)' });",
+  "    url.setAttribute('aria-label', 'Link da pasta dos briefings');",
+  "    botao(pasta ? 'Trocar por esta pasta' : 'Vincular esta pasta', '', () => {",
+  "      if (!url.value.trim()) { url.focus(); return; }",
+  "      mudarPlanilha({ acao: 'vincular', url: url.value.trim() }, 'Pasta dos briefings vinculada.', 'mudarPastaBriefings');",
+  "    }, vincular);",
+  "    n('p', 'dev-nota', 'A conta que publicou o app precisa poder editar a pasta. Na primeira vez, o Google pode pedir autorização de novo (o app passa a gravar no Drive).', b);",
+  "    if (pasta) {",
+  "      botao('Desvincular a pasta', 'perigo', () => {",
+  "        if (window.confirm('Deixar de salvar os briefings nesta pasta? (Ela e os arquivos não são apagados.)')) {",
+  "          mudarPlanilha({ acao: 'desvincular' }, 'Pasta dos briefings desvinculada.', 'mudarPastaBriefings');",
+  "        }",
+  "      }, acoes);",
+  "    }",
+  "  }",
+  "",
+  "  /**",
+  "   * Calendário dos ciclos e feriados: a planilha que alimenta a aba Calendário (as abas \"Calendário de ciclos\" e",
+  "   * \"Feriados\"), com o que foi lido dela.",
+  "   */",
+  "  function desenharPlanilhaCalendario(corpo) {",
+  "    const cal = n('div', 'dev-regra', null, corpo);",
+  "    cal.dataset.planilha = 'calendario';",
+  "    n('span', 'dev-rotulo', 'Calendário dos ciclos e feriados', cal);",
+  "    n('p', 'dev-nota', 'As datas dos ciclos e os feriados vêm de uma planilha, mantida nela mesma: a aba \"Calendário de ciclos\", com as colunas Marca (Boticário ou Eudora: só a Eudora tem calendário próprio, as outras marcas seguem o do Boticário), Ciclo (o mesmo nome do ciclo no app), Início e Fim; e a aba \"Feriados\", com Data e Feriado. Sem uma planilha vinculada, o app procura as duas abas na planilha principal.', cal);",
+  "    if (!planilhas.web) {",
+  "      if (planilhas.calendario && planilhas.calendario.erro) {",
+  "        n('p', 'dev-msg erro', planilhas.calendario.erro, cal);",
+  "      } else if (planilhas.calendario) {",
+  "        linkPlanilha(planilhas.calendario, cal);",
+  "        n('p', 'dev-resumo', 'Planilha vinculada: o app lê dela as abas do calendário e dos feriados.', cal);",
+  "      } else {",
+  "        n('p', 'dev-resumo', 'Nenhuma planilha vinculada: as abas são procuradas na planilha principal.', cal);",
+  "      }",
+  "    }",
+  "    const lido = planilhas.leituraCalendario;",
+  "    if (lido) {",
+  "      const info = n('div', 'dev-planta-info', null, cal);",
+  "      lido.ciclos.forEach((c) => n('span', 'dev-chip' + (c.qtd ? ' forte' : ''), c.qtd + (c.qtd === 1 ? ' ciclo ' : ' ciclos ') + c.nome, info));",
+  "      n('span', 'dev-chip' + (lido.feriados ? ' forte' : ''), lido.feriados + (lido.feriados === 1 ? ' feriado' : ' feriados'), info);",
+  "      if (!lido.abas.ciclos) n('span', 'dev-chip apelido', 'sem a aba Calendário de ciclos', info);",
+  "      if (!lido.abas.feriados) n('span', 'dev-chip apelido', 'sem a aba Feriados', info);",
+  "      [['Avisos da leitura', lido.avisos], ['Observações', lido.observacoes]].forEach(([titulo, lista]) => {",
+  "        if (!lista.length) return;",
+  "        n('span', 'dev-rotulo', titulo, cal);",
+  "        const ul = n('ul', 'dev-avisos', null, cal);",
+  "        lista.forEach((a) => n('li', null, a, ul));",
+  "      });",
+  "    }",
+  "    if (planilhas.web) return;",
+  "    const acoes = n('div', 'dev-planta-acoes', null, cal);",
+  "    if (!planilhas.calendario) {",
+  "      botao('Criar uma planilha para o calendário', 'primario', () => {",
+  "        if (window.confirm('Criar a planilha \"Plano de Varejo – Calendário dos ciclos\" no Drive de quem publicou o app, com as abas do calendário e dos feriados?')) {",
+  "          mudarPlanilha({ acao: 'criar' }, 'Planilha do calendário criada e vinculada. Preencha as abas e clique em Atualizar no app.', 'mudarPlanilhaCalendario');",
+  "        }",
+  "      }, acoes);",
+  "    }",
+  "    const vincular = n('div', 'dev-troca', null, cal);",
+  "    const url = entrada(vincular, '', 'text', { placeholder: 'Link da planilha do calendário (https://docs.google.com/spreadsheets/d/…)' });",
+  "    url.setAttribute('aria-label', 'Link da planilha do calendário dos ciclos');",
+  "    botao(planilhas.calendario ? 'Trocar por esta planilha' : 'Vincular esta planilha', '', () => {",
+  "      if (!url.value.trim()) { url.focus(); return; }",
+  "      mudarPlanilha({ acao: 'vincular', url: url.value.trim() }, 'Planilha do calendário vinculada.', 'mudarPlanilhaCalendario');",
+  "    }, vincular);",
+  "    n('p', 'dev-nota', 'Ao vincular, as abas que faltarem são criadas (só com o cabeçalho). A conta que publicou o app precisa ter acesso à planilha.', cal);",
+  "    if (planilhas.calendario) {",
+  "      botao('Desvincular a planilha do calendário', 'perigo', () => {",
+  "        if (window.confirm('Deixar de usar esta planilha para o calendário? (Ela não é apagada; o app volta a procurar as abas na planilha principal.)')) {",
+  "          mudarPlanilha({ acao: 'desvincular' }, 'Planilha do calendário desvinculada.', 'mudarPlanilhaCalendario');",
   "        }",
   "      }, acoes);",
   "    }",
@@ -13244,6 +14156,9 @@ const PAGINA_ = [
   " *     layout), movimento e os produtos na ordem (SKU, nome e frentes).",
   " *  Os espaços ainda sem desenho saem com a divisão automática pelas etiquetas.",
   " *  A biblioteca jsPDF é carregada sob demanda do cdnjs (como o ExcelJS).",
+  " *  O arquivo leva o ciclo e a ER no nome (\"Briefing - C15-2026 - ER M.pdf\"). Com uma pasta do Drive vinculada",
+  " *  (Desenvolvedor › Planilhas), quem entrou na Construção pode salvar o PDF nela, na subpasta do ciclo, no lugar",
+  " *  do briefing anterior com o mesmo nome (salvarBriefingNoDrive, Code.gs).",
   " */",
   "const Briefing = (() => {",
   "  const $ = (id) => document.getElementById(id);",
@@ -13251,7 +14166,7 @@ const PAGINA_ = [
   "    src: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',",
   "    integrity: 'sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==',",
   "  };",
-  "  // { estado, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca }",
+  "  // { estado, chamar, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca, acesso, mostrarResultado }",
   "  let app = null;",
   "  let promessa = null;",
   "",
@@ -13679,9 +14594,22 @@ const PAGINA_ = [
   "    capa(doc, ciclo, plantas, indice);",
   "    doc.setPage(doc.internal.getNumberOfPages());",
   "    rodapes(doc, ciclo);",
-  "    const nome = ('briefing-planogramas-' + ciclo + (plantas.length === 1 ? '-' + plantas[0].nome : '')).replace(/[\\\\/:*?\"<>|]+/g, '-').replace(/\\s+/g, '-') + '.pdf';",
+  "    const nome = nomeDoArquivo(ciclo, plantas.length === 1 ? plantas[0].nome : '');",
   "    const moveis = [].concat(...grupos.map((gr) => gr.gondolas.map((g) => g.m)));",
   "    return { blob: doc.output('blob'), nome, paginas: doc.internal.getNumberOfPages(), gondolas: indice.length, resumo: contarTipos(moveis) };",
+  "  }",
+  "",
+  "  /** Texto sem os caracteres que o Drive e o Windows não aceitam bem: \"C15/2026\" → \"C15-2026\". */",
+  "  const parteDoNome = (v) => String(v || '').replace(/[\\\\/:*?\"<>|]+/g, '-').replace(/\\s+/g, ' ').trim();",
+  "  /** Subpasta do ciclo na pasta do Drive (o mesmo do nomePastaCiclo_ do Code.gs). */",
+  "  const nomeDaPasta = (ciclo) => parteDoNome(ciclo).slice(0, 100);",
+  "  /** \"Briefing - C15-2026 - ER M.pdf\" (sem ER: \"… - Todas as ERs.pdf\"); o mesmo nome do nomeBriefing_ do Code.gs. */",
+  "  const nomeDoArquivo = (ciclo, er) => 'Briefing - ' + nomeDaPasta(ciclo) + ' - ' + (parteDoNome(er) || 'Todas as ERs') + '.pdf';",
+  "",
+  "  /** Quem pode salvar no Drive: com a pasta vinculada e o login da Construção. */",
+  "  function podeSalvarNoDrive() {",
+  "    const a = app.acesso && app.acesso();",
+  "    return { pasta: !!dados().pastaBriefings, construtor: !!a && a.papel === 'CONSTRUTOR' };",
   "  }",
   "",
   "  function baixarBlob(blob, nome) {",
@@ -13701,13 +14629,24 @@ const PAGINA_ = [
   "    if (!app.estado.ciclo) { app.toast('Escolha um ciclo para baixar o briefing.', true); return; }",
   "    const dlg = $('dlgBriefing');",
   "    $('briefingEsta').textContent = planta.nome;",
+  "    // Destino: o Drive aparece com a pasta vinculada e só fica ligado para quem entrou na Construção.",
+  "    const drive = podeSalvarNoDrive();",
+  "    const rDrive = dlg.querySelector('input[name=\"briefingDestino\"][value=\"drive\"]');",
+  "    $('briefingDestinos').hidden = !drive.pasta;",
+  "    rDrive.disabled = !drive.construtor;",
+  "    $('briefingDriveOpcao').title = drive.construtor ? '' : 'Só quem entrou na Construção (engrenagem › Construção) salva na pasta do Drive';",
+  "    if (!drive.pasta || !drive.construtor) dlg.querySelector('input[name=\"briefingDestino\"][value=\"baixar\"]').checked = true;",
   "    const atualizar = () => {",
   "      const todas = dlg.querySelector('input[name=\"briefingErs\"]:checked').value === 'todas';",
+  "      const naPasta = dlg.querySelector('input[name=\"briefingDestino\"]:checked').value === 'drive';",
   "      const moveis = [].concat(...(todas ? dados().plantas : [planta]).map(gondolasDe));",
   "      $('briefingResumo').textContent = moveis.length ? contarTipos(moveis) + ' · ' + (/^ciclo\\b/i.test(app.estado.ciclo) ? app.estado.ciclo : 'Ciclo ' + app.estado.ciclo) : 'Nenhuma gôndola ou pirâmide nesta escolha.';",
+  "      const nome = nomeDoArquivo(app.estado.ciclo, todas ? '' : planta.nome);",
+  "      $('briefingNome').textContent = 'Arquivo: ' + (naPasta ? nomeDaPasta(app.estado.ciclo) + ' / ' : '') + nome;",
+  "      $('briefingBaixar').textContent = naPasta ? 'Salvar no Drive' : 'Baixar PDF';",
   "      $('briefingBaixar').disabled = !moveis.length;",
   "    };",
-  "    dlg.querySelectorAll('input[name=\"briefingErs\"]').forEach((r) => { r.onchange = atualizar; });",
+  "    dlg.querySelectorAll('input[name=\"briefingErs\"], input[name=\"briefingDestino\"]').forEach((r) => { r.onchange = atualizar; });",
   "    atualizar();",
   "    dlg.returnValue = '';",
   "    dlg.showModal();",
@@ -13717,10 +14656,25 @@ const PAGINA_ = [
   "    const dlg = $('dlgBriefing');",
   "    if (dlg.returnValue !== 'baixar') return;",
   "    const todas = dlg.querySelector('input[name=\"briefingErs\"]:checked').value === 'todas';",
+  "    const naPasta = dlg.querySelector('input[name=\"briefingDestino\"]:checked').value === 'drive' && !$('briefingDestinos').hidden;",
   "    const plantas = todas ? dados().plantas : [app.plantaAtual()];",
   "    app.carregando(true, 'Gerando o briefing em PDF…');",
   "    try {",
   "      const r = await gerar(plantas);",
+  "      if (naPasta) {",
+  "        app.carregando(true, 'Salvando na pasta do Drive…');",
+  "        const base64 = await new Promise((ok, falha) => {",
+  "          const leitor = new FileReader();",
+  "          leitor.onload = () => ok(String(leitor.result).replace(/^data:[^,]*,/, ''));",
+  "          leitor.onerror = falha;",
+  "          leitor.readAsDataURL(r.blob);",
+  "        });",
+  "        const s = await app.chamar('salvarBriefingNoDrive', app.acesso(), { ciclo: app.estado.ciclo, er: todas ? '' : plantas[0].nome, base64 });",
+  "        app.mostrarResultado('Briefing salvo no Drive',",
+  "          s.nome + ' (' + r.resumo + ', ' + r.paginas + ' páginas) está na pasta ' + s.pasta + (s.substituidos ? ', no lugar do briefing anterior com o mesmo nome.' : '.'),",
+  "          [{ texto: 'Abrir o arquivo', url: s.url }, { texto: 'Abrir a pasta ' + s.pasta, url: s.pastaUrl }]);",
+  "        return;",
+  "      }",
   "      baixarBlob(r.blob, r.nome);",
   "      app.toast('Download iniciado: ' + r.nome + ' (' + r.resumo + ', ' + r.paginas + ' páginas)');",
   "    } catch (e) {",
@@ -14568,6 +15522,790 @@ const PAGINA_ = [
   "    <script>",
   "/**",
   " * ============================================================================",
+  " *  CALENDÁRIO DOS CICLOS (botão \"Calendário\" no topo)",
+  " * ============================================================================",
+  " *  Uma linha do tempo horizontal: as datas correm da esquerda para a direita, no topo (meses, dias, fins de",
+  " *  semana, feriados e hoje). Logo abaixo das datas, as faixas dos ciclos dos dois calendários, que acontecem",
+  " *  ao mesmo tempo: a do Boticário (que vale para todas as marcas, menos a Eudora) e a da Eudora. Embaixo,",
+  " *  todos os movimentos juntos (de todas as marcas): cada um é um retângulo que começa no dia do início e",
+  " *  termina no dia do fim do ciclo dele, no calendário da marca dele (Eudora no da Eudora; as outras marcas",
+  " *  no do Boticário).",
+  " *",
+  " *  Os movimentos de um ciclo são empilhados um embaixo do outro, do mais importante (em cima) para o menos",
+  " *  importante, por uma de três ordens:",
+  " *   - equilíbrio (a principal): a média entre a fatia do movimento no GMV esperado do ciclo e a fatia dele",
+  " *     na exposição (destaque) do ciclo;",
+  " *   - só GMV esperado;",
+  " *   - só exposição (a fatia do espaço de exposição da ER que vai para o movimento);",
+  " *   - a ordem da construção: a que o construtor da estratégia salvou para o ciclo (aba Ordem do calendário),",
+  " *     a padrão quando existe; os movimentos que não estão nela (e os ciclos sem ela) seguem o equilíbrio.",
+  " *  Com o login da Construção, \"Ordem e selos\" abre ao lado da linha do tempo a lista dos movimentos de um ciclo:",
+  " *  arraste (ou use ↑ ↓) e salve, e dê selos especiais aos movimentos: \"hotspot\" e uma medalha (ouro, prata ou",
+  " *  bronze, MEDALHAS em Config.gs). A linha do tempo mostra as mudanças enquanto elas são feitas.",
+  " *",
+  " *  Calendario.slide(svg, dados, { ciclo, recorte }): o calendário de um ciclo do app num SVG (PNG / slide 16:9),",
+  " *  com as datas do Boticário e da Eudora e os movimentos empilhados como na tela.",
+  " *  Um ciclo que começa antes de o anterior terminar (o da Eudora e o do Boticário se sobrepõem) não cobre os",
+  " *  retângulos do outro: os dele descem até a primeira linha livre, sempre na mesma ordem.",
+  " *  As contas vêm prontas da aplicação (App.dadosCalendario); aqui só o desenho.",
+  " *",
+  " *  Calendario.datas: as contas de datas ('AAAA-MM-DD' ↔ dia corrido, dias úteis…).",
+  " */",
+  "const Calendario = (() => {",
+  "  /* -------------------------------- datas ---------------------------------- */",
+  "",
+  "  const DIA_MS = 86400000;",
+  "  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];",
+  "  const SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];",
+  "",
+  "  const datas = {",
+  "    /** 'AAAA-MM-DD' → dia corrido (sem fuso nem horário de verão); NaN se inválida. */",
+  "    dia(iso) {",
+  "      const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(String(iso || ''));",
+  "      return m ? Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DIA_MS) : NaN;",
+  "    },",
+  "    iso(dia) { return new Date(dia * DIA_MS).toISOString().slice(0, 10); },",
+  "    /** Dia da semana (0 = domingo). */",
+  "    semana(dia) { return new Date(dia * DIA_MS).getUTCDay(); },",
+  "    hoje() { const d = new Date(); return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DIA_MS); },",
+  "    /** '2026-10-25' → '25/10/2026' (curta: '25/10'). */",
+  "    br(iso, curta) {",
+  "      const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(String(iso || ''));",
+  "      return m ? m[3] + '/' + m[2] + (curta ? '' : '/' + m[1]) : '';",
+  "    },",
+  "    /** Dias úteis entre duas datas (inclusive): de segunda a sexta, menos os feriados. */",
+  "    uteis(inicio, fim, feriados) {",
+  "      const fer = {};",
+  "      (feriados || []).forEach((f) => { fer[f.data] = true; });",
+  "      let n = 0;",
+  "      for (let d = datas.dia(inicio); d <= datas.dia(fim); d++) {",
+  "        const s = datas.semana(d);",
+  "        if (s !== 0 && s !== 6 && !fer[datas.iso(d)]) n++;",
+  "      }",
+  "      return n;",
+  "    },",
+  "  };",
+  "",
+  "  /** Mesmo nome de ciclo, sem diferença de maiúsculas, acentos e espaços (como o chave_ do servidor). */",
+  "  const chaveCiclo = (v) => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');",
+  "",
+  "  /* ------------------------------- desenho --------------------------------- */",
+  "",
+  "  // Escolhas da tela (valem até recarregar a página).",
+  "  // ordem vazia: a da construção, se algum ciclo tiver uma; senão, o equilíbrio.",
+  "  const vista = { ordem: '', er: '', limite: 10, escala: 'normal' };",
+  "  // Ordem em edição (construtor): { ciclo, lista: [textos], mudou }. rolarPara: dia para mostrar ao começar.",
+  "  let edicao = null;",
+  "  let rolarPara = null;",
+  "  const ORDEM_DEFINIDA = ['definida', 'Ordem da construção', 'A ordem salva na construção (os movimentos que não estão nela seguem o equilíbrio)'];",
+  "  const ORDENS = [",
+  "    ['equilibrio', 'Equilíbrio GMV × exposição', 'Média entre a fatia do movimento no GMV esperado do ciclo e a fatia dele na exposição'],",
+  "    ['gmv', 'Só GMV', 'Só o GMV esperado (aba Tipos de movimento)'],",
+  "    ['exposicao', 'Só exposição', 'Só a fatia do espaço de exposição (destaque) da ER que vai para o movimento'],",
+  "  ];",
+  "  // px por dia e altura de cada linha de movimentos.",
+  "  const ESCALAS = { compacta: { dia: 14, linha: 40 }, normal: { dia: 26, linha: 50 }, ampla: { dia: 42, linha: 56 } };",
+  "  const VAO = 6;",
+  "  const MARGEM = 104; // à esquerda das datas: o lugar dos nomes dos calendários (Boticário, Eudora)",
+  "",
+  "  const fmtPct = (v) => (v > 0 && v < 0.005 ? '<1%' : Math.round(v * 100) + '%');",
+  "  const fmtNum = (n) => (Math.round(n * 10) / 10).toLocaleString('pt-BR');",
+  "  const gmvCurto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 });",
+  "  const gmvCompleto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });",
+  "",
+  "  function novo(tag, classe, conteudo, pai) {",
+  "    const n = document.createElement(tag);",
+  "    if (classe) n.className = classe;",
+  "    if (conteudo !== undefined && conteudo !== null) n.textContent = conteudo;",
+  "    if (pai) pai.appendChild(n);",
+  "    return n;",
+  "  }",
+  "",
+  "  /** '#RRGGBB' + transparência → 'rgba(…)' (o fundo do retângulo, na cor da marca). */",
+  "  function transparente(hex, alfa) {",
+  "    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));",
+  "    if (!m) return 'rgba(128, 128, 128, ' + alfa + ')';",
+  "    const n = parseInt(m[1], 16);",
+  "    return 'rgba(' + (n >> 16) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ', ' + alfa + ')';",
+  "  }",
+  "",
+  "  /* ------------------------------- selos ---------------------------------- */",
+  "",
+  "  const NS = 'http://www.w3.org/2000/svg';",
+  "  function svgEl(tag, attrs, pai) {",
+  "    const e = document.createElementNS(NS, tag);",
+  "    Object.keys(attrs || {}).forEach((k) => { if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]); });",
+  "    if (pai) pai.appendChild(e);",
+  "    return e;",
+  "  }",
+  "  const CHAMA = 'M12 2C13 6 17.5 8 17.5 13.5a5.5 5.5 0 0 1-11 0c0-2.4 1.1-4.2 2.9-5.5 0 2 .9 3.3 2.2 3.8C11 9 12.7 6.2 12 2z';",
+  "  const COR_HOTSPOT = '#E8590C';",
+  "  /** Estrela de 5 pontas (o centro da medalha). */",
+  "  const estrela = (cx, cy, r) => Array.from({ length: 10 }, (_, i) => {",
+  "    const a = -Math.PI / 2 + (i * Math.PI) / 5;",
+  "    const rr = i % 2 ? r * 0.45 : r;",
+  "    return (i ? 'L' : 'M') + (cx + rr * Math.cos(a)).toFixed(2) + ' ' + (cy + rr * Math.sin(a)).toFixed(2);",
+  "  }).join('') + 'Z';",
+  "",
+  "  /** Medalha (fita e disco na cor do ouro, da prata ou do bronze), numa caixa de 24 × 24 a partir de (x, y). */",
+  "  function medalhaSvg(pai, x, y, tam, info) {",
+  "    const g = svgEl('g', { transform: 'translate(' + x + ' ' + y + ') scale(' + tam / 24 + ')' }, pai);",
+  "    svgEl('path', { d: 'M6.5 1h4.5l3 8h-4.5z', fill: '#C8102E' }, g);",
+  "    svgEl('path', { d: 'M17.5 1H13l-3 8h4.5z', fill: '#1F4FA8' }, g);",
+  "    svgEl('circle', { cx: 12, cy: 15.5, r: 7.5, fill: info.cor, stroke: info.borda, 'stroke-width': 1.6 }, g);",
+  "    svgEl('path', { d: estrela(12, 15.5, 4), fill: 'rgba(255,255,255,0.85)' }, g);",
+  "    return g;",
+  "  }",
+  "",
+  "  /** Ícone da medalha para o HTML. */",
+  "  function medalhaHtml(pai, cod, medalhas) {",
+  "    const info = medalhas[cod];",
+  "    if (!info) return null;",
+  "    const svg = svgEl('svg', { viewBox: '0 0 24 24', width: 18, height: 18, class: 'cal-medalha', role: 'img', 'aria-label': 'Medalha de ' + info.nome.toLowerCase() });",
+  "    medalhaSvg(svg, 0, 0, 24, info);",
+  "    const t = svgEl('title', null, svg);",
+  "    t.textContent = 'Medalha de ' + info.nome.toLowerCase();",
+  "    pai.appendChild(svg);",
+  "    return svg;",
+  "  }",
+  "",
+  "  /** Selo \"HOTSPOT\" (chama + texto) para o HTML. */",
+  "  function hotspotHtml(pai) {",
+  "    const s = novo('span', 'cal-hotspot', null, pai);",
+  "    s.title = 'Hotspot';",
+  "    svgEl('path', { d: CHAMA, fill: 'currentColor' }, svgEl('svg', { viewBox: '0 0 24 24', width: 11, height: 11, 'aria-hidden': 'true' }, s));",
+  "    novo('span', null, 'HOTSPOT', s);",
+  "    return s;",
+  "  }",
+  "",
+  "  /** Ordem da tela: sem escolha (ou sem nenhuma ordem salva), a da construção se houver; senão, o equilíbrio. */",
+  "  function resolverOrdem(d) {",
+  "    const temSalva = d.grupos.some((g) => g.ordemSalva);",
+  "    if (!vista.ordem || (vista.ordem === 'definida' && !temSalva)) vista.ordem = temSalva ? 'definida' : 'equilibrio';",
+  "    return temSalva;",
+  "  }",
+  "",
+  "  /** Selos do movimento na tela: os em edição (construtor) ou os salvos. */",
+  "  const seloDe = (g, m) => (edicao && edicao.ciclo === g.cicloApp ? edicao.selos[m.texto] : m.selo) || {};",
+  "",
+  "  /** Valor de cada movimento na ordem escolhida (maior = mais em cima). Empate: a outra medida, depois o nome. */",
+  "  const valorNaOrdem = (m) => (vista.ordem === 'gmv' ? m.fatiaGmv : vista.ordem === 'exposicao' ? m.fatiaExposicao : m.equilibrio);",
+  "  const desempate = (m) => (vista.ordem === 'exposicao' ? m.fatiaGmv : m.fatiaExposicao);",
+  "  const ordenar = (movs) => movs.slice().sort((a, b) => valorNaOrdem(b) - valorNaOrdem(a) || desempate(b) - desempate(a) || a.texto.localeCompare(b.texto, 'pt-BR'));",
+  "  /**",
+  "   * Movimentos de um ciclo na ordem da tela: a lista em edição; na ordem da construção, a salva (os que não",
+  "   * estão nela vêm depois, pelo equilíbrio); senão, a ordem escolhida.",
+  "   */",
+  "  function ordenarGrupo(g) {",
+  "    const auto = ordenar(g.movimentos);",
+  "    const lista = edicao && edicao.ciclo === g.cicloApp ? edicao.lista : vista.ordem === 'definida' ? g.ordemSalva : null;",
+  "    if (!lista) return auto;",
+  "    const pos = {};",
+  "    lista.forEach((t, i) => { pos[Render.chaveEtiqueta(t)] = i; });",
+  "    const p = (m) => { const i = pos[Render.chaveEtiqueta(m.texto)]; return i === undefined ? lista.length + auto.indexOf(m) : i; };",
+  "    return auto.slice().sort((a, b) => p(a) - p(b));",
+  "  }",
+  "",
+  "  function segmentado(pai, rotulo, opcoes, atual, aoEscolher) {",
+  "    const box = novo('div', 'cal-controle', null, pai);",
+  "    novo('span', 'cal-rotulo', rotulo, box);",
+  "    const seg = novo('div', 'an-segmentado', null, box);",
+  "    seg.setAttribute('role', 'group');",
+  "    seg.setAttribute('aria-label', rotulo);",
+  "    opcoes.forEach(([v, texto, dica]) => {",
+  "      const b = novo('button', null, texto, seg);",
+  "      b.type = 'button';",
+  "      b.dataset.valor = v;",
+  "      if (dica) b.title = dica;",
+  "      b.setAttribute('aria-pressed', String(atual === v));",
+  "      b.addEventListener('click', () => aoEscolher(v));",
+  "    });",
+  "  }",
+  "",
+  "  function seletor(pai, rotulo, opcoes, atual, aoEscolher) {",
+  "    const box = novo('label', 'cal-controle', null, pai);",
+  "    novo('span', 'cal-rotulo', rotulo, box);",
+  "    const sel = novo('select', null, null, box);",
+  "    opcoes.forEach(([v, texto]) => sel.add(new Option(texto, v, false, String(v) === String(atual))));",
+  "    sel.addEventListener('change', () => aoEscolher(sel.value));",
+  "  }",
+  "",
+  "  /**",
+  "   * Linhas dos retângulos: os ciclos na ordem do início; dentro do ciclo, na ordem escolhida, cada um na",
+  "   * primeira linha livre abaixo do anterior (assim a ordem fica de cima para baixo e nada se sobrepõe).",
+  "   * @return {Array<{item, linha}>}",
+  "   */",
+  "  function empilhar(grupos) {",
+  "    const fimDaLinha = []; // último dia ocupado em cada linha",
+  "    const saida = [];",
+  "    grupos.forEach((g) => {",
+  "      let minimo = 0;",
+  "      g.itens.forEach((it) => {",
+  "        let l = minimo;",
+  "        while (fimDaLinha[l] !== undefined && fimDaLinha[l] >= it.d0) l++;",
+  "        fimDaLinha[l] = it.d1;",
+  "        saida.push({ item: it, linha: l });",
+  "        minimo = l + 1;",
+  "      });",
+  "    });",
+  "    return saida;",
+  "  }",
+  "",
+  "  /**",
+  "   * Desenha o calendário em `corpo`.",
+  "   * acoes: { dados(er) → dados (App.dadosCalendario), abrirCiclo(ciclo), verMovimento({ ciclo, texto, er }),",
+  "   *          construtor() → se quem está na tela entrou na Construção, salvarOrdem(ciclo, textos | null) → Promise<boolean> }",
+  "   */",
+  "  function desenhar(corpo, acoes) {",
+  "    const antes = corpo.querySelector('.cal-rolagem');",
+  "    const posAntes = antes ? { left: antes.scrollLeft, top: antes.scrollTop, px: ESCALAS[vista.escala].dia } : null;",
+  "    const d = acoes.dados(vista.er);",
+  "    corpo.innerHTML = '';",
+  "    const construtor = !!(acoes.construtor && acoes.construtor());",
+  "    if (!construtor || (edicao && !d.grupos.some((g) => g.cicloApp === edicao.ciclo))) edicao = null;",
+  "    const temSalva = resolverOrdem(d);",
+  "    // Ao redesenhar, a rolagem continua no mesmo dia (mesmo mudando a escala).",
+  "    const redesenhar = (mudanca) => { Object.assign(vista, mudanca); desenhar(corpo, acoes); };",
+  "",
+  "    // Controles.",
+  "    const barra = novo('div', 'cal-barra', null, corpo);",
+  "    segmentado(barra, 'Empilhar por', (temSalva ? [ORDEM_DEFINIDA] : []).concat(ORDENS), vista.ordem, (v) => redesenhar({ ordem: v }));",
+  "    seletor(barra, 'Exposição', [['', 'Média das ERs']].concat(d.ers.map((e) => [e.id, 'Na ' + e.nome])), vista.er, (v) => redesenhar({ er: v }));",
+  "    seletor(barra, 'Movimentos por ciclo', [[5, '5 primeiros'], [10, '10 primeiros'], [20, '20 primeiros'], [0, 'Todos']], vista.limite, (v) => redesenhar({ limite: +v }));",
+  "    segmentado(barra, 'Escala', [['compacta', 'Compacta'], ['normal', 'Normal'], ['ampla', 'Ampla']], vista.escala, (v) => redesenhar({ escala: v }));",
+  "    const bHoje = novo('button', 'btn pequeno cal-hoje', 'Hoje', barra);",
+  "    bHoje.type = 'button';",
+  "    bHoje.title = 'Rolar até o dia de hoje';",
+  "    if (construtor && d.grupos.length) {",
+  "      const bOrdem = novo('button', 'btn pequeno cal-ordenar', edicao ? 'Fechar ordem e selos' : 'Ordem e selos', barra);",
+  "      bOrdem.type = 'button';",
+  "      bOrdem.setAttribute('aria-pressed', String(!!edicao));",
+  "      bOrdem.title = 'Construção: mudar a ordem em que os movimentos de um ciclo aparecem no calendário e dar selos (hotspot e medalha)';",
+  "      bOrdem.addEventListener('click', () => {",
+  "        if (edicao) {",
+  "          if (pendente() && !window.confirm('Descartar as mudanças que ainda não foram salvas?')) return;",
+  "          edicao = null;",
+  "        } else {",
+  "          const g = d.grupos.find((x) => x.cicloApp === d.cicloAtual) || d.grupos.slice().sort((a, b) => (a.inicio < b.inicio ? -1 : 1))[0];",
+  "          comecarEdicao(g);",
+  "        }",
+  "        desenhar(corpo, acoes);",
+  "      });",
+  "    }",
+  "",
+  "    const nota = novo('p', 'cal-nota', null, corpo);",
+  "    nota.textContent = {",
+  "      equilibrio: 'Os movimentos de cada ciclo estão empilhados do mais importante (em cima) para o menos importante, pelo equilíbrio entre o GMV esperado e a exposição: a média da fatia do movimento no GMV esperado do ciclo com a fatia dele na exposição.',",
+  "      gmv: 'Os movimentos de cada ciclo estão empilhados pelo GMV esperado (aba Tipos de movimento), do maior (em cima) para o menor; os sem GMV ficam por último.',",
+  "      exposicao: 'Os movimentos de cada ciclo estão empilhados pela exposição (a fatia do espaço de exposição que o movimento ocupa), da maior (em cima) para a menor.',",
+  "      definida: 'Os movimentos de cada ciclo estão na ordem definida na construção (o primeiro em cima). Ciclos sem ordem definida, e movimentos que não estavam nela, seguem o equilíbrio entre o GMV esperado e a exposição.',",
+  "    }[vista.ordem] + ' Exposição: ' + (vista.er ? 'na ER escolhida' : 'média das ERs') + '. Cada retângulo vai do início ao fim do ciclo no calendário da marca dele (Eudora no da Eudora; as outras marcas no do Boticário). Clique num movimento para vê-lo na planta.';",
+  "",
+  "    if (d.semDatas.length) {",
+  "      novo('p', 'cal-aviso', (d.semDatas.length === 1 ? 'Ciclo do app sem datas no calendário: ' : 'Ciclos do app sem datas no calendário: ')",
+  "        + d.semDatas.join(', ') + '. As datas vêm da aba \"Calendário de ciclos\" da planilha do calendário (engrenagem › Modo desenvolvedor › Planilhas).', corpo);",
+  "    }",
+  "",
+  "    const todos = [].concat.apply([], d.calendarios.map((c) => c.ciclos));",
+  "    if (!todos.length) {",
+  "      novo('p', 'an-vazio', 'Nenhum ciclo no calendário ainda. As datas vêm da aba \"Calendário de ciclos\" (Marca, Ciclo, Início, Fim) e os feriados, da aba \"Feriados\" (Data, Feriado), da planilha do calendário vinculada em engrenagem › Modo desenvolvedor › Planilhas.', corpo);",
+  "      bHoje.disabled = true;",
+  "      return;",
+  "    }",
+  "",
+  "    const esc = ESCALAS[vista.escala];",
+  "    const px = esc.dia;",
+  "    const hoje = datas.hoje();",
+  "    const inicio = Math.min.apply(null, todos.map((c) => datas.dia(c.inicio))) - 3;",
+  "    const fim = Math.max.apply(null, todos.map((c) => datas.dia(c.fim))) + 3;",
+  "    const x = (dia) => MARGEM + (dia - inicio) * px;",
+  "    const largura = MARGEM + (fim - inicio + 1) * px;",
+  "    const feriados = {};",
+  "    d.feriados.forEach((f) => { feriados[f.data] = f.nome; });",
+  "",
+  "    const area = novo('div', 'cal-area', null, corpo);",
+  "    const rolagem = novo('div', 'cal-rolagem', null, area);",
+  "    if (edicao) painelOrdem(area, d, corpo, acoes);",
+  "    const quadro = novo('div', 'cal-quadro', null, rolagem);",
+  "    quadro.style.width = largura + 'px';",
+  "",
+  "    // Topo (fixo ao rolar para baixo): meses, dias e as faixas dos ciclos dos dois calendários.",
+  "    const topo = novo('div', 'cal-topo', null, quadro);",
+  "    const meses = novo('div', 'cal-meses', null, topo);",
+  "    const dias = novo('div', 'cal-dias', null, topo);",
+  "    let mesAberto = null;",
+  "    for (let dia = inicio; dia <= fim; dia++) {",
+  "      const iso = datas.iso(dia);",
+  "      const s = datas.semana(dia);",
+  "      const dd = +iso.slice(8);",
+  "      if (dd === 1 || dia === inicio) {",
+  "        mesAberto = novo('div', 'cal-mes', null, meses);",
+  "        mesAberto.style.left = x(dia) + 'px';",
+  "        mesAberto.dataset.dias = '0';",
+  "        novo('span', null, MESES[+iso.slice(5, 7) - 1] + ' ' + iso.slice(0, 4), mesAberto);",
+  "      }",
+  "      mesAberto.dataset.dias = String(+mesAberto.dataset.dias + 1);",
+  "      mesAberto.style.width = +mesAberto.dataset.dias * px + 'px';",
+  "      const c = novo('div', 'cal-dia' + (s === 0 || s === 6 ? ' fds' : '') + (feriados[iso] ? ' feriado' : '') + (dia === hoje ? ' hoje' : ''), null, dias);",
+  "      c.style.left = x(dia) + 'px';",
+  "      c.style.width = px + 'px';",
+  "      // Na escala compacta, só o número das segundas e do dia 1.",
+  "      if (px >= 22 || s === 1 || dd === 1) novo('b', null, String(dd), c);",
+  "      if (px >= 22) novo('small', null, SEMANA[s], c);",
+  "      c.title = datas.br(iso) + (feriados[iso] ? ' · feriado: ' + feriados[iso] : '') + (dia === hoje ? ' · hoje' : '');",
+  "    }",
+  "",
+  "    d.calendarios.forEach((cal) => {",
+  "      const trilha = novo('div', 'cal-trilha', null, topo);",
+  "      trilha.dataset.calendario = cal.cod;",
+  "      const rot = novo('span', 'cal-trilha-nome', cal.nome, trilha);",
+  "      rot.style.borderColor = cal.cor;",
+  "      rot.title = 'Calendário ' + cal.nome + ': ' + cal.descricao;",
+  "      cal.ciclos.forEach((c) => {",
+  "        const d0 = datas.dia(c.inicio);",
+  "        const d1 = datas.dia(c.fim);",
+  "        const atual = c.cicloApp && c.cicloApp === d.cicloAtual;",
+  "        const b = novo(c.cicloApp ? 'button' : 'div', 'cal-ciclo' + (c.cicloApp ? '' : ' sem-app') + (atual ? ' atual' : ''), null, trilha);",
+  "        if (c.cicloApp) {",
+  "          b.type = 'button';",
+  "          b.addEventListener('click', () => acoes.abrirCiclo(c.cicloApp));",
+  "        }",
+  "        b.dataset.ciclo = c.ciclo;",
+  "        b.style.left = x(d0) + 1 + 'px';",
+  "        b.style.width = (d1 - d0 + 1) * px - 2 + 'px';",
+  "        b.style.background = transparente(cal.cor, atual ? 0.34 : 0.16);",
+  "        b.style.borderColor = cal.cor;",
+  "        novo('strong', null, c.ciclo, b);",
+  "        novo('span', null, datas.br(c.inicio, true) + ' → ' + datas.br(c.fim, true) + ' · ' + c.dias + ' dias · ' + c.uteis + ' úteis'",
+  "          + (c.feriados.length ? ' · ★ ' + c.feriados.length + (c.feriados.length === 1 ? ' feriado' : ' feriados') : ''), b);",
+  "        b.title = 'Calendário ' + cal.nome + ' · ' + c.ciclo + '\\n' + datas.br(c.inicio) + ' a ' + datas.br(c.fim) + ' · ' + c.dias + ' dias, ' + c.uteis + ' úteis'",
+  "          + c.feriados.map((f) => '\\n★ ' + datas.br(f.data, true) + ' ' + f.nome).join('')",
+  "          + (c.cicloApp ? '\\nClique para abrir o ' + c.cicloApp + ' na planta' : '\\nNenhum ciclo do app com este nome');",
+  "      });",
+  "    });",
+  "",
+  "    // Movimentos de todos os ciclos, juntos e empilhados.",
+  "    const grupos = d.grupos.map((g) => {",
+  "      const ordem = ordenarGrupo(g);",
+  "      const visiveis = vista.limite ? ordem.slice(0, vista.limite) : ordem;",
+  "      // As barras comparam cada medida com a maior do ciclo (os números são os reais).",
+  "      const maior = (k) => Math.max.apply(null, g.movimentos.map((m) => m[k]).concat([0]));",
+  "      const maiores = { exposicao: maior('exposicao'), fatiaGmv: maior('fatiaGmv') };",
+  "      const itens = visiveis.map((m, k) => ({ m, pos: k + 1, d0: datas.dia(m.inicio), d1: datas.dia(m.fim), g, maiores }));",
+  "      if (visiveis.length < ordem.length) {",
+  "        const d0 = Math.min.apply(null, itens.map((it) => it.d0));",
+  "        itens.push({ mais: ordem.length - visiveis.length, d0, d1: d0 + Math.max(3, Math.ceil(200 / px)), g });",
+  "      }",
+  "      return { inicio: g.inicio, itens };",
+  "    }).sort((a, b) => (a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : 0));",
+  "    const pilha = empilhar(grupos);",
+  "    const linhas = pilha.reduce((n, p) => Math.max(n, p.linha + 1), 0);",
+  "",
+  "    const corpoMovs = novo('div', 'cal-movs', null, quadro);",
+  "    corpoMovs.style.height = Math.max(linhas, 1) * (esc.linha + VAO) + VAO + 'px';",
+  "    // Fundo: fins de semana, feriados, começo de cada ciclo e hoje.",
+  "    for (let dia = inicio; dia <= fim; dia++) {",
+  "      const iso = datas.iso(dia);",
+  "      const s = datas.semana(dia);",
+  "      if (s !== 0 && s !== 6 && !feriados[iso]) continue;",
+  "      const f = novo('div', 'cal-fundo' + (feriados[iso] ? ' feriado' : ''), null, corpoMovs);",
+  "      f.style.left = x(dia) + 'px';",
+  "      f.style.width = px + 'px';",
+  "      if (feriados[iso]) f.title = 'Feriado: ' + feriados[iso] + ' (' + datas.br(iso) + ')';",
+  "    }",
+  "    d.calendarios.forEach((cal) => cal.ciclos.forEach((c) => {",
+  "      const l = novo('div', 'cal-divisa ' + cal.cod.toLowerCase(), null, corpoMovs);",
+  "      l.style.left = x(datas.dia(c.inicio)) + 'px';",
+  "      l.style.borderColor = cal.cor;",
+  "    }));",
+  "    if (hoje >= inicio && hoje <= fim) {",
+  "      [corpoMovs, topo].forEach((pai) => { novo('div', 'cal-linha-hoje', null, pai).style.left = x(hoje) + px / 2 + 'px'; });",
+  "    }",
+  "",
+  "    pilha.forEach(({ item: it, linha }) => {",
+  "      const top = VAO + linha * (esc.linha + VAO);",
+  "      if (it.mais) {",
+  "        const b = novo('button', 'cal-mais', '+' + it.mais + ' movimentos do ' + it.g.cicloApp, corpoMovs);",
+  "        b.type = 'button';",
+  "        b.title = 'Mostrar todos os movimentos de cada ciclo';",
+  "        b.style.left = x(it.d0) + 2 + 'px';",
+  "        b.style.top = top + 'px';",
+  "        b.style.height = esc.linha + 'px';",
+  "        b.addEventListener('click', () => redesenhar({ limite: 0 }));",
+  "        return;",
+  "      }",
+  "      const m = it.m;",
+  "      const r = novo('button', 'cal-mov', null, corpoMovs);",
+  "      r.type = 'button';",
+  "      r.dataset.movimento = m.texto;",
+  "      r.dataset.ciclo = it.g.cicloApp;",
+  "      r.dataset.calendario = m.calendario;",
+  "      r.dataset.posicao = String(it.pos);",
+  "      r.style.left = x(it.d0) + 2 + 'px';",
+  "      r.style.width = (it.d1 - it.d0 + 1) * px - 4 + 'px';",
+  "      r.style.top = top + 'px';",
+  "      r.style.height = esc.linha + 'px';",
+  "      r.style.background = transparente(m.cor, 0.18);",
+  "      r.style.borderLeftColor = m.cor;",
+  "      const l1 = novo('span', 'cal-mov-l1', null, r);",
+  "      novo('span', 'cal-mov-pos', String(it.pos), l1);",
+  "      const selo = seloDe(it.g, m);",
+  "      if (selo.medalha) medalhaHtml(l1, selo.medalha, d.medalhas);",
+  "      novo('span', 'cal-mov-nome', m.texto, l1);",
+  "      if (selo.hotspot) hotspotHtml(l1);",
+  "      if (selo.medalha || selo.hotspot) r.dataset.selos = [selo.medalha, selo.hotspot ? 'HOTSPOT' : ''].filter(Boolean).join(' ');",
+  "      m.marcas.forEach((mc) => {",
+  "        const b = novo('span', 'cal-bolinha', null, l1);",
+  "        b.style.background = mc.cor;",
+  "        b.title = mc.nome + ' · ' + fmtPct(mc.valor);",
+  "      });",
+  "      if (m.classe) novo('span', 'cal-mov-classe', m.classe.nome, l1).style.borderColor = m.classe.cor;",
+  "      const l2 = novo('span', 'cal-mov-l2', null, r);",
+  "      const medida = (rotulo, chave, texto, classe) => {",
+  "        const box = novo('span', 'cal-medida ' + classe, null, l2);",
+  "        novo('span', 'cal-medida-rot', rotulo, box);",
+  "        const trilho = novo('span', 'cal-medida-trilho', null, box);",
+  "        novo('span', null, null, trilho).style.width = Math.round((it.maiores[chave] ? m[chave] / it.maiores[chave] : 0) * 100) + '%';",
+  "        novo('b', null, texto, box);",
+  "      };",
+  "      medida('GMV', 'fatiaGmv', m.gmv ? gmvCurto.format(m.gmv) + ' (' + fmtPct(m.fatiaGmv) + ')' : 'sem GMV', 'gmv');",
+  "      medida('Exposição', 'exposicao', fmtPct(m.exposicao), 'expo');",
+  "      r.title = [",
+  "        it.pos + 'º do ' + it.g.cicloApp + ' · ' + m.texto",
+  "          + (selo.medalha && d.medalhas[selo.medalha] ? ' · medalha de ' + d.medalhas[selo.medalha].nome.toLowerCase() : '') + (selo.hotspot ? ' · hotspot' : ''),",
+  "        'Calendário ' + m.nomeCalendario + ': ' + datas.br(m.inicio) + ' a ' + datas.br(m.fim) + (m.datasDoOutro ? ' (o ' + it.g.cicloApp + ' não está no calendário ' + m.nomeCalendario + ': datas do outro calendário)' : ''),",
+  "        m.marcas.map((mc) => mc.nome + ' ' + fmtPct(mc.valor)).join(' · ') + (m.classe ? ' · ' + m.classe.nome : ''),",
+  "        'GMV esperado: ' + (m.gmv ? gmvCompleto.format(m.gmv) + ' · ' + fmtPct(m.fatiaGmv) + ' do GMV do ciclo' : 'sem GMV'),",
+  "        'Exposição: ' + fmtPct(m.exposicao) + ' do espaço de exposição' + (vista.er ? '' : ' (média das ERs)') + ' · ' + fmtNum(m.espacos) + (m.espacos === 1 ? ' espaço' : ' espaços')",
+  "          + ' · ' + fmtPct(m.fatiaExposicao) + ' da exposição do ciclo',",
+  "        'Equilíbrio (média das duas fatias): ' + fmtPct(m.equilibrio),",
+  "        m.espacos ? 'Clique para ver na planta' : 'Sem espaço de exposição no ciclo',",
+  "      ].join('\\n');",
+  "      r.addEventListener('click', () => acoes.verMovimento({ ciclo: it.g.cicloApp, texto: m.texto, er: m.er }));",
+  "    });",
+  "    if (!pilha.length) novo('p', 'cal-sem-movs', 'Nenhum ciclo do calendário tem o nome de um ciclo do app.', corpoMovs);",
+  "",
+  "    // Rolagem: a mesma de antes (ao redesenhar) ou, ao abrir, o ciclo da tela; sem ele, hoje.",
+  "    const irPara = (dia) => { rolagem.scrollLeft = Math.max(0, x(dia) - 3 * px); };",
+  "    bHoje.disabled = hoje < inicio || hoje > fim;",
+  "    bHoje.addEventListener('click', () => irPara(hoje));",
+  "    const atual = d.grupos.find((g) => g.cicloApp === d.cicloAtual);",
+  "    if (rolarPara !== null) {",
+  "      irPara(rolarPara);",
+  "      rolarPara = null;",
+  "    } else if (posAntes) {",
+  "      rolagem.scrollLeft = (posAntes.left / posAntes.px) * px;",
+  "      rolagem.scrollTop = posAntes.top;",
+  "    } else if (atual) irPara(datas.dia(atual.inicio));",
+  "    else if (hoje >= inicio && hoje <= fim) irPara(hoje);",
+  "  }",
+  "",
+  "  /* ----------------------- ordem da construção ---------------------------- */",
+  "",
+  "  function comecarEdicao(g) {",
+  "    const selos = {};",
+  "    g.movimentos.forEach((m) => { selos[m.texto] = { hotspot: !!(m.selo && m.selo.hotspot), medalha: (m.selo && m.selo.medalha) || '' }; });",
+  "    edicao = { ciclo: g.cicloApp, lista: ordenarGrupo(g).map((m) => m.texto), mudou: false, selos, mudouSelos: false };",
+  "    rolarPara = datas.dia(g.inicio);",
+  "  }",
+  "  const pendente = () => !!edicao && (edicao.mudou || edicao.mudouSelos);",
+  "",
+  "  /**",
+  "   * Painel ao lado da linha do tempo (construtor): os movimentos do ciclo na ordem, para arrastar (ou ↑ ↓), com",
+  "   * os selos de cada um (hotspot e medalha), e salvar. Cada mudança redesenha o calendário.",
+  "   */",
+  "  function painelOrdem(pai, d, corpo, acoes) {",
+  "    const g = d.grupos.find((x) => x.cicloApp === edicao.ciclo);",
+  "    const redesenhar = () => desenhar(corpo, acoes);",
+  "    const p = novo('aside', 'cal-ordem', null, pai);",
+  "    p.setAttribute('aria-label', 'Ordem e selos dos movimentos no calendário');",
+  "    novo('h3', null, 'Ordem e selos dos movimentos', p);",
+  "    const sel = novo('select', null, null, novo('label', 'cal-controle', null, p));",
+  "    sel.parentNode.insertBefore(novo('span', 'cal-rotulo', 'Ciclo'), sel);",
+  "    d.grupos.slice().sort((a, b) => (a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : 0))",
+  "      .forEach((x) => sel.add(new Option(x.cicloApp + (x.ordemSalva ? ' · ordem salva' : ''), x.cicloApp, false, x.cicloApp === edicao.ciclo)));",
+  "    sel.addEventListener('change', () => {",
+  "      if (pendente() && !window.confirm('Descartar as mudanças que ainda não foram salvas?')) { sel.value = edicao.ciclo; return; }",
+  "      comecarEdicao(d.grupos.find((x) => x.cicloApp === sel.value));",
+  "      redesenhar();",
+  "    });",
+  "    novo('p', 'cal-ordem-dica', 'Arraste os movimentos (ou use ↑ ↓): o de cima fica em cima no calendário. Em cada um, a chama liga o selo de hotspot e o menu dá uma medalha. A linha do tempo já mostra as mudanças; Salvar vale para todo mundo.', p);",
+  "    novo('p', 'cal-ordem-estado', pendente() ? 'Mudanças ainda não salvas.'",
+  "      : g.ordemSalva ? 'Ordem salva' + (g.ordemPor ? ' por ' + g.ordemPor : '') + '.' : 'Ordem automática (equilíbrio GMV × exposição).', p);",
+  "",
+  "    const mover = (de, para) => {",
+  "      if (para < 0 || para >= edicao.lista.length || de === para) return;",
+  "      const [t] = edicao.lista.splice(de, 1);",
+  "      edicao.lista.splice(para, 0, t);",
+  "      edicao.mudou = true;",
+  "      redesenhar();",
+  "      const foco = corpo.querySelector('.cal-ordem li[data-indice=\"' + para + '\"] .cal-ordem-mover');",
+  "      if (foco) foco.focus();",
+  "    };",
+  "    const porTexto = {};",
+  "    g.movimentos.forEach((m) => { porTexto[m.texto] = m; });",
+  "    const ol = novo('ol', 'cal-ordem-lista', null, p);",
+  "    let arrastando = null;",
+  "    edicao.lista.forEach((t, i) => {",
+  "      const m = porTexto[t] || { texto: t, cor: '#999999', gmv: 0, exposicao: 0 };",
+  "      const li = novo('li', null, null, ol);",
+  "      li.dataset.indice = String(i);",
+  "      li.dataset.movimento = t;",
+  "      li.draggable = true;",
+  "      li.style.borderLeftColor = m.cor;",
+  "      novo('span', 'cal-ordem-alca', '⋮⋮', li).setAttribute('aria-hidden', 'true');",
+  "      novo('span', 'cal-mov-pos', String(i + 1), li);",
+  "      const txt = novo('span', 'cal-ordem-texto', null, li);",
+  "      novo('strong', null, t, txt);",
+  "      novo('small', null, (m.gmv ? gmvCurto.format(m.gmv) : 'sem GMV') + ' · exposição ' + fmtPct(m.exposicao || 0), txt);",
+  "      // Selos: hotspot (liga / desliga) e medalha.",
+  "      const selo = edicao.selos[t] || (edicao.selos[t] = { hotspot: false, medalha: '' });",
+  "      const caixaSelos = novo('span', 'cal-ordem-selos', null, li);",
+  "      const hot = novo('button', 'cal-ordem-hot', null, caixaSelos);",
+  "      hot.type = 'button';",
+  "      hot.setAttribute('aria-pressed', String(selo.hotspot));",
+  "      hot.setAttribute('aria-label', 'Hotspot: ' + t);",
+  "      hot.title = selo.hotspot ? 'Tirar o selo de hotspot' : 'Marcar como hotspot';",
+  "      svgEl('path', { d: CHAMA, fill: 'currentColor' }, svgEl('svg', { viewBox: '0 0 24 24', width: 14, height: 14, 'aria-hidden': 'true' }, hot));",
+  "      hot.addEventListener('click', () => { selo.hotspot = !selo.hotspot; edicao.mudouSelos = true; redesenhar(); });",
+  "      const med = novo('select', 'cal-ordem-medalha', null, caixaSelos);",
+  "      med.setAttribute('aria-label', 'Medalha: ' + t);",
+  "      med.add(new Option('—', ''));",
+  "      Object.keys(d.medalhas).forEach((k) => med.add(new Option(d.medalhas[k].nome, k, false, selo.medalha === k)));",
+  "      med.value = selo.medalha || '';",
+  "      if (selo.medalha && d.medalhas[selo.medalha]) med.style.boxShadow = 'inset 4px 0 0 ' + d.medalhas[selo.medalha].cor;",
+  "      med.addEventListener('change', () => { selo.medalha = med.value; edicao.mudouSelos = true; redesenhar(); });",
+  "      const sobe = novo('button', 'cal-ordem-mover sobe', '↑', li);",
+  "      sobe.type = 'button';",
+  "      sobe.disabled = i === 0;",
+  "      sobe.setAttribute('aria-label', 'Subir ' + t);",
+  "      sobe.addEventListener('click', () => mover(i, i - 1));",
+  "      const desce = novo('button', 'cal-ordem-mover desce', '↓', li);",
+  "      desce.type = 'button';",
+  "      desce.disabled = i === edicao.lista.length - 1;",
+  "      desce.setAttribute('aria-label', 'Descer ' + t);",
+  "      desce.addEventListener('click', () => mover(i, i + 1));",
+  "      li.addEventListener('dragstart', (e) => { arrastando = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); li.classList.add('arrastando'); });",
+  "      li.addEventListener('dragend', () => li.classList.remove('arrastando'));",
+  "      li.addEventListener('dragover', (e) => { e.preventDefault(); li.classList.add('alvo'); });",
+  "      li.addEventListener('dragleave', () => li.classList.remove('alvo'));",
+  "      li.addEventListener('drop', (e) => {",
+  "        e.preventDefault();",
+  "        const de = arrastando !== null ? arrastando : +e.dataTransfer.getData('text/plain');",
+  "        mover(de, i);",
+  "      });",
+  "    });",
+  "",
+  "    const acoesP = novo('div', 'cal-ordem-acoes', null, p);",
+  "    const salvar = novo('button', 'btn pequeno primario', 'Salvar', acoesP);",
+  "    salvar.type = 'button';",
+  "    salvar.title = 'Salva a ordem (se mudou) e os selos (se mudaram) deste ciclo';",
+  "    salvar.addEventListener('click', async () => {",
+  "      const e = edicao;",
+  "      let ok = true;",
+  "      if (e.mudou) ok = await acoes.salvarOrdem(e.ciclo, e.lista);",
+  "      if (ok && e.mudouSelos) {",
+  "        ok = await acoes.salvarSelos(e.ciclo, Object.keys(e.selos).map((t) => ({ movimento: t, hotspot: e.selos[t].hotspot, medalha: e.selos[t].medalha })));",
+  "      }",
+  "      if (!ok) return;",
+  "      if (e.mudou) vista.ordem = 'definida';",
+  "      edicao = null;",
+  "      redesenhar();",
+  "    });",
+  "    if (g.ordemSalva) {",
+  "      const auto = novo('button', 'btn pequeno', 'Voltar à ordem automática', acoesP);",
+  "      auto.type = 'button';",
+  "      auto.title = 'Apaga a ordem salva deste ciclo: ele volta a seguir o equilíbrio entre o GMV esperado e a exposição';",
+  "      auto.addEventListener('click', async () => {",
+  "        if (!window.confirm('Apagar a ordem salva do ' + edicao.ciclo + '?')) return;",
+  "        if (await acoes.salvarOrdem(edicao.ciclo, null)) { edicao = null; redesenhar(); }",
+  "      });",
+  "    }",
+  "    const cancelar = novo('button', 'btn pequeno fantasma', 'Cancelar', acoesP);",
+  "    cancelar.type = 'button';",
+  "    cancelar.addEventListener('click', () => { edicao = null; redesenhar(); });",
+  "  }",
+  "",
+  "  /* ------------------------- PNG / slide do ciclo -------------------------- */",
+  "",
+  "  const SLIDE = {",
+  "    fonte: 'Arial, Helvetica, sans-serif', fonteEtq: \"Nunito, 'Segoe UI', Arial, sans-serif\",",
+  "    fundo: '#F3EFEA', cartao: '#FFFFFF', borda: '#E4DED6', tinta: '#1C1F24', tinta2: '#5B6068', tinta3: '#8A8F97',",
+  "    fds: '#EEEAE4', feriado: '#FBE3E1', feriadoTinta: '#B42318', hoje: '#E8590C',",
+  "  };",
+  "  const medidor = document.createElement('canvas').getContext('2d');",
+  "  function larguraTexto(txt, tam, peso, fonte) {",
+  "    medidor.font = (peso || 400) + ' ' + tam + 'px ' + (fonte || SLIDE.fonte);",
+  "    return medidor.measureText(txt).width;",
+  "  }",
+  "  function caber(txt, maxW, tam, peso, fonte) {",
+  "    let t = String(txt);",
+  "    if (maxW <= 0) return '';",
+  "    if (larguraTexto(t, tam, peso, fonte) <= maxW) return t;",
+  "    while (t.length > 1 && larguraTexto(t + '…', tam, peso, fonte) > maxW) t = t.slice(0, -1);",
+  "    return t.length > 1 ? t.trim() + '…' : '';",
+  "  }",
+  "  function textoSvg(pai, x, y, conteudo, attrs) {",
+  "    const t = svgEl('text', Object.assign({ x, y, 'font-family': SLIDE.fonte, fill: SLIDE.tinta }, attrs), pai);",
+  "    t.textContent = conteudo;",
+  "    return t;",
+  "  }",
+  "  const NOMES_ORDEM = { equilibrio: 'equilíbrio GMV × exposição', gmv: 'GMV esperado', exposicao: 'exposição', definida: 'ordem da construção' };",
+  "",
+  "  /**",
+  "   * O calendário de um ciclo do app num SVG (fundo claro, sempre com as cores do slide): o título com as datas",
+  "   * do ciclo no Boticário e na Eudora, os dias (fins de semana, feriados e hoje), as faixas dos dois calendários",
+  "   * e todos os movimentos do ciclo, um por linha, na ordem da tela (com os selos), cada um nas datas do seu",
+  "   * calendário. 16:9 (1920 × 1080); com muitos movimentos, cresce na mesma proporção.",
+  "   * recorte: sem o fundo e sem o título (para recortar no conteúdo).",
+  "   * @return {{w, h}} tamanho do slide",
+  "   */",
+  "  function slide(svg, d, op) {",
+  "    const o = op || {};",
+  "    while (svg.firstChild) svg.removeChild(svg.firstChild);",
+  "    const g0 = d.grupos.find((g) => g.cicloApp === o.ciclo) || d.grupos[0];",
+  "    if (!g0) throw new Error('Nenhum ciclo do app tem datas no calendário dos ciclos.');",
+  "    const ciclosCal = d.calendarios.map((cal) => ({ cal, c: cal.ciclos.find((c) => c.cicloApp === g0.cicloApp) })).filter((x) => x.c);",
+  "    resolverOrdem(d);",
+  "    const movs = ordenarGrupo(g0);",
+  "    const M = 64;",
+  "    const linhaH = 58;",
+  "    const vao = 10;",
+  "    const topoConteudo = o.recorte ? M : 210;",
+  "    const cabecalhoDias = 76; // meses + dias",
+  "    const trilhaH = 50;",
+  "    const altura = topoConteudo + cabecalhoDias + ciclosCal.length * (trilhaH + 6) + 16 + movs.length * (linhaH + vao) + 90;",
+  "    const H = Math.max(1080, altura);",
+  "    const W = Math.max(1920, Math.round((H * 16) / 9));",
+  "    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);",
+  "    if (!o.recorte) svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: SLIDE.fundo }, svg);",
+  "",
+  "    const d0 = Math.min.apply(null, ciclosCal.map((x) => datas.dia(x.c.inicio)));",
+  "    const d1 = Math.max.apply(null, ciclosCal.map((x) => datas.dia(x.c.fim)));",
+  "    const rotuloW = 170;",
+  "    const x0 = M + rotuloW;",
+  "    const px = (W - M - x0) / (d1 - d0 + 1);",
+  "    const x = (dia) => x0 + (dia - d0) * px;",
+  "    const feriados = {};",
+  "    d.feriados.forEach((f) => { feriados[f.data] = f.nome; });",
+  "    const hoje = datas.hoje();",
+  "",
+  "    if (!o.recorte) {",
+  "      textoSvg(svg, M, 92, 'Calendário do ciclo · ' + g0.cicloApp, { 'font-size': 46, 'font-weight': 700 });",
+  "      textoSvg(svg, M, 138, ciclosCal.map((x2) => x2.cal.nome + ': ' + datas.br(x2.c.inicio) + ' a ' + datas.br(x2.c.fim)",
+  "        + ' (' + x2.c.dias + ' dias, ' + x2.c.uteis + ' úteis)').join('   ·   '), { 'font-size': 22, fill: SLIDE.tinta2 });",
+  "      textoSvg(svg, M, 172, movs.length + (movs.length === 1 ? ' movimento' : ' movimentos') + ', de cima para baixo pela '",
+  "        + NOMES_ORDEM[vista.ordem] + ' · exposição: ' + (vista.er ? 'na ' + ((d.ers.find((e) => e.id === vista.er) || {}).nome || vista.er) : 'média das ERs'),",
+  "      { 'font-size': 19, fill: SLIDE.tinta3 });",
+  "    }",
+  "",
+  "    // Cartão com os dias, as faixas e os movimentos.",
+  "    const yCartao = topoConteudo;",
+  "    const hCartao = H - yCartao - (o.recorte ? M : 70);",
+  "    svgEl('rect', { x: M - 16, y: yCartao - 16, width: W - 2 * M + 32, height: hCartao + 16, rx: 18, fill: SLIDE.cartao, stroke: SLIDE.borda, 'stroke-width': 1.5 }, svg);",
+  "    const yDias = yCartao + 28;",
+  "    const yCorpoFim = yCartao + hCartao - 16;",
+  "    for (let dia = d0; dia <= d1; dia++) {",
+  "      const iso = datas.iso(dia);",
+  "      const s = datas.semana(dia);",
+  "      const fds = s === 0 || s === 6;",
+  "      if (fds || feriados[iso]) svgEl('rect', { x: x(dia), y: yDias, width: px, height: yCorpoFim - yDias, fill: feriados[iso] ? SLIDE.feriado : SLIDE.fds }, svg);",
+  "      const cor = feriados[iso] ? SLIDE.feriadoTinta : dia === hoje ? SLIDE.hoje : fds ? SLIDE.tinta3 : SLIDE.tinta2;",
+  "      textoSvg(svg, x(dia) + px / 2, yDias + 22, String(+iso.slice(8)), { 'font-size': Math.min(18, px * 0.5), 'font-weight': 700, fill: cor, 'text-anchor': 'middle' });",
+  "      if (px >= 26) textoSvg(svg, x(dia) + px / 2, yDias + 42, SEMANA[s], { 'font-size': 13, fill: cor, 'text-anchor': 'middle' });",
+  "      if (+iso.slice(8) === 1 || dia === d0) {",
+  "        textoSvg(svg, x(dia) + 4, yDias - 6, MESES[+iso.slice(5, 7) - 1].toUpperCase() + ' ' + iso.slice(0, 4), { 'font-size': 14, 'font-weight': 700, fill: SLIDE.tinta, 'letter-spacing': 1 });",
+  "        svgEl('line', { x1: x(dia), y1: yDias - 22, x2: x(dia), y2: yDias + 48, stroke: SLIDE.borda, 'stroke-width': 2 }, svg);",
+  "      }",
+  "    }",
+  "    let y = yDias + cabecalhoDias - 18;",
+  "    svgEl('line', { x1: M, y1: y - 6, x2: W - M, y2: y - 6, stroke: SLIDE.borda, 'stroke-width': 1.5 }, svg);",
+  "    ciclosCal.forEach(({ cal, c }) => {",
+  "      textoSvg(svg, M, y + trilhaH / 2 + 7, cal.nome.toUpperCase(), { 'font-size': 17, 'font-weight': 700, 'letter-spacing': 1 });",
+  "      svgEl('rect', { x: M - 16, y: y + 6, width: 6, height: trilhaH - 12, fill: cal.cor }, svg);",
+  "      const bx = x(datas.dia(c.inicio));",
+  "      const bw = (datas.dia(c.fim) - datas.dia(c.inicio) + 1) * px;",
+  "      svgEl('rect', { x: bx + 1, y: y + 4, width: bw - 2, height: trilhaH - 8, rx: 8, fill: transparente(cal.cor, 0.18), stroke: cal.cor, 'stroke-width': 1.5 }, svg);",
+  "      const rot = c.ciclo + '  ·  ' + datas.br(c.inicio, true) + ' → ' + datas.br(c.fim, true) + '  ·  ' + c.dias + ' dias, ' + c.uteis + ' úteis'",
+  "        + (c.feriados.length ? '  ·  ★ ' + c.feriados.map((f) => datas.br(f.data, true) + ' ' + f.nome).join(', ') : '');",
+  "      textoSvg(svg, bx + 14, y + trilhaH / 2 + 7, caber(rot, bw - 28, 18, 700), { 'font-size': 18, 'font-weight': 700 });",
+  "      y += trilhaH + 6;",
+  "    });",
+  "    if (hoje >= d0 && hoje <= d1) svgEl('line', { x1: x(hoje) + px / 2, y1: yDias, x2: x(hoje) + px / 2, y2: yCorpoFim, stroke: SLIDE.hoje, 'stroke-width': 3 }, svg);",
+  "    y += 10;",
+  "",
+  "    // Movimentos, um por linha.",
+  "    const maior = (k) => Math.max.apply(null, g0.movimentos.map((m) => m[k]).concat([0]));",
+  "    const maiores = { exposicao: maior('exposicao'), fatiaGmv: maior('fatiaGmv') };",
+  "    movs.forEach((m, i) => {",
+  "      const mx = x(datas.dia(m.inicio)) + 2;",
+  "      const mw = (datas.dia(m.fim) - datas.dia(m.inicio) + 1) * px - 4;",
+  "      const g = svgEl('g', null, svg);",
+  "      svgEl('rect', { x: mx, y, width: mw, height: linhaH, rx: 9, fill: transparente(m.cor, 0.2), stroke: transparente(m.cor, 0.55), 'stroke-width': 1.2 }, g);",
+  "      svgEl('rect', { x: mx, y, width: 7, height: linhaH, rx: 3, fill: m.cor }, g);",
+  "      let cx = mx + 18;",
+  "      const yl1 = y + 24;",
+  "      svgEl('circle', { cx: cx + 12, cy: yl1 - 6, r: 12, fill: SLIDE.tinta }, g);",
+  "      textoSvg(g, cx + 12, yl1 - 1, String(i + 1), { 'font-size': 14, 'font-weight': 700, fill: '#FFFFFF', 'text-anchor': 'middle' });",
+  "      cx += 32;",
+  "      const selo = seloDe(g0, m);",
+  "      if (selo.medalha && d.medalhas[selo.medalha]) { medalhaSvg(g, cx, yl1 - 21, 26, d.medalhas[selo.medalha]); cx += 32; }",
+  "      const fim = mx + mw - 12;",
+  "      const extras = (selo.hotspot ? 112 : 0) + m.marcas.length * 18 + (m.classe ? larguraTexto(m.classe.nome, 14) + 30 : 0);",
+  "      const nome = caber(m.texto, Math.max(60, fim - cx - extras), 21, 800, SLIDE.fonteEtq);",
+  "      textoSvg(g, cx, yl1, nome, { 'font-size': 21, 'font-weight': 800, 'font-family': SLIDE.fonteEtq });",
+  "      cx += larguraTexto(nome, 21, 800, SLIDE.fonteEtq) + 10;",
+  "      if (selo.hotspot && cx + 100 < fim) {",
+  "        svgEl('rect', { x: cx, y: yl1 - 19, width: 100, height: 24, rx: 12, fill: COR_HOTSPOT }, g);",
+  "        svgEl('path', { d: CHAMA, fill: '#FFFFFF', transform: 'translate(' + (cx + 7) + ' ' + (yl1 - 16) + ') scale(0.75)' }, g);",
+  "        textoSvg(g, cx + 28, yl1 - 2, 'HOTSPOT', { 'font-size': 13, 'font-weight': 700, fill: '#FFFFFF', 'letter-spacing': 0.8 });",
+  "        cx += 110;",
+  "      }",
+  "      m.marcas.forEach((mc) => {",
+  "        if (cx + 14 > fim) return;",
+  "        svgEl('circle', { cx: cx + 6, cy: yl1 - 7, r: 6, fill: mc.cor, stroke: '#FFFFFF', 'stroke-width': 1.5 }, g);",
+  "        cx += 18;",
+  "      });",
+  "      if (m.classe && cx + larguraTexto(m.classe.nome, 14) + 20 < fim) {",
+  "        const cw = larguraTexto(m.classe.nome, 14) + 18;",
+  "        svgEl('rect', { x: cx + 4, y: yl1 - 19, width: cw, height: 22, rx: 11, fill: 'none', stroke: m.classe.cor, 'stroke-width': 1.5 }, g);",
+  "        textoSvg(g, cx + 13, yl1 - 3, m.classe.nome, { 'font-size': 14, fill: SLIDE.tinta2 });",
+  "      }",
+  "      // Linha 2: GMV esperado e exposição, com as barrinhas (em relação ao maior do ciclo).",
+  "      const yl2 = y + 47;",
+  "      let bx = mx + 18;",
+  "      [['GMV', 'fatiaGmv', m.gmv ? gmvCurto.format(m.gmv) + ' (' + fmtPct(m.fatiaGmv) + ')' : 'sem GMV', '#1D8A5A'],",
+  "        ['Exposição', 'exposicao', fmtPct(m.exposicao), '#3346B8']].forEach(([rot, k, val, cor]) => {",
+  "        const larg = larguraTexto(rot, 14) + 8 + 60 + 8 + larguraTexto(val, 15, 700) + 22;",
+  "        if (bx + larg > fim + 10) return;",
+  "        textoSvg(g, bx, yl2, rot, { 'font-size': 14, fill: SLIDE.tinta2 });",
+  "        bx += larguraTexto(rot, 14) + 8;",
+  "        svgEl('rect', { x: bx, y: yl2 - 10, width: 60, height: 7, rx: 3.5, fill: '#E2DED8' }, g);",
+  "        svgEl('rect', { x: bx, y: yl2 - 10, width: Math.max(0, 60 * (maiores[k] ? m[k] / maiores[k] : 0)), height: 7, rx: 3.5, fill: cor }, g);",
+  "        bx += 68;",
+  "        textoSvg(g, bx, yl2, val, { 'font-size': 15, 'font-weight': 700 });",
+  "        bx += larguraTexto(val, 15, 700) + 22;",
+  "      });",
+  "      y += linhaH + vao;",
+  "    });",
+  "    if (!movs.length) textoSvg(svg, x0, y + 30, 'Nenhum movimento neste ciclo.', { 'font-size': 20, fill: SLIDE.tinta3 });",
+  "    if (!o.recorte) {",
+  "      textoSvg(svg, M, H - 30, 'Cada movimento vai do início ao fim do ciclo no calendário da marca dele (Eudora nas datas da Eudora; as outras marcas nas do Boticário). '",
+  "        + 'GMV esperado: aba Tipos de movimento. Exposição: fatia do espaço de exposição. As barrinhas comparam com o maior do ciclo.', { 'font-size': 15, fill: SLIDE.tinta3 });",
+  "    }",
+  "    return { w: W, h: H };",
+  "  }",
+  "",
+  "  /** Escolhas da tela (ordem e exposição), para o PNG sair como o calendário. */",
+  "  const vistaAtual = () => ({ ordem: vista.ordem, er: vista.er });",
+  "",
+  "  return { desenhar, slide, vista: vistaAtual, datas, chaveCiclo };",
+  "})();",
+  "</script>",
+  "",
+  "    <script>",
+  "/**",
+  " * ============================================================================",
   " *  TUTORIAL GUIADO (primeira visita)",
   " * ============================================================================",
   " *  Na primeira vez que a pessoa abre o app (neste navegador), aparece um cartão de boas-vindas que",
@@ -14613,9 +16351,12 @@ const PAGINA_ = [
   "    sel.dispatchEvent(new Event('change', { bubbles: true }));",
   "  }",
   "",
+  "  /** Fecha o Analytics e o calendário dos ciclos (os dois cobrem a planta). */",
   "  function fecharAnalytics() {",
-  "    const b = $('btnAnalytics');",
-  "    if (b && b.getAttribute('aria-pressed') === 'true') b.click();",
+  "    ['btnAnalytics', 'btnCalendario'].forEach((id) => {",
+  "      const b = $(id);",
+  "      if (b && b.getAttribute('aria-pressed') === 'true') b.click();",
+  "    });",
   "  }",
   "",
   "  /**",
@@ -14655,6 +16396,11 @@ const PAGINA_ = [
   "        alvo: '#btnAnalytics',",
   "        titulo: 'Analytics',",
   "        texto: 'Como o espaço de cada ER se divide entre movimentos, marcas e classificações.',",
+  "      },",
+  "      {",
+  "        alvo: '#btnCalendario',",
+  "        titulo: 'Calendário',",
+  "        texto: 'Quando cada ciclo do Boticário e da Eudora começa e termina, com os movimentos empilhados por GMV esperado e exposição.',",
   "      },",
   "      {",
   "        alvo: '#btnPng',",
@@ -14913,6 +16659,7 @@ const PAGINA_ = [
   "    ajustes: {}, // ajustes de etiquetas ainda não salvos (planta atual): id → {x, y}; LOJA → {escala} (tamanho, em %)",
   "    grupos: [],",
   "    analytics: false, // dashboard \"Analytics\" aberto (no lugar da planta)",
+  "    calendario: false, // calendário dos ciclos aberto (no lugar da planta, na largura toda)",
   "    painelLoja: false, // menu da esquerda (nome da ER, TV / rádio, A, C, notas, símbolos, itens extras) aberto",
   "    tela: { w: 1920, h: 1080 }, // tamanho do slide do último desenho (cresce em 16:9 quando as etiquetas pedem)",
   "    simbolos: [], // símbolos usados na planta (legenda do menu da esquerda)",
@@ -15557,6 +17304,7 @@ const PAGINA_ = [
   "    atualizarCanto(!ctx.paineis);",
   "    aplicarZoom();",
   "    atualizarAnalytics();",
+  "    if (estado.calendario) atualizarCalendario(); // dados novos (Atualizar, Desenvolvedor): redesenha",
   "    atualizarPainelLoja();",
   "    Validacao.atualizar();",
   "    Rascunho.atualizar();",
@@ -16395,6 +18143,7 @@ const PAGINA_ = [
   "",
   "  function alternarAnalytics(aberto) {",
   "    estado.analytics = aberto === undefined ? !estado.analytics : !!aberto;",
+  "    if (estado.analytics && estado.calendario) alternarCalendario(false);",
   "    esconderBalao();",
   "    atualizarAnalytics();",
   "  }",
@@ -16411,6 +18160,194 @@ const PAGINA_ = [
   "    const antes = estado.planta;",
   "    if (o.er && o.er !== antes) trocarPlanta(o.er);",
   "    if (estado.planta === antes) desenhar();",
+  "  }",
+  "",
+  "  /* ------------------------- calendário dos ciclos -------------------------- */",
+  "",
+  "  /**",
+  "   * Dados do calendário dos ciclos (Calendario.desenhar): os ciclos de cada calendário (Boticário e Eudora, das",
+  "   * abas da planilha do calendário), cada um ligado ao ciclo do app de mesmo nome, e os movimentos de cada ciclo",
+  "   * do app (de todas as marcas, juntos), cada um com o início e o fim do ciclo no calendário da marca dele. Um",
+  "   * movimento segue o calendário da marca que tem mais espaço nele: só a Eudora tem calendário próprio; as",
+  "   * outras marcas (e o movimento sem marca) seguem o do Boticário. Se o ciclo não estiver no calendário da",
+  "   * marca, valem as datas do outro calendário. ordemSalva: a ordem dos movimentos que o construtor salvou para",
+  "   * o ciclo (aba Ordem do calendário), ou null. selo de cada movimento: { hotspot, medalha } (aba Selos dos",
+  "   * movimentos), ou null.",
+  "   * Exposição: a fatia do espaço de exposição (sem VM) da ER que vai para o movimento; sem `er`, a média das",
+  "   * ERs (cada ER é um tamanho médio da rede: nada soma ERs). GMV: o esperado, da aba Tipos de movimento.",
+  "   * Em cada ciclo, fatiaExposicao e fatiaGmv são a parte do movimento na exposição e no GMV do ciclo (somam",
+  "   * 100% entre os movimentos) e o equilíbrio é a média das duas.",
+  "   */",
+  "  function dadosCalendario(er) {",
+  "    const cal = estado.dados.calendario || { calendarios: {}, ciclos: {}, feriados: [] };",
+  "    const feriados = cal.feriados || [];",
+  "    const doApp = {};",
+  "    todosOsCiclos().forEach((c) => { doApp[Calendario.chaveCiclo(c)] = c; });",
+  "    const plantas = er ? estado.dados.plantas.filter((p) => p.id === er) : estado.dados.plantas;",
+  "    const ordemM = ordemDasMarcas();",
+  "    const porCiclo = {};",
+  "    const movimentosDoCiclo = (ciclo) => {",
+  "      if (porCiclo[ciclo]) return porCiclo[ciclo];",
+  "      const movs = {};",
+  "      const daChave = (k, texto) => movs[k] || (movs[k] = { chave: k, texto: Render.movimentoDaEtiqueta(texto), porEr: {}, marcas: {}, espacos: 0 });",
+  "      const ers = plantas.map((p) => {",
+  "        const partes = partesDeEspaco(p, ciclo).filter((pt) => !pt.vm);",
+  "        const total = partes.reduce((s, pt) => s + pt.peso, 0);",
+  "        partes.forEach((pt) => movimentosDaParte(pt).forEach((g) => {",
+  "          const m = daChave(g.chave, g.etiquetas[0].texto);",
+  "          m.porEr[p.id] = (m.porEr[p.id] || 0) + g.valor;",
+  "          m.espacos += g.valor;",
+  "          const codigos = g.etiquetas.map((x) => x.marca).filter(Boolean)",
+  "            .reduce((l, x) => l.concat(String(x).split('+').map((c) => c.trim())), [])",
+  "            .map((c) => (estado.dados.marcas[c] ? c : 'OUTRA'));",
+  "          const unicos = (codigos.length ? codigos : ['NEUTRO']).filter((c, i, l) => l.indexOf(c) === i);",
+  "          unicos.forEach((c) => { m.marcas[c] = (m.marcas[c] || 0) + g.valor / unicos.length; });",
+  "        }));",
+  "        return { id: p.id, total };",
+  "      });",
+  "      // Movimentos cadastrados nos tipos sem espaço no ciclo também entram (só com o GMV).",
+  "      Object.values((estado.dados.tiposMovimento || {})[ciclo] || {}).forEach((t) => daChave(chaveEtiqueta(t.texto), t.texto));",
+  "      const comEspaco = ers.filter((e) => e.total);",
+  "      const lista = Object.values(movs).map((m) => {",
+  "        const tipo = tipoDe(ciclo, m.texto);",
+  "        const soma = Object.values(m.marcas).reduce((a, b) => a + b, 0);",
+  "        const marcas = ordemM.filter((c) => m.marcas[c]).map((c) => ({ cod: c, nome: nomeMarcaPainel(c), cor: corMarcaPainel(c), valor: m.marcas[c] / soma }));",
+  "        const principal = marcas.slice().sort((a, b) => b.valor - a.valor)[0];",
+  "        const classe = tipo && tipo.classificacao ? tipo.classificacao : SEM_CLASSIFICACAO;",
+  "        // ER para ver o movimento na planta: a da tela, se ele estiver nela; senão, a ER com mais espaço dele.",
+  "        const ersDoMov = Object.keys(m.porEr).sort((a, b) => m.porEr[b] - m.porEr[a]);",
+  "        return {",
+  "          texto: m.texto,",
+  "          calendario: principal && principal.cod === 'EUD' ? 'EUD' : 'BOT',",
+  "          marcas,",
+  "          cor: principal && principal.cod !== 'NEUTRO' ? principal.cor : COR_SEM_MARCA,",
+  "          classe: classe === SEM_CLASSIFICACAO ? null : { cod: classe, nome: nomeClassificacao(classe), cor: corClassificacao(classe) },",
+  "          gmv: tipo && typeof tipo.gmv === 'number' && tipo.gmv > 0 ? tipo.gmv : 0,",
+  "          espacos: comEspaco.length ? m.espacos / comEspaco.length : 0,",
+  "          exposicao: comEspaco.length ? comEspaco.reduce((s, e) => s + (m.porEr[e.id] || 0) / e.total, 0) / comEspaco.length : 0,",
+  "          er: ersDoMov.indexOf(estado.planta) >= 0 ? estado.planta : ersDoMov[0] || estado.planta,",
+  "        };",
+  "      });",
+  "      const totalExpo = lista.reduce((s, m) => s + m.exposicao, 0);",
+  "      const totalGmv = lista.reduce((s, m) => s + m.gmv, 0);",
+  "      lista.forEach((m) => {",
+  "        m.fatiaExposicao = totalExpo ? m.exposicao / totalExpo : 0;",
+  "        m.fatiaGmv = totalGmv ? m.gmv / totalGmv : 0;",
+  "        // Sem GMV no ciclo (ou sem exposição), o equilíbrio fica com a medida que existe.",
+  "        m.equilibrio = totalExpo && totalGmv ? (m.fatiaExposicao + m.fatiaGmv) / 2 : m.fatiaExposicao || m.fatiaGmv;",
+  "      });",
+  "      porCiclo[ciclo] = lista;",
+  "      return lista;",
+  "    };",
+  "    const corDoCalendario = (k) => (estado.dados.marcas[k] ? estado.dados.marcas[k].etiqueta : COR_SEM_MARCA);",
+  "    const datasDoApp = {}; // ciclo do app → { BOT: {inicio, fim}, EUD: {…} }",
+  "    const calendarios = Object.keys(cal.calendarios || {}).map((k) => ({",
+  "      cod: k,",
+  "      nome: cal.calendarios[k].nome,",
+  "      descricao: cal.calendarios[k].descricao,",
+  "      cor: corDoCalendario(k),",
+  "      ciclos: ((cal.ciclos || {})[k] || []).map((c) => {",
+  "        const app = doApp[Calendario.chaveCiclo(c.ciclo)] || '';",
+  "        if (app) (datasDoApp[app] = datasDoApp[app] || {})[k] = { inicio: c.inicio, fim: c.fim };",
+  "        const d0 = Calendario.datas.dia(c.inicio);",
+  "        const d1 = Calendario.datas.dia(c.fim);",
+  "        return {",
+  "          ciclo: c.ciclo, inicio: c.inicio, fim: c.fim, cicloApp: app,",
+  "          dias: d1 - d0 + 1,",
+  "          uteis: Calendario.datas.uteis(c.inicio, c.fim, feriados),",
+  "          feriados: feriados.filter((f) => f.data >= c.inicio && f.data <= c.fim),",
+  "        };",
+  "      }),",
+  "    }));",
+  "    // Um grupo por ciclo do app com datas: todos os movimentos dele, cada um nas datas do seu calendário.",
+  "    const grupos = Object.keys(datasDoApp).map((app) => {",
+  "      const porCal = datasDoApp[app];",
+  "      const selos = (estado.dados.selosCalendario || {})[app] || {};",
+  "      const movimentos = movimentosDoCiclo(app).map((m) => {",
+  "        const proprio = porCal[m.calendario];",
+  "        const datasMov = proprio || porCal.BOT || porCal[Object.keys(porCal)[0]];",
+  "        return Object.assign({}, m, {",
+  "          inicio: datasMov.inicio, fim: datasMov.fim, datasDoOutro: !proprio,",
+  "          selo: selos[chaveEtiqueta(m.texto)] || null,",
+  "          nomeCalendario: (cal.calendarios[m.calendario] || {}).nome || m.calendario,",
+  "        });",
+  "      });",
+  "      const inicio = Object.values(porCal).map((x) => x.inicio).sort()[0];",
+  "      const salva = (estado.dados.ordemCalendario || {})[app];",
+  "      return { cicloApp: app, inicio, movimentos, ordemSalva: salva ? salva.movimentos : null, ordemPor: salva ? salva.por + (salva.em ? ', ' + salva.em : '') : '' };",
+  "    });",
+  "    return {",
+  "      calendarios,",
+  "      grupos,",
+  "      feriados,",
+  "      ers: estado.dados.plantas.map((p) => ({ id: p.id, nome: p.nome })),",
+  "      cicloAtual: estado.ciclo,",
+  "      semDatas: todosOsCiclos().filter((c) => !datasDoApp[c]),",
+  "      medalhas: estado.dados.medalhas || {},",
+  "    };",
+  "  }",
+  "",
+  "  /** Calendário dos ciclos: ocupa a área da planta inteira (a planta continua desenhada por baixo). */",
+  "  function atualizarCalendario() {",
+  "    const painel = $('painelCalendario');",
+  "    if (!painel) return;",
+  "    const aberto = estado.calendario && !!estado.dados && !Editor.contexto();",
+  "    painel.hidden = !aberto;",
+  "    document.body.classList.toggle('com-calendario', aberto);",
+  "    if ($('btnCalendario')) $('btnCalendario').setAttribute('aria-pressed', String(aberto));",
+  "    if (!aberto) { $('calCorpo').innerHTML = ''; return; } // ao abrir de novo, rola até o ciclo da tela",
+  "    const cal = estado.dados.calendario || { ciclos: {} };",
+  "    const n = Object.keys(cal.ciclos || {}).reduce((s, k) => s + cal.ciclos[k].length, 0);",
+  "    $('calSub').textContent = n ? n + (n === 1 ? ' ciclo' : ' ciclos') + ' no calendário' + (estado.ciclo ? ' · na tela: ' + estado.ciclo : '') : '';",
+  "    Calendario.desenhar($('calCorpo'), {",
+  "      dados: dadosCalendario,",
+  "      abrirCiclo: (ciclo) => {",
+  "        alternarCalendario(false);",
+  "        if (ciclo !== estado.ciclo) { estado.ciclo = ciclo; montarCiclos(); desenhar(); }",
+  "      },",
+  "      verMovimento: (o) => {",
+  "        alternarCalendario(false);",
+  "        if (o.ciclo !== estado.ciclo) { estado.ciclo = o.ciclo; montarCiclos(); }",
+  "        verNaPlanta({ etiqueta: o.texto, er: o.er });",
+  "      },",
+  "      // Construção: o construtor muda a ordem dos movimentos de um ciclo e salva (movimentos null = volta à automática).",
+  "      construtor: () => !!Validacao.acesso() && Validacao.acesso().papel === 'CONSTRUTOR',",
+  "      salvarOrdem: async (ciclo, movimentos) => {",
+  "        carregando(true, 'Salvando a ordem…');",
+  "        try {",
+  "          estado.dados.ordemCalendario = await chamar('salvarOrdemCalendario', Validacao.acesso(),",
+  "            movimentos ? { ciclo, movimentos } : { ciclo, limpar: true });",
+  "          toast(movimentos ? 'Ordem do ' + ciclo + ' salva.' : 'O ' + ciclo + ' voltou à ordem automática.');",
+  "          return true;",
+  "        } catch (e) {",
+  "          erro(e);",
+  "          return false;",
+  "        } finally {",
+  "          carregando(false);",
+  "        }",
+  "      },",
+  "      // Selos (hotspot e medalha) dos movimentos de um ciclo: [{ movimento, hotspot, medalha }].",
+  "      salvarSelos: async (ciclo, selos) => {",
+  "        carregando(true, 'Salvando os selos…');",
+  "        try {",
+  "          estado.dados.selosCalendario = await chamar('salvarSelosCalendario', Validacao.acesso(), { ciclo, selos });",
+  "          toast('Selos do ' + ciclo + ' salvos.');",
+  "          return true;",
+  "        } catch (e) {",
+  "          erro(e);",
+  "          return false;",
+  "        } finally {",
+  "          carregando(false);",
+  "        }",
+  "      },",
+  "    });",
+  "  }",
+  "",
+  "  function alternarCalendario(aberto) {",
+  "    estado.calendario = aberto === undefined ? !estado.calendario : !!aberto;",
+  "    if (estado.calendario && estado.analytics) alternarAnalytics(false);",
+  "    esconderBalao();",
+  "    atualizarCalendario();",
   "  }",
   "",
   "  /* -------------------- estatísticas da construção do ciclo ------------------- */",
@@ -17041,8 +18978,17 @@ const PAGINA_ = [
   "    const estr = dlg.querySelector('input[name=\"pngConteudo\"][value=\"estrategia\"]');",
   "    estr.disabled = !estado.ciclo;",
   "    estr.closest('label').title = estado.ciclo ? '' : 'Escolha um ciclo para baixar a estratégia';",
+  "    // Calendário do ciclo: os ciclos do app com datas no calendário (começa no da tela).",
+  "    const comDatas = dadosCalendario('').grupos.map((g) => g.cicloApp);",
+  "    const cal = dlg.querySelector('input[name=\"pngConteudo\"][value=\"calendario\"]');",
+  "    cal.disabled = !comDatas.length;",
+  "    cal.closest('label').title = comDatas.length ? '' : 'Nenhum ciclo do app tem datas no calendário dos ciclos';",
+  "    const selCal = $('pngCicloCal');",
+  "    selCal.textContent = '';",
+  "    comDatas.forEach((c) => selCal.add(new Option(c, c, false, c === estado.ciclo)));",
   "    const atual = dlg.querySelector('input[name=\"pngConteudo\"]:checked');",
-  "    if (!atual || atual.disabled || atual.value !== 'estrategia') {",
+  "    if (estado.calendario && comDatas.length) cal.checked = true; // com o calendário aberto, já vem nele",
+  "    else if (!atual || atual.disabled || (atual.value !== 'estrategia' && atual.value !== 'calendario')) {",
   "      dlg.querySelector('input[name=\"pngConteudo\"][value=\"' + (estado.visao === 'simplificada' ? 'simplificada' : 'planta') + '\"]').checked = true;",
   "    }",
   "    $('pngEsta').textContent = plantaAtual().nome;",
@@ -17062,17 +19008,24 @@ const PAGINA_ = [
   "    const dlg = $('dlgPng');",
   "    const conteudo = dlg.querySelector('input[name=\"pngConteudo\"]:checked').value;",
   "    // Todas as ERs: um PowerPoint com o slide completo de cada ER (o formato fica fixo).",
+  "    const calendario = conteudo === 'calendario';",
+  "    // O calendário do ciclo é um só (as ERs entram na exposição como no calendário da tela).",
+  "    const rTodas = dlg.querySelector('input[name=\"pngErs\"][value=\"todas\"]');",
+  "    rTodas.disabled = calendario;",
+  "    if (calendario) dlg.querySelector('input[name=\"pngErs\"][value=\"esta\"]').checked = true;",
+  "    $('pngCicloCalCampo').hidden = !calendario;",
   "    const todas = dlg.querySelector('input[name=\"pngErs\"]:checked').value === 'todas';",
   "    dlg.querySelectorAll('input[name=\"pngFormato\"]').forEach((r) => { r.disabled = todas; });",
   "    if (todas) dlg.querySelector('input[name=\"pngFormato\"][value=\"slide\"]').checked = true;",
   "    $('pngBaixar').textContent = todas ? 'Baixar .pptx' : 'Baixar PNG';",
   "    const estrategia = conteudo === 'estrategia';",
   "    $('pngFormatoPng').textContent = estrategia ? '— só os gráficos, recortados e com fundo transparente'",
-  "      : '— só o conteúdo, recortado e com fundo transparente';",
-  "    $('pngFormatoSlide').textContent = estrategia ? '— 16:9 (3840 px), com título e fundo, pronto para a apresentação'",
+  "      : calendario ? '— só a linha do tempo e os movimentos, recortados e com fundo transparente'",
+  "        : '— só o conteúdo, recortado e com fundo transparente';",
+  "    $('pngFormatoSlide').textContent = estrategia || calendario ? '— 16:9 (3840 px), com título e fundo, pronto para a apresentação'",
   "      : '— 16:9 (3840 px), com fundo, painéis e notas, pronto para a apresentação';",
-  "    // O filtro da tela vale para a planta e a visão simplificada; a estratégia mostra o ciclo inteiro.",
-  "    $('pngFiltroTexto').hidden = estrategia || !$('pngFiltroTexto').textContent;",
+  "    // O filtro da tela vale para a planta e a visão simplificada; a estratégia e o calendário mostram o ciclo inteiro.",
+  "    $('pngFiltroTexto').hidden = estrategia || calendario || !$('pngFiltroTexto').textContent;",
   "  }",
   "",
   "  /**",
@@ -17121,7 +19074,10 @@ const PAGINA_ = [
   "      const soPlanta = modo === 'planta';",
   "      const r = conteudo === 'estrategia'",
   "        ? { tela: Estrategia.desenhar(temp, dadosEstrategia(planta, estado.ciclo), { recorte: soPlanta }) }",
-  "        : Render.desenhar(temp, Object.assign(contextoDesenho(planta), {",
+  "        : conteudo === 'calendario'",
+  "          // O calendário do ciclo, com as escolhas do calendário da tela (ordem e exposição).",
+  "          ? { tela: Calendario.slide(temp, dadosCalendario(Calendario.vista().er), { ciclo: $('pngCicloCal').value, recorte: soPlanta }) }",
+  "          : Render.desenhar(temp, Object.assign(contextoDesenho(planta), {",
   "          somentePlanta: soPlanta, paineis: !soPlanta, edicao: false, selecionado: '', grade: false, referencia: null, escuro: false,",
   "          visao: conteudo === 'simplificada' ? 'simplificada' : 'planta',",
   "        }));",
@@ -17200,7 +19156,8 @@ const PAGINA_ = [
   "    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);",
   "    await img.decode();",
   "    // Slide completo: sempre 3840 px de largura (16:9), mesmo quando o slide cresceu para caber as fichas.",
-  "    const escala = modo === 'planta' ? 2 : 3840 / caixa.w;",
+  "    // O calendário do ciclo cresce com os movimentos: recortado, fica com até 3840 px de largura.",
+  "    const escala = modo === 'planta' ? (conteudo === 'calendario' ? Math.min(2, 3840 / caixa.w) : 2) : 3840 / caixa.w;",
   "    const canvas = document.createElement('canvas');",
   "    canvas.width = Math.round(caixa.w * escala);",
   "    canvas.height = Math.round(caixa.h * escala);",
@@ -17230,6 +19187,10 @@ const PAGINA_ = [
   "      const blob = await gerarPng(modo, conteudo, planta);",
   "      const marca = estado.filtro && estado.dados.marcas[estado.filtro];",
   "      const estrategia = conteudo === 'estrategia';",
+  "      if (conteudo === 'calendario') {",
+  "        baixarArquivo(blob, nomeDeArquivo(['Calendario', $('pngCicloCal').value, modo === 'slide' ? 'slide' : ''], '.png'));",
+  "        return;",
+  "      }",
   "      baixarArquivo(blob, nomeDeArquivo([planta.nome, estado.ciclo, estrategia ? 'estrategia' : conteudo === 'simplificada' ? 'visao simplificada' : 'planta',",
   "        modo === 'slide' ? 'slide' : '', !estrategia && marca ? marca.nome : ''], '.png'));",
   "    } catch (e) {",
@@ -17381,6 +19342,7 @@ const PAGINA_ = [
   "    ligar = ligar === undefined ? !ativo : ligar;",
   "    if (ligar === ativo || (ligar && (!estado.dados || Editor.ativo()))) return;",
   "    if (ligar && estado.analytics) alternarAnalytics(false);",
+  "    if (ligar && estado.calendario) alternarCalendario(false);",
   "    document.body.classList.toggle('apresentando', ligar);",
   "    if (ligar) {",
   "      const el = document.documentElement;",
@@ -17497,6 +19459,7 @@ const PAGINA_ = [
   "      if (it.er !== estado.planta) trocarPlanta(it.er);",
   "      if (estado.planta === it.er) {",
   "        if (estado.analytics) alternarAnalytics(false);",
+  "        if (estado.calendario) alternarCalendario(false);",
   "        abrirMovel(it.id);",
   "      }",
   "      return;",
@@ -17554,6 +19517,8 @@ const PAGINA_ = [
   "    ao('btnEditar', 'click', () => estado.dados && alternarEdicao());",
   "    ao('btnAnalytics', 'click', () => estado.dados && alternarAnalytics());",
   "    ao('anFechar', 'click', () => alternarAnalytics(false));",
+  "    ao('btnCalendario', 'click', () => estado.dados && alternarCalendario());",
+  "    ao('calFechar', 'click', () => alternarCalendario(false));",
   "    ao('anInfo', 'click', () => {",
   "      if (!estado.dados || !estado.ciclo) return;",
   "      Analytics.desenharInfo($('anInfoCorpo'), dadosAnalytics(estado.ciclo), { miniatura: Render.miniaturaEspacos });",
@@ -17561,8 +19526,9 @@ const PAGINA_ = [
   "    });",
   "    ao('btnLoja', 'click', () => {",
   "      // Com o Analytics aberto, o botão volta para a planta com o menu da ER aberto.",
-  "      estado.painelLoja = estado.analytics ? true : !estado.painelLoja;",
+  "      estado.painelLoja = estado.analytics || estado.calendario ? true : !estado.painelLoja;",
   "      if (estado.analytics) alternarAnalytics(false);",
+  "      if (estado.calendario) alternarCalendario(false);",
   "      memoria.gravar('painelLoja', estado.painelLoja ? '1' : '0');",
   "      atualizarPainelLoja();",
   "    });",
@@ -17631,6 +19597,8 @@ const PAGINA_ = [
   "      if (e.key === 'Escape' && document.body.classList.contains('apresentando')) { alternarApresentacao(false); return; }",
   "      // Com o Analytics aberto (meia tela), Esc fecha ele; o zoom e as setas continuam valendo na planta.",
   "      if (estado.analytics && e.key === 'Escape' && !document.querySelector('.tut-foco')) { alternarAnalytics(false); return; }",
+  "      // O calendário cobre a planta: Esc fecha; o zoom e as setas não valem enquanto ele está aberto.",
+  "      if (estado.calendario) { if (e.key === 'Escape' && !document.querySelector('.tut-foco')) alternarCalendario(false); return; }",
   "      if (e.key === '+' || e.key === '=') { zoomPara(estado.zoom.k * 1.5); return; }",
   "      if (e.key === '-' || e.key === '_') { zoomPara(estado.zoom.k / 1.5); return; }",
   "      if (e.key === '0') { zoomPara(1); return; }",
@@ -17687,7 +19655,7 @@ const PAGINA_ = [
   "  Validacao.iniciar({",
   "    estado, chamar, toast, erro, desenhar, plantaAtual, trocarPlanta,",
   "    abrirMovel: (id) => abrirMovel(id),",
-  "    fecharAnalytics: () => alternarAnalytics(false),",
+  "    fecharAnalytics: () => { alternarAnalytics(false); alternarCalendario(false); },",
   "    montarRascunhos: (corpo) => { Rascunho.montarSecao(corpo); Antecipacao.montarSecao(corpo); },",
   "    construindo: () => Rascunho.painelVisivel(),",
   "    aoEntrar: () => Rascunho.recarregar(),",
@@ -17707,7 +19675,26 @@ const PAGINA_ = [
   "    acesso: () => Validacao.acesso(),",
   "    movimentoDaPlanilha,",
   "  });",
-  "  Briefing.iniciar({ estado, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca });",
+  "  Briefing.iniciar({",
+  "    estado, chamar, toast, erro, carregando, plantaAtual, planogramaDoMovel, corDaMarca, nomeDaMarca,",
+  "    acesso: () => Validacao.acesso(),",
+  "    // Resultado com links (ex.: o briefing salvo no Drive): título, texto e [{ texto, url }].",
+  "    mostrarResultado: (titulo, texto, links) => {",
+  "      $('resTitulo').textContent = titulo;",
+  "      $('resTexto').textContent = texto;",
+  "      const ul = $('resAvisos');",
+  "      ul.textContent = '';",
+  "      (links || []).forEach((l) => {",
+  "        const a = document.createElement('a');",
+  "        a.href = l.url;",
+  "        a.target = '_blank';",
+  "        a.rel = 'noopener';",
+  "        a.textContent = l.texto;",
+  "        ul.appendChild(document.createElement('li')).appendChild(a);",
+  "      });",
+  "      $('dlgResultado').showModal();",
+  "    },",
+  "  });",
   "  Prateleira.iniciar({",
   "    estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,",
   "    acesso: () => Validacao.acesso(),",

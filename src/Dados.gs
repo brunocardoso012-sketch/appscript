@@ -183,6 +183,7 @@ function montarDados_(valoresLayout, valoresMov, valoresPain, valoresTipos) {
     secoes: SECOES_PAINEL,
     tipos: TIPOS_MOVEL,
     tiposConstrucao: TIPOS_CONSTRUCAO,
+    medalhas: MEDALHAS,
     colunas: { movimentos: colunasMovimentos_(), paineis: colunasPaineis_(), tipos: colunasTipos_(), layout: colunasLayout_(), produtos: colunasProdutos_() },
     config: {
       maxEtiquetas: CONFIG.MAX_ETIQUETAS, plantaTodas: CONFIG.PLANTA_TODAS, abas: CONFIG.ABAS,
@@ -308,6 +309,123 @@ function acharColuna_(cabecalhoNormalizado, coluna) {
     if (i >= 0) return i;
   }
   return -1;
+}
+
+/* ------------------------- Calendário dos ciclos -------------------------- */
+
+/** Calendário dos ciclos que a marca segue: só a Eudora tem o dela; todas as outras seguem o do Boticário. */
+function calendarioDaMarca_(marca) {
+  return normMarca_(marca) === 'EUD' ? 'EUD' : 'BOT';
+}
+
+/** "2026-10-25" → dia corrido (para contar dias sem fuso nem horário de verão). */
+function diaDaData_(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000) : NaN;
+}
+
+/** Dias úteis entre duas datas (inclusive): de segunda a sexta, menos os feriados. */
+function diasUteis_(inicio, fim, feriados) {
+  const fer = {};
+  (feriados || []).forEach(function (f) { fer[diaDaData_(f.data)] = true; });
+  let n = 0;
+  for (let d = diaDaData_(inicio); d <= diaDaData_(fim); d++) {
+    const semana = new Date(d * 86400000).getUTCDay();
+    if (semana !== 0 && semana !== 6 && !fer[d]) n++;
+  }
+  return n;
+}
+
+/**
+ * Calendário dos ciclos e feriados, das abas "Calendário de ciclos" (Marca, Ciclo, Início, Fim) e "Feriados"
+ * (Data, Feriado). A Marca diz o calendário: Eudora (EUD) tem o dela; qualquer outra (ou vazia), o do Boticário.
+ * Datas: data do Sheets, dd/mm/aaaa ou aaaa-mm-dd. Linhas com problema ficam de fora, com aviso; ciclos que se
+ * sobrepõem no mesmo calendário ficam, com aviso.
+ * @return {{calendarios, ciclos: {BOT: Array<{ciclo, inicio, fim}>, EUD: Array}, feriados: Array<{data, nome}>,
+ *   avisos: string[], observacoes: string[], abas: {ciclos: boolean, feriados: boolean}}}
+ *   avisos: problemas de leitura; observacoes: dias sem ciclo entre dois ciclos e ciclos que começam num
+ *   feriado ou fim de semana (só informativo)
+ */
+function calendarioDeValores_(valoresCiclos, valoresFeriados) {
+  const avisos = [];
+  const aviso = function (msg) { if (avisos.length < 40) avisos.push(msg); };
+  const ciclos = {};
+  Object.keys(CALENDARIOS).forEach(function (k) { ciclos[k] = []; });
+  const dataBr = function (iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4); };
+
+  if (valoresCiclos && valoresCiclos.length) {
+    const lido = objetosDeValores_(valoresCiclos, colunasCiclos_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.CICLOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    } else {
+      const vistos = {};
+      lido.linhas.forEach(function (l) {
+        const onde = CONFIG.ABAS.CICLOS + ', linha ' + l._linha;
+        const ciclo = texto_(l.ciclo).replace(/\s+/g, ' ');
+        const inicio = dataAntecipacao_(l.inicio);
+        const fim = dataAntecipacao_(l.fim);
+        if (!ciclo) { aviso(onde + ': sem o nome do ciclo — linha ignorada.'); return; }
+        if (!inicio || !fim) { aviso(onde + ' (' + ciclo + '): o início ou o fim não é uma data — linha ignorada.'); return; }
+        if (fim < inicio) { aviso(onde + ' (' + ciclo + '): o fim vem antes do início — linha ignorada.'); return; }
+        const cal = calendarioDaMarca_(l.calendario);
+        const k = cal + '|' + chave_(ciclo);
+        if (vistos[k]) { aviso(onde + ': o ' + ciclo + ' já aparece antes no calendário ' + CALENDARIOS[cal].nome + ' — linha ignorada.'); return; }
+        vistos[k] = true;
+        ciclos[cal].push({ ciclo: ciclo, inicio: inicio, fim: fim });
+      });
+    }
+  }
+  Object.keys(ciclos).forEach(function (k) {
+    ciclos[k].sort(function (a, b) { return a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : 0; });
+    ciclos[k].forEach(function (c, i) {
+      const ant = ciclos[k][i - 1];
+      if (ant && c.inicio <= ant.fim) aviso(CONFIG.ABAS.CICLOS + ': no calendário ' + CALENDARIOS[k].nome + ', o ' + c.ciclo + ' se sobrepõe ao ' + ant.ciclo + '.');
+    });
+  });
+
+  const feriados = [];
+  if (valoresFeriados && valoresFeriados.length) {
+    const lido = objetosDeValores_(valoresFeriados, colunasFeriados_());
+    if (lido.faltando.length) {
+      aviso('Aba "' + CONFIG.ABAS.FERIADOS + '": coluna(s) não encontrada(s): ' + lido.faltando.join(', ') + '.');
+    } else {
+      const vistos = {};
+      lido.linhas.forEach(function (l) {
+        const data = dataAntecipacao_(l.data);
+        if (!data) { aviso(CONFIG.ABAS.FERIADOS + ', linha ' + l._linha + ': "' + texto_(l.data) + '" não é uma data — linha ignorada.'); return; }
+        if (vistos[data]) return;
+        vistos[data] = true;
+        feriados.push({ data: data, nome: texto_(l.nome).replace(/\s+/g, ' ') || 'Feriado' });
+      });
+      feriados.sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+    }
+  }
+
+  // Observações (não impedem nada): buracos entre os ciclos e começo em feriado ou fim de semana.
+  const observacoes = [];
+  const fer = {};
+  feriados.forEach(function (f) { fer[f.data] = f.nome; });
+  Object.keys(ciclos).forEach(function (k) {
+    const nomeCal = CALENDARIOS[k].nome;
+    ciclos[k].forEach(function (c, i) {
+      const ant = ciclos[k][i - 1];
+      const buraco = ant ? diaDaData_(c.inicio) - diaDaData_(ant.fim) - 1 : 0;
+      if (buraco > 0) observacoes.push(nomeCal + ': ' + buraco + (buraco === 1 ? ' dia' : ' dias') + ' sem ciclo entre o ' + ant.ciclo + ' e o ' + c.ciclo + '.');
+      if (fer[c.inicio]) observacoes.push(nomeCal + ': o ' + c.ciclo + ' começa num feriado (' + fer[c.inicio] + ', ' + dataBr(c.inicio) + ').');
+      else if ([0, 6].indexOf(new Date(diaDaData_(c.inicio) * 86400000).getUTCDay()) >= 0) {
+        observacoes.push(nomeCal + ': o ' + c.ciclo + ' começa num fim de semana (' + dataBr(c.inicio) + ').');
+      }
+    });
+  });
+
+  return {
+    calendarios: CALENDARIOS,
+    ciclos: ciclos,
+    feriados: feriados,
+    avisos: avisos,
+    observacoes: observacoes.slice(0, 40),
+    abas: { ciclos: !!valoresCiclos, feriados: !!valoresFeriados },
+  };
 }
 
 /* ------------------------------ Inventário -------------------------------- */

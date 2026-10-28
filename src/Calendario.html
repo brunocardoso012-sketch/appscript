@@ -1,0 +1,783 @@
+<script>
+/**
+ * ============================================================================
+ *  CALENDÁRIO DOS CICLOS (botão "Calendário" no topo)
+ * ============================================================================
+ *  Uma linha do tempo horizontal: as datas correm da esquerda para a direita, no topo (meses, dias, fins de
+ *  semana, feriados e hoje). Logo abaixo das datas, as faixas dos ciclos dos dois calendários, que acontecem
+ *  ao mesmo tempo: a do Boticário (que vale para todas as marcas, menos a Eudora) e a da Eudora. Embaixo,
+ *  todos os movimentos juntos (de todas as marcas): cada um é um retângulo que começa no dia do início e
+ *  termina no dia do fim do ciclo dele, no calendário da marca dele (Eudora no da Eudora; as outras marcas
+ *  no do Boticário).
+ *
+ *  Os movimentos de um ciclo são empilhados um embaixo do outro, do mais importante (em cima) para o menos
+ *  importante, por uma de três ordens:
+ *   - equilíbrio (a principal): a média entre a fatia do movimento no GMV esperado do ciclo e a fatia dele
+ *     na exposição (destaque) do ciclo;
+ *   - só GMV esperado;
+ *   - só exposição (a fatia do espaço de exposição da ER que vai para o movimento);
+ *   - a ordem da construção: a que o construtor da estratégia salvou para o ciclo (aba Ordem do calendário),
+ *     a padrão quando existe; os movimentos que não estão nela (e os ciclos sem ela) seguem o equilíbrio.
+ *  Com o login da Construção, "Ordem e selos" abre ao lado da linha do tempo a lista dos movimentos de um ciclo:
+ *  arraste (ou use ↑ ↓) e salve, e dê selos especiais aos movimentos: "hotspot" e uma medalha (ouro, prata ou
+ *  bronze, MEDALHAS em Config.gs). A linha do tempo mostra as mudanças enquanto elas são feitas.
+ *
+ *  Calendario.slide(svg, dados, { ciclo, recorte }): o calendário de um ciclo do app num SVG (PNG / slide 16:9),
+ *  com as datas do Boticário e da Eudora e os movimentos empilhados como na tela.
+ *  Um ciclo que começa antes de o anterior terminar (o da Eudora e o do Boticário se sobrepõem) não cobre os
+ *  retângulos do outro: os dele descem até a primeira linha livre, sempre na mesma ordem.
+ *  As contas vêm prontas da aplicação (App.dadosCalendario); aqui só o desenho.
+ *
+ *  Calendario.datas: as contas de datas ('AAAA-MM-DD' ↔ dia corrido, dias úteis…).
+ */
+const Calendario = (() => {
+  /* -------------------------------- datas ---------------------------------- */
+
+  const DIA_MS = 86400000;
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+
+  const datas = {
+    /** 'AAAA-MM-DD' → dia corrido (sem fuso nem horário de verão); NaN se inválida. */
+    dia(iso) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+      return m ? Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DIA_MS) : NaN;
+    },
+    iso(dia) { return new Date(dia * DIA_MS).toISOString().slice(0, 10); },
+    /** Dia da semana (0 = domingo). */
+    semana(dia) { return new Date(dia * DIA_MS).getUTCDay(); },
+    hoje() { const d = new Date(); return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DIA_MS); },
+    /** '2026-10-25' → '25/10/2026' (curta: '25/10'). */
+    br(iso, curta) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+      return m ? m[3] + '/' + m[2] + (curta ? '' : '/' + m[1]) : '';
+    },
+    /** Dias úteis entre duas datas (inclusive): de segunda a sexta, menos os feriados. */
+    uteis(inicio, fim, feriados) {
+      const fer = {};
+      (feriados || []).forEach((f) => { fer[f.data] = true; });
+      let n = 0;
+      for (let d = datas.dia(inicio); d <= datas.dia(fim); d++) {
+        const s = datas.semana(d);
+        if (s !== 0 && s !== 6 && !fer[datas.iso(d)]) n++;
+      }
+      return n;
+    },
+  };
+
+  /** Mesmo nome de ciclo, sem diferença de maiúsculas, acentos e espaços (como o chave_ do servidor). */
+  const chaveCiclo = (v) => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  /* ------------------------------- desenho --------------------------------- */
+
+  // Escolhas da tela (valem até recarregar a página).
+  // ordem vazia: a da construção, se algum ciclo tiver uma; senão, o equilíbrio.
+  const vista = { ordem: '', er: '', limite: 10, escala: 'normal' };
+  // Ordem em edição (construtor): { ciclo, lista: [textos], mudou }. rolarPara: dia para mostrar ao começar.
+  let edicao = null;
+  let rolarPara = null;
+  const ORDEM_DEFINIDA = ['definida', 'Ordem da construção', 'A ordem salva na construção (os movimentos que não estão nela seguem o equilíbrio)'];
+  const ORDENS = [
+    ['equilibrio', 'Equilíbrio GMV × exposição', 'Média entre a fatia do movimento no GMV esperado do ciclo e a fatia dele na exposição'],
+    ['gmv', 'Só GMV', 'Só o GMV esperado (aba Tipos de movimento)'],
+    ['exposicao', 'Só exposição', 'Só a fatia do espaço de exposição (destaque) da ER que vai para o movimento'],
+  ];
+  // px por dia e altura de cada linha de movimentos.
+  const ESCALAS = { compacta: { dia: 14, linha: 40 }, normal: { dia: 26, linha: 50 }, ampla: { dia: 42, linha: 56 } };
+  const VAO = 6;
+  const MARGEM = 104; // à esquerda das datas: o lugar dos nomes dos calendários (Boticário, Eudora)
+
+  const fmtPct = (v) => (v > 0 && v < 0.005 ? '<1%' : Math.round(v * 100) + '%');
+  const fmtNum = (n) => (Math.round(n * 10) / 10).toLocaleString('pt-BR');
+  const gmvCurto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 });
+  const gmvCompleto = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
+  function novo(tag, classe, conteudo, pai) {
+    const n = document.createElement(tag);
+    if (classe) n.className = classe;
+    if (conteudo !== undefined && conteudo !== null) n.textContent = conteudo;
+    if (pai) pai.appendChild(n);
+    return n;
+  }
+
+  /** '#RRGGBB' + transparência → 'rgba(…)' (o fundo do retângulo, na cor da marca). */
+  function transparente(hex, alfa) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+    if (!m) return 'rgba(128, 128, 128, ' + alfa + ')';
+    const n = parseInt(m[1], 16);
+    return 'rgba(' + (n >> 16) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ', ' + alfa + ')';
+  }
+
+  /* ------------------------------- selos ---------------------------------- */
+
+  const NS = 'http://www.w3.org/2000/svg';
+  function svgEl(tag, attrs, pai) {
+    const e = document.createElementNS(NS, tag);
+    Object.keys(attrs || {}).forEach((k) => { if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]); });
+    if (pai) pai.appendChild(e);
+    return e;
+  }
+  const CHAMA = 'M12 2C13 6 17.5 8 17.5 13.5a5.5 5.5 0 0 1-11 0c0-2.4 1.1-4.2 2.9-5.5 0 2 .9 3.3 2.2 3.8C11 9 12.7 6.2 12 2z';
+  const COR_HOTSPOT = '#E8590C';
+  /** Estrela de 5 pontas (o centro da medalha). */
+  const estrela = (cx, cy, r) => Array.from({ length: 10 }, (_, i) => {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rr = i % 2 ? r * 0.45 : r;
+    return (i ? 'L' : 'M') + (cx + rr * Math.cos(a)).toFixed(2) + ' ' + (cy + rr * Math.sin(a)).toFixed(2);
+  }).join('') + 'Z';
+
+  /** Medalha (fita e disco na cor do ouro, da prata ou do bronze), numa caixa de 24 × 24 a partir de (x, y). */
+  function medalhaSvg(pai, x, y, tam, info) {
+    const g = svgEl('g', { transform: 'translate(' + x + ' ' + y + ') scale(' + tam / 24 + ')' }, pai);
+    svgEl('path', { d: 'M6.5 1h4.5l3 8h-4.5z', fill: '#C8102E' }, g);
+    svgEl('path', { d: 'M17.5 1H13l-3 8h4.5z', fill: '#1F4FA8' }, g);
+    svgEl('circle', { cx: 12, cy: 15.5, r: 7.5, fill: info.cor, stroke: info.borda, 'stroke-width': 1.6 }, g);
+    svgEl('path', { d: estrela(12, 15.5, 4), fill: 'rgba(255,255,255,0.85)' }, g);
+    return g;
+  }
+
+  /** Ícone da medalha para o HTML. */
+  function medalhaHtml(pai, cod, medalhas) {
+    const info = medalhas[cod];
+    if (!info) return null;
+    const svg = svgEl('svg', { viewBox: '0 0 24 24', width: 18, height: 18, class: 'cal-medalha', role: 'img', 'aria-label': 'Medalha de ' + info.nome.toLowerCase() });
+    medalhaSvg(svg, 0, 0, 24, info);
+    const t = svgEl('title', null, svg);
+    t.textContent = 'Medalha de ' + info.nome.toLowerCase();
+    pai.appendChild(svg);
+    return svg;
+  }
+
+  /** Selo "HOTSPOT" (chama + texto) para o HTML. */
+  function hotspotHtml(pai) {
+    const s = novo('span', 'cal-hotspot', null, pai);
+    s.title = 'Hotspot';
+    svgEl('path', { d: CHAMA, fill: 'currentColor' }, svgEl('svg', { viewBox: '0 0 24 24', width: 11, height: 11, 'aria-hidden': 'true' }, s));
+    novo('span', null, 'HOTSPOT', s);
+    return s;
+  }
+
+  /** Ordem da tela: sem escolha (ou sem nenhuma ordem salva), a da construção se houver; senão, o equilíbrio. */
+  function resolverOrdem(d) {
+    const temSalva = d.grupos.some((g) => g.ordemSalva);
+    if (!vista.ordem || (vista.ordem === 'definida' && !temSalva)) vista.ordem = temSalva ? 'definida' : 'equilibrio';
+    return temSalva;
+  }
+
+  /** Selos do movimento na tela: os em edição (construtor) ou os salvos. */
+  const seloDe = (g, m) => (edicao && edicao.ciclo === g.cicloApp ? edicao.selos[m.texto] : m.selo) || {};
+
+  /** Valor de cada movimento na ordem escolhida (maior = mais em cima). Empate: a outra medida, depois o nome. */
+  const valorNaOrdem = (m) => (vista.ordem === 'gmv' ? m.fatiaGmv : vista.ordem === 'exposicao' ? m.fatiaExposicao : m.equilibrio);
+  const desempate = (m) => (vista.ordem === 'exposicao' ? m.fatiaGmv : m.fatiaExposicao);
+  const ordenar = (movs) => movs.slice().sort((a, b) => valorNaOrdem(b) - valorNaOrdem(a) || desempate(b) - desempate(a) || a.texto.localeCompare(b.texto, 'pt-BR'));
+  /**
+   * Movimentos de um ciclo na ordem da tela: a lista em edição; na ordem da construção, a salva (os que não
+   * estão nela vêm depois, pelo equilíbrio); senão, a ordem escolhida.
+   */
+  function ordenarGrupo(g) {
+    const auto = ordenar(g.movimentos);
+    const lista = edicao && edicao.ciclo === g.cicloApp ? edicao.lista : vista.ordem === 'definida' ? g.ordemSalva : null;
+    if (!lista) return auto;
+    const pos = {};
+    lista.forEach((t, i) => { pos[Render.chaveEtiqueta(t)] = i; });
+    const p = (m) => { const i = pos[Render.chaveEtiqueta(m.texto)]; return i === undefined ? lista.length + auto.indexOf(m) : i; };
+    return auto.slice().sort((a, b) => p(a) - p(b));
+  }
+
+  function segmentado(pai, rotulo, opcoes, atual, aoEscolher) {
+    const box = novo('div', 'cal-controle', null, pai);
+    novo('span', 'cal-rotulo', rotulo, box);
+    const seg = novo('div', 'an-segmentado', null, box);
+    seg.setAttribute('role', 'group');
+    seg.setAttribute('aria-label', rotulo);
+    opcoes.forEach(([v, texto, dica]) => {
+      const b = novo('button', null, texto, seg);
+      b.type = 'button';
+      b.dataset.valor = v;
+      if (dica) b.title = dica;
+      b.setAttribute('aria-pressed', String(atual === v));
+      b.addEventListener('click', () => aoEscolher(v));
+    });
+  }
+
+  function seletor(pai, rotulo, opcoes, atual, aoEscolher) {
+    const box = novo('label', 'cal-controle', null, pai);
+    novo('span', 'cal-rotulo', rotulo, box);
+    const sel = novo('select', null, null, box);
+    opcoes.forEach(([v, texto]) => sel.add(new Option(texto, v, false, String(v) === String(atual))));
+    sel.addEventListener('change', () => aoEscolher(sel.value));
+  }
+
+  /**
+   * Linhas dos retângulos: os ciclos na ordem do início; dentro do ciclo, na ordem escolhida, cada um na
+   * primeira linha livre abaixo do anterior (assim a ordem fica de cima para baixo e nada se sobrepõe).
+   * @return {Array<{item, linha}>}
+   */
+  function empilhar(grupos) {
+    const fimDaLinha = []; // último dia ocupado em cada linha
+    const saida = [];
+    grupos.forEach((g) => {
+      let minimo = 0;
+      g.itens.forEach((it) => {
+        let l = minimo;
+        while (fimDaLinha[l] !== undefined && fimDaLinha[l] >= it.d0) l++;
+        fimDaLinha[l] = it.d1;
+        saida.push({ item: it, linha: l });
+        minimo = l + 1;
+      });
+    });
+    return saida;
+  }
+
+  /**
+   * Desenha o calendário em `corpo`.
+   * acoes: { dados(er) → dados (App.dadosCalendario), abrirCiclo(ciclo), verMovimento({ ciclo, texto, er }),
+   *          construtor() → se quem está na tela entrou na Construção, salvarOrdem(ciclo, textos | null) → Promise<boolean> }
+   */
+  function desenhar(corpo, acoes) {
+    const antes = corpo.querySelector('.cal-rolagem');
+    const posAntes = antes ? { left: antes.scrollLeft, top: antes.scrollTop, px: ESCALAS[vista.escala].dia } : null;
+    const d = acoes.dados(vista.er);
+    corpo.innerHTML = '';
+    const construtor = !!(acoes.construtor && acoes.construtor());
+    if (!construtor || (edicao && !d.grupos.some((g) => g.cicloApp === edicao.ciclo))) edicao = null;
+    const temSalva = resolverOrdem(d);
+    // Ao redesenhar, a rolagem continua no mesmo dia (mesmo mudando a escala).
+    const redesenhar = (mudanca) => { Object.assign(vista, mudanca); desenhar(corpo, acoes); };
+
+    // Controles.
+    const barra = novo('div', 'cal-barra', null, corpo);
+    segmentado(barra, 'Empilhar por', (temSalva ? [ORDEM_DEFINIDA] : []).concat(ORDENS), vista.ordem, (v) => redesenhar({ ordem: v }));
+    seletor(barra, 'Exposição', [['', 'Média das ERs']].concat(d.ers.map((e) => [e.id, 'Na ' + e.nome])), vista.er, (v) => redesenhar({ er: v }));
+    seletor(barra, 'Movimentos por ciclo', [[5, '5 primeiros'], [10, '10 primeiros'], [20, '20 primeiros'], [0, 'Todos']], vista.limite, (v) => redesenhar({ limite: +v }));
+    segmentado(barra, 'Escala', [['compacta', 'Compacta'], ['normal', 'Normal'], ['ampla', 'Ampla']], vista.escala, (v) => redesenhar({ escala: v }));
+    const bHoje = novo('button', 'btn pequeno cal-hoje', 'Hoje', barra);
+    bHoje.type = 'button';
+    bHoje.title = 'Rolar até o dia de hoje';
+    if (construtor && d.grupos.length) {
+      const bOrdem = novo('button', 'btn pequeno cal-ordenar', edicao ? 'Fechar ordem e selos' : 'Ordem e selos', barra);
+      bOrdem.type = 'button';
+      bOrdem.setAttribute('aria-pressed', String(!!edicao));
+      bOrdem.title = 'Construção: mudar a ordem em que os movimentos de um ciclo aparecem no calendário e dar selos (hotspot e medalha)';
+      bOrdem.addEventListener('click', () => {
+        if (edicao) {
+          if (pendente() && !window.confirm('Descartar as mudanças que ainda não foram salvas?')) return;
+          edicao = null;
+        } else {
+          const g = d.grupos.find((x) => x.cicloApp === d.cicloAtual) || d.grupos.slice().sort((a, b) => (a.inicio < b.inicio ? -1 : 1))[0];
+          comecarEdicao(g);
+        }
+        desenhar(corpo, acoes);
+      });
+    }
+
+    const nota = novo('p', 'cal-nota', null, corpo);
+    nota.textContent = {
+      equilibrio: 'Os movimentos de cada ciclo estão empilhados do mais importante (em cima) para o menos importante, pelo equilíbrio entre o GMV esperado e a exposição: a média da fatia do movimento no GMV esperado do ciclo com a fatia dele na exposição.',
+      gmv: 'Os movimentos de cada ciclo estão empilhados pelo GMV esperado (aba Tipos de movimento), do maior (em cima) para o menor; os sem GMV ficam por último.',
+      exposicao: 'Os movimentos de cada ciclo estão empilhados pela exposição (a fatia do espaço de exposição que o movimento ocupa), da maior (em cima) para a menor.',
+      definida: 'Os movimentos de cada ciclo estão na ordem definida na construção (o primeiro em cima). Ciclos sem ordem definida, e movimentos que não estavam nela, seguem o equilíbrio entre o GMV esperado e a exposição.',
+    }[vista.ordem] + ' Exposição: ' + (vista.er ? 'na ER escolhida' : 'média das ERs') + '. Cada retângulo vai do início ao fim do ciclo no calendário da marca dele (Eudora no da Eudora; as outras marcas no do Boticário). Clique num movimento para vê-lo na planta.';
+
+    if (d.semDatas.length) {
+      novo('p', 'cal-aviso', (d.semDatas.length === 1 ? 'Ciclo do app sem datas no calendário: ' : 'Ciclos do app sem datas no calendário: ')
+        + d.semDatas.join(', ') + '. As datas vêm da aba "Calendário de ciclos" da planilha do calendário (engrenagem › Modo desenvolvedor › Planilhas).', corpo);
+    }
+
+    const todos = [].concat.apply([], d.calendarios.map((c) => c.ciclos));
+    if (!todos.length) {
+      novo('p', 'an-vazio', 'Nenhum ciclo no calendário ainda. As datas vêm da aba "Calendário de ciclos" (Marca, Ciclo, Início, Fim) e os feriados, da aba "Feriados" (Data, Feriado), da planilha do calendário vinculada em engrenagem › Modo desenvolvedor › Planilhas.', corpo);
+      bHoje.disabled = true;
+      return;
+    }
+
+    const esc = ESCALAS[vista.escala];
+    const px = esc.dia;
+    const hoje = datas.hoje();
+    const inicio = Math.min.apply(null, todos.map((c) => datas.dia(c.inicio))) - 3;
+    const fim = Math.max.apply(null, todos.map((c) => datas.dia(c.fim))) + 3;
+    const x = (dia) => MARGEM + (dia - inicio) * px;
+    const largura = MARGEM + (fim - inicio + 1) * px;
+    const feriados = {};
+    d.feriados.forEach((f) => { feriados[f.data] = f.nome; });
+
+    const area = novo('div', 'cal-area', null, corpo);
+    const rolagem = novo('div', 'cal-rolagem', null, area);
+    if (edicao) painelOrdem(area, d, corpo, acoes);
+    const quadro = novo('div', 'cal-quadro', null, rolagem);
+    quadro.style.width = largura + 'px';
+
+    // Topo (fixo ao rolar para baixo): meses, dias e as faixas dos ciclos dos dois calendários.
+    const topo = novo('div', 'cal-topo', null, quadro);
+    const meses = novo('div', 'cal-meses', null, topo);
+    const dias = novo('div', 'cal-dias', null, topo);
+    let mesAberto = null;
+    for (let dia = inicio; dia <= fim; dia++) {
+      const iso = datas.iso(dia);
+      const s = datas.semana(dia);
+      const dd = +iso.slice(8);
+      if (dd === 1 || dia === inicio) {
+        mesAberto = novo('div', 'cal-mes', null, meses);
+        mesAberto.style.left = x(dia) + 'px';
+        mesAberto.dataset.dias = '0';
+        novo('span', null, MESES[+iso.slice(5, 7) - 1] + ' ' + iso.slice(0, 4), mesAberto);
+      }
+      mesAberto.dataset.dias = String(+mesAberto.dataset.dias + 1);
+      mesAberto.style.width = +mesAberto.dataset.dias * px + 'px';
+      const c = novo('div', 'cal-dia' + (s === 0 || s === 6 ? ' fds' : '') + (feriados[iso] ? ' feriado' : '') + (dia === hoje ? ' hoje' : ''), null, dias);
+      c.style.left = x(dia) + 'px';
+      c.style.width = px + 'px';
+      // Na escala compacta, só o número das segundas e do dia 1.
+      if (px >= 22 || s === 1 || dd === 1) novo('b', null, String(dd), c);
+      if (px >= 22) novo('small', null, SEMANA[s], c);
+      c.title = datas.br(iso) + (feriados[iso] ? ' · feriado: ' + feriados[iso] : '') + (dia === hoje ? ' · hoje' : '');
+    }
+
+    d.calendarios.forEach((cal) => {
+      const trilha = novo('div', 'cal-trilha', null, topo);
+      trilha.dataset.calendario = cal.cod;
+      const rot = novo('span', 'cal-trilha-nome', cal.nome, trilha);
+      rot.style.borderColor = cal.cor;
+      rot.title = 'Calendário ' + cal.nome + ': ' + cal.descricao;
+      cal.ciclos.forEach((c) => {
+        const d0 = datas.dia(c.inicio);
+        const d1 = datas.dia(c.fim);
+        const atual = c.cicloApp && c.cicloApp === d.cicloAtual;
+        const b = novo(c.cicloApp ? 'button' : 'div', 'cal-ciclo' + (c.cicloApp ? '' : ' sem-app') + (atual ? ' atual' : ''), null, trilha);
+        if (c.cicloApp) {
+          b.type = 'button';
+          b.addEventListener('click', () => acoes.abrirCiclo(c.cicloApp));
+        }
+        b.dataset.ciclo = c.ciclo;
+        b.style.left = x(d0) + 1 + 'px';
+        b.style.width = (d1 - d0 + 1) * px - 2 + 'px';
+        b.style.background = transparente(cal.cor, atual ? 0.34 : 0.16);
+        b.style.borderColor = cal.cor;
+        novo('strong', null, c.ciclo, b);
+        novo('span', null, datas.br(c.inicio, true) + ' → ' + datas.br(c.fim, true) + ' · ' + c.dias + ' dias · ' + c.uteis + ' úteis'
+          + (c.feriados.length ? ' · ★ ' + c.feriados.length + (c.feriados.length === 1 ? ' feriado' : ' feriados') : ''), b);
+        b.title = 'Calendário ' + cal.nome + ' · ' + c.ciclo + '\n' + datas.br(c.inicio) + ' a ' + datas.br(c.fim) + ' · ' + c.dias + ' dias, ' + c.uteis + ' úteis'
+          + c.feriados.map((f) => '\n★ ' + datas.br(f.data, true) + ' ' + f.nome).join('')
+          + (c.cicloApp ? '\nClique para abrir o ' + c.cicloApp + ' na planta' : '\nNenhum ciclo do app com este nome');
+      });
+    });
+
+    // Movimentos de todos os ciclos, juntos e empilhados.
+    const grupos = d.grupos.map((g) => {
+      const ordem = ordenarGrupo(g);
+      const visiveis = vista.limite ? ordem.slice(0, vista.limite) : ordem;
+      // As barras comparam cada medida com a maior do ciclo (os números são os reais).
+      const maior = (k) => Math.max.apply(null, g.movimentos.map((m) => m[k]).concat([0]));
+      const maiores = { exposicao: maior('exposicao'), fatiaGmv: maior('fatiaGmv') };
+      const itens = visiveis.map((m, k) => ({ m, pos: k + 1, d0: datas.dia(m.inicio), d1: datas.dia(m.fim), g, maiores }));
+      if (visiveis.length < ordem.length) {
+        const d0 = Math.min.apply(null, itens.map((it) => it.d0));
+        itens.push({ mais: ordem.length - visiveis.length, d0, d1: d0 + Math.max(3, Math.ceil(200 / px)), g });
+      }
+      return { inicio: g.inicio, itens };
+    }).sort((a, b) => (a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : 0));
+    const pilha = empilhar(grupos);
+    const linhas = pilha.reduce((n, p) => Math.max(n, p.linha + 1), 0);
+
+    const corpoMovs = novo('div', 'cal-movs', null, quadro);
+    corpoMovs.style.height = Math.max(linhas, 1) * (esc.linha + VAO) + VAO + 'px';
+    // Fundo: fins de semana, feriados, começo de cada ciclo e hoje.
+    for (let dia = inicio; dia <= fim; dia++) {
+      const iso = datas.iso(dia);
+      const s = datas.semana(dia);
+      if (s !== 0 && s !== 6 && !feriados[iso]) continue;
+      const f = novo('div', 'cal-fundo' + (feriados[iso] ? ' feriado' : ''), null, corpoMovs);
+      f.style.left = x(dia) + 'px';
+      f.style.width = px + 'px';
+      if (feriados[iso]) f.title = 'Feriado: ' + feriados[iso] + ' (' + datas.br(iso) + ')';
+    }
+    d.calendarios.forEach((cal) => cal.ciclos.forEach((c) => {
+      const l = novo('div', 'cal-divisa ' + cal.cod.toLowerCase(), null, corpoMovs);
+      l.style.left = x(datas.dia(c.inicio)) + 'px';
+      l.style.borderColor = cal.cor;
+    }));
+    if (hoje >= inicio && hoje <= fim) {
+      [corpoMovs, topo].forEach((pai) => { novo('div', 'cal-linha-hoje', null, pai).style.left = x(hoje) + px / 2 + 'px'; });
+    }
+
+    pilha.forEach(({ item: it, linha }) => {
+      const top = VAO + linha * (esc.linha + VAO);
+      if (it.mais) {
+        const b = novo('button', 'cal-mais', '+' + it.mais + ' movimentos do ' + it.g.cicloApp, corpoMovs);
+        b.type = 'button';
+        b.title = 'Mostrar todos os movimentos de cada ciclo';
+        b.style.left = x(it.d0) + 2 + 'px';
+        b.style.top = top + 'px';
+        b.style.height = esc.linha + 'px';
+        b.addEventListener('click', () => redesenhar({ limite: 0 }));
+        return;
+      }
+      const m = it.m;
+      const r = novo('button', 'cal-mov', null, corpoMovs);
+      r.type = 'button';
+      r.dataset.movimento = m.texto;
+      r.dataset.ciclo = it.g.cicloApp;
+      r.dataset.calendario = m.calendario;
+      r.dataset.posicao = String(it.pos);
+      r.style.left = x(it.d0) + 2 + 'px';
+      r.style.width = (it.d1 - it.d0 + 1) * px - 4 + 'px';
+      r.style.top = top + 'px';
+      r.style.height = esc.linha + 'px';
+      r.style.background = transparente(m.cor, 0.18);
+      r.style.borderLeftColor = m.cor;
+      const l1 = novo('span', 'cal-mov-l1', null, r);
+      novo('span', 'cal-mov-pos', String(it.pos), l1);
+      const selo = seloDe(it.g, m);
+      if (selo.medalha) medalhaHtml(l1, selo.medalha, d.medalhas);
+      novo('span', 'cal-mov-nome', m.texto, l1);
+      if (selo.hotspot) hotspotHtml(l1);
+      if (selo.medalha || selo.hotspot) r.dataset.selos = [selo.medalha, selo.hotspot ? 'HOTSPOT' : ''].filter(Boolean).join(' ');
+      m.marcas.forEach((mc) => {
+        const b = novo('span', 'cal-bolinha', null, l1);
+        b.style.background = mc.cor;
+        b.title = mc.nome + ' · ' + fmtPct(mc.valor);
+      });
+      if (m.classe) novo('span', 'cal-mov-classe', m.classe.nome, l1).style.borderColor = m.classe.cor;
+      const l2 = novo('span', 'cal-mov-l2', null, r);
+      const medida = (rotulo, chave, texto, classe) => {
+        const box = novo('span', 'cal-medida ' + classe, null, l2);
+        novo('span', 'cal-medida-rot', rotulo, box);
+        const trilho = novo('span', 'cal-medida-trilho', null, box);
+        novo('span', null, null, trilho).style.width = Math.round((it.maiores[chave] ? m[chave] / it.maiores[chave] : 0) * 100) + '%';
+        novo('b', null, texto, box);
+      };
+      medida('GMV', 'fatiaGmv', m.gmv ? gmvCurto.format(m.gmv) + ' (' + fmtPct(m.fatiaGmv) + ')' : 'sem GMV', 'gmv');
+      medida('Exposição', 'exposicao', fmtPct(m.exposicao), 'expo');
+      r.title = [
+        it.pos + 'º do ' + it.g.cicloApp + ' · ' + m.texto
+          + (selo.medalha && d.medalhas[selo.medalha] ? ' · medalha de ' + d.medalhas[selo.medalha].nome.toLowerCase() : '') + (selo.hotspot ? ' · hotspot' : ''),
+        'Calendário ' + m.nomeCalendario + ': ' + datas.br(m.inicio) + ' a ' + datas.br(m.fim) + (m.datasDoOutro ? ' (o ' + it.g.cicloApp + ' não está no calendário ' + m.nomeCalendario + ': datas do outro calendário)' : ''),
+        m.marcas.map((mc) => mc.nome + ' ' + fmtPct(mc.valor)).join(' · ') + (m.classe ? ' · ' + m.classe.nome : ''),
+        'GMV esperado: ' + (m.gmv ? gmvCompleto.format(m.gmv) + ' · ' + fmtPct(m.fatiaGmv) + ' do GMV do ciclo' : 'sem GMV'),
+        'Exposição: ' + fmtPct(m.exposicao) + ' do espaço de exposição' + (vista.er ? '' : ' (média das ERs)') + ' · ' + fmtNum(m.espacos) + (m.espacos === 1 ? ' espaço' : ' espaços')
+          + ' · ' + fmtPct(m.fatiaExposicao) + ' da exposição do ciclo',
+        'Equilíbrio (média das duas fatias): ' + fmtPct(m.equilibrio),
+        m.espacos ? 'Clique para ver na planta' : 'Sem espaço de exposição no ciclo',
+      ].join('\n');
+      r.addEventListener('click', () => acoes.verMovimento({ ciclo: it.g.cicloApp, texto: m.texto, er: m.er }));
+    });
+    if (!pilha.length) novo('p', 'cal-sem-movs', 'Nenhum ciclo do calendário tem o nome de um ciclo do app.', corpoMovs);
+
+    // Rolagem: a mesma de antes (ao redesenhar) ou, ao abrir, o ciclo da tela; sem ele, hoje.
+    const irPara = (dia) => { rolagem.scrollLeft = Math.max(0, x(dia) - 3 * px); };
+    bHoje.disabled = hoje < inicio || hoje > fim;
+    bHoje.addEventListener('click', () => irPara(hoje));
+    const atual = d.grupos.find((g) => g.cicloApp === d.cicloAtual);
+    if (rolarPara !== null) {
+      irPara(rolarPara);
+      rolarPara = null;
+    } else if (posAntes) {
+      rolagem.scrollLeft = (posAntes.left / posAntes.px) * px;
+      rolagem.scrollTop = posAntes.top;
+    } else if (atual) irPara(datas.dia(atual.inicio));
+    else if (hoje >= inicio && hoje <= fim) irPara(hoje);
+  }
+
+  /* ----------------------- ordem da construção ---------------------------- */
+
+  function comecarEdicao(g) {
+    const selos = {};
+    g.movimentos.forEach((m) => { selos[m.texto] = { hotspot: !!(m.selo && m.selo.hotspot), medalha: (m.selo && m.selo.medalha) || '' }; });
+    edicao = { ciclo: g.cicloApp, lista: ordenarGrupo(g).map((m) => m.texto), mudou: false, selos, mudouSelos: false };
+    rolarPara = datas.dia(g.inicio);
+  }
+  const pendente = () => !!edicao && (edicao.mudou || edicao.mudouSelos);
+
+  /**
+   * Painel ao lado da linha do tempo (construtor): os movimentos do ciclo na ordem, para arrastar (ou ↑ ↓), com
+   * os selos de cada um (hotspot e medalha), e salvar. Cada mudança redesenha o calendário.
+   */
+  function painelOrdem(pai, d, corpo, acoes) {
+    const g = d.grupos.find((x) => x.cicloApp === edicao.ciclo);
+    const redesenhar = () => desenhar(corpo, acoes);
+    const p = novo('aside', 'cal-ordem', null, pai);
+    p.setAttribute('aria-label', 'Ordem e selos dos movimentos no calendário');
+    novo('h3', null, 'Ordem e selos dos movimentos', p);
+    const sel = novo('select', null, null, novo('label', 'cal-controle', null, p));
+    sel.parentNode.insertBefore(novo('span', 'cal-rotulo', 'Ciclo'), sel);
+    d.grupos.slice().sort((a, b) => (a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : 0))
+      .forEach((x) => sel.add(new Option(x.cicloApp + (x.ordemSalva ? ' · ordem salva' : ''), x.cicloApp, false, x.cicloApp === edicao.ciclo)));
+    sel.addEventListener('change', () => {
+      if (pendente() && !window.confirm('Descartar as mudanças que ainda não foram salvas?')) { sel.value = edicao.ciclo; return; }
+      comecarEdicao(d.grupos.find((x) => x.cicloApp === sel.value));
+      redesenhar();
+    });
+    novo('p', 'cal-ordem-dica', 'Arraste os movimentos (ou use ↑ ↓): o de cima fica em cima no calendário. Em cada um, a chama liga o selo de hotspot e o menu dá uma medalha. A linha do tempo já mostra as mudanças; Salvar vale para todo mundo.', p);
+    novo('p', 'cal-ordem-estado', pendente() ? 'Mudanças ainda não salvas.'
+      : g.ordemSalva ? 'Ordem salva' + (g.ordemPor ? ' por ' + g.ordemPor : '') + '.' : 'Ordem automática (equilíbrio GMV × exposição).', p);
+
+    const mover = (de, para) => {
+      if (para < 0 || para >= edicao.lista.length || de === para) return;
+      const [t] = edicao.lista.splice(de, 1);
+      edicao.lista.splice(para, 0, t);
+      edicao.mudou = true;
+      redesenhar();
+      const foco = corpo.querySelector('.cal-ordem li[data-indice="' + para + '"] .cal-ordem-mover');
+      if (foco) foco.focus();
+    };
+    const porTexto = {};
+    g.movimentos.forEach((m) => { porTexto[m.texto] = m; });
+    const ol = novo('ol', 'cal-ordem-lista', null, p);
+    let arrastando = null;
+    edicao.lista.forEach((t, i) => {
+      const m = porTexto[t] || { texto: t, cor: '#999999', gmv: 0, exposicao: 0 };
+      const li = novo('li', null, null, ol);
+      li.dataset.indice = String(i);
+      li.dataset.movimento = t;
+      li.draggable = true;
+      li.style.borderLeftColor = m.cor;
+      novo('span', 'cal-ordem-alca', '⋮⋮', li).setAttribute('aria-hidden', 'true');
+      novo('span', 'cal-mov-pos', String(i + 1), li);
+      const txt = novo('span', 'cal-ordem-texto', null, li);
+      novo('strong', null, t, txt);
+      novo('small', null, (m.gmv ? gmvCurto.format(m.gmv) : 'sem GMV') + ' · exposição ' + fmtPct(m.exposicao || 0), txt);
+      // Selos: hotspot (liga / desliga) e medalha.
+      const selo = edicao.selos[t] || (edicao.selos[t] = { hotspot: false, medalha: '' });
+      const caixaSelos = novo('span', 'cal-ordem-selos', null, li);
+      const hot = novo('button', 'cal-ordem-hot', null, caixaSelos);
+      hot.type = 'button';
+      hot.setAttribute('aria-pressed', String(selo.hotspot));
+      hot.setAttribute('aria-label', 'Hotspot: ' + t);
+      hot.title = selo.hotspot ? 'Tirar o selo de hotspot' : 'Marcar como hotspot';
+      svgEl('path', { d: CHAMA, fill: 'currentColor' }, svgEl('svg', { viewBox: '0 0 24 24', width: 14, height: 14, 'aria-hidden': 'true' }, hot));
+      hot.addEventListener('click', () => { selo.hotspot = !selo.hotspot; edicao.mudouSelos = true; redesenhar(); });
+      const med = novo('select', 'cal-ordem-medalha', null, caixaSelos);
+      med.setAttribute('aria-label', 'Medalha: ' + t);
+      med.add(new Option('—', ''));
+      Object.keys(d.medalhas).forEach((k) => med.add(new Option(d.medalhas[k].nome, k, false, selo.medalha === k)));
+      med.value = selo.medalha || '';
+      if (selo.medalha && d.medalhas[selo.medalha]) med.style.boxShadow = 'inset 4px 0 0 ' + d.medalhas[selo.medalha].cor;
+      med.addEventListener('change', () => { selo.medalha = med.value; edicao.mudouSelos = true; redesenhar(); });
+      const sobe = novo('button', 'cal-ordem-mover sobe', '↑', li);
+      sobe.type = 'button';
+      sobe.disabled = i === 0;
+      sobe.setAttribute('aria-label', 'Subir ' + t);
+      sobe.addEventListener('click', () => mover(i, i - 1));
+      const desce = novo('button', 'cal-ordem-mover desce', '↓', li);
+      desce.type = 'button';
+      desce.disabled = i === edicao.lista.length - 1;
+      desce.setAttribute('aria-label', 'Descer ' + t);
+      desce.addEventListener('click', () => mover(i, i + 1));
+      li.addEventListener('dragstart', (e) => { arrastando = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); li.classList.add('arrastando'); });
+      li.addEventListener('dragend', () => li.classList.remove('arrastando'));
+      li.addEventListener('dragover', (e) => { e.preventDefault(); li.classList.add('alvo'); });
+      li.addEventListener('dragleave', () => li.classList.remove('alvo'));
+      li.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const de = arrastando !== null ? arrastando : +e.dataTransfer.getData('text/plain');
+        mover(de, i);
+      });
+    });
+
+    const acoesP = novo('div', 'cal-ordem-acoes', null, p);
+    const salvar = novo('button', 'btn pequeno primario', 'Salvar', acoesP);
+    salvar.type = 'button';
+    salvar.title = 'Salva a ordem (se mudou) e os selos (se mudaram) deste ciclo';
+    salvar.addEventListener('click', async () => {
+      const e = edicao;
+      let ok = true;
+      if (e.mudou) ok = await acoes.salvarOrdem(e.ciclo, e.lista);
+      if (ok && e.mudouSelos) {
+        ok = await acoes.salvarSelos(e.ciclo, Object.keys(e.selos).map((t) => ({ movimento: t, hotspot: e.selos[t].hotspot, medalha: e.selos[t].medalha })));
+      }
+      if (!ok) return;
+      if (e.mudou) vista.ordem = 'definida';
+      edicao = null;
+      redesenhar();
+    });
+    if (g.ordemSalva) {
+      const auto = novo('button', 'btn pequeno', 'Voltar à ordem automática', acoesP);
+      auto.type = 'button';
+      auto.title = 'Apaga a ordem salva deste ciclo: ele volta a seguir o equilíbrio entre o GMV esperado e a exposição';
+      auto.addEventListener('click', async () => {
+        if (!window.confirm('Apagar a ordem salva do ' + edicao.ciclo + '?')) return;
+        if (await acoes.salvarOrdem(edicao.ciclo, null)) { edicao = null; redesenhar(); }
+      });
+    }
+    const cancelar = novo('button', 'btn pequeno fantasma', 'Cancelar', acoesP);
+    cancelar.type = 'button';
+    cancelar.addEventListener('click', () => { edicao = null; redesenhar(); });
+  }
+
+  /* ------------------------- PNG / slide do ciclo -------------------------- */
+
+  const SLIDE = {
+    fonte: 'Arial, Helvetica, sans-serif', fonteEtq: "Nunito, 'Segoe UI', Arial, sans-serif",
+    fundo: '#F3EFEA', cartao: '#FFFFFF', borda: '#E4DED6', tinta: '#1C1F24', tinta2: '#5B6068', tinta3: '#8A8F97',
+    fds: '#EEEAE4', feriado: '#FBE3E1', feriadoTinta: '#B42318', hoje: '#E8590C',
+  };
+  const medidor = document.createElement('canvas').getContext('2d');
+  function larguraTexto(txt, tam, peso, fonte) {
+    medidor.font = (peso || 400) + ' ' + tam + 'px ' + (fonte || SLIDE.fonte);
+    return medidor.measureText(txt).width;
+  }
+  function caber(txt, maxW, tam, peso, fonte) {
+    let t = String(txt);
+    if (maxW <= 0) return '';
+    if (larguraTexto(t, tam, peso, fonte) <= maxW) return t;
+    while (t.length > 1 && larguraTexto(t + '…', tam, peso, fonte) > maxW) t = t.slice(0, -1);
+    return t.length > 1 ? t.trim() + '…' : '';
+  }
+  function textoSvg(pai, x, y, conteudo, attrs) {
+    const t = svgEl('text', Object.assign({ x, y, 'font-family': SLIDE.fonte, fill: SLIDE.tinta }, attrs), pai);
+    t.textContent = conteudo;
+    return t;
+  }
+  const NOMES_ORDEM = { equilibrio: 'equilíbrio GMV × exposição', gmv: 'GMV esperado', exposicao: 'exposição', definida: 'ordem da construção' };
+
+  /**
+   * O calendário de um ciclo do app num SVG (fundo claro, sempre com as cores do slide): o título com as datas
+   * do ciclo no Boticário e na Eudora, os dias (fins de semana, feriados e hoje), as faixas dos dois calendários
+   * e todos os movimentos do ciclo, um por linha, na ordem da tela (com os selos), cada um nas datas do seu
+   * calendário. 16:9 (1920 × 1080); com muitos movimentos, cresce na mesma proporção.
+   * recorte: sem o fundo e sem o título (para recortar no conteúdo).
+   * @return {{w, h}} tamanho do slide
+   */
+  function slide(svg, d, op) {
+    const o = op || {};
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const g0 = d.grupos.find((g) => g.cicloApp === o.ciclo) || d.grupos[0];
+    if (!g0) throw new Error('Nenhum ciclo do app tem datas no calendário dos ciclos.');
+    const ciclosCal = d.calendarios.map((cal) => ({ cal, c: cal.ciclos.find((c) => c.cicloApp === g0.cicloApp) })).filter((x) => x.c);
+    resolverOrdem(d);
+    const movs = ordenarGrupo(g0);
+    const M = 64;
+    const linhaH = 58;
+    const vao = 10;
+    const topoConteudo = o.recorte ? M : 210;
+    const cabecalhoDias = 76; // meses + dias
+    const trilhaH = 50;
+    const altura = topoConteudo + cabecalhoDias + ciclosCal.length * (trilhaH + 6) + 16 + movs.length * (linhaH + vao) + 90;
+    const H = Math.max(1080, altura);
+    const W = Math.max(1920, Math.round((H * 16) / 9));
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    if (!o.recorte) svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: SLIDE.fundo }, svg);
+
+    const d0 = Math.min.apply(null, ciclosCal.map((x) => datas.dia(x.c.inicio)));
+    const d1 = Math.max.apply(null, ciclosCal.map((x) => datas.dia(x.c.fim)));
+    const rotuloW = 170;
+    const x0 = M + rotuloW;
+    const px = (W - M - x0) / (d1 - d0 + 1);
+    const x = (dia) => x0 + (dia - d0) * px;
+    const feriados = {};
+    d.feriados.forEach((f) => { feriados[f.data] = f.nome; });
+    const hoje = datas.hoje();
+
+    if (!o.recorte) {
+      textoSvg(svg, M, 92, 'Calendário do ciclo · ' + g0.cicloApp, { 'font-size': 46, 'font-weight': 700 });
+      textoSvg(svg, M, 138, ciclosCal.map((x2) => x2.cal.nome + ': ' + datas.br(x2.c.inicio) + ' a ' + datas.br(x2.c.fim)
+        + ' (' + x2.c.dias + ' dias, ' + x2.c.uteis + ' úteis)').join('   ·   '), { 'font-size': 22, fill: SLIDE.tinta2 });
+      textoSvg(svg, M, 172, movs.length + (movs.length === 1 ? ' movimento' : ' movimentos') + ', de cima para baixo pela '
+        + NOMES_ORDEM[vista.ordem] + ' · exposição: ' + (vista.er ? 'na ' + ((d.ers.find((e) => e.id === vista.er) || {}).nome || vista.er) : 'média das ERs'),
+      { 'font-size': 19, fill: SLIDE.tinta3 });
+    }
+
+    // Cartão com os dias, as faixas e os movimentos.
+    const yCartao = topoConteudo;
+    const hCartao = H - yCartao - (o.recorte ? M : 70);
+    svgEl('rect', { x: M - 16, y: yCartao - 16, width: W - 2 * M + 32, height: hCartao + 16, rx: 18, fill: SLIDE.cartao, stroke: SLIDE.borda, 'stroke-width': 1.5 }, svg);
+    const yDias = yCartao + 28;
+    const yCorpoFim = yCartao + hCartao - 16;
+    for (let dia = d0; dia <= d1; dia++) {
+      const iso = datas.iso(dia);
+      const s = datas.semana(dia);
+      const fds = s === 0 || s === 6;
+      if (fds || feriados[iso]) svgEl('rect', { x: x(dia), y: yDias, width: px, height: yCorpoFim - yDias, fill: feriados[iso] ? SLIDE.feriado : SLIDE.fds }, svg);
+      const cor = feriados[iso] ? SLIDE.feriadoTinta : dia === hoje ? SLIDE.hoje : fds ? SLIDE.tinta3 : SLIDE.tinta2;
+      textoSvg(svg, x(dia) + px / 2, yDias + 22, String(+iso.slice(8)), { 'font-size': Math.min(18, px * 0.5), 'font-weight': 700, fill: cor, 'text-anchor': 'middle' });
+      if (px >= 26) textoSvg(svg, x(dia) + px / 2, yDias + 42, SEMANA[s], { 'font-size': 13, fill: cor, 'text-anchor': 'middle' });
+      if (+iso.slice(8) === 1 || dia === d0) {
+        textoSvg(svg, x(dia) + 4, yDias - 6, MESES[+iso.slice(5, 7) - 1].toUpperCase() + ' ' + iso.slice(0, 4), { 'font-size': 14, 'font-weight': 700, fill: SLIDE.tinta, 'letter-spacing': 1 });
+        svgEl('line', { x1: x(dia), y1: yDias - 22, x2: x(dia), y2: yDias + 48, stroke: SLIDE.borda, 'stroke-width': 2 }, svg);
+      }
+    }
+    let y = yDias + cabecalhoDias - 18;
+    svgEl('line', { x1: M, y1: y - 6, x2: W - M, y2: y - 6, stroke: SLIDE.borda, 'stroke-width': 1.5 }, svg);
+    ciclosCal.forEach(({ cal, c }) => {
+      textoSvg(svg, M, y + trilhaH / 2 + 7, cal.nome.toUpperCase(), { 'font-size': 17, 'font-weight': 700, 'letter-spacing': 1 });
+      svgEl('rect', { x: M - 16, y: y + 6, width: 6, height: trilhaH - 12, fill: cal.cor }, svg);
+      const bx = x(datas.dia(c.inicio));
+      const bw = (datas.dia(c.fim) - datas.dia(c.inicio) + 1) * px;
+      svgEl('rect', { x: bx + 1, y: y + 4, width: bw - 2, height: trilhaH - 8, rx: 8, fill: transparente(cal.cor, 0.18), stroke: cal.cor, 'stroke-width': 1.5 }, svg);
+      const rot = c.ciclo + '  ·  ' + datas.br(c.inicio, true) + ' → ' + datas.br(c.fim, true) + '  ·  ' + c.dias + ' dias, ' + c.uteis + ' úteis'
+        + (c.feriados.length ? '  ·  ★ ' + c.feriados.map((f) => datas.br(f.data, true) + ' ' + f.nome).join(', ') : '');
+      textoSvg(svg, bx + 14, y + trilhaH / 2 + 7, caber(rot, bw - 28, 18, 700), { 'font-size': 18, 'font-weight': 700 });
+      y += trilhaH + 6;
+    });
+    if (hoje >= d0 && hoje <= d1) svgEl('line', { x1: x(hoje) + px / 2, y1: yDias, x2: x(hoje) + px / 2, y2: yCorpoFim, stroke: SLIDE.hoje, 'stroke-width': 3 }, svg);
+    y += 10;
+
+    // Movimentos, um por linha.
+    const maior = (k) => Math.max.apply(null, g0.movimentos.map((m) => m[k]).concat([0]));
+    const maiores = { exposicao: maior('exposicao'), fatiaGmv: maior('fatiaGmv') };
+    movs.forEach((m, i) => {
+      const mx = x(datas.dia(m.inicio)) + 2;
+      const mw = (datas.dia(m.fim) - datas.dia(m.inicio) + 1) * px - 4;
+      const g = svgEl('g', null, svg);
+      svgEl('rect', { x: mx, y, width: mw, height: linhaH, rx: 9, fill: transparente(m.cor, 0.2), stroke: transparente(m.cor, 0.55), 'stroke-width': 1.2 }, g);
+      svgEl('rect', { x: mx, y, width: 7, height: linhaH, rx: 3, fill: m.cor }, g);
+      let cx = mx + 18;
+      const yl1 = y + 24;
+      svgEl('circle', { cx: cx + 12, cy: yl1 - 6, r: 12, fill: SLIDE.tinta }, g);
+      textoSvg(g, cx + 12, yl1 - 1, String(i + 1), { 'font-size': 14, 'font-weight': 700, fill: '#FFFFFF', 'text-anchor': 'middle' });
+      cx += 32;
+      const selo = seloDe(g0, m);
+      if (selo.medalha && d.medalhas[selo.medalha]) { medalhaSvg(g, cx, yl1 - 21, 26, d.medalhas[selo.medalha]); cx += 32; }
+      const fim = mx + mw - 12;
+      const extras = (selo.hotspot ? 112 : 0) + m.marcas.length * 18 + (m.classe ? larguraTexto(m.classe.nome, 14) + 30 : 0);
+      const nome = caber(m.texto, Math.max(60, fim - cx - extras), 21, 800, SLIDE.fonteEtq);
+      textoSvg(g, cx, yl1, nome, { 'font-size': 21, 'font-weight': 800, 'font-family': SLIDE.fonteEtq });
+      cx += larguraTexto(nome, 21, 800, SLIDE.fonteEtq) + 10;
+      if (selo.hotspot && cx + 100 < fim) {
+        svgEl('rect', { x: cx, y: yl1 - 19, width: 100, height: 24, rx: 12, fill: COR_HOTSPOT }, g);
+        svgEl('path', { d: CHAMA, fill: '#FFFFFF', transform: 'translate(' + (cx + 7) + ' ' + (yl1 - 16) + ') scale(0.75)' }, g);
+        textoSvg(g, cx + 28, yl1 - 2, 'HOTSPOT', { 'font-size': 13, 'font-weight': 700, fill: '#FFFFFF', 'letter-spacing': 0.8 });
+        cx += 110;
+      }
+      m.marcas.forEach((mc) => {
+        if (cx + 14 > fim) return;
+        svgEl('circle', { cx: cx + 6, cy: yl1 - 7, r: 6, fill: mc.cor, stroke: '#FFFFFF', 'stroke-width': 1.5 }, g);
+        cx += 18;
+      });
+      if (m.classe && cx + larguraTexto(m.classe.nome, 14) + 20 < fim) {
+        const cw = larguraTexto(m.classe.nome, 14) + 18;
+        svgEl('rect', { x: cx + 4, y: yl1 - 19, width: cw, height: 22, rx: 11, fill: 'none', stroke: m.classe.cor, 'stroke-width': 1.5 }, g);
+        textoSvg(g, cx + 13, yl1 - 3, m.classe.nome, { 'font-size': 14, fill: SLIDE.tinta2 });
+      }
+      // Linha 2: GMV esperado e exposição, com as barrinhas (em relação ao maior do ciclo).
+      const yl2 = y + 47;
+      let bx = mx + 18;
+      [['GMV', 'fatiaGmv', m.gmv ? gmvCurto.format(m.gmv) + ' (' + fmtPct(m.fatiaGmv) + ')' : 'sem GMV', '#1D8A5A'],
+        ['Exposição', 'exposicao', fmtPct(m.exposicao), '#3346B8']].forEach(([rot, k, val, cor]) => {
+        const larg = larguraTexto(rot, 14) + 8 + 60 + 8 + larguraTexto(val, 15, 700) + 22;
+        if (bx + larg > fim + 10) return;
+        textoSvg(g, bx, yl2, rot, { 'font-size': 14, fill: SLIDE.tinta2 });
+        bx += larguraTexto(rot, 14) + 8;
+        svgEl('rect', { x: bx, y: yl2 - 10, width: 60, height: 7, rx: 3.5, fill: '#E2DED8' }, g);
+        svgEl('rect', { x: bx, y: yl2 - 10, width: Math.max(0, 60 * (maiores[k] ? m[k] / maiores[k] : 0)), height: 7, rx: 3.5, fill: cor }, g);
+        bx += 68;
+        textoSvg(g, bx, yl2, val, { 'font-size': 15, 'font-weight': 700 });
+        bx += larguraTexto(val, 15, 700) + 22;
+      });
+      y += linhaH + vao;
+    });
+    if (!movs.length) textoSvg(svg, x0, y + 30, 'Nenhum movimento neste ciclo.', { 'font-size': 20, fill: SLIDE.tinta3 });
+    if (!o.recorte) {
+      textoSvg(svg, M, H - 30, 'Cada movimento vai do início ao fim do ciclo no calendário da marca dele (Eudora nas datas da Eudora; as outras marcas nas do Boticário). '
+        + 'GMV esperado: aba Tipos de movimento. Exposição: fatia do espaço de exposição. As barrinhas comparam com o maior do ciclo.', { 'font-size': 15, fill: SLIDE.tinta3 });
+    }
+    return { w: W, h: H };
+  }
+
+  /** Escolhas da tela (ordem e exposição), para o PNG sair como o calendário. */
+  const vistaAtual = () => ({ ordem: vista.ordem, er: vista.er });
+
+  return { desenhar, slide, vista: vistaAtual, datas, chaveCiclo };
+})();
+</script>

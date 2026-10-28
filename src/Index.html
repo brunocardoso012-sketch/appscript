@@ -62,6 +62,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7H3"/></svg>
             Analytics
           </button>
+          <button id="btnCalendario" class="btn painel-botao" type="button" aria-pressed="false" title="Calendário dos ciclos: quando cada ciclo (Boticário e Eudora) começa e termina, com os movimentos empilhados por GMV esperado e exposição">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 13.5h3v4H8z"/></svg>
+            Calendário
+          </button>
         </div>
         <span class="acoes-divisor" aria-hidden="true"></span>
         <button id="btnAtualizar" class="btn fantasma" type="button" title="Ler a planilha de novo">
@@ -200,6 +204,19 @@
           <strong>Página em construção</strong> | pode conter erros nos dados e cálculos
         </p>
         <div id="anCorpo" class="an-corpo"></div>
+      </section>
+      <!-- Calendário dos ciclos (Calendario.html): no lugar da planta, na largura toda. -->
+      <section class="calendario" id="painelCalendario" hidden aria-label="Calendário dos ciclos">
+        <header class="an-topo">
+          <div>
+            <h2>Calendário dos ciclos</h2>
+            <span id="calSub"></span>
+          </div>
+          <div class="an-topo-acoes">
+            <button id="calFechar" class="btn" type="button" title="Fechar o calendário (Esc)">Fechar ✕</button>
+          </div>
+        </header>
+        <div id="calCorpo" class="cal-corpo"></div>
       </section>
       <aside class="painel-espaco painel-validacao" id="painelValidacao" hidden aria-label="Validação da estratégia">
         <header class="esp-topo">
@@ -385,6 +402,8 @@
           <label class="opcao"><input type="radio" name="pngConteudo" value="planta" checked> <span>Planta <small>— a loja com as etiquetas junto de cada espaço</small></span></label>
           <label class="opcao"><input type="radio" name="pngConteudo" value="simplificada"> <span>Visão simplificada <small>— as fichas dos móveis, por tipo</small></span></label>
           <label class="opcao"><input type="radio" name="pngConteudo" value="estrategia"> <span>Estratégia <small>— o espaço da ER por marca, movimento e classificação, em gráficos</small></span></label>
+          <label class="opcao"><input type="radio" name="pngConteudo" value="calendario"> <span>Calendário do ciclo <small>— os movimentos do ciclo na linha do tempo, com as datas do Boticário e da Eudora</small></span></label>
+          <label class="campo bloco png-ciclo-cal" id="pngCicloCalCampo" hidden><span>Ciclo do calendário</span><select id="pngCicloCal" aria-label="Ciclo do calendário"></select></label>
         </fieldset>
         <fieldset class="campo bloco">
           <legend>Formato</legend>
@@ -409,6 +428,12 @@
           <label class="opcao"><input type="radio" name="briefingErs" value="esta" checked> <span>Só <b id="briefingEsta">esta ER</b></span></label>
           <label class="opcao"><input type="radio" name="briefingErs" value="todas"> <span>Todas as ERs <small>— as gôndolas e as pirâmides de cada ER, em ordem</small></span></label>
         </fieldset>
+        <fieldset class="campo bloco" id="briefingDestinos">
+          <legend>Destino</legend>
+          <label class="opcao"><input type="radio" name="briefingDestino" value="baixar" checked> <span>Baixar no computador</span></label>
+          <label class="opcao" id="briefingDriveOpcao"><input type="radio" name="briefingDestino" value="drive"> <span>Salvar na pasta do Drive <small id="briefingDriveTexto">— na subpasta do ciclo, substituindo o briefing anterior com o mesmo nome</small></span></label>
+        </fieldset>
+        <p class="sub" id="briefingNome"></p>
         <p class="sub" id="briefingResumo"></p>
         <div class="rodape-dialogo">
           <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
@@ -619,6 +644,7 @@
     <?!= include('Briefing'); ?>
     <?!= include('Estrategia'); ?>
     <?!= include('Analytics'); ?>
+    <?!= include('Calendario'); ?>
     <?!= include('Tutorial'); ?>
     <?!= include('App'); ?>
   </body>

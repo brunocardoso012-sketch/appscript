@@ -445,6 +445,241 @@ test('desenvolvedor: plantas (criar, renomear, ordenar, apagar), regras da casca
   assert.throws(() => run("salvarConfigDev({ senha: 'nova-dev' }, { acao: 'config', chave: 'senhas', valor: { DESENVOLVEDOR: 'a', VALIDADOR: 'bbbb', CONSTRUTOR: 'cccc' } })"), /4 caracteres/);
 });
 
+test('calendário dos ciclos e feriados: abas lidas da planilha do calendário (vinculada em Desenvolvedor › Planilhas)', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  configurarComExemplo(run);
+  let cal = run('getDados()').calendario;
+  assert.deepEqual(cal.ciclos, { BOT: [], EUD: [] }, 'sem as abas, o calendário fica vazio');
+  assert.deepEqual(cal.abas, { ciclos: false, feriados: false });
+
+  // Só a Eudora tem calendário próprio: as outras marcas seguem o do Boticário.
+  assert.equal(run("calendarioDaMarca_('Eudora')"), 'EUD');
+  ['Boticário', 'BOT', 'QDB', 'OUI', 'MULTI', '', 'BOT+EUD'].forEach((m) => assert.equal(run(`calendarioDaMarca_('${m}')`), 'BOT', m));
+
+  // Sem planilha vinculada, as abas são procuradas na principal (nome sem diferença de acento e maiúsculas).
+  run(`(function () {
+    const ss = planilha_();
+    ss.insertSheet('calendario de ciclos').getRange(1, 1, 8, 4).setValues([
+      ['Marca', 'Ciclo', 'Data de início', 'Fim'],
+      ['Boticário', 'Ciclo exemplo', new Date(2026, 9, 1), '21/10/2026'],
+      ['Boticário', ' Ciclo  exemplo cheio ', '2026-10-24', '11/11/2026'],
+      ['Eudora', 'Ciclo exemplo', '05/10/2026', '25/10/2026'],
+      ['EUD', 'Ciclo exemplo', '05/10/2026', '25/10/2026'],
+      ['Boticário', 'C sem data', 'amanhã', '25/10/2026'],
+      ['Boticário', 'C invertido', '25/10/2026', '01/10/2026'],
+      ['Eudora', 'Ciclo exemplo cheio', '20/10/2026', '15/11/2026'],
+    ]);
+    ss.insertSheet('Feriados').getRange(1, 1, 4, 2).setValues([['Data', 'Nome'], ['12/10/2026', 'Nossa Senhora Aparecida'], ['02/11/2026', ''], ['xx', 'ruim']]);
+  })()`);
+  cal = run('getDados()').calendario;
+  assert.deepEqual(cal.ciclos.BOT, [
+    { ciclo: 'Ciclo exemplo', inicio: '2026-10-01', fim: '2026-10-21' },
+    { ciclo: 'Ciclo exemplo cheio', inicio: '2026-10-24', fim: '2026-11-11' },
+  ]);
+  assert.deepEqual(cal.ciclos.EUD.map((c) => c.ciclo), ['Ciclo exemplo', 'Ciclo exemplo cheio']);
+  assert.deepEqual(cal.feriados, [{ data: '2026-10-12', nome: 'Nossa Senhora Aparecida' }, { data: '2026-11-02', nome: 'Feriado' }]);
+  const avisos = cal.avisos.join('\n');
+  assert.match(avisos, /linha 5: o Ciclo exemplo já aparece antes no calendário Eudora/);
+  assert.match(avisos, /C sem data\): o início ou o fim não é uma data/);
+  assert.match(avisos, /C invertido\): o fim vem antes do início/);
+  assert.match(avisos, /Eudora, o Ciclo exemplo cheio se sobrepõe ao Ciclo exemplo/);
+  assert.match(avisos, /Feriados, linha 4: "xx" não é uma data/);
+  assert.ok(run('getDados()').avisos.some((a) => /C invertido/.test(a)), 'os avisos aparecem no app');
+  // Observações (não impedem nada): dias sem ciclo e começo num fim de semana ou feriado.
+  assert.deepEqual(cal.observacoes, [
+    'Boticário: 2 dias sem ciclo entre o Ciclo exemplo e o Ciclo exemplo cheio.',
+    'Boticário: o Ciclo exemplo cheio começa num fim de semana (24/10/2026).',
+  ]);
+  assert.equal(run("diasUteis_('2026-10-01', '2026-10-21', [{ data: '2026-10-12' }])"), 14);
+
+  // Criar a planilha do calendário: leva as abas da principal e passa a ler dela.
+  assert.equal(run(`getPlanilhas(${DEV})`).calendario, null);
+  assert.throws(() => run("mudarPlanilhaCalendario({ senha: 'x' }, { acao: 'criar' })"), /Senha incorreta/);
+  const info = run(`mudarPlanilhaCalendario(${DEV}, { acao: 'criar' })`);
+  const idCal = info.calendario.id;
+  const nova = f.outras[idCal];
+  assert.ok(nova.getSheetByName('Calendário de ciclos').getLastRow() > 5, 'ciclos levados para a planilha nova');
+  assert.ok(nova.getSheetByName('Feriados'), 'feriados levados para a planilha nova');
+  assert.ok(!nova.getSheetByName('Página1'), 'sem a aba vazia da planilha nova');
+  assert.equal(info.leituraCalendario.ciclos.find((c) => c.cod === 'BOT').qtd, 2);
+  run("planilha_().getSheetByName('calendario de ciclos').getRange(2, 2, 1, 1).setValues([['Outro nome']])");
+  assert.equal(run('getDados()').calendario.ciclos.BOT[0].ciclo, 'Ciclo exemplo', 'lê da planilha vinculada, não da principal');
+
+  // Desvincular: volta a ler as abas da principal.
+  run(`mudarPlanilhaCalendario(${DEV}, { acao: 'desvincular' })`);
+  assert.equal(run(`getPlanilhas(${DEV})`).calendario, null);
+  assert.equal(run('getDados()').calendario.ciclos.BOT[0].ciclo, 'Outro nome');
+  assert.throws(() => run(`mudarPlanilhaCalendario(${DEV}, { acao: 'desvincular' })`), /Nenhuma planilha/);
+
+  // Vincular uma planilha que já existe: as abas que faltam são criadas, só com o cabeçalho.
+  const outra = run("SpreadsheetApp.create('Calendário corporativo').getId()");
+  const idLongo = outra + 'XXXXXXXXXXXXXXXXXXXXXX';
+  f.outras[idLongo] = f.outras[outra];
+  assert.throws(() => run(`mudarPlanilhaCalendario(${DEV}, { acao: 'vincular', url: 'abc' })`), /Cole o link/);
+  assert.throws(() => run(`mudarPlanilhaCalendario(${DEV}, { acao: 'vincular', url: 'https://docs.google.com/spreadsheets/d/TESTE00000000000000000000/edit' })`), /principal/);
+  const v = run(`mudarPlanilhaCalendario(${DEV}, { acao: 'vincular', url: 'https://docs.google.com/spreadsheets/d/${idLongo}/edit' })`);
+  assert.equal(v.calendario.id, outra);
+  assert.deepEqual(f.outras[outra].getSheetByName('Calendário de ciclos').getRange(1, 1, 1, 4).getValues()[0], ['Marca', 'Ciclo', 'Início', 'Fim']);
+  assert.deepEqual(f.outras[outra].getSheetByName('Feriados').getRange(1, 1, 1, 2).getValues()[0], ['Data', 'Feriado']);
+  assert.deepEqual(v.leituraCalendario.abas, { ciclos: true, feriados: true });
+  assert.deepEqual(run('getDados()').calendario.ciclos, { BOT: [], EUD: [] });
+
+  // Planilha vinculada que sumiu: o app abre, com o aviso.
+  f.propriedades.CALENDARIO_SPREADSHEET_ID = 'EXTRA_SUMIU';
+  const d = run('getDados()');
+  assert.ok(d.avisos.some((a) => /planilha do calendário/.test(a)));
+  assert.match(run(`getPlanilhas(${DEV})`).calendario.erro, /Não consegui abrir/);
+});
+
+test('ordem dos movimentos no calendário: o construtor salva a ordem de um ciclo e pode voltar à automática', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  configurarComExemplo(run);
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const salvar = (acesso, pedido) => run(`salvarOrdemCalendario(${acesso}, ${JSON.stringify(pedido)})`);
+  assert.deepEqual(run('getDados()').ordemCalendario, {}, 'sem ordem salva');
+  assert.throws(() => salvar(V, { ciclo: 'Ciclo exemplo', movimentos: ['BOTIPROMO'] }), /Só o construtor/);
+  assert.throws(() => salvar(C, { ciclo: 'Não existe', movimentos: ['BOTIPROMO'] }), /não existe no app/);
+  assert.throws(() => salvar(C, { ciclo: 'Ciclo exemplo', movimentos: [] }), /ao menos um movimento/);
+
+  // A observação depois do "|" e as repetições saem; a ordem fica na aba e chega na página.
+  salvar(C, { ciclo: 'Ciclo exemplo', movimentos: ['LÇTO EGEO', 'botipromo', 'BOTIPROMO | só no kit', 'OUTLET EUD'] });
+  salvar(C, { ciclo: 'Ciclo exemplo cheio', movimentos: ['JUICY MOOD'] });
+  let ordem = run('getDados()').ordemCalendario;
+  assert.deepEqual(ordem['Ciclo exemplo'].movimentos, ['LÇTO EGEO', 'botipromo', 'OUTLET EUD']);
+  assert.equal(ordem['Ciclo exemplo'].por, 'Bia');
+  assert.deepEqual(ordem['Ciclo exemplo cheio'].movimentos, ['JUICY MOOD']);
+  const aba = f.planilha.getSheetByName('Ordem do calendário');
+  assert.deepEqual(aba.getRange(1, 1, 1, 3).getValues()[0], ['Ciclo', 'Posição', 'Movimento (etiqueta)']);
+
+  // Salvar de novo troca só aquele ciclo; limpar volta à ordem automática.
+  salvar(C, { ciclo: 'Ciclo exemplo', movimentos: ['OUTLET EUD', 'LÇTO EGEO'] });
+  ordem = run('getDados()').ordemCalendario;
+  assert.deepEqual(ordem['Ciclo exemplo'].movimentos, ['OUTLET EUD', 'LÇTO EGEO']);
+  assert.deepEqual(ordem['Ciclo exemplo cheio'].movimentos, ['JUICY MOOD']);
+  salvar(C, { ciclo: 'Ciclo exemplo', limpar: true });
+  assert.deepEqual(Object.keys(run('getDados()').ordemCalendario), ['Ciclo exemplo cheio']);
+});
+
+test('selos dos movimentos no calendário: hotspot e medalha (ouro, prata, bronze), só o construtor', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  configurarComExemplo(run);
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const salvar = (acesso, pedido) => run(`salvarSelosCalendario(${acesso}, ${JSON.stringify(pedido)})`);
+  assert.deepEqual(run('getDados()').selosCalendario, {});
+  assert.deepEqual(Object.keys(run('getDados()').medalhas), ['OURO', 'PRATA', 'BRONZE']);
+  assert.throws(() => salvar(V, { ciclo: 'Ciclo exemplo', selos: [{ movimento: 'BOTIPROMO', hotspot: true }] }), /Só o construtor/);
+  assert.throws(() => salvar(C, { ciclo: 'Outro', selos: [] }), /não existe no app/);
+  assert.throws(() => salvar(C, { ciclo: 'Ciclo exemplo', selos: [{ movimento: 'BOTIPROMO', medalha: 'platina' }] }), /Medalha desconhecida/);
+
+  salvar(C, { ciclo: 'Ciclo exemplo', selos: [
+    { movimento: 'BOTIPROMO | kit', hotspot: true, medalha: 'ouro' },
+    { movimento: 'LÇTO EGEO', medalha: 'PRATA' },
+    { movimento: 'JUICY MOOD', hotspot: false, medalha: '' }, // sem selo: não entra
+  ] });
+  salvar(C, { ciclo: 'Ciclo exemplo cheio', selos: [{ movimento: 'BOTIK', medalha: 'Bronze' }] });
+  let selos = run('getDados()').selosCalendario;
+  assert.deepEqual(selos['Ciclo exemplo'], {
+    BOTIPROMO: { texto: 'BOTIPROMO', hotspot: true, medalha: 'OURO' },
+    'LÇTO EGEO': { texto: 'LÇTO EGEO', hotspot: false, medalha: 'PRATA' },
+  });
+  assert.equal(selos['Ciclo exemplo cheio'].BOTIK.medalha, 'BRONZE');
+  const aba = f.planilha.getSheetByName('Selos dos movimentos');
+  assert.deepEqual(aba.getRange(2, 1, 1, 4).getValues()[0], ['Ciclo exemplo', 'BOTIPROMO', 'SIM', 'Ouro']);
+
+  // Salvar de novo troca só os do ciclo; a aba editada à mão também vale ("x" no hotspot, "ouro" minúsculo).
+  salvar(C, { ciclo: 'Ciclo exemplo', selos: [] });
+  selos = run('getDados()').selosCalendario;
+  assert.ok(!selos['Ciclo exemplo'] && selos['Ciclo exemplo cheio']);
+  run("planilha_().getSheetByName('Selos dos movimentos').getRange(3, 1, 1, 4).setValues([['Ciclo exemplo', 'JUICY MOOD', 'x', 'ouro']])");
+  assert.deepEqual(run('getDados()').selosCalendario['Ciclo exemplo']['JUICY MOOD'], { texto: 'JUICY MOOD', hotspot: true, medalha: 'OURO' });
+});
+
+/** Drive em memória (DriveApp e Utilities), só o que a pasta dos briefings usa. */
+function driveFalso() {
+  const pastas = {};
+  let n = 0;
+  const iterador = (l) => { let i = 0; return { hasNext: () => i < l.length, next: () => l[i++] }; };
+  const pasta = (nome) => {
+    const id = 'PASTA' + (++n) + 'ABCDEFGHIJKL';
+    const p = {
+      nome, filhos: [], arquivos: [],
+      getId: () => id, getName: () => nome, getUrl: () => 'https://drive.google.com/drive/folders/' + id,
+      getFoldersByName: (x) => iterador(p.filhos.filter((f) => f.nome === x)),
+      createFolder: (x) => { const f = pasta(x); p.filhos.push(f); return f; },
+      getFilesByName: (x) => iterador(p.arquivos.filter((a) => a.nome === x && !a.lixeira)),
+      createFile: (blob) => {
+        const a = { nome: blob.nome, tipo: blob.tipo, texto: Buffer.from(blob.bytes).toString(), lixeira: false, descricao: '' };
+        Object.assign(a, { setTrashed: (v) => { a.lixeira = v; }, setDescription: (d) => { a.descricao = d; }, getUrl: () => 'https://drive.google.com/file/d/' + a.nome });
+        p.arquivos.push(a);
+        return a;
+      },
+    };
+    pastas[id] = p;
+    return p;
+  };
+  return {
+    pastas,
+    globais: {
+      DriveApp: { createFolder: pasta, getFolderById: (id) => { if (!pastas[id]) throw new Error('Pasta não encontrada'); return pastas[id]; } },
+      Utilities: { base64Decode: (b) => Array.from(Buffer.from(b, 'base64')), newBlob: (bytes, tipo, nome) => ({ bytes, tipo, nome }) },
+    },
+  };
+}
+
+test('briefing na pasta do Drive: o desenvolvedor vincula a pasta; a Construção salva numa subpasta por ciclo, substituindo', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const drive = driveFalso();
+  const { run } = carregarGas(Object.assign(f.globais, drive.globais));
+  configurarComExemplo(run);
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const pdf = (t) => Buffer.from(t).toString('base64');
+  const salvar = (acesso, pedido) => run(`salvarBriefingNoDrive(${acesso}, ${JSON.stringify(pedido)})`);
+  assert.equal(run('getDados()').pastaBriefings, false);
+  assert.equal(run(`getPlanilhas(${DEV})`).pastaBriefings, null);
+  assert.throws(() => salvar(C, { ciclo: 'C15/2026', er: 'ER M', base64: pdf('PDF') }), /Nenhuma pasta do Drive vinculada/);
+
+  // Criar a pasta (só o desenvolvedor).
+  assert.throws(() => run("mudarPastaBriefings({ senha: 'x' }, { acao: 'criar' })"), /Senha incorreta/);
+  const info = run(`mudarPastaBriefings(${DEV}, { acao: 'criar' })`);
+  assert.equal(info.pastaBriefings.nome, 'Plano de Varejo – Briefings');
+  assert.equal(run('getDados()').pastaBriefings, true);
+  const raiz = drive.pastas[info.pastaBriefings.id];
+
+  // Só a Construção salva; o nome leva o ciclo e a ER; a subpasta é a do ciclo.
+  assert.throws(() => salvar(V, { ciclo: 'C15/2026', er: 'ER M', base64: pdf('PDF') }), /Só o construtor/);
+  assert.throws(() => salvar(C, { ciclo: '', er: 'ER M', base64: pdf('PDF') }), /Escolha um ciclo/);
+  let r = salvar(C, { ciclo: 'C15/2026', er: 'ER M', base64: 'data:application/pdf;base64,' + pdf('PDF 1') });
+  assert.deepEqual([r.nome, r.pasta, r.substituidos], ['Briefing - C15-2026 - ER M.pdf', 'C15-2026', 0]);
+  assert.ok(r.url && r.pastaUrl);
+  // De novo: substitui (o anterior vai para a lixeira); a subpasta é a mesma.
+  r = salvar(C, { ciclo: 'C15/2026', er: 'ER M', base64: pdf('PDF 2') });
+  assert.equal(r.substituidos, 1);
+  salvar(C, { ciclo: 'C15/2026', er: '', base64: pdf('TODAS') });
+  salvar(C, { ciclo: 'C16/2026', er: 'ER P', base64: pdf('OUTRO') });
+  assert.deepEqual(raiz.filhos.map((x) => x.nome), ['C15-2026', 'C16-2026']);
+  const ativos = raiz.filhos[0].arquivos.filter((a) => !a.lixeira);
+  assert.deepEqual(ativos.map((a) => [a.nome, a.texto, a.tipo]), [
+    ['Briefing - C15-2026 - ER M.pdf', 'PDF 2', 'application/pdf'],
+    ['Briefing - C15-2026 - Todas as ERs.pdf', 'TODAS', 'application/pdf'],
+  ]);
+  assert.match(ativos[0].descricao, /salvo por Bia/);
+
+  // Vincular outra pasta (link do Drive) e desvincular.
+  const outra = run("DriveApp.createFolder('Briefings 2027').getId()");
+  assert.throws(() => run(`mudarPastaBriefings(${DEV}, { acao: 'vincular', url: 'abc' })`), /Cole o link/);
+  assert.throws(() => run(`mudarPastaBriefings(${DEV}, { acao: 'vincular', url: 'https://drive.google.com/drive/folders/NAOEXISTE123456' })`), /Não consegui abrir essa pasta/);
+  assert.equal(run(`mudarPastaBriefings(${DEV}, { acao: 'vincular', url: 'https://drive.google.com/drive/folders/${outra}?usp=sharing' })`).pastaBriefings.nome, 'Briefings 2027');
+  run(`mudarPastaBriefings(${DEV}, { acao: 'desvincular' })`);
+  assert.equal(run('getDados()').pastaBriefings, false);
+  assert.throws(() => run(`mudarPastaBriefings(${DEV}, { acao: 'desvincular' })`), /Nenhuma pasta/);
+});
+
 test('planilha separada para o layout: criar, ler e gravar nela, vincular e voltar para a principal', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);

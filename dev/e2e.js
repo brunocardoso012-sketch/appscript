@@ -332,6 +332,195 @@ test('Analytics: cartões, mapa, "Sobre a análise" e "ver na planta"', async (t
   assert.strictEqual(await p.isVisible('#painelAnalytics'), false);
 });
 
+/** As abas "Calendário de ciclos" e "Feriados" (na versão web, guardadas no navegador), e recarrega. */
+async function semearCalendario(p) {
+  await p.evaluate(() => {
+    const k = 'planoVarejo.planilhaLocal.v1';
+    const abas = JSON.parse(localStorage.getItem(k));
+    abas['aba:Calendário de ciclos'] = [['Marca', 'Ciclo', 'Início', 'Fim'],
+      ['Boticário', 'Ciclo exemplo', '02/10/2026', '22/10/2026'], ['Boticário', 'Ciclo exemplo cheio', '23/10/2026', '12/11/2026'],
+      ['Eudora', 'Ciclo exemplo', '06/10/2026', '26/10/2026'], ['Eudora', 'ciclo EXEMPLO cheio', '27/10/2026', '16/11/2026']];
+    abas['aba:Feriados'] = [['Data', 'Feriado'], ['12/10/2026', 'Nossa Senhora Aparecida'], ['02/11/2026', 'Finados']];
+    localStorage.setItem(k, JSON.stringify(abas));
+  });
+  await p.reload();
+  await p.waitForFunction(() => App.estado.dados && App.estado.dados.calendario.ciclos.EUD.length === 2);
+}
+
+test('calendário dos ciclos: o construtor muda a ordem e os selos dos movimentos de um ciclo e salva; PNG do calendário', async (t) => {
+  const p = await abrir(t, { altura: 1400 }); // alta o bastante para os itens arrastados ficarem à vista
+  await semearCalendario(p);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  // Sem o login da Construção, não dá para ordenar; as medidas são só GMV e exposição.
+  await p.click('#btnCalendario');
+  await p.waitForSelector('#calCorpo .cal-mov');
+  assert.strictEqual(await p.locator('#calCorpo .cal-ordenar').count(), 0);
+  assert.deepStrictEqual(await p.locator('#calCorpo .cal-mov').first().locator('.cal-medida-rot').allTextContents(), ['GMV', 'Exposição']);
+  await p.click('#calFechar');
+  await menuConfig(p, MENU.CONSTRUTOR);
+  await p.waitForSelector('#dlgAcesso[open]');
+  await p.fill('#acessoNome', 'Bia');
+  await p.fill('#acessoSenha', SENHA.CONSTRUTOR);
+  await p.click('#acessoEntrar');
+  await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
+
+  await p.click('#btnCalendario');
+  await p.click('#calCorpo .cal-ordenar');
+  await p.waitForSelector('#calCorpo .cal-ordem li');
+  assert.strictEqual(await p.inputValue('#calCorpo .cal-ordem select'), 'Ciclo exemplo cheio', 'começa no ciclo da tela');
+  const lista = () => p.locator('#calCorpo .cal-ordem li').evaluateAll((l) => l.map((x) => x.dataset.movimento));
+  const naTela = () => p.locator('#calCorpo .cal-mov[data-ciclo="Ciclo exemplo cheio"]').evaluateAll((l) => l.sort((a, b) => a.dataset.posicao - b.dataset.posicao).map((x) => x.dataset.movimento));
+  const antes = await lista();
+  // ↑ sobe o terceiro; arrastar leva o quinto para o topo; a linha do tempo mostra a ordem nova antes de salvar.
+  await p.locator('#calCorpo .cal-ordem li').nth(2).locator('button[aria-label^="Subir"]').click();
+  // Arrasta pela alça (à esquerda do item).
+  await p.locator('#calCorpo .cal-ordem li').nth(4).dragTo(p.locator('#calCorpo .cal-ordem li').nth(0), { sourcePosition: { x: 8, y: 12 }, targetPosition: { x: 8, y: 12 } });
+  const nova = await lista();
+  assert.deepStrictEqual(nova.slice(0, 4), [antes[4], antes[0], antes[2], antes[1]]);
+  assert.deepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4), 'a linha do tempo acompanha a lista');
+  assert.match(await p.textContent('#calCorpo .cal-ordem-estado'), /não salvas/);
+  // Selos: hotspot e medalha no primeiro, prata no segundo; a linha do tempo mostra antes de salvar.
+  const item = (i) => p.locator('#calCorpo .cal-ordem li').nth(i);
+  await item(0).locator('.cal-ordem-hot').click();
+  await item(0).locator('.cal-ordem-medalha').selectOption('OURO');
+  await item(1).locator('.cal-ordem-medalha').selectOption('PRATA');
+  const selosNaTela = () => p.locator('#calCorpo .cal-mov[data-ciclo="Ciclo exemplo cheio"][data-selos]').evaluateAll((l) => l.map((x) => x.dataset.movimento + ':' + x.dataset.selos).sort());
+  assert.deepStrictEqual(await selosNaTela(), [nova[0] + ':OURO HOTSPOT', nova[1] + ':PRATA'].sort());
+  assert.strictEqual(await p.locator('#calCorpo .cal-mov[data-movimento="' + nova[0] + '"] .cal-hotspot').count(), 1);
+  await p.click('#calCorpo .cal-ordem button:text-is("Salvar")');
+  await p.waitForFunction(() => App.estado.dados.ordemCalendario['Ciclo exemplo cheio'] && App.estado.dados.selosCalendario['Ciclo exemplo cheio']);
+  const selos = await estado(p, () => App.estado.dados.selosCalendario['Ciclo exemplo cheio']);
+  assert.deepStrictEqual(Object.values(selos).map((x) => [x.texto, x.hotspot, x.medalha]).sort(), [[nova[0], true, 'OURO'], [nova[1], false, 'PRATA']].sort());
+  assert.strictEqual(await p.locator('#calCorpo .cal-ordem').count(), 0, 'salvar fecha a ordenação');
+  assert.strictEqual(await p.getAttribute('#calCorpo .cal-controle button[data-valor="definida"]', 'aria-pressed'), 'true');
+  assert.deepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4));
+
+  // Continua salva depois de recarregar, para todo mundo (sem login), como a ordem padrão.
+  await p.click('#calFechar');
+  await p.evaluate(() => sessionStorage.clear());
+  await p.reload();
+  await p.waitForFunction(() => App.estado.dados && App.estado.dados.ordemCalendario['Ciclo exemplo cheio']);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  await p.click('#btnCalendario');
+  await p.waitForSelector('#calCorpo .cal-mov');
+  assert.strictEqual(await p.getAttribute('#calCorpo .cal-controle button[data-valor="definida"]', 'aria-pressed'), 'true');
+  assert.deepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4));
+  assert.deepStrictEqual(await selosNaTela(), [nova[0] + ':OURO HOTSPOT', nova[1] + ':PRATA'].sort(), 'os selos ficam para todo mundo');
+  assert.strictEqual(await p.locator('#calCorpo .cal-ordenar').count(), 0);
+  // Baixar PNG com o calendário aberto: já vem no calendário do ciclo; slide 16:9 e PNG recortado.
+  await p.click('#btnPng');
+  await p.waitForSelector('#dlgPng[open]');
+  assert.ok(await p.isChecked('#dlgPng input[name="pngConteudo"][value="calendario"]'));
+  assert.ok(await p.isDisabled('#dlgPng input[name="pngErs"][value="todas"]'), 'o calendário não sai por ER');
+  assert.strictEqual(await p.inputValue('#pngCicloCal'), 'Ciclo exemplo cheio');
+  assert.deepStrictEqual(await p.locator('#pngCicloCal option').allTextContents(), ['Ciclo exemplo', 'Ciclo exemplo cheio']);
+  await p.check('#dlgPng input[name="pngFormato"][value="slide"]');
+  const slide = await baixar(p, () => p.click('#pngBaixar'));
+  assert.strictEqual(slide.nome, 'Calendario - Ciclo exemplo cheio - slide.png');
+  assert.ok(ehPng(slide.bytes));
+  assert.strictEqual(slide.bytes.readUInt32BE(16), 3840, 'slide com 3840 px de largura');
+  await p.click('#btnPng');
+  await p.selectOption('#pngCicloCal', 'Ciclo exemplo');
+  await p.check('#dlgPng input[name="pngFormato"][value="png"]');
+  const recorte = await baixar(p, () => p.click('#pngBaixar'));
+  assert.strictEqual(recorte.nome, 'Calendario - Ciclo exemplo.png');
+  assert.ok(ehPng(recorte.bytes) && recorte.bytes.readUInt32BE(16) <= 3840);
+  // As outras ordens continuam a um clique.
+  await p.click('#calCorpo .cal-controle button[data-valor="gmv"]');
+  assert.notDeepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4));
+});
+
+test('calendário dos ciclos: linha do tempo com Boticário e Eudora sobrepostos e os movimentos empilhados', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  // Sem as abas do calendário: a aba explica de onde vêm as datas.
+  await p.click('#btnCalendario');
+  assert.ok(await p.isVisible('#painelCalendario'));
+  assert.match(await p.textContent('#calCorpo'), /Nenhum ciclo no calendário/);
+  assert.match(await p.textContent('#calCorpo .cal-aviso'), /Ciclo exemplo/, 'avisa os ciclos do app sem datas');
+  await p.click('#calFechar');
+
+  await semearCalendario(p);
+  // Desenvolvedor › Planilhas mostra o que foi lido.
+  await abrirPainelDev(p);
+  await p.click('#dlgDev [data-dev-aba="planilhas"]');
+  await p.waitForSelector('#devPlanilhas [data-planilha="calendario"] .dev-chip');
+  assert.match(await p.textContent('#devPlanilhas [data-planilha="calendario"]'), /2 ciclos Boticário.*2 ciclos Eudora.*2 feriados/);
+  await p.click('#devFechar');
+
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  await p.click('#btnCalendario');
+  await p.waitForSelector('#calCorpo .cal-mov');
+  // Datas na horizontal; uma faixa de ciclos por calendário, na mesma linha do tempo.
+  assert.ok(await p.locator('#calCorpo .cal-dia').count() > 40);
+  assert.strictEqual(await p.locator('#calCorpo .cal-dia.feriado').count(), 2);
+  assert.deepStrictEqual(await p.locator('#calCorpo .cal-trilha').evaluateAll((ts) => ts.map((t) => t.dataset.calendario)), ['BOT', 'EUD']);
+  const caixa = (sel) => p.locator(sel).evaluate((e) => { const r = e.getBoundingClientRect(); return { x: r.left, fim: r.right, y: r.top }; });
+  const botC = await caixa('#calCorpo .cal-trilha[data-calendario="BOT"] .cal-ciclo[data-ciclo="Ciclo exemplo"]');
+  const eudC = await caixa('#calCorpo .cal-trilha[data-calendario="EUD"] .cal-ciclo[data-ciclo="Ciclo exemplo"]');
+  assert.ok(eudC.x > botC.x && eudC.x < botC.fim, 'o ciclo da Eudora começa depois e se sobrepõe ao do Boticário');
+  // Todos os movimentos juntos, embaixo das datas; os da Eudora nas datas da Eudora.
+  const movs = await p.locator('#calCorpo .cal-movs .cal-mov').evaluateAll((ms) => ms.map((m) => {
+    const r = m.getBoundingClientRect();
+    return { texto: m.dataset.movimento, ciclo: m.dataset.ciclo, cal: m.dataset.calendario, pos: +m.dataset.posicao, x: r.left, fim: r.right, y: r.top };
+  }));
+  const eud = movs.filter((m) => m.cal === 'EUD' && m.ciclo === 'Ciclo exemplo');
+  const bot = movs.filter((m) => m.cal === 'BOT' && m.ciclo === 'Ciclo exemplo');
+  assert.ok(eud.length && bot.length, 'as duas marcas no mesmo quadro');
+  assert.ok(eud.every((m) => Math.abs(m.x - eudC.x) < 4) && bot.every((m) => Math.abs(m.x - botC.x) < 4), 'cada um começa no início do ciclo do seu calendário');
+  assert.ok(movs.some((m) => m.texto === 'LIQUIDA QDB' && m.cal === 'BOT'), 'QDB segue o calendário do Boticário');
+  assert.ok(movs.every((m) => m.y > botC.y), 'os movimentos ficam embaixo das datas e dos ciclos');
+  // Empilhados: no mesmo ciclo, quem vem antes na ordem fica mais em cima; nada se sobrepõe.
+  ['Ciclo exemplo', 'Ciclo exemplo cheio'].forEach((c) => {
+    const doCiclo = movs.filter((m) => m.ciclo === c).sort((a, b) => a.pos - b.pos);
+    assert.ok(doCiclo.every((m, i) => !i || m.y > doCiclo[i - 1].y), 'ordem de cima para baixo no ' + c);
+  });
+  movs.forEach((a, i) => movs.slice(i + 1).forEach((b) => {
+    assert.ok(Math.abs(a.y - b.y) > 2 || a.fim <= b.x + 1 || b.fim <= a.x + 1, a.texto + ' e ' + b.texto + ' se sobrepõem');
+  }));
+
+  // Equilíbrio é o padrão; só GMV segue o GMV esperado; só exposição muda a ordem.
+  assert.strictEqual(await p.getAttribute('#calCorpo .cal-controle button[data-valor="equilibrio"]', 'aria-pressed'), 'true');
+  const ordem = () => p.locator('#calCorpo .cal-mov[data-ciclo="Ciclo exemplo"]').evaluateAll((ms) => ms.sort((a, b) => a.dataset.posicao - b.dataset.posicao).map((m) => m.dataset.movimento));
+  await p.click('#calCorpo .cal-controle button[data-valor="gmv"]');
+  const porGmv = await ordem();
+  const gmvsOk = await p.evaluate((lista) => {
+    const tipos = Object.values(App.estado.dados.tiposMovimento['Ciclo exemplo']);
+    const g = lista.map((m) => ((tipos.find((x) => x.texto === m) || {}).gmv) || 0);
+    return g.every((v, i) => !i || v <= g[i - 1]);
+  }, porGmv);
+  assert.ok(gmvsOk, 'ordem por GMV: ' + porGmv.join(', '));
+  await p.click('#calCorpo .cal-controle button[data-valor="exposicao"]');
+  assert.notDeepStrictEqual(await ordem(), porGmv, 'GMV e exposição dão ordens diferentes');
+  // Limite de movimentos por ciclo, escala e Hoje.
+  await p.locator('#calCorpo .cal-controle', { hasText: 'Movimentos por ciclo' }).locator('select').selectOption('5');
+  assert.ok(await p.locator('#calCorpo .cal-mais').count() > 0, 'mostra quantos movimentos ficaram de fora');
+  await p.locator('#calCorpo .cal-mais').first().click();
+  assert.strictEqual(await p.locator('#calCorpo .cal-mais').count(), 0, '+N mostra todos');
+  await p.click('#calCorpo .cal-controle button[data-valor="compacta"]');
+  await p.click('#calCorpo .cal-hoje');
+
+  // Clicar num movimento fecha o calendário e mostra o movimento na planta, no ciclo dele.
+  await p.click('#calCorpo .cal-controle button[data-valor="equilibrio"]');
+  const mov = p.locator('#calCorpo .cal-mov[data-calendario="EUD"][data-ciclo="Ciclo exemplo"]').first();
+  const texto = await mov.getAttribute('data-movimento');
+  await mov.click();
+  assert.strictEqual(await p.isVisible('#painelCalendario'), false);
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), 'Ciclo exemplo');
+  assert.strictEqual(await estado(p, () => App.estado.filtroEtiqueta), texto);
+  // A faixa do ciclo abre o ciclo; o Analytics e o calendário não ficam abertos juntos; Esc fecha.
+  await p.click('#btnCalendario');
+  await p.locator('#calCorpo .cal-trilha[data-calendario="BOT"] .cal-ciclo[data-ciclo="Ciclo exemplo cheio"]').click();
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), 'Ciclo exemplo cheio');
+  await p.click('#btnCalendario');
+  await p.click('#btnAnalytics');
+  assert.strictEqual(await p.isVisible('#painelCalendario'), false, 'o Analytics fecha o calendário');
+  await p.click('#btnCalendario');
+  assert.strictEqual(await p.isVisible('#painelAnalytics'), false, 'o calendário fecha o Analytics');
+  await p.locator('body').press('Escape');
+  assert.strictEqual(await p.isVisible('#painelCalendario'), false);
+});
+
 test('filtros por tipo de movimento e por movimento (menus ao lado das marcas); legenda e notas paradas com zoom', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo cheio');
@@ -1249,19 +1438,46 @@ test('briefing das gôndolas e pirâmides: PDF com o planograma desenhado de cad
   await p.waitForSelector('#dlgBriefing[open]');
   const naEr = await estado(p, () => App.estado.dados.plantas.find((x) => x.nome === 'ER P').moveis.filter((m) => m.tipo === 'PIRAMIDE').length);
   assert.match(await p.textContent('#briefingResumo'), new RegExp('1 gôndola e ' + naEr + ' pirâmide'));
+  // O nome leva o ciclo e a ER; sem pasta do Drive vinculada (sempre, na versão web), o PDF só é baixado.
+  assert.strictEqual(await p.textContent('#briefingNome'), 'Arquivo: Briefing - Ciclo exemplo cheio - ER P.pdf');
+  assert.strictEqual(await p.isVisible('#briefingDestinos'), false);
   await p.check('input[name="briefingErs"][value="todas"]');
+  assert.strictEqual(await p.textContent('#briefingNome'), 'Arquivo: Briefing - Ciclo exemplo cheio - Todas as ERs.pdf');
   const conta = (tipo) => p.evaluate((t) => App.estado.dados.plantas.reduce((s, x) => s + x.moveis.filter((m) => m.tipo === t).length, 0), tipo);
   const gondolas = await conta('GONDOLA');
   const piramides = await conta('PIRAMIDE');
   const n = gondolas + piramides;
   assert.match(await p.textContent('#briefingResumo'), new RegExp(gondolas + ' gôndolas e ' + piramides + ' pirâmides'));
   const d = await baixar(p, () => p.click('#briefingBaixar'));
-  assert.match(d.nome, /^briefing-planogramas-Ciclo-exemplo-cheio\.pdf$/);
+  assert.strictEqual(d.nome, 'Briefing - Ciclo exemplo cheio - Todas as ERs.pdf');
   assert.strictEqual(d.bytes.subarray(0, 5).toString(), '%PDF-');
   // Capa + uma página por gôndola (no mínimo).
   const paginas = (d.bytes.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
   assert.ok(paginas >= n + 1, paginas + ' páginas para ' + n + ' gôndolas e pirâmides');
   assert.match(await p.textContent('#toast'), new RegExp(gondolas + ' gôndolas e ' + piramides + ' pirâmides'));
+
+  // Com uma pasta do Drive vinculada (no Apps Script), aparece o destino "Salvar na pasta do Drive", que só a
+  // Construção usa: o arquivo vai para a subpasta do ciclo.
+  await p.evaluate(() => { App.estado.dados.pastaBriefings = true; });
+  await p.click('#btnBriefing');
+  await p.waitForSelector('#dlgBriefing[open]');
+  assert.ok(await p.isVisible('#briefingDestinos'));
+  assert.ok(await p.isDisabled('input[name="briefingDestino"][value="drive"]'), 'sem o login da Construção');
+  await p.click('#dlgBriefing button[value="cancelar"]');
+  await menuConfig(p, 'btnConstrucao');
+  await p.waitForSelector('#dlgAcesso[open]');
+  await p.fill('#acessoNome', 'Bia');
+  await p.fill('#acessoSenha', SENHA.CONSTRUTOR);
+  await p.click('#acessoEntrar');
+  await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
+  await p.evaluate(() => { App.estado.dados.pastaBriefings = true; });
+  await p.click('#btnBriefing');
+  await p.waitForSelector('#dlgBriefing[open]');
+  await p.check('input[name="briefingErs"][value="esta"]');
+  await p.check('input[name="briefingDestino"][value="drive"]');
+  assert.strictEqual(await p.textContent('#briefingBaixar'), 'Salvar no Drive');
+  assert.strictEqual(await p.textContent('#briefingNome'), 'Arquivo: Ciclo exemplo cheio / Briefing - Ciclo exemplo cheio - ER P.pdf');
+  await p.click('#dlgBriefing button[value="cancelar"]');
 });
 
 test('antecipação: item do próximo ciclo num espaço, com a data e o símbolo ⏩', async (t) => {

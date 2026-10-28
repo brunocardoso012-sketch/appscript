@@ -318,6 +318,9 @@
   .dev-selo-estado { font: 700 10px var(--dev-mono); letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--dev-borda); color: var(--dev-texto-2); }
   .dev-selo-estado.mudou { color: var(--dev-ambar-2); border-color: #5a4410; background: #1f1708; }
 
+  /* Planilhas › calendário dos ciclos: avisos e observações da leitura. */
+  .dev-avisos { margin: 0; padding-left: 18px; color: var(--dev-ambar-2); font-size: 13px; display: grid; gap: 4px; }
+
   @media (max-width: 760px) {
     .dev-console { width: 100vw; height: 100vh; border-radius: 0; }
     .dev-meio { flex-direction: column; }
@@ -585,6 +588,153 @@
   .an-disp-idx { margin-top: 2px; color: var(--texto); }
   .an-disp-idx.alto { color: #1d6b47; }
   .an-disp-idx.baixo { color: #8a4510; }
+
+  /* ---------- Calendário dos ciclos (no lugar da planta, na largura toda; as datas correm na horizontal) ---------- */
+  .calendario { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fundo); }
+  .calendario[hidden] { display: none; }
+  body.com-calendario .palco { position: relative; }
+  body.com-calendario .area-planta { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
+  body.com-calendario .painel-loja, body.com-calendario .painel-validacao, body.com-calendario .painel-construcao { display: none; }
+  body.apresentando .calendario { display: none !important; }
+  .cal-corpo { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 12px clamp(16px, 2.5vw, 32px) 16px; gap: 8px; font-size: 13px; }
+  .cal-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+  .cal-controle { display: inline-flex; align-items: center; gap: 8px; }
+  .cal-controle select { min-width: 0; padding: 4px 8px; font-size: 12px; }
+  .cal-rotulo { font-weight: 600; text-transform: uppercase; letter-spacing: .4px; font-size: 11px; color: var(--texto-2); }
+  .cal-hoje { margin-left: auto; }
+  .cal-nota { margin: 0; color: var(--texto-2); font-size: 12px; line-height: 1.45; max-width: 1200px; }
+  .cal-aviso { margin: 0; padding: 6px 10px; border-radius: 8px; font-size: 12px; color: #7A4A00; background: #FFF4D6; border: 1px solid #F2D58A; }
+  [data-tema="escuro"] .cal-aviso { color: #FFD98A; background: #3A2E12; border-color: #5C4A1E; }
+
+  .cal-area { flex: 1 1 auto; min-height: 0; display: flex; gap: 10px; }
+  .cal-rolagem { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; border: 1px solid var(--borda); border-radius: 10px; background: var(--superficie); }
+  /* Construção: a ordem dos movimentos de um ciclo, ao lado da linha do tempo. */
+  .cal-ordenar[aria-pressed="true"] { background: var(--destaque); }
+  .cal-ordem {
+    flex: 0 0 340px; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px;
+    border: 1px solid var(--borda-forte); border-top: 3px solid #E8590C; border-radius: 10px; background: var(--superficie);
+  }
+  .cal-ordem h3 { margin: 0; font-size: 14px; }
+  .cal-ordem .cal-controle select { flex: 1 1 auto; }
+  .cal-ordem-dica { margin: 0; font-size: 12px; color: var(--texto-2); line-height: 1.4; }
+  .cal-ordem-estado { margin: 0; font-size: 12px; font-weight: 600; color: #8a4510; }
+  [data-tema="escuro"] .cal-ordem-estado { color: #ffb38a; }
+  .cal-ordem-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .cal-ordem-lista li {
+    display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; align-items: center; gap: 4px 6px; padding: 5px 6px;
+    border: 1px solid var(--borda); border-left: 4px solid; border-radius: 7px; background: var(--superficie); cursor: grab;
+  }
+  .cal-ordem-lista li > .cal-ordem-alca { grid-area: 1 / 1 / 3 / 2; }
+  .cal-ordem-lista li > .cal-mov-pos { grid-area: 1 / 2 / 3 / 3; }
+  .cal-ordem-lista li > .cal-ordem-texto { grid-area: 1 / 3; }
+  .cal-ordem-lista li > .sobe { grid-area: 1 / 4; }
+  .cal-ordem-lista li > .desce { grid-area: 1 / 5; }
+  .cal-ordem-selos { grid-area: 2 / 3 / 3 / 6; display: flex; align-items: center; gap: 6px; }
+  .cal-ordem-lista li.arrastando { opacity: .45; }
+  .cal-ordem-lista li.alvo { box-shadow: 0 -3px 0 #3346b8; }
+  .cal-ordem-alca { color: var(--texto-2); font-size: 12px; letter-spacing: -2px; }
+  .cal-ordem-texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .cal-ordem-texto strong { font: 800 12px var(--fonte-etq); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-ordem-texto small { font-size: 10.5px; color: var(--texto-2); }
+  .cal-ordem-mover {
+    flex: 0 0 auto; width: 24px; height: 24px; padding: 0; border: 1px solid var(--borda); border-radius: 6px; background: var(--fundo);
+    color: var(--texto); cursor: pointer;
+  }
+  .cal-ordem-mover:disabled { opacity: .35; cursor: default; }
+  .cal-ordem-acoes { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; bottom: -12px; padding: 8px 0 0; background: var(--superficie); }
+  .cal-quadro { position: relative; min-width: 100%; }
+  /* Topo: meses, dias e as faixas dos ciclos (Boticário e Eudora), fixo ao rolar para baixo. */
+  .cal-topo { position: sticky; top: 0; z-index: 4; background: var(--superficie); border-bottom: 1px solid var(--borda-forte); }
+  .cal-meses, .cal-dias, .cal-trilha { position: relative; }
+  .cal-meses { height: 22px; }
+  .cal-mes { position: absolute; top: 0; height: 22px; border-left: 1px solid var(--borda-forte); box-sizing: border-box; }
+  .cal-mes span {
+    position: sticky; left: 0; display: inline-block; padding: 3px 8px; font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--texto); white-space: nowrap;
+  }
+  .cal-dias { height: 30px; border-bottom: 1px solid var(--borda); }
+  .cal-dia {
+    position: absolute; top: 0; height: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    box-sizing: border-box; border-left: 1px solid var(--borda); font-size: 10.5px; line-height: 1.1; color: var(--texto-2); font-variant-numeric: tabular-nums;
+  }
+  .cal-dia b { font-weight: 600; }
+  .cal-dia small { font-size: 9px; }
+  .cal-dia.fds { background: rgba(120, 128, 140, .12); }
+  .cal-dia.feriado { background: rgba(214, 51, 51, .16); color: #b42318; }
+  [data-tema="escuro"] .cal-dia.feriado { color: #ff8f86; }
+  .cal-dia.hoje { background: #E8590C; color: #fff; }
+  .cal-trilha { height: 38px; border-bottom: 1px solid var(--borda); }
+  .cal-trilha-nome {
+    position: sticky; left: 0; z-index: 2; display: inline-flex; align-items: center; height: 100%; padding: 0 10px; box-sizing: border-box;
+    font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--texto);
+    background: var(--superficie); border-left: 5px solid; box-shadow: 4px 0 8px -6px rgba(0, 0, 0, .35);
+  }
+  .cal-ciclo {
+    position: absolute; top: 4px; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 8px; box-sizing: border-box;
+    border: 1px solid; border-radius: 6px; font: 11px var(--fonte); color: var(--texto-2); white-space: nowrap; overflow: hidden; text-align: left;
+  }
+  .cal-ciclo strong { font-size: 12.5px; color: var(--texto); }
+  .cal-ciclo span { overflow: hidden; text-overflow: ellipsis; }
+  button.cal-ciclo { cursor: pointer; }
+  button.cal-ciclo:hover, button.cal-ciclo:focus-visible { box-shadow: 0 0 0 2px #3346b8; outline: none; }
+  .cal-ciclo.atual { box-shadow: inset 0 0 0 1px currentColor; }
+  .cal-ciclo.sem-app { border-style: dashed; }
+  /* Movimentos: todos juntos, empilhados. */
+  .cal-movs { position: relative; }
+  .cal-fundo { position: absolute; top: 0; bottom: 0; background: rgba(120, 128, 140, .07); pointer-events: none; }
+  .cal-fundo.feriado { background: rgba(214, 51, 51, .09); pointer-events: auto; }
+  .cal-divisa { position: absolute; top: 0; bottom: 0; border-left: 1px solid; opacity: .45; pointer-events: none; }
+  .cal-divisa.eud { border-left-style: dashed; }
+  .cal-linha-hoje { position: absolute; top: 0; bottom: 0; border-left: 2px solid #E8590C; z-index: 3; pointer-events: none; }
+  .cal-mov {
+    position: absolute; z-index: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 4px 8px 4px 8px;
+    box-sizing: border-box; text-align: left; font: 12px var(--fonte); color: var(--texto); border: 1px solid var(--borda); border-left: 5px solid;
+    border-radius: 7px; overflow: hidden; cursor: pointer;
+  }
+  .cal-mov:hover, .cal-mov:focus-visible { box-shadow: 0 2px 10px rgba(0, 0, 0, .2); border-color: var(--borda-forte); outline: none; z-index: 2; }
+  .cal-mov-l1, .cal-mov-l2 { display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0; }
+  .cal-mov-pos {
+    flex: 0 0 auto; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; display: grid; place-items: center; box-sizing: border-box;
+    background: var(--texto); color: var(--superficie); font-size: 10.5px; font-weight: 800;
+  }
+  .cal-mov-nome { font: 800 12.5px var(--fonte-etq); overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+  .cal-bolinha { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); }
+  /* Selos dos movimentos: medalha (ouro, prata, bronze) e hotspot. */
+  .cal-medalha { flex: 0 0 auto; display: block; }
+  .cal-hotspot {
+    flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px 1px 5px; border-radius: 999px;
+    background: #E8590C; color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .5px;
+  }
+  .cal-ordem-hot {
+    flex: 0 0 auto; width: 26px; height: 24px; padding: 0; display: grid; place-items: center; border: 1px solid var(--borda);
+    border-radius: 6px; background: var(--fundo); color: var(--texto-2); cursor: pointer;
+  }
+  .cal-ordem-hot[aria-pressed="true"] { background: #E8590C; border-color: #E8590C; color: #fff; }
+  .cal-ordem-medalha { flex: 0 0 auto; min-width: 0; width: 86px; padding: 2px 4px; font-size: 11px; }
+  .png-ciclo-cal { margin: -4px 0 12px 24px !important; }
+  .cal-mov-classe { flex: 0 0 auto; font-size: 10.5px; padding: 0 6px; border: 1px solid; border-radius: 999px; color: var(--texto-2); }
+  .cal-mov-l2 { gap: 12px; overflow: hidden; }
+  .cal-medida { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--texto-2); flex: 0 0 auto; }
+  .cal-medida b { color: var(--texto); font-variant-numeric: tabular-nums; }
+  .cal-medida-trilho { display: inline-block; width: 42px; height: 5px; border-radius: 3px; background: rgba(120, 128, 140, .25); overflow: hidden; }
+  .cal-medida-trilho > span { display: block; height: 100%; border-radius: 3px; }
+  .cal-medida.expo .cal-medida-trilho > span { background: #3346b8; }
+  .cal-medida.gmv .cal-medida-trilho > span { background: #1d8a5a; }
+  [data-tema="escuro"] .cal-medida.expo .cal-medida-trilho > span { background: #7d8ff0; }
+  [data-tema="escuro"] .cal-medida.gmv .cal-medida-trilho > span { background: #4cc38a; }
+  .cal-mais {
+    position: absolute; z-index: 1; padding: 0 12px; border: 1px dashed var(--borda-forte); border-radius: 7px; background: var(--superficie);
+    font: 600 12px var(--fonte); color: var(--texto-2); cursor: pointer; white-space: nowrap;
+  }
+  .cal-mais:hover, .cal-mais:focus-visible { color: var(--texto); border-color: #3346b8; outline: none; }
+  .cal-sem-movs { margin: 0; padding: 12px; color: var(--texto-2); font-style: italic; position: sticky; left: 0; }
+  @media (max-width: 900px) {
+    .cal-area { flex-direction: column; }
+    .cal-ordem { flex: 0 0 auto; max-height: 45vh; }
+  }
+  @media (max-width: 600px) {
+    .cal-hoje { margin-left: 0; }
+  }
 
   /* Telas estreitas: a página rola; o Analytics ocupa a largura toda e a planta fica invisível por baixo. */
   @media (max-width: 900px) {

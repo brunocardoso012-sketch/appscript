@@ -76,6 +76,11 @@
       dados.antecipacoes = antecipacoesDeValores_(abas['aba:' + CONFIG.ABAS.ANTECIPACOES]);
       dados.produtos = produtosDeValores_(abas.produtos);
       dados.prateleiras = prateleirasDeValores_(abas['aba:' + CONFIG.ABAS.PRATELEIRAS], dados.produtos);
+      // Calendário dos ciclos e feriados: no Apps Script, vêm da planilha do calendário; aqui, do navegador.
+      dados.calendario = calendarioDeValores_(abas['aba:' + CONFIG.ABAS.CICLOS], abas['aba:' + CONFIG.ABAS.FERIADOS]);
+      dados.ordemCalendario = ordemCalendarioDeValores_(abas['aba:' + CONFIG.ABAS.ORDEM_CALENDARIO]);
+      dados.selosCalendario = selosCalendarioDeValores_(abas['aba:' + CONFIG.ABAS.SELOS_CALENDARIO]);
+      dados.calendario.avisos.forEach((a) => { if (dados.avisos.length < 60) dados.avisos.push(a); });
       dados.planilhaUrl = '';
       dados.precisaConfigurar = false;
       dados.modoLocal = true;
@@ -109,11 +114,24 @@
 
     getPlanilhas(acesso) {
       conferirDesenvolvedor_(acesso);
-      return { web: true };
+      const abas = ler();
+      return { web: true, leituraCalendario: resumoCalendario_(calendarioDeValores_(abas['aba:' + CONFIG.ABAS.CICLOS], abas['aba:' + CONFIG.ABAS.FERIADOS])) };
     },
 
     mudarPlanilhaLayout() {
       throw new Error('Na versão web, os dados ficam no navegador: a planilha separada do layout só existe no Apps Script.');
+    },
+
+    mudarPastaBriefings() {
+      throw new Error('Na versão web, os dados ficam no navegador: a pasta dos briefings no Drive só existe no Apps Script.');
+    },
+
+    salvarBriefingNoDrive() {
+      throw new Error('Na versão web não há Drive: baixe o briefing.');
+    },
+
+    mudarPlanilhaCalendario() {
+      throw new Error('Na versão web, os dados ficam no navegador: a planilha do calendário dos ciclos só existe no Apps Script.');
     },
 
     getConfigDev(acesso) {
@@ -158,6 +176,14 @@
 
     salvarAntecipacao(acesso, pedido) {
       return executarAntecipacao_(ioRascunhos(), acesso, pedido);
+    },
+
+    salvarOrdemCalendario(acesso, pedido) {
+      return executarOrdemCalendario_(ioRascunhos(), acesso, pedido);
+    },
+
+    salvarSelosCalendario(acesso, pedido) {
+      return executarSelosCalendario_(ioRascunhos(), acesso, pedido);
     },
 
     salvarPrateleiras(acesso, pedido) {

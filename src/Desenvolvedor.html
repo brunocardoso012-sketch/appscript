@@ -11,7 +11,9 @@
  *   - Cascata entre ERs: espaços fixos de uma marca em algumas ERs e livres nas outras e espaços que mudam
  *     de nome de uma ER para a seguinte;
  *   - Senhas: as do Desenvolvedor, da Validação e da Construção;
- *   - Planilhas: onde ficam as abas; o layout (aba Layout) pode ficar numa planilha separada (Code.gs).
+ *   - Planilhas: onde ficam as abas; o layout (aba Layout) pode ficar numa planilha separada, e o calendário
+ *     dos ciclos e os feriados vêm de uma planilha vinculada, e os briefings em PDF podem ser salvos numa pasta do
+ *     Drive vinculada (Code.gs).
  *  Enquanto a sessão está aberta, a faixa "Modo desenvolvedor" fica no alto da tela. A senha fica só nesta
  *  aba do navegador (sessionStorage) e o servidor a confere a cada gravação (Desenvolvedor.gs).
  */
@@ -568,11 +570,12 @@ const Desenvolvedor = (() => {
     desenharPlanilhas();
   }
 
-  async function mudarPlanilha(pedido, ok) {
+  async function mudarPlanilha(pedido, ok, funcao) {
     mensagem('');
-    app.carregando(true, 'Mudando a planilha do layout…');
+    app.carregando(true, { mudarPlanilhaCalendario: 'Mudando a planilha do calendário…', mudarPastaBriefings: 'Mudando a pasta dos briefings…' }[funcao]
+      || 'Mudando a planilha do layout…');
     try {
-      planilhas = await app.chamar('mudarPlanilhaLayout', acesso, pedido);
+      planilhas = await app.chamar(funcao || 'mudarPlanilhaLayout', acesso, pedido);
       await app.carregar({ planta: app.estado.planta });
       desenharTudo();
       desenharPlanilhas();
@@ -596,15 +599,20 @@ const Desenvolvedor = (() => {
     const corpo = $('devPlanilhas');
     corpo.innerHTML = '';
     n('h3', 'dev-titulo', 'Planilhas', corpo);
-    n('p', 'dev-nota', 'Um Apps Script pode ler e gravar em mais de uma planilha do Google. O layout de todas as plantas (aba Layout: a posição e o tamanho de cada móvel, a largura do slide e o tamanho e a posição das etiquetas) pode ficar numa planilha só dele, para não pesar a principal. Os ciclos, os comentários, os ciclos em construção e a configuração do app continuam na principal. O Construir loja e o Ajustar etiquetas gravam sozinhos onde o layout estiver.', corpo);
+    n('p', 'dev-nota', 'Um Apps Script pode ler e gravar em mais de uma planilha do Google. O calendário dos ciclos e os feriados vêm de uma planilha vinculada (veja abaixo). O layout de todas as plantas (aba Layout: a posição e o tamanho de cada móvel, a largura do slide e o tamanho e a posição das etiquetas) pode ficar numa planilha só dele, para não pesar a principal. Os ciclos, os comentários, os ciclos em construção e a configuração do app continuam na principal. O Construir loja e o Ajustar etiquetas gravam sozinhos onde o layout estiver.', corpo);
     if (!planilhas) { n('p', 'dev-vazio', 'Carregando…', corpo); return; }
-    if (planilhas.web) { n('p', 'dev-vazio', 'Na versão web os dados ficam neste navegador; as planilhas só existem no Apps Script.', corpo); return; }
+    if (planilhas.web) {
+      n('p', 'dev-vazio', 'Na versão web os dados ficam neste navegador; as planilhas só existem no Apps Script.', corpo);
+      desenharPlanilhaCalendario(corpo);
+      desenharPastaBriefings(corpo);
+      return;
+    }
     if (planilhas.erro) { n('p', 'dev-msg erro', planilhas.erro, corpo); return; }
 
     const principal = n('div', 'dev-regra', null, corpo);
     n('span', 'dev-rotulo', 'Planilha principal', principal);
     linkPlanilha(planilhas.principal, principal);
-    n('p', 'dev-resumo', planilhas.layout ? 'Movimentos, Painéis, Tipos de movimento, Produtos, Comentários, Antecipações, Prateleiras, rascunhos e Config do app.' : 'Todas as abas, inclusive a do layout.', principal);
+    n('p', 'dev-resumo', planilhas.layout ? 'Movimentos, Painéis, Tipos de movimento, Produtos, Comentários, Antecipações, Prateleiras, rascunhos e Config do app.' : 'Todas as abas, inclusive a do layout' + (planilhas.calendario ? '' : ' (e as do calendário, se estiverem nela)') + '.', principal);
 
     const lay = n('div', 'dev-regra', null, corpo);
     n('span', 'dev-rotulo', 'Layout das plantas', lay);
@@ -636,6 +644,110 @@ const Desenvolvedor = (() => {
       botao('Voltar o layout para a planilha principal', 'perigo', () => {
         if (window.confirm('Copiar o layout para a aba Layout da planilha principal e deixar de usar a planilha separada? (A planilha separada não é apagada.)')) {
           mudarPlanilha({ acao: 'voltar' }, 'O layout voltou para a planilha principal.');
+        }
+      }, acoes);
+    }
+    desenharPlanilhaCalendario(corpo);
+    desenharPastaBriefings(corpo);
+  }
+
+  /**
+   * Pasta do Drive dos briefings: com ela, quem entrou na Construção salva o briefing em PDF ali, numa subpasta
+   * por ciclo, no lugar do anterior com o mesmo nome.
+   */
+  function desenharPastaBriefings(corpo) {
+    const b = n('div', 'dev-regra', null, corpo);
+    b.dataset.planilha = 'briefings';
+    n('span', 'dev-rotulo', 'Pasta dos briefings (Drive)', b);
+    n('p', 'dev-nota', 'Com uma pasta do Drive vinculada, o Briefing (PDF) ganha a opção "Salvar na pasta do Drive" para quem entrou na Construção. Cada ciclo tem a sua subpasta (ex.: C15-2026) e o arquivo leva o ciclo e a ER no nome (ex.: Briefing - C15-2026 - ER M.pdf); salvar de novo substitui o anterior com o mesmo nome (ele vai para a lixeira do Drive).', b);
+    if (planilhas.web) { n('p', 'dev-vazio', 'Na versão web não há Drive: o briefing só é baixado.', b); return; }
+    const pasta = planilhas.pastaBriefings;
+    if (pasta && pasta.erro) n('p', 'dev-msg erro', pasta.erro, b);
+    else if (pasta) {
+      linkPlanilha(pasta, b);
+      n('p', 'dev-resumo', 'Pasta vinculada: os briefings salvos pela Construção vão para ela.', b);
+    } else {
+      n('p', 'dev-resumo', 'Nenhuma pasta vinculada: o briefing só é baixado.', b);
+    }
+    const acoes = n('div', 'dev-planta-acoes', null, b);
+    if (!pasta) {
+      botao('Criar uma pasta para os briefings', 'primario', () => {
+        if (window.confirm('Criar a pasta "Plano de Varejo – Briefings" no Drive de quem publicou o app?')) {
+          mudarPlanilha({ acao: 'criar' }, 'Pasta dos briefings criada e vinculada.', 'mudarPastaBriefings');
+        }
+      }, acoes);
+    }
+    const vincular = n('div', 'dev-troca', null, b);
+    const url = entrada(vincular, '', 'text', { placeholder: 'Link da pasta do Drive (https://drive.google.com/drive/folders/…)' });
+    url.setAttribute('aria-label', 'Link da pasta dos briefings');
+    botao(pasta ? 'Trocar por esta pasta' : 'Vincular esta pasta', '', () => {
+      if (!url.value.trim()) { url.focus(); return; }
+      mudarPlanilha({ acao: 'vincular', url: url.value.trim() }, 'Pasta dos briefings vinculada.', 'mudarPastaBriefings');
+    }, vincular);
+    n('p', 'dev-nota', 'A conta que publicou o app precisa poder editar a pasta. Na primeira vez, o Google pode pedir autorização de novo (o app passa a gravar no Drive).', b);
+    if (pasta) {
+      botao('Desvincular a pasta', 'perigo', () => {
+        if (window.confirm('Deixar de salvar os briefings nesta pasta? (Ela e os arquivos não são apagados.)')) {
+          mudarPlanilha({ acao: 'desvincular' }, 'Pasta dos briefings desvinculada.', 'mudarPastaBriefings');
+        }
+      }, acoes);
+    }
+  }
+
+  /**
+   * Calendário dos ciclos e feriados: a planilha que alimenta a aba Calendário (as abas "Calendário de ciclos" e
+   * "Feriados"), com o que foi lido dela.
+   */
+  function desenharPlanilhaCalendario(corpo) {
+    const cal = n('div', 'dev-regra', null, corpo);
+    cal.dataset.planilha = 'calendario';
+    n('span', 'dev-rotulo', 'Calendário dos ciclos e feriados', cal);
+    n('p', 'dev-nota', 'As datas dos ciclos e os feriados vêm de uma planilha, mantida nela mesma: a aba "Calendário de ciclos", com as colunas Marca (Boticário ou Eudora: só a Eudora tem calendário próprio, as outras marcas seguem o do Boticário), Ciclo (o mesmo nome do ciclo no app), Início e Fim; e a aba "Feriados", com Data e Feriado. Sem uma planilha vinculada, o app procura as duas abas na planilha principal.', cal);
+    if (!planilhas.web) {
+      if (planilhas.calendario && planilhas.calendario.erro) {
+        n('p', 'dev-msg erro', planilhas.calendario.erro, cal);
+      } else if (planilhas.calendario) {
+        linkPlanilha(planilhas.calendario, cal);
+        n('p', 'dev-resumo', 'Planilha vinculada: o app lê dela as abas do calendário e dos feriados.', cal);
+      } else {
+        n('p', 'dev-resumo', 'Nenhuma planilha vinculada: as abas são procuradas na planilha principal.', cal);
+      }
+    }
+    const lido = planilhas.leituraCalendario;
+    if (lido) {
+      const info = n('div', 'dev-planta-info', null, cal);
+      lido.ciclos.forEach((c) => n('span', 'dev-chip' + (c.qtd ? ' forte' : ''), c.qtd + (c.qtd === 1 ? ' ciclo ' : ' ciclos ') + c.nome, info));
+      n('span', 'dev-chip' + (lido.feriados ? ' forte' : ''), lido.feriados + (lido.feriados === 1 ? ' feriado' : ' feriados'), info);
+      if (!lido.abas.ciclos) n('span', 'dev-chip apelido', 'sem a aba Calendário de ciclos', info);
+      if (!lido.abas.feriados) n('span', 'dev-chip apelido', 'sem a aba Feriados', info);
+      [['Avisos da leitura', lido.avisos], ['Observações', lido.observacoes]].forEach(([titulo, lista]) => {
+        if (!lista.length) return;
+        n('span', 'dev-rotulo', titulo, cal);
+        const ul = n('ul', 'dev-avisos', null, cal);
+        lista.forEach((a) => n('li', null, a, ul));
+      });
+    }
+    if (planilhas.web) return;
+    const acoes = n('div', 'dev-planta-acoes', null, cal);
+    if (!planilhas.calendario) {
+      botao('Criar uma planilha para o calendário', 'primario', () => {
+        if (window.confirm('Criar a planilha "Plano de Varejo – Calendário dos ciclos" no Drive de quem publicou o app, com as abas do calendário e dos feriados?')) {
+          mudarPlanilha({ acao: 'criar' }, 'Planilha do calendário criada e vinculada. Preencha as abas e clique em Atualizar no app.', 'mudarPlanilhaCalendario');
+        }
+      }, acoes);
+    }
+    const vincular = n('div', 'dev-troca', null, cal);
+    const url = entrada(vincular, '', 'text', { placeholder: 'Link da planilha do calendário (https://docs.google.com/spreadsheets/d/…)' });
+    url.setAttribute('aria-label', 'Link da planilha do calendário dos ciclos');
+    botao(planilhas.calendario ? 'Trocar por esta planilha' : 'Vincular esta planilha', '', () => {
+      if (!url.value.trim()) { url.focus(); return; }
+      mudarPlanilha({ acao: 'vincular', url: url.value.trim() }, 'Planilha do calendário vinculada.', 'mudarPlanilhaCalendario');
+    }, vincular);
+    n('p', 'dev-nota', 'Ao vincular, as abas que faltarem são criadas (só com o cabeçalho). A conta que publicou o app precisa ter acesso à planilha.', cal);
+    if (planilhas.calendario) {
+      botao('Desvincular a planilha do calendário', 'perigo', () => {
+        if (window.confirm('Deixar de usar esta planilha para o calendário? (Ela não é apagada; o app volta a procurar as abas na planilha principal.)')) {
+          mudarPlanilha({ acao: 'desvincular' }, 'Planilha do calendário desvinculada.', 'mudarPlanilhaCalendario');
         }
       }, acoes);
     }

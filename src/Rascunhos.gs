@@ -404,3 +404,157 @@ function executarRascunho_(io, acesso, pedido) {
     return dadosDosRascunhos_(io.layout(), atuais);
   });
 }
+
+/* ------------------ ordem dos movimentos no calendário ------------------- */
+/*
+ * No calendário dos ciclos (Calendario.html), os movimentos de cada ciclo ficam empilhados pelo equilíbrio entre
+ * o GMV esperado e a exposição. O construtor da estratégia pode mudar essa ordem e salvar: ela fica na aba
+ * "Ordem do calendário" (uma linha por movimento do ciclo, na ordem) e passa a ser a ordem do calendário para
+ * todos. Movimentos que não estão na ordem salva (ex.: entraram depois) vêm depois dela, pelo equilíbrio.
+ */
+
+/**
+ * Ordem salva de cada ciclo.
+ * @return {Object<string, {movimentos: string[], por: string, em: string}>} ciclo → movimentos na ordem (o texto)
+ */
+function ordemCalendarioDeValores_(valores) {
+  const porCiclo = {};
+  objetosDaMatriz_(valores || [], colunasOrdemCalendario_()).forEach(function (l) {
+    const ciclo = texto_(l.ciclo);
+    const etiqueta = movimentoDaEtiqueta_(texto_(l.etiqueta));
+    if (!ciclo || !etiqueta) return;
+    const c = porCiclo[ciclo] || (porCiclo[ciclo] = { linhas: [], por: texto_(l.atualizadoPor), em: texto_(l.atualizadoEm) });
+    c.linhas.push({ posicao: numero_(l.posicao, 9999), etiqueta: etiqueta });
+  });
+  const saida = {};
+  Object.keys(porCiclo).forEach(function (ciclo) {
+    const vistos = {};
+    const c = porCiclo[ciclo];
+    saida[ciclo] = {
+      movimentos: c.linhas.sort(function (a, b) { return a.posicao - b.posicao; }).map(function (x) { return x.etiqueta; })
+        .filter(function (e) { const k = chaveEtiqueta_(e); if (vistos[k]) return false; vistos[k] = true; return true; }),
+      por: c.por,
+      em: c.em,
+    };
+  });
+  return saida;
+}
+
+/**
+ * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário. Só o construtor da estratégia.
+ *  - { ciclo, movimentos: ['LÇTO EGEO', 'BOTIPROMO', …] }  a ordem nova (de cima para baixo);
+ *  - { ciclo, limpar: true }                               volta à ordem automática (pelo equilíbrio).
+ * O ciclo precisa existir (publicado ou em construção).
+ * @return {Object} a ordem de todos os ciclos (ordemCalendarioDeValores_)
+ */
+/** Confere o construtor e o ciclo (publicado ou em construção) para gravar algo do calendário. */
+function conferirCicloDoCalendario_(io, quem, ciclo, oQue) {
+  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor da estratégia ' + oQue + '.');
+  const ciclos = ciclosPublicados_({
+    movimentos: io.ler(CONFIG.ABAS.MOVIMENTOS) || [], paineis: io.ler(CONFIG.ABAS.PAINEIS) || [], tipos: io.ler(CONFIG.ABAS.TIPOS) || [],
+  });
+  objetosDaMatriz_(io.ler(CONFIG.ABAS.RASCUNHOS) || [], colunasRascunhos_()).forEach(function (r) {
+    if (texto_(r.ciclo) && texto_(r.status) !== 'APROVADO') ciclos[texto_(r.ciclo)] = true;
+  });
+  if (!ciclo || !ciclos[ciclo]) throw new Error('O ciclo "' + ciclo + '" não existe no app.');
+}
+
+/** Linhas da aba que não são do ciclo (para trocar só as dele). */
+function linhasDeOutrosCiclos_(valores, colunas, ciclo) {
+  return objetosDaMatriz_(valores || [], colunas).filter(function (l) { return texto_(l.ciclo) !== ciclo; })
+    .map(function (l) { return colunas.map(function (c) { return l[c.chave]; }); });
+}
+
+function executarOrdemCalendario_(io, acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  const p = pedido || {};
+  const ciclo = texto_(p.ciclo);
+  return io.travar(function () {
+    conferirCicloDoCalendario_(io, quem, ciclo, 'muda a ordem dos movimentos no calendário');
+    const vistos = {};
+    const movimentos = p.limpar ? [] : (Array.isArray(p.movimentos) ? p.movimentos : []).map(function (t) { return movimentoDaEtiqueta_(texto_(t)).slice(0, 200); })
+      .filter(function (t) { const k = chaveEtiqueta_(t); if (!k || vistos[k]) return false; vistos[k] = true; return true; });
+    if (!p.limpar && !movimentos.length) throw new Error('A ordem precisa de ao menos um movimento.');
+    if (movimentos.length > 500) throw new Error('Movimentos demais no ciclo (máx. 500).');
+    const colunas = colunasOrdemCalendario_();
+    const cab = colunas.map(function (c) { return c.titulo; });
+    const outras = linhasDeOutrosCiclos_(io.ler(CONFIG.ABAS.ORDEM_CALENDARIO), colunas, ciclo);
+    const em = formatarDataComentario_(new Date());
+    const novas = movimentos.map(function (t, i) { return [ciclo, i + 1, t, quem.autor, em]; });
+    const valores = [cab].concat(outras, novas);
+    io.gravar(CONFIG.ABAS.ORDEM_CALENDARIO, colunas, valores);
+    return ordemCalendarioDeValores_(valores);
+  });
+}
+
+/* ------------------- selos dos movimentos no calendário ------------------ */
+/*
+ * O construtor pode dar selos especiais aos movimentos de um ciclo: "hotspot" e uma medalha (ouro, prata ou
+ * bronze, MEDALHAS). Eles aparecem nos retângulos do calendário dos ciclos e no PNG do calendário. Ficam na
+ * aba "Selos dos movimentos" (uma linha por movimento com selo).
+ */
+
+/** "ouro" / "Ouro" / "🥇" → "OURO"; outro texto → "". */
+function normMedalha_(v) {
+  const k = chave_(v);
+  if (!k) return '';
+  const achado = Object.keys(MEDALHAS).filter(function (m) { return chave_(m) === k || chave_(MEDALHAS[m].nome) === k; })[0];
+  return achado || '';
+}
+
+/** "SIM", "x", "verdadeiro", "1" → true. */
+function simNao_(v) {
+  return ['SIM', 'S', 'X', 'TRUE', 'VERDADEIRO', '1', 'HOTSPOT'].indexOf(chave_(v)) >= 0;
+}
+
+/**
+ * Selos salvos de cada ciclo.
+ * @return {Object<string, Object<string, {texto, hotspot: boolean, medalha: string}>>} ciclo → chave do movimento → selos
+ */
+function selosCalendarioDeValores_(valores) {
+  const saida = {};
+  objetosDaMatriz_(valores || [], colunasSelosCalendario_()).forEach(function (l) {
+    const ciclo = texto_(l.ciclo);
+    const texto = movimentoDaEtiqueta_(texto_(l.etiqueta));
+    const hotspot = simNao_(l.hotspot);
+    const medalha = normMedalha_(l.medalha);
+    if (!ciclo || !texto || (!hotspot && !medalha)) return;
+    (saida[ciclo] = saida[ciclo] || {})[chaveEtiqueta_(texto)] = { texto: texto, hotspot: hotspot, medalha: medalha };
+  });
+  return saida;
+}
+
+/**
+ * Grava os selos dos movimentos de um ciclo (troca todos os do ciclo). Só o construtor da estratégia.
+ *  { ciclo, selos: [{ movimento, hotspot: boolean, medalha: 'OURO' | 'PRATA' | 'BRONZE' | '' }] }
+ * Movimento sem selo nenhum sai da aba.
+ * @return {Object} os selos de todos os ciclos (selosCalendarioDeValores_)
+ */
+function executarSelosCalendario_(io, acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  const p = pedido || {};
+  const ciclo = texto_(p.ciclo);
+  return io.travar(function () {
+    conferirCicloDoCalendario_(io, quem, ciclo, 'muda os selos dos movimentos');
+    const vistos = {};
+    const selos = (Array.isArray(p.selos) ? p.selos : []).map(function (s) {
+      const texto = movimentoDaEtiqueta_(texto_(s && s.movimento)).slice(0, 200);
+      const medalha = normMedalha_(s && s.medalha);
+      if (s && texto_(s.medalha) && !medalha) throw new Error('Medalha desconhecida: ' + texto_(s.medalha) + ' (use ouro, prata ou bronze).');
+      return { texto: texto, hotspot: !!(s && s.hotspot === true), medalha: medalha };
+    }).filter(function (s) {
+      const k = chaveEtiqueta_(s.texto);
+      if (!k || vistos[k] || (!s.hotspot && !s.medalha)) return false;
+      vistos[k] = true;
+      return true;
+    });
+    if (selos.length > 500) throw new Error('Movimentos demais no ciclo (máx. 500).');
+    const colunas = colunasSelosCalendario_();
+    const em = formatarDataComentario_(new Date());
+    const valores = [colunas.map(function (c) { return c.titulo; })]
+      .concat(linhasDeOutrosCiclos_(io.ler(CONFIG.ABAS.SELOS_CALENDARIO), colunas, ciclo))
+      .concat(selos.map(function (s) { return [ciclo, s.texto, s.hotspot ? 'SIM' : '', s.medalha ? MEDALHAS[s.medalha].nome : '', quem.autor, em]; }));
+    io.gravar(CONFIG.ABAS.SELOS_CALENDARIO, colunas, valores);
+    return selosCalendarioDeValores_(valores);
+  });
+}
