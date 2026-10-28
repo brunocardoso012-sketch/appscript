@@ -1527,7 +1527,8 @@ const App = (() => {
    * do app (de todas as marcas, juntos), cada um com o início e o fim do ciclo no calendário da marca dele. Um
    * movimento segue o calendário da marca que tem mais espaço nele: só a Eudora tem calendário próprio; as
    * outras marcas (e o movimento sem marca) seguem o do Boticário. Se o ciclo não estiver no calendário da
-   * marca, valem as datas do outro calendário.
+   * marca, valem as datas do outro calendário. ordemSalva: a ordem dos movimentos que o construtor salvou para
+   * o ciclo (aba Ordem do calendário), ou null.
    * Exposição: a fatia do espaço de exposição (sem VM) da ER que vai para o movimento; sem `er`, a média das
    * ERs (cada ER é um tamanho médio da rede: nada soma ERs). GMV: o esperado, da aba Tipos de movimento.
    * Em cada ciclo, fatiaExposicao e fatiaGmv são a parte do movimento na exposição e no GMV do ciclo (somam
@@ -1626,7 +1627,8 @@ const App = (() => {
         });
       });
       const inicio = Object.values(porCal).map((x) => x.inicio).sort()[0];
-      return { cicloApp: app, inicio, movimentos };
+      const salva = (estado.dados.ordemCalendario || {})[app];
+      return { cicloApp: app, inicio, movimentos, ordemSalva: salva ? salva.movimentos : null, ordemPor: salva ? salva.por + (salva.em ? ', ' + salva.em : '') : '' };
     });
     return {
       calendarios,
@@ -1660,6 +1662,22 @@ const App = (() => {
         alternarCalendario(false);
         if (o.ciclo !== estado.ciclo) { estado.ciclo = o.ciclo; montarCiclos(); }
         verNaPlanta({ etiqueta: o.texto, er: o.er });
+      },
+      // Construção: o construtor muda a ordem dos movimentos de um ciclo e salva (movimentos null = volta à automática).
+      construtor: () => !!Validacao.acesso() && Validacao.acesso().papel === 'CONSTRUTOR',
+      salvarOrdem: async (ciclo, movimentos) => {
+        carregando(true, 'Salvando a ordem…');
+        try {
+          estado.dados.ordemCalendario = await chamar('salvarOrdemCalendario', Validacao.acesso(),
+            movimentos ? { ciclo, movimentos } : { ciclo, limpar: true });
+          toast(movimentos ? 'Ordem do ' + ciclo + ' salva.' : 'O ' + ciclo + ' voltou à ordem automática.');
+          return true;
+        } catch (e) {
+          erro(e);
+          return false;
+        } finally {
+          carregando(false);
+        }
       },
     });
   }

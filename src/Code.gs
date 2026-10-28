@@ -89,6 +89,7 @@ function getDados() {
   dados.prateleiras = prateleirasDeValores_(lerAba_(ss, CONFIG.ABAS.PRATELEIRAS, true), dados.produtos);
   dados.inventario = inventarioDeValores_(lerAbaSemAcento_(ss, CONFIG.ABAS.INVENTARIO));
   dados.calendario = lerCalendario_(ss);
+  dados.ordemCalendario = ordemCalendarioDeValores_(lerAba_(ss, CONFIG.ABAS.ORDEM_CALENDARIO, true));
   dados.calendario.avisos.forEach(function (a) { if (dados.avisos.length < 60) dados.avisos.push(a); });
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
@@ -194,6 +195,17 @@ function salvarRascunho(acesso, pedido) {
  */
 function salvarAntecipacao(acesso, pedido) {
   return executarAntecipacao_(ioRascunhos_(planilha_()), acesso, pedido);
+}
+
+/* ===================== ORDEM DOS MOVIMENTOS NO CALENDÁRIO ===================== */
+
+/**
+ * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário (veja executarOrdemCalendario_). Só o
+ * construtor da estratégia; todo mundo recebe a ordem no getDados.
+ * @return {Object} ciclo → { movimentos, por, em }
+ */
+function salvarOrdemCalendario(acesso, pedido) {
+  return executarOrdemCalendario_(ioRascunhos_(planilha_()), acesso, pedido);
 }
 
 /* ============================= PRATELEIRAS =============================== */

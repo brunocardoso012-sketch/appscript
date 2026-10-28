@@ -44,6 +44,8 @@ const CONFIG = {
     // calendário (Desenvolvedor › Planilhas) ou, sem ela, na principal (calendarioDeValores_).
     CICLOS: 'Calendário de ciclos',
     FERIADOS: 'Feriados',
+    // Ordem dos movimentos de cada ciclo no calendário, definida pelo construtor (Rascunhos.gs).
+    ORDEM_CALENDARIO: 'Ordem do calendário',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -390,6 +392,17 @@ function colunasCiclos_() {
     { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true, apelidos: ['Nome do ciclo'] },
     { chave: 'inicio', titulo: 'Início', obrigatoria: true, apelidos: ['Inicio', 'Data de início', 'Data início', 'Começo', 'De'] },
     { chave: 'fim', titulo: 'Fim', obrigatoria: true, apelidos: ['Data de fim', 'Data fim', 'Término', 'Termino', 'Final', 'Até'] },
+  ];
+}
+
+/** Aba "Ordem do calendário": a posição de cada movimento do ciclo no calendário (1 = o de cima). */
+function colunasOrdemCalendario_() {
+  return [
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true },
+    { chave: 'posicao', titulo: 'Posição', obrigatoria: true },
+    { chave: 'etiqueta', titulo: 'Movimento (etiqueta)', obrigatoria: true, texto: true, apelidos: ['Movimento', 'Etiqueta'] },
+    { chave: 'atualizadoPor', titulo: 'Atualizado por', texto: true },
+    { chave: 'atualizadoEm', titulo: 'Atualizado em', texto: true },
   ];
 }
 
@@ -1364,6 +1377,7 @@ function getDados() {
   dados.prateleiras = prateleirasDeValores_(lerAba_(ss, CONFIG.ABAS.PRATELEIRAS, true), dados.produtos);
   dados.inventario = inventarioDeValores_(lerAbaSemAcento_(ss, CONFIG.ABAS.INVENTARIO));
   dados.calendario = lerCalendario_(ss);
+  dados.ordemCalendario = ordemCalendarioDeValores_(lerAba_(ss, CONFIG.ABAS.ORDEM_CALENDARIO, true));
   dados.calendario.avisos.forEach(function (a) { if (dados.avisos.length < 60) dados.avisos.push(a); });
   dados.planilhaUrl = ss.getUrl();
   dados.appUrl = urlDoApp_();
@@ -1469,6 +1483,17 @@ function salvarRascunho(acesso, pedido) {
  */
 function salvarAntecipacao(acesso, pedido) {
   return executarAntecipacao_(ioRascunhos_(planilha_()), acesso, pedido);
+}
+
+/* ===================== ORDEM DOS MOVIMENTOS NO CALENDÁRIO ===================== */
+
+/**
+ * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário (veja executarOrdemCalendario_). Só o
+ * construtor da estratégia; todo mundo recebe a ordem no getDados.
+ * @return {Object} ciclo → { movimentos, por, em }
+ */
+function salvarOrdemCalendario(acesso, pedido) {
+  return executarOrdemCalendario_(ioRascunhos_(planilha_()), acesso, pedido);
 }
 
 /* ============================= PRATELEIRAS =============================== */
@@ -3459,6 +3484,79 @@ function executarRascunho_(io, acesso, pedido) {
   });
 }
 
+/* ------------------ ordem dos movimentos no calendário ------------------- */
+/*
+ * No calendário dos ciclos (Calendario.html), os movimentos de cada ciclo ficam empilhados pelo equilíbrio entre
+ * o GMV esperado e a exposição. O construtor da estratégia pode mudar essa ordem e salvar: ela fica na aba
+ * "Ordem do calendário" (uma linha por movimento do ciclo, na ordem) e passa a ser a ordem do calendário para
+ * todos. Movimentos que não estão na ordem salva (ex.: entraram depois) vêm depois dela, pelo equilíbrio.
+ */
+
+/**
+ * Ordem salva de cada ciclo.
+ * @return {Object<string, {movimentos: string[], por: string, em: string}>} ciclo → movimentos na ordem (o texto)
+ */
+function ordemCalendarioDeValores_(valores) {
+  const porCiclo = {};
+  objetosDaMatriz_(valores || [], colunasOrdemCalendario_()).forEach(function (l) {
+    const ciclo = texto_(l.ciclo);
+    const etiqueta = movimentoDaEtiqueta_(texto_(l.etiqueta));
+    if (!ciclo || !etiqueta) return;
+    const c = porCiclo[ciclo] || (porCiclo[ciclo] = { linhas: [], por: texto_(l.atualizadoPor), em: texto_(l.atualizadoEm) });
+    c.linhas.push({ posicao: numero_(l.posicao, 9999), etiqueta: etiqueta });
+  });
+  const saida = {};
+  Object.keys(porCiclo).forEach(function (ciclo) {
+    const vistos = {};
+    const c = porCiclo[ciclo];
+    saida[ciclo] = {
+      movimentos: c.linhas.sort(function (a, b) { return a.posicao - b.posicao; }).map(function (x) { return x.etiqueta; })
+        .filter(function (e) { const k = chaveEtiqueta_(e); if (vistos[k]) return false; vistos[k] = true; return true; }),
+      por: c.por,
+      em: c.em,
+    };
+  });
+  return saida;
+}
+
+/**
+ * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário. Só o construtor da estratégia.
+ *  - { ciclo, movimentos: ['LÇTO EGEO', 'BOTIPROMO', …] }  a ordem nova (de cima para baixo);
+ *  - { ciclo, limpar: true }                               volta à ordem automática (pelo equilíbrio).
+ * O ciclo precisa existir (publicado ou em construção).
+ * @return {Object} a ordem de todos os ciclos (ordemCalendarioDeValores_)
+ */
+function executarOrdemCalendario_(io, acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor da estratégia muda a ordem dos movimentos no calendário.');
+  const p = pedido || {};
+  const ciclo = texto_(p.ciclo);
+  return io.travar(function () {
+    const ciclos = ciclosPublicados_({
+      movimentos: io.ler(CONFIG.ABAS.MOVIMENTOS) || [], paineis: io.ler(CONFIG.ABAS.PAINEIS) || [], tipos: io.ler(CONFIG.ABAS.TIPOS) || [],
+    });
+    objetosDaMatriz_(io.ler(CONFIG.ABAS.RASCUNHOS) || [], colunasRascunhos_()).forEach(function (r) {
+      if (texto_(r.ciclo) && texto_(r.status) !== 'APROVADO') ciclos[texto_(r.ciclo)] = true;
+    });
+    if (!ciclo || !ciclos[ciclo]) throw new Error('O ciclo "' + ciclo + '" não existe no app.');
+    const vistos = {};
+    const movimentos = p.limpar ? [] : (Array.isArray(p.movimentos) ? p.movimentos : []).map(function (t) { return movimentoDaEtiqueta_(texto_(t)).slice(0, 200); })
+      .filter(function (t) { const k = chaveEtiqueta_(t); if (!k || vistos[k]) return false; vistos[k] = true; return true; });
+    if (!p.limpar && !movimentos.length) throw new Error('A ordem precisa de ao menos um movimento.');
+    if (movimentos.length > 500) throw new Error('Movimentos demais no ciclo (máx. 500).');
+    const colunas = colunasOrdemCalendario_();
+    const atuais = io.ler(CONFIG.ABAS.ORDEM_CALENDARIO);
+    const cab = colunas.map(function (c) { return c.titulo; });
+    const outras = objetosDaMatriz_(atuais || [], colunas).filter(function (l) { return texto_(l.ciclo) !== ciclo; })
+      .map(function (l) { return colunas.map(function (c) { return l[c.chave]; }); });
+    const em = formatarDataComentario_(new Date());
+    const novas = movimentos.map(function (t, i) { return [ciclo, i + 1, t, quem.autor, em]; });
+    const valores = [cab].concat(outras, novas);
+    io.gravar(CONFIG.ABAS.ORDEM_CALENDARIO, colunas, valores);
+    return ordemCalendarioDeValores_(valores);
+  });
+}
+
 /* ===== src/Antecipacoes.gs ===== */
 /**
  * ============================================================================
@@ -5021,7 +5119,36 @@ const PAGINA_ = [
   "  .cal-aviso { margin: 0; padding: 6px 10px; border-radius: 8px; font-size: 12px; color: #7A4A00; background: #FFF4D6; border: 1px solid #F2D58A; }",
   "  [data-tema=\"escuro\"] .cal-aviso { color: #FFD98A; background: #3A2E12; border-color: #5C4A1E; }",
   "",
-  "  .cal-rolagem { flex: 1 1 auto; min-height: 0; overflow: auto; border: 1px solid var(--borda); border-radius: 10px; background: var(--superficie); }",
+  "  .cal-area { flex: 1 1 auto; min-height: 0; display: flex; gap: 10px; }",
+  "  .cal-rolagem { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; border: 1px solid var(--borda); border-radius: 10px; background: var(--superficie); }",
+  "  /* Construção: a ordem dos movimentos de um ciclo, ao lado da linha do tempo. */",
+  "  .cal-ordenar[aria-pressed=\"true\"] { background: var(--destaque); }",
+  "  .cal-ordem {",
+  "    flex: 0 0 330px; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px;",
+  "    border: 1px solid var(--borda-forte); border-top: 3px solid #E8590C; border-radius: 10px; background: var(--superficie);",
+  "  }",
+  "  .cal-ordem h3 { margin: 0; font-size: 14px; }",
+  "  .cal-ordem .cal-controle select { flex: 1 1 auto; }",
+  "  .cal-ordem-dica { margin: 0; font-size: 12px; color: var(--texto-2); line-height: 1.4; }",
+  "  .cal-ordem-estado { margin: 0; font-size: 12px; font-weight: 600; color: #8a4510; }",
+  "  [data-tema=\"escuro\"] .cal-ordem-estado { color: #ffb38a; }",
+  "  .cal-ordem-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }",
+  "  .cal-ordem-lista li {",
+  "    display: flex; align-items: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--borda); border-left: 4px solid; border-radius: 7px;",
+  "    background: var(--superficie); cursor: grab;",
+  "  }",
+  "  .cal-ordem-lista li.arrastando { opacity: .45; }",
+  "  .cal-ordem-lista li.alvo { box-shadow: 0 -3px 0 #3346b8; }",
+  "  .cal-ordem-alca { color: var(--texto-2); font-size: 12px; letter-spacing: -2px; }",
+  "  .cal-ordem-texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }",
+  "  .cal-ordem-texto strong { font: 800 12px var(--fonte-etq); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+  "  .cal-ordem-texto small { font-size: 10.5px; color: var(--texto-2); }",
+  "  .cal-ordem-mover {",
+  "    flex: 0 0 auto; width: 24px; height: 24px; padding: 0; border: 1px solid var(--borda); border-radius: 6px; background: var(--fundo);",
+  "    color: var(--texto); cursor: pointer;",
+  "  }",
+  "  .cal-ordem-mover:disabled { opacity: .35; cursor: default; }",
+  "  .cal-ordem-acoes { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; bottom: -12px; padding: 8px 0 0; background: var(--superficie); }",
   "  .cal-quadro { position: relative; min-width: 100%; }",
   "  /* Topo: meses, dias e as faixas dos ciclos (Boticário e Eudora), fixo ao rolar para baixo. */",
   "  .cal-topo { position: sticky; top: 0; z-index: 4; background: var(--superficie); border-bottom: 1px solid var(--borda-forte); }",
@@ -5087,7 +5214,6 @@ const PAGINA_ = [
   "  .cal-medida-trilho > span { display: block; height: 100%; border-radius: 3px; }",
   "  .cal-medida.expo .cal-medida-trilho > span { background: #3346b8; }",
   "  .cal-medida.gmv .cal-medida-trilho > span { background: #1d8a5a; }",
-  "  .cal-medida.equi .cal-medida-trilho > span { background: #E8590C; }",
   "  [data-tema=\"escuro\"] .cal-medida.expo .cal-medida-trilho > span { background: #7d8ff0; }",
   "  [data-tema=\"escuro\"] .cal-medida.gmv .cal-medida-trilho > span { background: #4cc38a; }",
   "  .cal-mais {",
@@ -5096,6 +5222,10 @@ const PAGINA_ = [
   "  }",
   "  .cal-mais:hover, .cal-mais:focus-visible { color: var(--texto); border-color: #3346b8; outline: none; }",
   "  .cal-sem-movs { margin: 0; padding: 12px; color: var(--texto-2); font-style: italic; position: sticky; left: 0; }",
+  "  @media (max-width: 900px) {",
+  "    .cal-area { flex-direction: column; }",
+  "    .cal-ordem { flex: 0 0 auto; max-height: 45vh; }",
+  "  }",
   "  @media (max-width: 600px) {",
   "    .cal-hoje { margin-left: 0; }",
   "  }",
@@ -15061,7 +15191,11 @@ const PAGINA_ = [
   " *   - equilíbrio (a principal): a média entre a fatia do movimento no GMV esperado do ciclo e a fatia dele",
   " *     na exposição (destaque) do ciclo;",
   " *   - só GMV esperado;",
-  " *   - só exposição (a fatia do espaço de exposição da ER que vai para o movimento).",
+  " *   - só exposição (a fatia do espaço de exposição da ER que vai para o movimento);",
+  " *   - a ordem da construção: a que o construtor da estratégia salvou para o ciclo (aba Ordem do calendário),",
+  " *     a padrão quando existe; os movimentos que não estão nela (e os ciclos sem ela) seguem o equilíbrio.",
+  " *  Com o login da Construção, \"Ordenar movimentos\" abre ao lado da linha do tempo a lista dos movimentos de um",
+  " *  ciclo: arraste (ou use ↑ ↓) e salve. A linha do tempo mostra a ordem nova enquanto ela é mudada.",
   " *  Um ciclo que começa antes de o anterior terminar (o da Eudora e o do Boticário se sobrepõem) não cobre os",
   " *  retângulos do outro: os dele descem até a primeira linha livre, sempre na mesma ordem.",
   " *  As contas vêm prontas da aplicação (App.dadosCalendario); aqui só o desenho.",
@@ -15109,7 +15243,12 @@ const PAGINA_ = [
   "  /* ------------------------------- desenho --------------------------------- */",
   "",
   "  // Escolhas da tela (valem até recarregar a página).",
-  "  const vista = { ordem: 'equilibrio', er: '', limite: 10, escala: 'normal' };",
+  "  // ordem vazia: a da construção, se algum ciclo tiver uma; senão, o equilíbrio.",
+  "  const vista = { ordem: '', er: '', limite: 10, escala: 'normal' };",
+  "  // Ordem em edição (construtor): { ciclo, lista: [textos], mudou }. rolarPara: dia para mostrar ao começar.",
+  "  let edicao = null;",
+  "  let rolarPara = null;",
+  "  const ORDEM_DEFINIDA = ['definida', 'Ordem da construção', 'A ordem salva na construção (os movimentos que não estão nela seguem o equilíbrio)'];",
   "  const ORDENS = [",
   "    ['equilibrio', 'Equilíbrio GMV × exposição', 'Média entre a fatia do movimento no GMV esperado do ciclo e a fatia dele na exposição'],",
   "    ['gmv', 'Só GMV', 'Só o GMV esperado (aba Tipos de movimento)'],",
@@ -15145,6 +15284,19 @@ const PAGINA_ = [
   "  const valorNaOrdem = (m) => (vista.ordem === 'gmv' ? m.fatiaGmv : vista.ordem === 'exposicao' ? m.fatiaExposicao : m.equilibrio);",
   "  const desempate = (m) => (vista.ordem === 'exposicao' ? m.fatiaGmv : m.fatiaExposicao);",
   "  const ordenar = (movs) => movs.slice().sort((a, b) => valorNaOrdem(b) - valorNaOrdem(a) || desempate(b) - desempate(a) || a.texto.localeCompare(b.texto, 'pt-BR'));",
+  "  /**",
+  "   * Movimentos de um ciclo na ordem da tela: a lista em edição; na ordem da construção, a salva (os que não",
+  "   * estão nela vêm depois, pelo equilíbrio); senão, a ordem escolhida.",
+  "   */",
+  "  function ordenarGrupo(g) {",
+  "    const auto = ordenar(g.movimentos);",
+  "    const lista = edicao && edicao.ciclo === g.cicloApp ? edicao.lista : vista.ordem === 'definida' ? g.ordemSalva : null;",
+  "    if (!lista) return auto;",
+  "    const pos = {};",
+  "    lista.forEach((t, i) => { pos[Render.chaveEtiqueta(t)] = i; });",
+  "    const p = (m) => { const i = pos[Render.chaveEtiqueta(m.texto)]; return i === undefined ? lista.length + auto.indexOf(m) : i; };",
+  "    return auto.slice().sort((a, b) => p(a) - p(b));",
+  "  }",
   "",
   "  function segmentado(pai, rotulo, opcoes, atual, aoEscolher) {",
   "    const box = novo('div', 'cal-controle', null, pai);",
@@ -15193,31 +15345,53 @@ const PAGINA_ = [
   "",
   "  /**",
   "   * Desenha o calendário em `corpo`.",
-  "   * acoes: { dados(er) → dados (App.dadosCalendario), abrirCiclo(ciclo), verMovimento({ ciclo, texto, er }) }",
+  "   * acoes: { dados(er) → dados (App.dadosCalendario), abrirCiclo(ciclo), verMovimento({ ciclo, texto, er }),",
+  "   *          construtor() → se quem está na tela entrou na Construção, salvarOrdem(ciclo, textos | null) → Promise<boolean> }",
   "   */",
   "  function desenhar(corpo, acoes) {",
   "    const antes = corpo.querySelector('.cal-rolagem');",
   "    const posAntes = antes ? { left: antes.scrollLeft, top: antes.scrollTop, px: ESCALAS[vista.escala].dia } : null;",
   "    const d = acoes.dados(vista.er);",
   "    corpo.innerHTML = '';",
+  "    const construtor = !!(acoes.construtor && acoes.construtor());",
+  "    if (!construtor || (edicao && !d.grupos.some((g) => g.cicloApp === edicao.ciclo))) edicao = null;",
+  "    const temSalva = d.grupos.some((g) => g.ordemSalva);",
+  "    if (!vista.ordem || (vista.ordem === 'definida' && !temSalva)) vista.ordem = temSalva ? 'definida' : 'equilibrio';",
   "    // Ao redesenhar, a rolagem continua no mesmo dia (mesmo mudando a escala).",
   "    const redesenhar = (mudanca) => { Object.assign(vista, mudanca); desenhar(corpo, acoes); };",
   "",
   "    // Controles.",
   "    const barra = novo('div', 'cal-barra', null, corpo);",
-  "    segmentado(barra, 'Empilhar por', ORDENS, vista.ordem, (v) => redesenhar({ ordem: v }));",
+  "    segmentado(barra, 'Empilhar por', (temSalva ? [ORDEM_DEFINIDA] : []).concat(ORDENS), vista.ordem, (v) => redesenhar({ ordem: v }));",
   "    seletor(barra, 'Exposição', [['', 'Média das ERs']].concat(d.ers.map((e) => [e.id, 'Na ' + e.nome])), vista.er, (v) => redesenhar({ er: v }));",
   "    seletor(barra, 'Movimentos por ciclo', [[5, '5 primeiros'], [10, '10 primeiros'], [20, '20 primeiros'], [0, 'Todos']], vista.limite, (v) => redesenhar({ limite: +v }));",
   "    segmentado(barra, 'Escala', [['compacta', 'Compacta'], ['normal', 'Normal'], ['ampla', 'Ampla']], vista.escala, (v) => redesenhar({ escala: v }));",
   "    const bHoje = novo('button', 'btn pequeno cal-hoje', 'Hoje', barra);",
   "    bHoje.type = 'button';",
   "    bHoje.title = 'Rolar até o dia de hoje';",
+  "    if (construtor && d.grupos.length) {",
+  "      const bOrdem = novo('button', 'btn pequeno cal-ordenar', edicao ? 'Fechar a ordenação' : 'Ordenar movimentos', barra);",
+  "      bOrdem.type = 'button';",
+  "      bOrdem.setAttribute('aria-pressed', String(!!edicao));",
+  "      bOrdem.title = 'Construção: mudar a ordem em que os movimentos de um ciclo aparecem no calendário e salvar';",
+  "      bOrdem.addEventListener('click', () => {",
+  "        if (edicao) {",
+  "          if (edicao.mudou && !window.confirm('Descartar a ordem que ainda não foi salva?')) return;",
+  "          edicao = null;",
+  "        } else {",
+  "          const g = d.grupos.find((x) => x.cicloApp === d.cicloAtual) || d.grupos.slice().sort((a, b) => (a.inicio < b.inicio ? -1 : 1))[0];",
+  "          comecarEdicao(g);",
+  "        }",
+  "        desenhar(corpo, acoes);",
+  "      });",
+  "    }",
   "",
   "    const nota = novo('p', 'cal-nota', null, corpo);",
   "    nota.textContent = {",
   "      equilibrio: 'Os movimentos de cada ciclo estão empilhados do mais importante (em cima) para o menos importante, pelo equilíbrio entre o GMV esperado e a exposição: a média da fatia do movimento no GMV esperado do ciclo com a fatia dele na exposição.',",
   "      gmv: 'Os movimentos de cada ciclo estão empilhados pelo GMV esperado (aba Tipos de movimento), do maior (em cima) para o menor; os sem GMV ficam por último.',",
   "      exposicao: 'Os movimentos de cada ciclo estão empilhados pela exposição (a fatia do espaço de exposição que o movimento ocupa), da maior (em cima) para a menor.',",
+  "      definida: 'Os movimentos de cada ciclo estão na ordem definida na construção (o primeiro em cima). Ciclos sem ordem definida, e movimentos que não estavam nela, seguem o equilíbrio entre o GMV esperado e a exposição.',",
   "    }[vista.ordem] + ' Exposição: ' + (vista.er ? 'na ER escolhida' : 'média das ERs') + '. Cada retângulo vai do início ao fim do ciclo no calendário da marca dele (Eudora no da Eudora; as outras marcas no do Boticário). Clique num movimento para vê-lo na planta.';",
   "",
   "    if (d.semDatas.length) {",
@@ -15242,7 +15416,9 @@ const PAGINA_ = [
   "    const feriados = {};",
   "    d.feriados.forEach((f) => { feriados[f.data] = f.nome; });",
   "",
-  "    const rolagem = novo('div', 'cal-rolagem', null, corpo);",
+  "    const area = novo('div', 'cal-area', null, corpo);",
+  "    const rolagem = novo('div', 'cal-rolagem', null, area);",
+  "    if (edicao) painelOrdem(area, d, corpo, acoes);",
   "    const quadro = novo('div', 'cal-quadro', null, rolagem);",
   "    quadro.style.width = largura + 'px';",
   "",
@@ -15303,11 +15479,11 @@ const PAGINA_ = [
   "",
   "    // Movimentos de todos os ciclos, juntos e empilhados.",
   "    const grupos = d.grupos.map((g) => {",
-  "      const ordem = ordenar(g.movimentos);",
+  "      const ordem = ordenarGrupo(g);",
   "      const visiveis = vista.limite ? ordem.slice(0, vista.limite) : ordem;",
   "      // As barras comparam cada medida com a maior do ciclo (os números são os reais).",
   "      const maior = (k) => Math.max.apply(null, g.movimentos.map((m) => m[k]).concat([0]));",
-  "      const maiores = { exposicao: maior('exposicao'), fatiaGmv: maior('fatiaGmv'), equilibrio: maior('equilibrio') };",
+  "      const maiores = { exposicao: maior('exposicao'), fatiaGmv: maior('fatiaGmv') };",
   "      const itens = visiveis.map((m, k) => ({ m, pos: k + 1, d0: datas.dia(m.inicio), d1: datas.dia(m.fim), g, maiores }));",
   "      if (visiveis.length < ordem.length) {",
   "        const d0 = Math.min.apply(null, itens.map((it) => it.d0));",
@@ -15383,7 +15559,6 @@ const PAGINA_ = [
   "      };",
   "      medida('GMV', 'fatiaGmv', m.gmv ? gmvCurto.format(m.gmv) + ' (' + fmtPct(m.fatiaGmv) + ')' : 'sem GMV', 'gmv');",
   "      medida('Exposição', 'exposicao', fmtPct(m.exposicao), 'expo');",
-  "      if (vista.ordem === 'equilibrio') medida('Equilíbrio', 'equilibrio', fmtPct(m.equilibrio), 'equi');",
   "      r.title = [",
   "        it.pos + 'º do ' + it.g.cicloApp + ' · ' + m.texto,",
   "        'Calendário ' + m.nomeCalendario + ': ' + datas.br(m.inicio) + ' a ' + datas.br(m.fim) + (m.datasDoOutro ? ' (o ' + it.g.cicloApp + ' não está no calendário ' + m.nomeCalendario + ': datas do outro calendário)' : ''),",
@@ -15403,11 +15578,115 @@ const PAGINA_ = [
   "    bHoje.disabled = hoje < inicio || hoje > fim;",
   "    bHoje.addEventListener('click', () => irPara(hoje));",
   "    const atual = d.grupos.find((g) => g.cicloApp === d.cicloAtual);",
-  "    if (posAntes) {",
+  "    if (rolarPara !== null) {",
+  "      irPara(rolarPara);",
+  "      rolarPara = null;",
+  "    } else if (posAntes) {",
   "      rolagem.scrollLeft = (posAntes.left / posAntes.px) * px;",
   "      rolagem.scrollTop = posAntes.top;",
   "    } else if (atual) irPara(datas.dia(atual.inicio));",
   "    else if (hoje >= inicio && hoje <= fim) irPara(hoje);",
+  "  }",
+  "",
+  "  /* ----------------------- ordem da construção ---------------------------- */",
+  "",
+  "  function comecarEdicao(g) {",
+  "    edicao = { ciclo: g.cicloApp, lista: ordenarGrupo(g).map((m) => m.texto), mudou: false };",
+  "    rolarPara = datas.dia(g.inicio);",
+  "  }",
+  "",
+  "  /**",
+  "   * Painel ao lado da linha do tempo (construtor): os movimentos do ciclo na ordem, para arrastar (ou ↑ ↓) e",
+  "   * salvar. Cada mudança redesenha o calendário com a ordem nova.",
+  "   */",
+  "  function painelOrdem(pai, d, corpo, acoes) {",
+  "    const g = d.grupos.find((x) => x.cicloApp === edicao.ciclo);",
+  "    const redesenhar = () => desenhar(corpo, acoes);",
+  "    const p = novo('aside', 'cal-ordem', null, pai);",
+  "    p.setAttribute('aria-label', 'Ordem dos movimentos no calendário');",
+  "    novo('h3', null, 'Ordem dos movimentos', p);",
+  "    const sel = novo('select', null, null, novo('label', 'cal-controle', null, p));",
+  "    sel.parentNode.insertBefore(novo('span', 'cal-rotulo', 'Ciclo'), sel);",
+  "    d.grupos.slice().sort((a, b) => (a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : 0))",
+  "      .forEach((x) => sel.add(new Option(x.cicloApp + (x.ordemSalva ? ' · ordem salva' : ''), x.cicloApp, false, x.cicloApp === edicao.ciclo)));",
+  "    sel.addEventListener('change', () => {",
+  "      if (edicao.mudou && !window.confirm('Descartar a ordem que ainda não foi salva?')) { sel.value = edicao.ciclo; return; }",
+  "      comecarEdicao(d.grupos.find((x) => x.cicloApp === sel.value));",
+  "      redesenhar();",
+  "    });",
+  "    novo('p', 'cal-ordem-dica', 'Arraste os movimentos (ou use ↑ ↓): o de cima fica em cima no calendário. A linha do tempo já mostra a ordem nova; Salvar vale para todo mundo.', p);",
+  "    novo('p', 'cal-ordem-estado', edicao.mudou ? 'Ordem mudada, ainda não salva.'",
+  "      : g.ordemSalva ? 'Ordem salva' + (g.ordemPor ? ' por ' + g.ordemPor : '') + '.' : 'Ordem automática (equilíbrio GMV × exposição).', p);",
+  "",
+  "    const mover = (de, para) => {",
+  "      if (para < 0 || para >= edicao.lista.length || de === para) return;",
+  "      const [t] = edicao.lista.splice(de, 1);",
+  "      edicao.lista.splice(para, 0, t);",
+  "      edicao.mudou = true;",
+  "      redesenhar();",
+  "      const foco = corpo.querySelector('.cal-ordem li[data-indice=\"' + para + '\"] .cal-ordem-mover');",
+  "      if (foco) foco.focus();",
+  "    };",
+  "    const porTexto = {};",
+  "    g.movimentos.forEach((m) => { porTexto[m.texto] = m; });",
+  "    const ol = novo('ol', 'cal-ordem-lista', null, p);",
+  "    let arrastando = null;",
+  "    edicao.lista.forEach((t, i) => {",
+  "      const m = porTexto[t] || { texto: t, cor: '#999999', gmv: 0, exposicao: 0 };",
+  "      const li = novo('li', null, null, ol);",
+  "      li.dataset.indice = String(i);",
+  "      li.dataset.movimento = t;",
+  "      li.draggable = true;",
+  "      li.style.borderLeftColor = m.cor;",
+  "      novo('span', 'cal-ordem-alca', '⋮⋮', li).setAttribute('aria-hidden', 'true');",
+  "      novo('span', 'cal-mov-pos', String(i + 1), li);",
+  "      const txt = novo('span', 'cal-ordem-texto', null, li);",
+  "      novo('strong', null, t, txt);",
+  "      novo('small', null, (m.gmv ? gmvCurto.format(m.gmv) : 'sem GMV') + ' · exposição ' + fmtPct(m.exposicao || 0), txt);",
+  "      const sobe = novo('button', 'cal-ordem-mover', '↑', li);",
+  "      sobe.type = 'button';",
+  "      sobe.disabled = i === 0;",
+  "      sobe.setAttribute('aria-label', 'Subir ' + t);",
+  "      sobe.addEventListener('click', () => mover(i, i - 1));",
+  "      const desce = novo('button', 'cal-ordem-mover', '↓', li);",
+  "      desce.type = 'button';",
+  "      desce.disabled = i === edicao.lista.length - 1;",
+  "      desce.setAttribute('aria-label', 'Descer ' + t);",
+  "      desce.addEventListener('click', () => mover(i, i + 1));",
+  "      li.addEventListener('dragstart', (e) => { arrastando = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); li.classList.add('arrastando'); });",
+  "      li.addEventListener('dragend', () => li.classList.remove('arrastando'));",
+  "      li.addEventListener('dragover', (e) => { e.preventDefault(); li.classList.add('alvo'); });",
+  "      li.addEventListener('dragleave', () => li.classList.remove('alvo'));",
+  "      li.addEventListener('drop', (e) => {",
+  "        e.preventDefault();",
+  "        const de = arrastando !== null ? arrastando : +e.dataTransfer.getData('text/plain');",
+  "        mover(de, i);",
+  "      });",
+  "    });",
+  "",
+  "    const acoesP = novo('div', 'cal-ordem-acoes', null, p);",
+  "    const salvar = novo('button', 'btn pequeno primario', 'Salvar ordem', acoesP);",
+  "    salvar.type = 'button';",
+  "    salvar.addEventListener('click', async () => {",
+  "      const ciclo = edicao.ciclo;",
+  "      if (await acoes.salvarOrdem(ciclo, edicao.lista)) {",
+  "        edicao = null;",
+  "        vista.ordem = 'definida';",
+  "        redesenhar();",
+  "      }",
+  "    });",
+  "    if (g.ordemSalva) {",
+  "      const auto = novo('button', 'btn pequeno', 'Voltar à ordem automática', acoesP);",
+  "      auto.type = 'button';",
+  "      auto.title = 'Apaga a ordem salva deste ciclo: ele volta a seguir o equilíbrio entre o GMV esperado e a exposição';",
+  "      auto.addEventListener('click', async () => {",
+  "        if (!window.confirm('Apagar a ordem salva do ' + edicao.ciclo + '?')) return;",
+  "        if (await acoes.salvarOrdem(edicao.ciclo, null)) { edicao = null; redesenhar(); }",
+  "      });",
+  "    }",
+  "    const cancelar = novo('button', 'btn pequeno fantasma', 'Cancelar', acoesP);",
+  "    cancelar.type = 'button';",
+  "    cancelar.addEventListener('click', () => { edicao = null; redesenhar(); });",
   "  }",
   "",
   "  return { desenhar, datas, chaveCiclo };",
@@ -17281,7 +17560,8 @@ const PAGINA_ = [
   "   * do app (de todas as marcas, juntos), cada um com o início e o fim do ciclo no calendário da marca dele. Um",
   "   * movimento segue o calendário da marca que tem mais espaço nele: só a Eudora tem calendário próprio; as",
   "   * outras marcas (e o movimento sem marca) seguem o do Boticário. Se o ciclo não estiver no calendário da",
-  "   * marca, valem as datas do outro calendário.",
+  "   * marca, valem as datas do outro calendário. ordemSalva: a ordem dos movimentos que o construtor salvou para",
+  "   * o ciclo (aba Ordem do calendário), ou null.",
   "   * Exposição: a fatia do espaço de exposição (sem VM) da ER que vai para o movimento; sem `er`, a média das",
   "   * ERs (cada ER é um tamanho médio da rede: nada soma ERs). GMV: o esperado, da aba Tipos de movimento.",
   "   * Em cada ciclo, fatiaExposicao e fatiaGmv são a parte do movimento na exposição e no GMV do ciclo (somam",
@@ -17380,7 +17660,8 @@ const PAGINA_ = [
   "        });",
   "      });",
   "      const inicio = Object.values(porCal).map((x) => x.inicio).sort()[0];",
-  "      return { cicloApp: app, inicio, movimentos };",
+  "      const salva = (estado.dados.ordemCalendario || {})[app];",
+  "      return { cicloApp: app, inicio, movimentos, ordemSalva: salva ? salva.movimentos : null, ordemPor: salva ? salva.por + (salva.em ? ', ' + salva.em : '') : '' };",
   "    });",
   "    return {",
   "      calendarios,",
@@ -17414,6 +17695,22 @@ const PAGINA_ = [
   "        alternarCalendario(false);",
   "        if (o.ciclo !== estado.ciclo) { estado.ciclo = o.ciclo; montarCiclos(); }",
   "        verNaPlanta({ etiqueta: o.texto, er: o.er });",
+  "      },",
+  "      // Construção: o construtor muda a ordem dos movimentos de um ciclo e salva (movimentos null = volta à automática).",
+  "      construtor: () => !!Validacao.acesso() && Validacao.acesso().papel === 'CONSTRUTOR',",
+  "      salvarOrdem: async (ciclo, movimentos) => {",
+  "        carregando(true, 'Salvando a ordem…');",
+  "        try {",
+  "          estado.dados.ordemCalendario = await chamar('salvarOrdemCalendario', Validacao.acesso(),",
+  "            movimentos ? { ciclo, movimentos } : { ciclo, limpar: true });",
+  "          toast(movimentos ? 'Ordem do ' + ciclo + ' salva.' : 'O ' + ciclo + ' voltou à ordem automática.');",
+  "          return true;",
+  "        } catch (e) {",
+  "          erro(e);",
+  "          return false;",
+  "        } finally {",
+  "          carregando(false);",
+  "        }",
   "      },",
   "    });",
   "  }",

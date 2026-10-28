@@ -78,6 +78,7 @@
       dados.prateleiras = prateleirasDeValores_(abas['aba:' + CONFIG.ABAS.PRATELEIRAS], dados.produtos);
       // Calendário dos ciclos e feriados: no Apps Script, vêm da planilha do calendário; aqui, do navegador.
       dados.calendario = calendarioDeValores_(abas['aba:' + CONFIG.ABAS.CICLOS], abas['aba:' + CONFIG.ABAS.FERIADOS]);
+      dados.ordemCalendario = ordemCalendarioDeValores_(abas['aba:' + CONFIG.ABAS.ORDEM_CALENDARIO]);
       dados.calendario.avisos.forEach((a) => { if (dados.avisos.length < 60) dados.avisos.push(a); });
       dados.planilhaUrl = '';
       dados.precisaConfigurar = false;
@@ -166,6 +167,10 @@
 
     salvarAntecipacao(acesso, pedido) {
       return executarAntecipacao_(ioRascunhos(), acesso, pedido);
+    },
+
+    salvarOrdemCalendario(acesso, pedido) {
+      return executarOrdemCalendario_(ioRascunhos(), acesso, pedido);
     },
 
     salvarPrateleiras(acesso, pedido) {

@@ -404,3 +404,76 @@ function executarRascunho_(io, acesso, pedido) {
     return dadosDosRascunhos_(io.layout(), atuais);
   });
 }
+
+/* ------------------ ordem dos movimentos no calendário ------------------- */
+/*
+ * No calendário dos ciclos (Calendario.html), os movimentos de cada ciclo ficam empilhados pelo equilíbrio entre
+ * o GMV esperado e a exposição. O construtor da estratégia pode mudar essa ordem e salvar: ela fica na aba
+ * "Ordem do calendário" (uma linha por movimento do ciclo, na ordem) e passa a ser a ordem do calendário para
+ * todos. Movimentos que não estão na ordem salva (ex.: entraram depois) vêm depois dela, pelo equilíbrio.
+ */
+
+/**
+ * Ordem salva de cada ciclo.
+ * @return {Object<string, {movimentos: string[], por: string, em: string}>} ciclo → movimentos na ordem (o texto)
+ */
+function ordemCalendarioDeValores_(valores) {
+  const porCiclo = {};
+  objetosDaMatriz_(valores || [], colunasOrdemCalendario_()).forEach(function (l) {
+    const ciclo = texto_(l.ciclo);
+    const etiqueta = movimentoDaEtiqueta_(texto_(l.etiqueta));
+    if (!ciclo || !etiqueta) return;
+    const c = porCiclo[ciclo] || (porCiclo[ciclo] = { linhas: [], por: texto_(l.atualizadoPor), em: texto_(l.atualizadoEm) });
+    c.linhas.push({ posicao: numero_(l.posicao, 9999), etiqueta: etiqueta });
+  });
+  const saida = {};
+  Object.keys(porCiclo).forEach(function (ciclo) {
+    const vistos = {};
+    const c = porCiclo[ciclo];
+    saida[ciclo] = {
+      movimentos: c.linhas.sort(function (a, b) { return a.posicao - b.posicao; }).map(function (x) { return x.etiqueta; })
+        .filter(function (e) { const k = chaveEtiqueta_(e); if (vistos[k]) return false; vistos[k] = true; return true; }),
+      por: c.por,
+      em: c.em,
+    };
+  });
+  return saida;
+}
+
+/**
+ * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário. Só o construtor da estratégia.
+ *  - { ciclo, movimentos: ['LÇTO EGEO', 'BOTIPROMO', …] }  a ordem nova (de cima para baixo);
+ *  - { ciclo, limpar: true }                               volta à ordem automática (pelo equilíbrio).
+ * O ciclo precisa existir (publicado ou em construção).
+ * @return {Object} a ordem de todos os ciclos (ordemCalendarioDeValores_)
+ */
+function executarOrdemCalendario_(io, acesso, pedido) {
+  const quem = conferirAcesso_(acesso);
+  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor da estratégia muda a ordem dos movimentos no calendário.');
+  const p = pedido || {};
+  const ciclo = texto_(p.ciclo);
+  return io.travar(function () {
+    const ciclos = ciclosPublicados_({
+      movimentos: io.ler(CONFIG.ABAS.MOVIMENTOS) || [], paineis: io.ler(CONFIG.ABAS.PAINEIS) || [], tipos: io.ler(CONFIG.ABAS.TIPOS) || [],
+    });
+    objetosDaMatriz_(io.ler(CONFIG.ABAS.RASCUNHOS) || [], colunasRascunhos_()).forEach(function (r) {
+      if (texto_(r.ciclo) && texto_(r.status) !== 'APROVADO') ciclos[texto_(r.ciclo)] = true;
+    });
+    if (!ciclo || !ciclos[ciclo]) throw new Error('O ciclo "' + ciclo + '" não existe no app.');
+    const vistos = {};
+    const movimentos = p.limpar ? [] : (Array.isArray(p.movimentos) ? p.movimentos : []).map(function (t) { return movimentoDaEtiqueta_(texto_(t)).slice(0, 200); })
+      .filter(function (t) { const k = chaveEtiqueta_(t); if (!k || vistos[k]) return false; vistos[k] = true; return true; });
+    if (!p.limpar && !movimentos.length) throw new Error('A ordem precisa de ao menos um movimento.');
+    if (movimentos.length > 500) throw new Error('Movimentos demais no ciclo (máx. 500).');
+    const colunas = colunasOrdemCalendario_();
+    const atuais = io.ler(CONFIG.ABAS.ORDEM_CALENDARIO);
+    const cab = colunas.map(function (c) { return c.titulo; });
+    const outras = objetosDaMatriz_(atuais || [], colunas).filter(function (l) { return texto_(l.ciclo) !== ciclo; })
+      .map(function (l) { return colunas.map(function (c) { return l[c.chave]; }); });
+    const em = formatarDataComentario_(new Date());
+    const novas = movimentos.map(function (t, i) { return [ciclo, i + 1, t, quem.autor, em]; });
+    const valores = [cab].concat(outras, novas);
+    io.gravar(CONFIG.ABAS.ORDEM_CALENDARIO, colunas, valores);
+    return ordemCalendarioDeValores_(valores);
+  });
+}

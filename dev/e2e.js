@@ -332,17 +332,8 @@ test('Analytics: cartões, mapa, "Sobre a análise" e "ver na planta"', async (t
   assert.strictEqual(await p.isVisible('#painelAnalytics'), false);
 });
 
-test('calendário dos ciclos: linha do tempo com Boticário e Eudora sobrepostos e os movimentos empilhados', async (t) => {
-  const p = await abrir(t);
-  await escolherCiclo(p, 'Ciclo exemplo cheio');
-  // Sem as abas do calendário: a aba explica de onde vêm as datas.
-  await p.click('#btnCalendario');
-  assert.ok(await p.isVisible('#painelCalendario'));
-  assert.match(await p.textContent('#calCorpo'), /Nenhum ciclo no calendário/);
-  assert.match(await p.textContent('#calCorpo .cal-aviso'), /Ciclo exemplo/, 'avisa os ciclos do app sem datas');
-  await p.click('#calFechar');
-
-  // As abas "Calendário de ciclos" e "Feriados" (na versão web, guardadas no navegador).
+/** As abas "Calendário de ciclos" e "Feriados" (na versão web, guardadas no navegador), e recarrega. */
+async function semearCalendario(p) {
   await p.evaluate(() => {
     const k = 'planoVarejo.planilhaLocal.v1';
     const abas = JSON.parse(localStorage.getItem(k));
@@ -354,6 +345,72 @@ test('calendário dos ciclos: linha do tempo com Boticário e Eudora sobrepostos
   });
   await p.reload();
   await p.waitForFunction(() => App.estado.dados && App.estado.dados.calendario.ciclos.EUD.length === 2);
+}
+
+test('calendário dos ciclos: o construtor muda a ordem dos movimentos de um ciclo e salva', async (t) => {
+  const p = await abrir(t);
+  await semearCalendario(p);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  // Sem o login da Construção, não dá para ordenar; as medidas são só GMV e exposição.
+  await p.click('#btnCalendario');
+  await p.waitForSelector('#calCorpo .cal-mov');
+  assert.strictEqual(await p.locator('#calCorpo .cal-ordenar').count(), 0);
+  assert.deepStrictEqual(await p.locator('#calCorpo .cal-mov').first().locator('.cal-medida-rot').allTextContents(), ['GMV', 'Exposição']);
+  await p.click('#calFechar');
+  await menuConfig(p, MENU.CONSTRUTOR);
+  await p.waitForSelector('#dlgAcesso[open]');
+  await p.fill('#acessoNome', 'Bia');
+  await p.fill('#acessoSenha', SENHA.CONSTRUTOR);
+  await p.click('#acessoEntrar');
+  await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
+
+  await p.click('#btnCalendario');
+  await p.click('#calCorpo .cal-ordenar');
+  await p.waitForSelector('#calCorpo .cal-ordem li');
+  assert.strictEqual(await p.inputValue('#calCorpo .cal-ordem select'), 'Ciclo exemplo cheio', 'começa no ciclo da tela');
+  const lista = () => p.locator('#calCorpo .cal-ordem li').evaluateAll((l) => l.map((x) => x.dataset.movimento));
+  const naTela = () => p.locator('#calCorpo .cal-mov[data-ciclo="Ciclo exemplo cheio"]').evaluateAll((l) => l.sort((a, b) => a.dataset.posicao - b.dataset.posicao).map((x) => x.dataset.movimento));
+  const antes = await lista();
+  // ↑ sobe o terceiro; arrastar leva o quinto para o topo; a linha do tempo mostra a ordem nova antes de salvar.
+  await p.locator('#calCorpo .cal-ordem li').nth(2).locator('button[aria-label^="Subir"]').click();
+  await p.locator('#calCorpo .cal-ordem li').nth(4).dragTo(p.locator('#calCorpo .cal-ordem li').nth(0));
+  const nova = await lista();
+  assert.deepStrictEqual(nova.slice(0, 4), [antes[4], antes[0], antes[2], antes[1]]);
+  assert.deepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4), 'a linha do tempo acompanha a lista');
+  assert.match(await p.textContent('#calCorpo .cal-ordem-estado'), /não salva/);
+  await p.click('#calCorpo .cal-ordem button:has-text("Salvar ordem")');
+  await p.waitForFunction(() => App.estado.dados.ordemCalendario['Ciclo exemplo cheio']);
+  assert.strictEqual(await p.locator('#calCorpo .cal-ordem').count(), 0, 'salvar fecha a ordenação');
+  assert.strictEqual(await p.getAttribute('#calCorpo .cal-controle button[data-valor="definida"]', 'aria-pressed'), 'true');
+  assert.deepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4));
+
+  // Continua salva depois de recarregar, para todo mundo (sem login), como a ordem padrão.
+  await p.click('#calFechar');
+  await p.evaluate(() => sessionStorage.clear());
+  await p.reload();
+  await p.waitForFunction(() => App.estado.dados && App.estado.dados.ordemCalendario['Ciclo exemplo cheio']);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  await p.click('#btnCalendario');
+  await p.waitForSelector('#calCorpo .cal-mov');
+  assert.strictEqual(await p.getAttribute('#calCorpo .cal-controle button[data-valor="definida"]', 'aria-pressed'), 'true');
+  assert.deepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4));
+  assert.strictEqual(await p.locator('#calCorpo .cal-ordenar').count(), 0);
+  // As outras ordens continuam a um clique.
+  await p.click('#calCorpo .cal-controle button[data-valor="gmv"]');
+  assert.notDeepStrictEqual((await naTela()).slice(0, 4), nova.slice(0, 4));
+});
+
+test('calendário dos ciclos: linha do tempo com Boticário e Eudora sobrepostos e os movimentos empilhados', async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  // Sem as abas do calendário: a aba explica de onde vêm as datas.
+  await p.click('#btnCalendario');
+  assert.ok(await p.isVisible('#painelCalendario'));
+  assert.match(await p.textContent('#calCorpo'), /Nenhum ciclo no calendário/);
+  assert.match(await p.textContent('#calCorpo .cal-aviso'), /Ciclo exemplo/, 'avisa os ciclos do app sem datas');
+  await p.click('#calFechar');
+
+  await semearCalendario(p);
   // Desenvolvedor › Planilhas mostra o que foi lido.
   await abrirPainelDev(p);
   await p.click('#dlgDev [data-dev-aba="planilhas"]');

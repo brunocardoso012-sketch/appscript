@@ -606,7 +606,36 @@
   .cal-aviso { margin: 0; padding: 6px 10px; border-radius: 8px; font-size: 12px; color: #7A4A00; background: #FFF4D6; border: 1px solid #F2D58A; }
   [data-tema="escuro"] .cal-aviso { color: #FFD98A; background: #3A2E12; border-color: #5C4A1E; }
 
-  .cal-rolagem { flex: 1 1 auto; min-height: 0; overflow: auto; border: 1px solid var(--borda); border-radius: 10px; background: var(--superficie); }
+  .cal-area { flex: 1 1 auto; min-height: 0; display: flex; gap: 10px; }
+  .cal-rolagem { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; border: 1px solid var(--borda); border-radius: 10px; background: var(--superficie); }
+  /* Construção: a ordem dos movimentos de um ciclo, ao lado da linha do tempo. */
+  .cal-ordenar[aria-pressed="true"] { background: var(--destaque); }
+  .cal-ordem {
+    flex: 0 0 330px; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px;
+    border: 1px solid var(--borda-forte); border-top: 3px solid #E8590C; border-radius: 10px; background: var(--superficie);
+  }
+  .cal-ordem h3 { margin: 0; font-size: 14px; }
+  .cal-ordem .cal-controle select { flex: 1 1 auto; }
+  .cal-ordem-dica { margin: 0; font-size: 12px; color: var(--texto-2); line-height: 1.4; }
+  .cal-ordem-estado { margin: 0; font-size: 12px; font-weight: 600; color: #8a4510; }
+  [data-tema="escuro"] .cal-ordem-estado { color: #ffb38a; }
+  .cal-ordem-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .cal-ordem-lista li {
+    display: flex; align-items: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--borda); border-left: 4px solid; border-radius: 7px;
+    background: var(--superficie); cursor: grab;
+  }
+  .cal-ordem-lista li.arrastando { opacity: .45; }
+  .cal-ordem-lista li.alvo { box-shadow: 0 -3px 0 #3346b8; }
+  .cal-ordem-alca { color: var(--texto-2); font-size: 12px; letter-spacing: -2px; }
+  .cal-ordem-texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .cal-ordem-texto strong { font: 800 12px var(--fonte-etq); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-ordem-texto small { font-size: 10.5px; color: var(--texto-2); }
+  .cal-ordem-mover {
+    flex: 0 0 auto; width: 24px; height: 24px; padding: 0; border: 1px solid var(--borda); border-radius: 6px; background: var(--fundo);
+    color: var(--texto); cursor: pointer;
+  }
+  .cal-ordem-mover:disabled { opacity: .35; cursor: default; }
+  .cal-ordem-acoes { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; bottom: -12px; padding: 8px 0 0; background: var(--superficie); }
   .cal-quadro { position: relative; min-width: 100%; }
   /* Topo: meses, dias e as faixas dos ciclos (Boticário e Eudora), fixo ao rolar para baixo. */
   .cal-topo { position: sticky; top: 0; z-index: 4; background: var(--superficie); border-bottom: 1px solid var(--borda-forte); }
@@ -672,7 +701,6 @@
   .cal-medida-trilho > span { display: block; height: 100%; border-radius: 3px; }
   .cal-medida.expo .cal-medida-trilho > span { background: #3346b8; }
   .cal-medida.gmv .cal-medida-trilho > span { background: #1d8a5a; }
-  .cal-medida.equi .cal-medida-trilho > span { background: #E8590C; }
   [data-tema="escuro"] .cal-medida.expo .cal-medida-trilho > span { background: #7d8ff0; }
   [data-tema="escuro"] .cal-medida.gmv .cal-medida-trilho > span { background: #4cc38a; }
   .cal-mais {
@@ -681,6 +709,10 @@
   }
   .cal-mais:hover, .cal-mais:focus-visible { color: var(--texto); border-color: #3346b8; outline: none; }
   .cal-sem-movs { margin: 0; padding: 12px; color: var(--texto-2); font-style: italic; position: sticky; left: 0; }
+  @media (max-width: 900px) {
+    .cal-area { flex-direction: column; }
+    .cal-ordem { flex: 0 0 auto; max-height: 45vh; }
+  }
   @media (max-width: 600px) {
     .cal-hoje { margin-left: 0; }
   }

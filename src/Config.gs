@@ -33,6 +33,8 @@ const CONFIG = {
     // calendário (Desenvolvedor › Planilhas) ou, sem ela, na principal (calendarioDeValores_).
     CICLOS: 'Calendário de ciclos',
     FERIADOS: 'Feriados',
+    // Ordem dos movimentos de cada ciclo no calendário, definida pelo construtor (Rascunhos.gs).
+    ORDEM_CALENDARIO: 'Ordem do calendário',
   },
   /** Quantidade de etiquetas (caixas de texto) por móvel na planilha. */
   MAX_ETIQUETAS: 4,
@@ -379,6 +381,17 @@ function colunasCiclos_() {
     { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true, apelidos: ['Nome do ciclo'] },
     { chave: 'inicio', titulo: 'Início', obrigatoria: true, apelidos: ['Inicio', 'Data de início', 'Data início', 'Começo', 'De'] },
     { chave: 'fim', titulo: 'Fim', obrigatoria: true, apelidos: ['Data de fim', 'Data fim', 'Término', 'Termino', 'Final', 'Até'] },
+  ];
+}
+
+/** Aba "Ordem do calendário": a posição de cada movimento do ciclo no calendário (1 = o de cima). */
+function colunasOrdemCalendario_() {
+  return [
+    { chave: 'ciclo', titulo: 'Ciclo', obrigatoria: true, texto: true },
+    { chave: 'posicao', titulo: 'Posição', obrigatoria: true },
+    { chave: 'etiqueta', titulo: 'Movimento (etiqueta)', obrigatoria: true, texto: true, apelidos: ['Movimento', 'Etiqueta'] },
+    { chave: 'atualizadoPor', titulo: 'Atualizado por', texto: true },
+    { chave: 'atualizadoEm', titulo: 'Atualizado em', texto: true },
   ];
 }
 

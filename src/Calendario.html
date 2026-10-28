@@ -15,7 +15,11 @@
  *   - equilíbrio (a principal): a média entre a fatia do movimento no GMV esperado do ciclo e a fatia dele
  *     na exposição (destaque) do ciclo;
  *   - só GMV esperado;
- *   - só exposição (a fatia do espaço de exposição da ER que vai para o movimento).
+ *   - só exposição (a fatia do espaço de exposição da ER que vai para o movimento);
+ *   - a ordem da construção: a que o construtor da estratégia salvou para o ciclo (aba Ordem do calendário),
+ *     a padrão quando existe; os movimentos que não estão nela (e os ciclos sem ela) seguem o equilíbrio.
+ *  Com o login da Construção, "Ordenar movimentos" abre ao lado da linha do tempo a lista dos movimentos de um
+ *  ciclo: arraste (ou use ↑ ↓) e salve. A linha do tempo mostra a ordem nova enquanto ela é mudada.
  *  Um ciclo que começa antes de o anterior terminar (o da Eudora e o do Boticário se sobrepõem) não cobre os
  *  retângulos do outro: os dele descem até a primeira linha livre, sempre na mesma ordem.
  *  As contas vêm prontas da aplicação (App.dadosCalendario); aqui só o desenho.
@@ -63,7 +67,12 @@ const Calendario = (() => {
   /* ------------------------------- desenho --------------------------------- */
 
   // Escolhas da tela (valem até recarregar a página).
-  const vista = { ordem: 'equilibrio', er: '', limite: 10, escala: 'normal' };
+  // ordem vazia: a da construção, se algum ciclo tiver uma; senão, o equilíbrio.
+  const vista = { ordem: '', er: '', limite: 10, escala: 'normal' };
+  // Ordem em edição (construtor): { ciclo, lista: [textos], mudou }. rolarPara: dia para mostrar ao começar.
+  let edicao = null;
+  let rolarPara = null;
+  const ORDEM_DEFINIDA = ['definida', 'Ordem da construção', 'A ordem salva na construção (os movimentos que não estão nela seguem o equilíbrio)'];
   const ORDENS = [
     ['equilibrio', 'Equilíbrio GMV × exposição', 'Média entre a fatia do movimento no GMV esperado do ciclo e a fatia dele na exposição'],
     ['gmv', 'Só GMV', 'Só o GMV esperado (aba Tipos de movimento)'],
@@ -99,6 +108,19 @@ const Calendario = (() => {
   const valorNaOrdem = (m) => (vista.ordem === 'gmv' ? m.fatiaGmv : vista.ordem === 'exposicao' ? m.fatiaExposicao : m.equilibrio);
   const desempate = (m) => (vista.ordem === 'exposicao' ? m.fatiaGmv : m.fatiaExposicao);
   const ordenar = (movs) => movs.slice().sort((a, b) => valorNaOrdem(b) - valorNaOrdem(a) || desempate(b) - desempate(a) || a.texto.localeCompare(b.texto, 'pt-BR'));
+  /**
+   * Movimentos de um ciclo na ordem da tela: a lista em edição; na ordem da construção, a salva (os que não
+   * estão nela vêm depois, pelo equilíbrio); senão, a ordem escolhida.
+   */
+  function ordenarGrupo(g) {
+    const auto = ordenar(g.movimentos);
+    const lista = edicao && edicao.ciclo === g.cicloApp ? edicao.lista : vista.ordem === 'definida' ? g.ordemSalva : null;
+    if (!lista) return auto;
+    const pos = {};
+    lista.forEach((t, i) => { pos[Render.chaveEtiqueta(t)] = i; });
+    const p = (m) => { const i = pos[Render.chaveEtiqueta(m.texto)]; return i === undefined ? lista.length + auto.indexOf(m) : i; };
+    return auto.slice().sort((a, b) => p(a) - p(b));
+  }
 
   function segmentado(pai, rotulo, opcoes, atual, aoEscolher) {
     const box = novo('div', 'cal-controle', null, pai);
@@ -147,31 +169,53 @@ const Calendario = (() => {
 
   /**
    * Desenha o calendário em `corpo`.
-   * acoes: { dados(er) → dados (App.dadosCalendario), abrirCiclo(ciclo), verMovimento({ ciclo, texto, er }) }
+   * acoes: { dados(er) → dados (App.dadosCalendario), abrirCiclo(ciclo), verMovimento({ ciclo, texto, er }),
+   *          construtor() → se quem está na tela entrou na Construção, salvarOrdem(ciclo, textos | null) → Promise<boolean> }
    */
   function desenhar(corpo, acoes) {
     const antes = corpo.querySelector('.cal-rolagem');
     const posAntes = antes ? { left: antes.scrollLeft, top: antes.scrollTop, px: ESCALAS[vista.escala].dia } : null;
     const d = acoes.dados(vista.er);
     corpo.innerHTML = '';
+    const construtor = !!(acoes.construtor && acoes.construtor());
+    if (!construtor || (edicao && !d.grupos.some((g) => g.cicloApp === edicao.ciclo))) edicao = null;
+    const temSalva = d.grupos.some((g) => g.ordemSalva);
+    if (!vista.ordem || (vista.ordem === 'definida' && !temSalva)) vista.ordem = temSalva ? 'definida' : 'equilibrio';
     // Ao redesenhar, a rolagem continua no mesmo dia (mesmo mudando a escala).
     const redesenhar = (mudanca) => { Object.assign(vista, mudanca); desenhar(corpo, acoes); };
 
     // Controles.
     const barra = novo('div', 'cal-barra', null, corpo);
-    segmentado(barra, 'Empilhar por', ORDENS, vista.ordem, (v) => redesenhar({ ordem: v }));
+    segmentado(barra, 'Empilhar por', (temSalva ? [ORDEM_DEFINIDA] : []).concat(ORDENS), vista.ordem, (v) => redesenhar({ ordem: v }));
     seletor(barra, 'Exposição', [['', 'Média das ERs']].concat(d.ers.map((e) => [e.id, 'Na ' + e.nome])), vista.er, (v) => redesenhar({ er: v }));
     seletor(barra, 'Movimentos por ciclo', [[5, '5 primeiros'], [10, '10 primeiros'], [20, '20 primeiros'], [0, 'Todos']], vista.limite, (v) => redesenhar({ limite: +v }));
     segmentado(barra, 'Escala', [['compacta', 'Compacta'], ['normal', 'Normal'], ['ampla', 'Ampla']], vista.escala, (v) => redesenhar({ escala: v }));
     const bHoje = novo('button', 'btn pequeno cal-hoje', 'Hoje', barra);
     bHoje.type = 'button';
     bHoje.title = 'Rolar até o dia de hoje';
+    if (construtor && d.grupos.length) {
+      const bOrdem = novo('button', 'btn pequeno cal-ordenar', edicao ? 'Fechar a ordenação' : 'Ordenar movimentos', barra);
+      bOrdem.type = 'button';
+      bOrdem.setAttribute('aria-pressed', String(!!edicao));
+      bOrdem.title = 'Construção: mudar a ordem em que os movimentos de um ciclo aparecem no calendário e salvar';
+      bOrdem.addEventListener('click', () => {
+        if (edicao) {
+          if (edicao.mudou && !window.confirm('Descartar a ordem que ainda não foi salva?')) return;
+          edicao = null;
+        } else {
+          const g = d.grupos.find((x) => x.cicloApp === d.cicloAtual) || d.grupos.slice().sort((a, b) => (a.inicio < b.inicio ? -1 : 1))[0];
+          comecarEdicao(g);
+        }
+        desenhar(corpo, acoes);
+      });
+    }
 
     const nota = novo('p', 'cal-nota', null, corpo);
     nota.textContent = {
       equilibrio: 'Os movimentos de cada ciclo estão empilhados do mais importante (em cima) para o menos importante, pelo equilíbrio entre o GMV esperado e a exposição: a média da fatia do movimento no GMV esperado do ciclo com a fatia dele na exposição.',
       gmv: 'Os movimentos de cada ciclo estão empilhados pelo GMV esperado (aba Tipos de movimento), do maior (em cima) para o menor; os sem GMV ficam por último.',
       exposicao: 'Os movimentos de cada ciclo estão empilhados pela exposição (a fatia do espaço de exposição que o movimento ocupa), da maior (em cima) para a menor.',
+      definida: 'Os movimentos de cada ciclo estão na ordem definida na construção (o primeiro em cima). Ciclos sem ordem definida, e movimentos que não estavam nela, seguem o equilíbrio entre o GMV esperado e a exposição.',
     }[vista.ordem] + ' Exposição: ' + (vista.er ? 'na ER escolhida' : 'média das ERs') + '. Cada retângulo vai do início ao fim do ciclo no calendário da marca dele (Eudora no da Eudora; as outras marcas no do Boticário). Clique num movimento para vê-lo na planta.';
 
     if (d.semDatas.length) {
@@ -196,7 +240,9 @@ const Calendario = (() => {
     const feriados = {};
     d.feriados.forEach((f) => { feriados[f.data] = f.nome; });
 
-    const rolagem = novo('div', 'cal-rolagem', null, corpo);
+    const area = novo('div', 'cal-area', null, corpo);
+    const rolagem = novo('div', 'cal-rolagem', null, area);
+    if (edicao) painelOrdem(area, d, corpo, acoes);
     const quadro = novo('div', 'cal-quadro', null, rolagem);
     quadro.style.width = largura + 'px';
 
@@ -257,11 +303,11 @@ const Calendario = (() => {
 
     // Movimentos de todos os ciclos, juntos e empilhados.
     const grupos = d.grupos.map((g) => {
-      const ordem = ordenar(g.movimentos);
+      const ordem = ordenarGrupo(g);
       const visiveis = vista.limite ? ordem.slice(0, vista.limite) : ordem;
       // As barras comparam cada medida com a maior do ciclo (os números são os reais).
       const maior = (k) => Math.max.apply(null, g.movimentos.map((m) => m[k]).concat([0]));
-      const maiores = { exposicao: maior('exposicao'), fatiaGmv: maior('fatiaGmv'), equilibrio: maior('equilibrio') };
+      const maiores = { exposicao: maior('exposicao'), fatiaGmv: maior('fatiaGmv') };
       const itens = visiveis.map((m, k) => ({ m, pos: k + 1, d0: datas.dia(m.inicio), d1: datas.dia(m.fim), g, maiores }));
       if (visiveis.length < ordem.length) {
         const d0 = Math.min.apply(null, itens.map((it) => it.d0));
@@ -337,7 +383,6 @@ const Calendario = (() => {
       };
       medida('GMV', 'fatiaGmv', m.gmv ? gmvCurto.format(m.gmv) + ' (' + fmtPct(m.fatiaGmv) + ')' : 'sem GMV', 'gmv');
       medida('Exposição', 'exposicao', fmtPct(m.exposicao), 'expo');
-      if (vista.ordem === 'equilibrio') medida('Equilíbrio', 'equilibrio', fmtPct(m.equilibrio), 'equi');
       r.title = [
         it.pos + 'º do ' + it.g.cicloApp + ' · ' + m.texto,
         'Calendário ' + m.nomeCalendario + ': ' + datas.br(m.inicio) + ' a ' + datas.br(m.fim) + (m.datasDoOutro ? ' (o ' + it.g.cicloApp + ' não está no calendário ' + m.nomeCalendario + ': datas do outro calendário)' : ''),
@@ -357,11 +402,115 @@ const Calendario = (() => {
     bHoje.disabled = hoje < inicio || hoje > fim;
     bHoje.addEventListener('click', () => irPara(hoje));
     const atual = d.grupos.find((g) => g.cicloApp === d.cicloAtual);
-    if (posAntes) {
+    if (rolarPara !== null) {
+      irPara(rolarPara);
+      rolarPara = null;
+    } else if (posAntes) {
       rolagem.scrollLeft = (posAntes.left / posAntes.px) * px;
       rolagem.scrollTop = posAntes.top;
     } else if (atual) irPara(datas.dia(atual.inicio));
     else if (hoje >= inicio && hoje <= fim) irPara(hoje);
+  }
+
+  /* ----------------------- ordem da construção ---------------------------- */
+
+  function comecarEdicao(g) {
+    edicao = { ciclo: g.cicloApp, lista: ordenarGrupo(g).map((m) => m.texto), mudou: false };
+    rolarPara = datas.dia(g.inicio);
+  }
+
+  /**
+   * Painel ao lado da linha do tempo (construtor): os movimentos do ciclo na ordem, para arrastar (ou ↑ ↓) e
+   * salvar. Cada mudança redesenha o calendário com a ordem nova.
+   */
+  function painelOrdem(pai, d, corpo, acoes) {
+    const g = d.grupos.find((x) => x.cicloApp === edicao.ciclo);
+    const redesenhar = () => desenhar(corpo, acoes);
+    const p = novo('aside', 'cal-ordem', null, pai);
+    p.setAttribute('aria-label', 'Ordem dos movimentos no calendário');
+    novo('h3', null, 'Ordem dos movimentos', p);
+    const sel = novo('select', null, null, novo('label', 'cal-controle', null, p));
+    sel.parentNode.insertBefore(novo('span', 'cal-rotulo', 'Ciclo'), sel);
+    d.grupos.slice().sort((a, b) => (a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : 0))
+      .forEach((x) => sel.add(new Option(x.cicloApp + (x.ordemSalva ? ' · ordem salva' : ''), x.cicloApp, false, x.cicloApp === edicao.ciclo)));
+    sel.addEventListener('change', () => {
+      if (edicao.mudou && !window.confirm('Descartar a ordem que ainda não foi salva?')) { sel.value = edicao.ciclo; return; }
+      comecarEdicao(d.grupos.find((x) => x.cicloApp === sel.value));
+      redesenhar();
+    });
+    novo('p', 'cal-ordem-dica', 'Arraste os movimentos (ou use ↑ ↓): o de cima fica em cima no calendário. A linha do tempo já mostra a ordem nova; Salvar vale para todo mundo.', p);
+    novo('p', 'cal-ordem-estado', edicao.mudou ? 'Ordem mudada, ainda não salva.'
+      : g.ordemSalva ? 'Ordem salva' + (g.ordemPor ? ' por ' + g.ordemPor : '') + '.' : 'Ordem automática (equilíbrio GMV × exposição).', p);
+
+    const mover = (de, para) => {
+      if (para < 0 || para >= edicao.lista.length || de === para) return;
+      const [t] = edicao.lista.splice(de, 1);
+      edicao.lista.splice(para, 0, t);
+      edicao.mudou = true;
+      redesenhar();
+      const foco = corpo.querySelector('.cal-ordem li[data-indice="' + para + '"] .cal-ordem-mover');
+      if (foco) foco.focus();
+    };
+    const porTexto = {};
+    g.movimentos.forEach((m) => { porTexto[m.texto] = m; });
+    const ol = novo('ol', 'cal-ordem-lista', null, p);
+    let arrastando = null;
+    edicao.lista.forEach((t, i) => {
+      const m = porTexto[t] || { texto: t, cor: '#999999', gmv: 0, exposicao: 0 };
+      const li = novo('li', null, null, ol);
+      li.dataset.indice = String(i);
+      li.dataset.movimento = t;
+      li.draggable = true;
+      li.style.borderLeftColor = m.cor;
+      novo('span', 'cal-ordem-alca', '⋮⋮', li).setAttribute('aria-hidden', 'true');
+      novo('span', 'cal-mov-pos', String(i + 1), li);
+      const txt = novo('span', 'cal-ordem-texto', null, li);
+      novo('strong', null, t, txt);
+      novo('small', null, (m.gmv ? gmvCurto.format(m.gmv) : 'sem GMV') + ' · exposição ' + fmtPct(m.exposicao || 0), txt);
+      const sobe = novo('button', 'cal-ordem-mover', '↑', li);
+      sobe.type = 'button';
+      sobe.disabled = i === 0;
+      sobe.setAttribute('aria-label', 'Subir ' + t);
+      sobe.addEventListener('click', () => mover(i, i - 1));
+      const desce = novo('button', 'cal-ordem-mover', '↓', li);
+      desce.type = 'button';
+      desce.disabled = i === edicao.lista.length - 1;
+      desce.setAttribute('aria-label', 'Descer ' + t);
+      desce.addEventListener('click', () => mover(i, i + 1));
+      li.addEventListener('dragstart', (e) => { arrastando = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); li.classList.add('arrastando'); });
+      li.addEventListener('dragend', () => li.classList.remove('arrastando'));
+      li.addEventListener('dragover', (e) => { e.preventDefault(); li.classList.add('alvo'); });
+      li.addEventListener('dragleave', () => li.classList.remove('alvo'));
+      li.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const de = arrastando !== null ? arrastando : +e.dataTransfer.getData('text/plain');
+        mover(de, i);
+      });
+    });
+
+    const acoesP = novo('div', 'cal-ordem-acoes', null, p);
+    const salvar = novo('button', 'btn pequeno primario', 'Salvar ordem', acoesP);
+    salvar.type = 'button';
+    salvar.addEventListener('click', async () => {
+      const ciclo = edicao.ciclo;
+      if (await acoes.salvarOrdem(ciclo, edicao.lista)) {
+        edicao = null;
+        vista.ordem = 'definida';
+        redesenhar();
+      }
+    });
+    if (g.ordemSalva) {
+      const auto = novo('button', 'btn pequeno', 'Voltar à ordem automática', acoesP);
+      auto.type = 'button';
+      auto.title = 'Apaga a ordem salva deste ciclo: ele volta a seguir o equilíbrio entre o GMV esperado e a exposição';
+      auto.addEventListener('click', async () => {
+        if (!window.confirm('Apagar a ordem salva do ' + edicao.ciclo + '?')) return;
+        if (await acoes.salvarOrdem(edicao.ciclo, null)) { edicao = null; redesenhar(); }
+      });
+    }
+    const cancelar = novo('button', 'btn pequeno fantasma', 'Cancelar', acoesP);
+    cancelar.type = 'button';
+    cancelar.addEventListener('click', () => { edicao = null; redesenhar(); });
   }
 
   return { desenhar, datas, chaveCiclo };

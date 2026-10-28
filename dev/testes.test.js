@@ -532,6 +532,37 @@ test('calendário dos ciclos e feriados: abas lidas da planilha do calendário (
   assert.match(run(`getPlanilhas(${DEV})`).calendario.erro, /Não consegui abrir/);
 });
 
+test('ordem dos movimentos no calendário: o construtor salva a ordem de um ciclo e pode voltar à automática', () => {
+  const f = servicosFalsos({ vinculada: true });
+  const { run } = carregarGas(f.globais);
+  configurarComExemplo(run);
+  const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
+  const salvar = (acesso, pedido) => run(`salvarOrdemCalendario(${acesso}, ${JSON.stringify(pedido)})`);
+  assert.deepEqual(run('getDados()').ordemCalendario, {}, 'sem ordem salva');
+  assert.throws(() => salvar(V, { ciclo: 'Ciclo exemplo', movimentos: ['BOTIPROMO'] }), /Só o construtor/);
+  assert.throws(() => salvar(C, { ciclo: 'Não existe', movimentos: ['BOTIPROMO'] }), /não existe no app/);
+  assert.throws(() => salvar(C, { ciclo: 'Ciclo exemplo', movimentos: [] }), /ao menos um movimento/);
+
+  // A observação depois do "|" e as repetições saem; a ordem fica na aba e chega na página.
+  salvar(C, { ciclo: 'Ciclo exemplo', movimentos: ['LÇTO EGEO', 'botipromo', 'BOTIPROMO | só no kit', 'OUTLET EUD'] });
+  salvar(C, { ciclo: 'Ciclo exemplo cheio', movimentos: ['JUICY MOOD'] });
+  let ordem = run('getDados()').ordemCalendario;
+  assert.deepEqual(ordem['Ciclo exemplo'].movimentos, ['LÇTO EGEO', 'botipromo', 'OUTLET EUD']);
+  assert.equal(ordem['Ciclo exemplo'].por, 'Bia');
+  assert.deepEqual(ordem['Ciclo exemplo cheio'].movimentos, ['JUICY MOOD']);
+  const aba = f.planilha.getSheetByName('Ordem do calendário');
+  assert.deepEqual(aba.getRange(1, 1, 1, 3).getValues()[0], ['Ciclo', 'Posição', 'Movimento (etiqueta)']);
+
+  // Salvar de novo troca só aquele ciclo; limpar volta à ordem automática.
+  salvar(C, { ciclo: 'Ciclo exemplo', movimentos: ['OUTLET EUD', 'LÇTO EGEO'] });
+  ordem = run('getDados()').ordemCalendario;
+  assert.deepEqual(ordem['Ciclo exemplo'].movimentos, ['OUTLET EUD', 'LÇTO EGEO']);
+  assert.deepEqual(ordem['Ciclo exemplo cheio'].movimentos, ['JUICY MOOD']);
+  salvar(C, { ciclo: 'Ciclo exemplo', limpar: true });
+  assert.deepEqual(Object.keys(run('getDados()').ordemCalendario), ['Ciclo exemplo cheio']);
+});
+
 test('planilha separada para o layout: criar, ler e gravar nela, vincular e voltar para a principal', () => {
   const f = servicosFalsos({ vinculada: true });
   const { run } = carregarGas(f.globais);
