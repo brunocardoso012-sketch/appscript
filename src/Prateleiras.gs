@@ -3,7 +3,7 @@
  *  PRATELEIRAS (os quadrados de cada prateleira e os produtos de cada quadrado)
  * ============================================================================
  *  Depois da estratégia dos movimentos (que movimento fica em cada espaço), o
- *  construtor da estratégia desenha o planograma de cada prateleira: quadrados
+ *  construtor de planogramas desenha o planograma de cada prateleira: quadrados
  *  lado a lado, na altura toda da prateleira (início e largura, em % dela; um
  *  quadrado não fica em cima de outro) e, em cada quadrado, o movimento e
  *  os produtos, escolhidos na aba "Produtos" (o catálogo: SKU, nome, marca,
@@ -281,7 +281,7 @@ function linhasDePrateleiras_(ciclo, planta, espaco, n, prateleiras, catalogo, q
  *            produtos: [{sku, frentes}]}]}] }  troca as prateleiras do espaço nessa ER (lista vazia apaga); planta = a
  *            ER ou "TODAS" (cada ER que tem o espaço recebe as mesmas prateleiras); x e w em % da prateleira (os
  *            quadrados ficam lado a lado, na altura toda).
- * Só o construtor da estratégia, num ciclo publicado ou num ciclo em construção ainda não enviado.
+ * Só a Construção de planogramas (papel PLANOGRAMA), num ciclo publicado ou num ciclo em construção ainda não enviado.
  * @param {Array<Array>} valores  matriz atual da aba (com cabeçalho), ou vazia
  * @param {{plantas: Array, ciclos: Object, rascunhos: Object, produtos: Array}} contexto  plantas do layout
  *   (montarPlantas_), ciclos publicados, o status de cada ciclo em construção e o catálogo (produtosDeValores_)
@@ -291,7 +291,7 @@ function linhasDePrateleiras_(ciclo, planta, espaco, n, prateleiras, catalogo, q
 function aplicarAcaoPrateleiras_(valores, contexto, quem, pedido, agora) {
   const p = pedido || {};
   if (p.acao !== 'salvar') throw new Error('Ação inválida.');
-  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor da estratégia detalha as prateleiras.');
+  if (quem.papel !== 'PLANOGRAMA') throw new Error('Só a Construção de planogramas detalha as prateleiras.');
   const ciclo = texto_(p.ciclo).slice(0, 60);
   if (!ciclo) throw new Error('Escolha o ciclo.');
   const status = contexto.rascunhos[ciclo];

@@ -3,7 +3,7 @@
  *  VALIDAÇÃO DA ESTRATÉGIA (comentários do validador para o construtor)
  * ============================================================================
  *  O validador comenta a estratégia de um ciclo (numa planta ou num móvel); o
- *  construtor da estratégia vê, responde e marca como resolvido. Cada acesso
+ *  construtor do ciclo vê, responde e marca como resolvido. Cada acesso
  *  pede o papel e a senha (SENHAS_ACESSO, em Config.gs), conferidos aqui a cada
  *  gravação.
  *
@@ -13,10 +13,22 @@
  *  versão web, o web/backend-local.js.
  */
 
+/**
+ * Papéis de quem entra (um módulo da engrenagem para cada, com a sua senha):
+ *  - VALIDADOR: Validação (comenta a estratégia e aprova ou devolve os ciclos novos);
+ *  - CONSTRUTOR: Construção do ciclo (monta os ciclos: os movimentos de cada espaço dos móveis, os tipos, as
+ *    Comunicações ER, as antecipações e a ordem e os selos do calendário; responde aos comentários);
+ *  - PLANOGRAMA: Construção de planogramas (os produtos dentro das prateleiras de cada espaço).
+ * Os dois módulos de construção também baixam (e salvam no Drive) o briefing das gôndolas e pirâmides.
+ */
 const PAPEIS_ACESSO = {
   VALIDADOR: 'Validador',
-  CONSTRUTOR: 'Construtor da estratégia',
+  CONSTRUTOR: 'Construtor do ciclo',
+  PLANOGRAMA: 'Construtor de planogramas',
 };
+
+/** Papéis dos módulos de construção (do ciclo e de planogramas). */
+const PAPEIS_CONSTRUCAO = ['CONSTRUTOR', 'PLANOGRAMA'];
 
 const STATUS_COMENTARIO = { ABERTO: 'ABERTO', RESOLVIDO: 'RESOLVIDO' };
 
@@ -52,7 +64,7 @@ function senhasDeAcesso_() {
 function conferirAcesso_(acesso) {
   const a = acesso || {};
   const papel = String(a.papel || '').toUpperCase();
-  if (!PAPEIS_ACESSO[papel]) throw new Error('Escolha se você é validador ou construtor da estratégia.');
+  if (!PAPEIS_ACESSO[papel]) throw new Error('Escolha o módulo: Validação, Construção do ciclo ou Construção de planogramas.');
   const senha = senhasDeAcesso_()[papel];
   if (!senha || String(a.senha || '') !== String(senha)) throw new Error('Senha incorreta.');
   const autor = String(a.nome || '').trim().slice(0, 60);
@@ -127,6 +139,8 @@ function comentariosDeValores_(valores) {
  */
 function aplicarAcaoComentario_(valores, quem, pedido, agora) {
   const p = pedido || {};
+  // Os comentários são entre o validador e o construtor do ciclo.
+  if (quem.papel !== 'VALIDADOR' && quem.papel !== 'CONSTRUTOR') throw new Error('Só a Validação e a Construção do ciclo comentam a estratégia.');
   const cols = colunasComentarios_();
   const base = valores && valores.length ? valores : valoresComentariosVazios_();
   const cab = base[0].map(chave_);

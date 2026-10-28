@@ -55,12 +55,14 @@ const CONFIG = {
 };
 
 /**
- * Senhas padrão dos módulos: Desenvolvedor (a engrenagem) e, dentro dele, Validação e Construção
- * (uma por papel). O Desenvolvedor pode trocá-las (aba "Config do app", veja Desenvolvedor.gs).
+ * Senhas padrão dos módulos: Desenvolvedor (a engrenagem) e, dentro dele, Validação, Construção do ciclo e
+ * Construção de planogramas (uma por papel). O Desenvolvedor pode trocá-las (aba "Config do app", veja
+ * Desenvolvedor.gs).
  */
 const SENHAS_ACESSO = {
   VALIDADOR: 'validacao_exposicao',
   CONSTRUTOR: 'construcao_exposicao',
+  PLANOGRAMA: 'planograma_exposicao',
   DESENVOLVEDOR: 'desenvolvedor_exposicao',
 };
 

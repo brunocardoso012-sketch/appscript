@@ -378,7 +378,7 @@ test('desenvolvedor: senha própria para importar a planilha e salvar o layout',
   assert.throws(() => run('entrarDesenvolvedor()'), /Senha incorreta/);
   // A senha de outro módulo não libera o desenvolvedor, e a do desenvolvedor não entra na validação.
   assert.throws(() => run("entrarDesenvolvedor({ senha: 'construcao_exposicao' })"), /Senha incorreta/);
-  assert.throws(() => run("entrarValidacao({ papel: 'DESENVOLVEDOR', senha: 'desenvolvedor_exposicao', nome: 'Dev' })"), /validador ou construtor/);
+  assert.throws(() => run("entrarValidacao({ papel: 'DESENVOLVEDOR', senha: 'desenvolvedor_exposicao', nome: 'Dev' })"), /Escolha o módulo/);
   const payload = "{ movimentos: [['Planta', 'Ciclo', 'ID Móvel', 'Marca do Móvel'], ['01', 'C1', 'PIRAMIDE 1', 'BOT']] }";
   assert.throws(() => run(`importarPlanilha({ senha: 'x' }, ${payload})`), /Senha incorreta/);
   assert.ok(!run('getDados()').ciclos.includes('C1'), 'nada gravado sem a senha');
@@ -438,10 +438,14 @@ test('desenvolvedor: plantas (criar, renomear, ordenar, apagar), regras da casca
   assert.deepEqual(d2.avisos, []);
 
   // Senhas: a nova vale (no servidor), a antiga não.
-  salvar({ acao: 'config', chave: 'senhas', valor: { DESENVOLVEDOR: 'nova-dev', VALIDADOR: 'nova-val', CONSTRUTOR: 'nova-cons' } });
+  assert.equal(cfg().senhas.PLANOGRAMA, 'planograma_exposicao');
+  assert.throws(() => salvar({ acao: 'config', chave: 'senhas', valor: { DESENVOLVEDOR: 'nova-dev', VALIDADOR: 'nova-val', CONSTRUTOR: 'nova-cons', PLANOGRAMA: 'nova-val' } }), /senha diferente/);
+  salvar({ acao: 'config', chave: 'senhas', valor: { DESENVOLVEDOR: 'nova-dev', VALIDADOR: 'nova-val', CONSTRUTOR: 'nova-cons', PLANOGRAMA: 'nova-plan' } });
   assert.throws(() => run(`getConfigDev(${DEV})`), /Senha incorreta/);
   assert.deepEqual(run("entrarDesenvolvedor({ senha: 'nova-dev' })"), { ok: true });
   assert.equal(run("entrarValidacao({ papel: 'VALIDADOR', senha: 'nova-val', nome: 'Ana' })").papel, 'VALIDADOR');
+  assert.deepEqual(run("entrarValidacao({ papel: 'PLANOGRAMA', senha: 'nova-plan', nome: 'Pli' })"), { papel: 'PLANOGRAMA', autor: 'Pli', nomePapel: 'Construtor de planogramas' });
+  assert.throws(() => run("entrarValidacao({ papel: 'PLANOGRAMA', senha: 'nova-cons', nome: 'Pli' })"), /Senha incorreta/);
   assert.throws(() => run("salvarConfigDev({ senha: 'nova-dev' }, { acao: 'config', chave: 'senhas', valor: { DESENVOLVEDOR: 'a', VALIDADOR: 'bbbb', CONSTRUTOR: 'cccc' } })"), /4 caracteres/);
 });
 
@@ -652,7 +656,7 @@ test('briefing na pasta do Drive: o desenvolvedor vincula a pasta; a Construçã
   const raiz = drive.pastas[info.pastaBriefings.id];
 
   // Só a Construção salva; o nome leva o ciclo e a ER; a subpasta é a do ciclo.
-  assert.throws(() => salvar(V, { ciclo: 'C15/2026', er: 'ER M', base64: pdf('PDF') }), /Só o construtor/);
+  assert.throws(() => salvar(V, { ciclo: 'C15/2026', er: 'ER M', base64: pdf('PDF') }), /Só quem entrou na Construção/);
   assert.throws(() => salvar(C, { ciclo: '', er: 'ER M', base64: pdf('PDF') }), /Escolha um ciclo/);
   let r = salvar(C, { ciclo: 'C15/2026', er: 'ER M', base64: 'data:application/pdf;base64,' + pdf('PDF 1') });
   assert.deepEqual([r.nome, r.pasta, r.substituidos], ['Briefing - C15-2026 - ER M.pdf', 'C15-2026', 0]);
@@ -661,7 +665,8 @@ test('briefing na pasta do Drive: o desenvolvedor vincula a pasta; a Construçã
   r = salvar(C, { ciclo: 'C15/2026', er: 'ER M', base64: pdf('PDF 2') });
   assert.equal(r.substituidos, 1);
   salvar(C, { ciclo: 'C15/2026', er: '', base64: pdf('TODAS') });
-  salvar(C, { ciclo: 'C16/2026', er: 'ER P', base64: pdf('OUTRO') });
+  // A Construção de planogramas também salva.
+  salvar("{ papel: 'PLANOGRAMA', senha: 'planograma_exposicao', nome: 'Pli' }", { ciclo: 'C16/2026', er: 'ER P', base64: pdf('OUTRO') });
   assert.deepEqual(raiz.filhos.map((x) => x.nome), ['C15-2026', 'C16-2026']);
   const ativos = raiz.filhos[0].arquivos.filter((a) => !a.lixeira);
   assert.deepEqual(ativos.map((a) => [a.nome, a.texto, a.tipo]), [
@@ -747,7 +752,7 @@ test('validação: senha por papel, quem pode o quê e aba Comentários', () => 
   assert.throws(() => run("entrarValidacao({ papel: 'CONSTRUTOR', senha: 'validacao_exposicao', nome: 'Bia' })"), /Senha incorreta/);
   assert.equal(run(`entrarValidacao(${C})`).papel, 'CONSTRUTOR');
   assert.throws(() => run("entrarValidacao({ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: ' ' })"), /nome/);
-  assert.throws(() => run("entrarValidacao({ papel: 'CHEFE', senha: 'validacao_exposicao', nome: 'X' })"), /validador ou construtor/);
+  assert.throws(() => run("entrarValidacao({ papel: 'CHEFE', senha: 'validacao_exposicao', nome: 'X' })"), /Escolha o módulo/);
 
   assert.throws(() => run(`salvarComentario(${C}, { acao: 'novo', ciclo: 'C1', planta: '01', texto: 'x' })`), /Só o validador cria/);
   let l = run(`salvarComentario(${V}, { acao: 'novo', ciclo: 'C1', planta: 'ER P', movel: 'gôndola 1', texto: 'Trocar o lado A' })`);
@@ -1081,6 +1086,8 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
   configurarComExemplo(run);
   const V = "{ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }";
   const C = "{ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }";
+  // As prateleiras são da Construção de planogramas; o construtor do ciclo não as grava.
+  const P = "{ papel: 'PLANOGRAMA', senha: 'planograma_exposicao', nome: 'Pli' }";
   const salvar = (quem, pedido) => run(`salvarPrateleiras(${quem}, ${JSON.stringify(pedido)})`);
   let d = run('getDados()');
   assert.deepEqual(d.prateleiras, []);
@@ -1098,22 +1105,23 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
     { numero: 4, quadrados: [{ x: 10, y: 0, w: 30, h: 100, produtos: [{ sku: '90001', frentes: 0 }] }] },
   ];
   const base = { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'Gondola 1 / ponta a', prateleiras };
-  assert.throws(() => salvar(V, base), /Só o construtor/);
-  assert.throws(() => salvar(C, Object.assign({}, base, { ciclo: 'C99' })), /não foi encontrado/);
-  assert.throws(() => salvar(C, Object.assign({}, base, { espaco: 'GONDOLA 1' })), /Escolha o espaço/);
-  assert.throws(() => salvar(C, Object.assign({}, base, { espaco: 'TOTEM 1/PAINEL-1' })), /não leva produtos/);
-  assert.throws(() => salvar(C, Object.assign({}, base, { espaco: 'MESA DESTAQUE 1/VERSO' })), /não tem prateleiras/);
-  assert.throws(() => salvar(C, Object.assign({}, base, { prateleiras: [{ numero: 5, quadrados: [] }] })), /vai de 1 a 4/);
+  assert.throws(() => salvar(V, base), /Só a Construção de planogramas/);
+  assert.throws(() => salvar(C, base), /Só a Construção de planogramas/);
+  assert.throws(() => salvar(P, Object.assign({}, base, { ciclo: 'C99' })), /não foi encontrado/);
+  assert.throws(() => salvar(P, Object.assign({}, base, { espaco: 'GONDOLA 1' })), /Escolha o espaço/);
+  assert.throws(() => salvar(P, Object.assign({}, base, { espaco: 'TOTEM 1/PAINEL-1' })), /não leva produtos/);
+  assert.throws(() => salvar(P, Object.assign({}, base, { espaco: 'MESA DESTAQUE 1/VERSO' })), /não tem prateleiras/);
+  assert.throws(() => salvar(P, Object.assign({}, base, { prateleiras: [{ numero: 5, quadrados: [] }] })), /vai de 1 a 4/);
   const comQuadrados = (q) => Object.assign({}, base, { prateleiras: [{ numero: 1, quadrados: q }] });
-  assert.throws(() => salvar(C, comQuadrados([{ x: 0, w: 50 }, { x: 40, w: 30 }])), /sobrepostos/);
+  assert.throws(() => salvar(P, comQuadrados([{ x: 0, w: 50 }, { x: 40, w: 30 }])), /sobrepostos/);
   // Um quadrado não fica em cima do outro: as alturas não contam, então dois na mesma largura se sobrepõem.
-  assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 50, h: 50 }, { x: 0, y: 50, w: 50, h: 50 }])), /sobrepostos/);
-  assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 1, h: 100 }])), /pequeno demais/);
-  assert.throws(() => salvar(C, comQuadrados([{ x: 0, y: 0, w: 50, h: 100, produtos: [{ sku: 'NAO-EXISTE' }] }])), /fora da aba Produtos: SKU "NAO-EXISTE"/);
+  assert.throws(() => salvar(P, comQuadrados([{ x: 0, y: 0, w: 50, h: 50 }, { x: 0, y: 50, w: 50, h: 50 }])), /sobrepostos/);
+  assert.throws(() => salvar(P, comQuadrados([{ x: 0, y: 0, w: 1, h: 100 }])), /pequeno demais/);
+  assert.throws(() => salvar(P, comQuadrados([{ x: 0, y: 0, w: 50, h: 100, produtos: [{ sku: 'NAO-EXISTE' }] }])), /fora da aba Produtos: SKU "NAO-EXISTE"/);
 
-  let l = salvar(C, base);
+  let l = salvar(P, base);
   assert.equal(l.length, 1);
-  assert.deepEqual([l[0].ciclo, l[0].planta, l[0].espaco, l[0].autor], ['Ciclo exemplo', '02', 'GONDOLA 1/PONTA-A', 'Bia']);
+  assert.deepEqual([l[0].ciclo, l[0].planta, l[0].espaco, l[0].autor], ['Ciclo exemplo', '02', 'GONDOLA 1/PONTA-A', 'Pli']);
   const p1 = l[0].prateleiras[0];
   assert.equal(p1.movimento, 'LÇTO EGEO', 'o movimento da prateleira é o do maior quadrado');
   assert.deepEqual(p1.quadrados.map((q) => [q.x, q.y, q.w, q.h, q.movimento, q.produtos.length]),
@@ -1134,18 +1142,18 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
   run(`escreverAba_(planilha_(), 'Produtos', colunasProdutos_(), valoresProdutosExemplo_())`);
 
   // Móveis de um espaço só usam o ID do móvel; o móvel make, as prateleiras do corpo; a mesa, o nicho de cada frente.
-  salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'MOVEL MAKE 1', prateleiras: [{ numero: 5, quadrados: [{ x: 0, y: 0, w: 100, h: 100, produtos: [{ sku: '61030' }] }] }] });
-  assert.throws(() => salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'MESA DESTAQUE 1/FRENTE-1', prateleiras: [{ numero: 2, quadrados: [] }] }), /vai de 1 a 1/);
+  salvar(P, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'MOVEL MAKE 1', prateleiras: [{ numero: 5, quadrados: [{ x: 0, y: 0, w: 100, h: 100, produtos: [{ sku: '61030' }] }] }] });
+  assert.throws(() => salvar(P, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER M', espaco: 'MESA DESTAQUE 1/FRENTE-1', prateleiras: [{ numero: 2, quadrados: [] }] }), /vai de 1 a 1/);
   // A pirâmide: os 4 lados, do mesmo tamanho, cada um com as 4 prateleiras.
-  assert.throws(() => salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1', prateleiras: [] }), /Escolha o espaço/);
-  assert.throws(() => salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-5', prateleiras: [] }), /não tem prateleiras/);
-  assert.throws(() => salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-2', prateleiras: [{ numero: 5, quadrados: [] }] }), /vai de 1 a 4/);
+  assert.throws(() => salvar(P, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1', prateleiras: [] }), /Escolha o espaço/);
+  assert.throws(() => salvar(P, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-5', prateleiras: [] }), /não tem prateleiras/);
+  assert.throws(() => salvar(P, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-2', prateleiras: [{ numero: 5, quadrados: [] }] }), /vai de 1 a 4/);
   // Todas as ERs: cada ER que tem o espaço recebe as mesmas prateleiras.
   const umQuadrado = [{ numero: 2, quadrados: [{ x: 0, y: 0, w: 100, h: 100, produtos: [{ sku: '50111' }] }] }];
-  l = salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'TODAS', espaco: 'piramide 1/lado 2', prateleiras: umQuadrado });
+  l = salvar(P, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'TODAS', espaco: 'piramide 1/lado 2', prateleiras: umQuadrado });
   assert.deepEqual(l.filter((g) => g.espaco === 'PIRAMIDE 1/LADO-2').map((g) => g.planta), ['01', '02', '03', '04']);
   // Salvar de novo troca as prateleiras do espaço (só nessa ER); a lista vazia apaga.
-  l = salvar(C, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-2', prateleiras: [] });
+  l = salvar(P, { acao: 'salvar', ciclo: 'Ciclo exemplo', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-2', prateleiras: [] });
   assert.deepEqual(l.filter((g) => g.espaco === 'PIRAMIDE 1/LADO-2').map((g) => g.planta), ['02', '03', '04']);
   assert.equal(run('getDados()').prateleiras.length, 5);
 
@@ -1154,7 +1162,7 @@ test('prateleiras: quadrados desenhados em cada prateleira, com produtos da aba 
   rascunho({ acao: 'criar', ciclo: 'C40', origem: 'Ciclo exemplo' });
   d = run('getDados()');
   assert.equal(d.prateleiras.filter((g) => g.ciclo === 'C40').length, 5, 'a cópia leva as prateleiras');
-  salvar(C, Object.assign({}, base, { ciclo: 'C40', prateleiras: umQuadrado }));
+  salvar(P, Object.assign({}, base, { ciclo: 'C40', prateleiras: umQuadrado }));
   d = run('getDados()');
   assert.deepEqual(d.prateleiras.find((g) => g.ciclo === 'C40' && g.espaco === 'GONDOLA 1/PONTA-A').prateleiras.map((p) => p.quadrados[0].produtos[0].sku), ['50111']);
   assert.deepEqual(d.prateleiras.find((g) => g.ciclo === 'Ciclo exemplo' && g.espaco === 'GONDOLA 1/PONTA-A').prateleiras.map((p) => p.numero), [1, 4], 'o ciclo de origem não muda');

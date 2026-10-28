@@ -17,8 +17,9 @@
  *  Os espaços ainda sem desenho saem com a divisão automática pelas etiquetas.
  *  A biblioteca jsPDF é carregada sob demanda do cdnjs (como o ExcelJS).
  *  O arquivo leva o ciclo e a ER no nome ("Briefing - C15-2026 - ER M.pdf"). Com uma pasta do Drive vinculada
- *  (Desenvolvedor › Planilhas), quem entrou na Construção pode salvar o PDF nela, na subpasta do ciclo, no lugar
- *  do briefing anterior com o mesmo nome (salvarBriefingNoDrive, Code.gs).
+ *  (Desenvolvedor › Planilhas), o PDF pode ser salvo nela, na subpasta do ciclo, no lugar do briefing anterior com
+ *  o mesmo nome (salvarBriefingNoDrive, Code.gs). O botão só aparece nos módulos de construção (do ciclo e de
+ *  planogramas): construcao().
  */
 const Briefing = (() => {
   const $ = (id) => document.getElementById(id);
@@ -466,10 +467,21 @@ const Briefing = (() => {
   /** "Briefing - C15-2026 - ER M.pdf" (sem ER: "… - Todas as ERs.pdf"); o mesmo nome do nomeBriefing_ do Code.gs. */
   const nomeDoArquivo = (ciclo, er) => 'Briefing - ' + nomeDaPasta(ciclo) + ' - ' + (parteDoNome(er) || 'Todas as ERs') + '.pdf';
 
-  /** Quem pode salvar no Drive: com a pasta vinculada e o login da Construção. */
-  function podeSalvarNoDrive() {
+  /** Quem entrou num módulo de construção (do ciclo ou de planogramas): só ele vê o briefing. */
+  function construcao() {
     const a = app.acesso && app.acesso();
-    return { pasta: !!dados().pastaBriefings, construtor: !!a && a.papel === 'CONSTRUTOR' };
+    return !!a && (a.papel === 'CONSTRUTOR' || a.papel === 'PLANOGRAMA');
+  }
+
+  /** Salvar no Drive: com a pasta vinculada (e num módulo de construção, como o próprio botão). */
+  function podeSalvarNoDrive() {
+    return { pasta: !!dados().pastaBriefings, construtor: construcao() };
+  }
+
+  /** Mostra o botão "Briefing (PDF)" só nos módulos de construção (chamado depois de cada desenho). */
+  function atualizar() {
+    const b = $('btnBriefing');
+    if (b) b.hidden = !construcao();
   }
 
   function baixarBlob(blob, nome) {
@@ -546,10 +558,10 @@ const Briefing = (() => {
 
   function iniciar(contexto) {
     app = contexto;
-    $('btnBriefing').addEventListener('click', () => { if (dados()) abrirDialogo(); });
+    $('btnBriefing').addEventListener('click', () => { if (dados() && construcao()) abrirDialogo(); });
     $('dlgBriefing').addEventListener('close', baixar);
   }
 
-  return { iniciar, gerar };
+  return { iniciar, gerar, atualizar };
 })();
 </script>

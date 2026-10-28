@@ -3,9 +3,11 @@
  * ============================================================================
  *  VALIDAÇÃO DA ESTRATÉGIA (página)
  * ============================================================================
- *  Dois itens na engrenagem, cada um com a sua senha: "Validação" entra como
- *  validador e "Construção" como construtor da estratégia (nome + senha). O validador comenta a planta ou um móvel no ciclo escolhido; o
- *  construtor vê, responde e marca como resolvido. Painel ao lado da planta com
+ *  Três itens na engrenagem, cada um com a sua senha (nome + senha): "Validação" entra como validador,
+ *  "Construção do ciclo" como construtor do ciclo (os movimentos de cada espaço dos móveis) e "Construção de
+ *  planogramas" como construtor de planogramas (os produtos dentro das prateleiras, na tela do móvel). O
+ *  validador comenta a planta ou um móvel no ciclo escolhido; o construtor do ciclo vê, responde e marca como
+ *  resolvido. Painel ao lado da planta com
  *  os comentários do ciclo e da planta, marcadores nos móveis com comentários
  *  abertos e a seção "Comentários da validação" na tela do móvel.
  *  As regras (senha, quem pode o quê) são conferidas no servidor (Validacao.gs).
@@ -66,12 +68,16 @@ const Validacao = (() => {
       sub: 'Para o validador: comente a estratégia do ciclo e aprove (ou devolva) os ciclos novos.',
     },
     CONSTRUTOR: {
-      titulo: 'Construção',
-      sub: 'Para o construtor da estratégia: monte os ciclos novos na planta, responda aos comentários do validador e marque como resolvido.',
+      titulo: 'Construção do ciclo',
+      sub: 'Para o construtor do ciclo: monte os ciclos novos na planta (os movimentos de cada espaço dos móveis), responda aos comentários do validador e marque como resolvido.',
+    },
+    PLANOGRAMA: {
+      titulo: 'Construção de planogramas',
+      sub: 'Para quem monta os planogramas: clique num móvel e defina os produtos dentro de cada prateleira.',
     },
   };
 
-  /** Diálogo de acesso ao módulo de um papel ('VALIDADOR' ou 'CONSTRUTOR'), com a senha dele. */
+  /** Diálogo de acesso ao módulo de um papel ('VALIDADOR', 'CONSTRUTOR' ou 'PLANOGRAMA'), com a senha dele. */
   function abrirAcesso(papel) {
     const m = MODULOS[papel] || MODULOS.VALIDADOR;
     $('acessoPapel').value = MODULOS[papel] ? papel : 'VALIDADOR';
@@ -128,6 +134,8 @@ const Validacao = (() => {
 
   async function recarregar() {
     if (!acesso) return;
+    // A Construção de planogramas não vê os comentários (nem os balões nos móveis).
+    if (acesso.papel === 'PLANOGRAMA') { comentarios = []; app.desenhar(); return; }
     try {
       comentarios = await app.chamar('getComentarios', acesso);
     } catch (e) {
@@ -174,13 +182,16 @@ const Validacao = (() => {
     const abertos = ativo() && e.ciclo ? doCiclo().filter((c) => c.status === 'ABERTO').length : 0;
     // Um item por módulo na engrenagem: o do papel que entrou fica marcado e mostra os comentários abertos.
     [['btnValidacao', 'valBadge', 'VALIDADOR', 'Validação da estratégia e aprovação dos ciclos novos (pede senha)'],
-      ['btnConstrucao', 'consBadge', 'CONSTRUTOR', 'Construção dos ciclos novos (pede senha)']].forEach(([id, badge, papel, dica]) => {
+      ['btnConstrucao', 'consBadge', 'CONSTRUTOR', 'Construção do ciclo: os movimentos de cada espaço dos móveis (pede senha)'],
+      ['btnPlanogramas', '', 'PLANOGRAMA', 'Construção de planogramas: os produtos dentro das prateleiras (pede senha)']].forEach(([id, badge, papel, dica]) => {
       const btn = $(id);
       if (!btn) return;
       const meu = ativo() && acesso.papel === papel;
       btn.setAttribute('aria-pressed', String(painelAberto && meu));
-      $(badge).textContent = meu && abertos ? String(abertos) : '';
-      $(badge).hidden = !(meu && abertos);
+      if (badge) {
+        $(badge).textContent = meu && abertos ? String(abertos) : '';
+        $(badge).hidden = !(meu && abertos);
+      }
       btn.title = meu ? MODULOS[papel].titulo + ': ' + acesso.nome + ' (' + acesso.nomePapel.toLowerCase() + ')' : dica;
     });
     // Os itens ficam no menu de configurações: o ícone dele mostra o mesmo número.
@@ -211,6 +222,15 @@ const Validacao = (() => {
     n('strong', null, acesso.nome, t);
     n('span', null, acesso.nomePapel, t);
     botao('Sair', 'fantasma', sair, quem);
+
+    // Construção de planogramas: os produtos ficam na tela de cada móvel (seção "Construção das prateleiras").
+    if (acesso.papel === 'PLANOGRAMA') {
+      n('p', 'val-dica', e.ciclo
+        ? 'Clique num móvel da planta (gôndola, pirâmide, mesa, móvel de fila…) e, na tela dele, use "Construção das prateleiras" para definir os produtos de cada prateleira. Vale nos ciclos publicados e nos ciclos em construção ainda não enviados.'
+        : 'Escolha um ciclo no seletor e clique num móvel da planta para definir os produtos das prateleiras.', corpo);
+      n('p', 'val-dica', 'O Briefing (PDF), no topo, baixa (ou salva no Drive) o planograma das gôndolas e pirâmides.', corpo);
+      return;
+    }
 
     // Ciclos em construção (Rascunho.html): novo ciclo, status e aprovação.
     if (app.montarRascunhos) app.montarRascunhos(corpo);
@@ -349,7 +369,8 @@ const Validacao = (() => {
   function montarSecaoMovel(pai, id) {
     secaoMovel = { pai, id };
     pai.innerHTML = '';
-    if (!ativo()) {
+    // Os comentários são entre o validador e o construtor do ciclo (a Construção de planogramas não os vê).
+    if (!ativo() || acesso.papel === 'PLANOGRAMA') {
       pai.hidden = true;
       return;
     }
@@ -405,7 +426,7 @@ const Validacao = (() => {
 
   function iniciar(contexto) {
     app = contexto;
-    // Validação e Construção: já dentro do módulo, o item abre / fecha o painel; senão, pede a senha do módulo
+    // Validação e as construções: já dentro do módulo, o item abre / fecha o painel; senão, pede a senha do módulo
     // (entrar num módulo sai do outro).
     const alternar = (papel) => {
       if (!ativo() || acesso.papel !== papel) { abrirAcesso(papel); return; }
@@ -414,6 +435,7 @@ const Validacao = (() => {
     };
     $('btnValidacao').addEventListener('click', () => alternar('VALIDADOR'));
     if ($('btnConstrucao')) $('btnConstrucao').addEventListener('click', () => alternar('CONSTRUTOR'));
+    if ($('btnPlanogramas')) $('btnPlanogramas').addEventListener('click', () => alternar('PLANOGRAMA'));
     $('valFechar').addEventListener('click', fecharPainel);
     $('formAcesso').addEventListener('submit', entrar);
     $('acessoCancelar').addEventListener('click', () => $('dlgAcesso').close());

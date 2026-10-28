@@ -4,7 +4,7 @@
  * ============================================================================
  *  Uma mudança de estratégia de curto prazo: um movimento que estava para o
  *  próximo ciclo é adiantado para um espaço do ciclo atual, a partir de uma
- *  data. Quem entrou na validação (validador ou construtor da estratégia) cria,
+ *  data. Quem entrou na validação (validador ou construtor do ciclo) cria,
  *  edita e exclui; todo mundo vê na planta: o espaço passa a mostrar o
  *  movimento antecipado, com o símbolo de antecipação (SIMBOLOS.ANTECIPADO).
  *
@@ -131,6 +131,8 @@ function espacoDaAntecipacao_(plantas, planta, id) {
  */
 function aplicarAcaoAntecipacao_(valores, contexto, quem, pedido, agora) {
   const p = pedido || {};
+  // Antecipação é estratégia do ciclo: Validação ou Construção do ciclo (não a de planogramas).
+  if (quem.papel !== 'VALIDADOR' && quem.papel !== 'CONSTRUTOR') throw new Error('Só a Validação ou a Construção do ciclo mexe nas antecipações.');
   const cols = colunasAntecipacoes_();
   const objetos = valores && valores.length ? objetosDaMatriz_(valores, cols) : [];
   const id = texto_(p.id);

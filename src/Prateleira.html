@@ -10,8 +10,8 @@
  *  no catálogo (aba Produtos da planilha: SKU, nome, marca, categoria e
  *  movimento). O que foi definido aparece para todo mundo no planograma da
  *  tela do móvel ("como as prateleiras estão divididas", em App.html, com
- *  desenharQuadrados). A edição fica só no modo de construção (login da
- *  Construção, com senha): a seção "Construção das prateleiras", com o botão
+ *  desenharQuadrados). A edição fica só na Construção de planogramas (login
+ *  da Construção de planogramas, com senha): a seção "Construção das prateleiras", com o botão
  *  "Desenhar" de cada espaço. Cada ER tem as suas prateleiras; "Vale em todas
  *  as ERs" grava as mesmas em cada ER que tem o espaço. As regras ficam em
  *  Prateleiras.gs (conferidas no servidor).
@@ -53,10 +53,10 @@ const Prateleira = (() => {
     return todas().find((g) => g.ciclo === ciclo && g.planta === planta && g.espaco === id) || null;
   }
 
-  /** O construtor edita num ciclo publicado ou num ciclo em construção que ainda não foi enviado. */
+  /** A Construção de planogramas edita num ciclo publicado ou num ciclo em construção que ainda não foi enviado. */
   function podeEditar(ciclo) {
     const a = app.acesso();
-    if (!a || a.papel !== 'CONSTRUTOR' || !ciclo) return false;
+    if (!a || a.papel !== 'PLANOGRAMA' || !ciclo) return false;
     if (dados().ciclos.indexOf(ciclo) >= 0) return true;
     const r = app.rascunhos().find((x) => x.ciclo === ciclo);
     return !!r && r.status === 'EM_CONSTRUCAO';
@@ -149,7 +149,7 @@ const Prateleira = (() => {
   /* ---------------------------- construção ------------------------------- */
 
   /**
-   * Seção "Construção das prateleiras" da tela do móvel: só no modo de construção (login da Construção), com um
+   * Seção "Construção das prateleiras" da tela do móvel: só na Construção de planogramas (login dela), com um
    * cartão por espaço que leva produtos (as colunas do planograma com id) e o botão de desenhar. O desenho salvo
    * aparece no planograma, acima.
    * @param {{ciclo, planta, movel, plano}} ctx  plano: o de planogramaDe (App.html)

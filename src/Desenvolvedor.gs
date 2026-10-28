@@ -7,7 +7,7 @@
  *     criar (Construir loja › Salvar planta › Criar nova) e apagar;
  *   - espacosPorEr: espaços fixos de uma marca em algumas ERs e livres nas outras (ESPACOS_POR_ER);
  *   - herancaEntreErs: espaços que mudam de nome de uma ER para a seguinte (HERANCA_ENTRE_ERS);
- *   - senhas: as do Desenvolvedor, da Validação e da Construção.
+ *   - senhas: as do Desenvolvedor, da Validação, da Construção do ciclo e da Construção de planogramas.
  *  O que muda fica na aba "Config do app" (uma linha por chave, o valor em JSON); o que não está nela
  *  vale como no código (Config.gs). aplicarConfigApp_ põe a configuração nas constantes de Config.gs.
  *
@@ -20,7 +20,7 @@ const CHAVES_CONFIG_APP = {
   plantas: 'Nomes, nomes antigos (apelidos), ordem (da cascata) e plantas apagadas.',
   espacosPorEr: 'Espaços fixos de uma marca em algumas ERs e livres nas outras.',
   herancaEntreErs: 'Espaços que mudam de nome de uma ER para a seguinte (cascata).',
-  senhas: 'Senhas do Desenvolvedor, da Validação e da Construção.',
+  senhas: 'Senhas do Desenvolvedor, da Validação, da Construção do ciclo e da Construção de planogramas.',
 };
 
 function colunasConfigApp_() {
@@ -179,14 +179,15 @@ function normalizarHeranca_(valor, ids) {
 
 function normalizarSenhas_(valor) {
   const s = {};
-  ['DESENVOLVEDOR', 'VALIDADOR', 'CONSTRUTOR'].forEach(function (papel) {
-    const v = String((valor || {})[papel] || '').trim();
-    if (v.length < 4) throw new Error('A senha ' + ({ DESENVOLVEDOR: 'do Desenvolvedor', VALIDADOR: 'da Validação', CONSTRUTOR: 'da Construção' })[papel] + ' precisa de ao menos 4 caracteres.');
+  const nomes = { DESENVOLVEDOR: 'do Desenvolvedor', VALIDADOR: 'da Validação', CONSTRUTOR: 'da Construção do ciclo', PLANOGRAMA: 'da Construção de planogramas' };
+  Object.keys(nomes).forEach(function (papel) {
+    // Sem a senha da Construção de planogramas (pedidos de antes dela), fica a que vale hoje.
+    const v = String((valor || {})[papel] || (papel === 'PLANOGRAMA' ? SENHAS_ACESSO.PLANOGRAMA : '') || '').trim();
+    if (v.length < 4) throw new Error('A senha ' + nomes[papel] + ' precisa de ao menos 4 caracteres.');
     s[papel] = v;
   });
-  if (s.DESENVOLVEDOR === s.VALIDADOR || s.DESENVOLVEDOR === s.CONSTRUTOR || s.VALIDADOR === s.CONSTRUTOR) {
-    throw new Error('Use uma senha diferente para cada módulo.');
-  }
+  const valores = Object.keys(s).map(function (k) { return s[k]; });
+  if (valores.some(function (v, i) { return valores.indexOf(v) !== i; })) throw new Error('Use uma senha diferente para cada módulo.');
   return s;
 }
 

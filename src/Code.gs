@@ -204,7 +204,7 @@ function salvarAntecipacao(acesso, pedido) {
 
 /**
  * Grava (ou apaga) a ordem dos movimentos de um ciclo no calendário (veja executarOrdemCalendario_). Só o
- * construtor da estratégia; todo mundo recebe a ordem no getDados.
+ * construtor do ciclo; todo mundo recebe a ordem no getDados.
  * @return {Object} ciclo → { movimentos, por, em }
  */
 function salvarOrdemCalendario(acesso, pedido) {
@@ -213,7 +213,7 @@ function salvarOrdemCalendario(acesso, pedido) {
 
 /**
  * Grava os selos (hotspot e medalha) dos movimentos de um ciclo no calendário (veja executarSelosCalendario_).
- * Só o construtor da estratégia; todo mundo recebe os selos no getDados.
+ * Só o construtor do ciclo; todo mundo recebe os selos no getDados.
  * @return {Object} ciclo → chave do movimento → { texto, hotspot, medalha }
  */
 function salvarSelosCalendario(acesso, pedido) {
@@ -869,13 +869,13 @@ function mudarPastaBriefings(acesso, pedido) {
 
 /**
  * Salva o briefing em PDF na pasta dos briefings, na subpasta do ciclo (criada na primeira vez). Só quem entrou
- * na Construção. Um arquivo com o mesmo nome na subpasta vai para a lixeira (o novo o substitui).
+ * num módulo de construção (do ciclo ou de planogramas). Um arquivo com o mesmo nome na subpasta vai para a lixeira (o novo o substitui).
  * @param {{ciclo: string, er: string, base64: string}} pedido  er: o nome da ER (vazio = todas as ERs)
  * @return {{nome, url, pasta, pastaUrl, substituidos: number}}
  */
 function salvarBriefingNoDrive(acesso, pedido) {
   const quem = conferirAcesso_(acesso);
-  if (quem.papel !== 'CONSTRUTOR') throw new Error('Só o construtor da estratégia salva o briefing na pasta do Drive.');
+  if (PAPEIS_CONSTRUCAO.indexOf(quem.papel) < 0) throw new Error('Só quem entrou na Construção (do ciclo ou de planogramas) salva o briefing na pasta do Drive.');
   const p = pedido || {};
   const base64 = String(p.base64 || '').replace(/^data:[^,]*,/, '');
   if (!base64) throw new Error('O PDF do briefing veio vazio.');

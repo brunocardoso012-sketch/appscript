@@ -76,7 +76,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
           Baixar PNG
         </button>
-        <button id="btnBriefing" class="btn" type="button" title="Baixar o briefing das gôndolas e pirâmides em PDF: cada móvel com o planograma desenhado e os produtos de cada quadrado">
+        <button id="btnBriefing" class="btn" type="button" hidden title="Baixar o briefing das gôndolas e pirâmides em PDF: cada móvel com o planograma desenhado e os produtos de cada quadrado">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
           Briefing (PDF)
         </button>
@@ -103,10 +103,14 @@
               Validação
               <span class="badge" id="valBadge" hidden></span>
             </button>
-            <button id="btnConstrucao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Construção dos ciclos novos (pede senha)">
+            <button id="btnConstrucao" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Construção do ciclo: os movimentos de cada espaço dos móveis (pede senha)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V10l7-6 7 6v11"/><path d="M9 21v-5h6v5"/></svg>
-              Construção
+              Construção do ciclo
               <span class="badge" id="consBadge" hidden></span>
+            </button>
+            <button id="btnPlanogramas" class="menu-item" type="button" role="menuitem" aria-pressed="false" title="Construção de planogramas: os produtos dentro das prateleiras (pede senha)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M4 9h16M4 15h16M8 6v0M8 12h3M14 12h2M8 18h2M13 18h3"/></svg>
+              Construção de planogramas
             </button>
             <button id="btnEditar" class="menu-item" type="button" role="menuitem" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
