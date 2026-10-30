@@ -12,9 +12,9 @@
  *  tela do móvel ("como as prateleiras estão divididas", em App.html, com
  *  desenharQuadrados). A edição fica só no modo de construção (login da
  *  Construção, com senha): a seção "Construção das prateleiras", com o botão
- *  "Desenhar" de cada espaço. Cada ER tem as suas prateleiras; "Vale em todas
- *  as ERs" grava as mesmas em cada ER que tem o espaço. As regras ficam em
- *  Prateleiras.gs (conferidas no servidor).
+ *  "Desenhar" de cada espaço. O desenho vale sempre em todas as ERs que têm o
+ *  espaço (gravado em cada uma delas). As regras ficam em Prateleiras.gs
+ *  (conferidas no servidor).
  */
 const Prateleira = (() => {
   const $ = (id) => document.getElementById(id);
@@ -211,6 +211,27 @@ const Prateleira = (() => {
     return c && c.etiquetas[0] ? c.etiquetas[0].texto : '';
   }
 
+  /**
+   * A outra metade de um meio dividido da gôndola (MEIO-A-1 ↔ MEIO-A-2), se estiver no planograma.
+   * @return {{col, det, antes: boolean}|null}  antes: ela fica à esquerda (a metade 1)
+   */
+  function metadeIrma(ctx, col) {
+    const m = /^(.*\/MEIO-[AB])-([12])$/.exec(col.id || '');
+    if (!m) return null;
+    const outra = ctx.plano.colunas.find((c) => c.id === m[1] + '-' + (m[2] === '1' ? '2' : '1'));
+    return outra ? { col: outra, det: doEspaco(ctx.ciclo, ctx.planta.id, outra.id), antes: m[2] === '2' } : null;
+  }
+
+  /** A prateleira da outra metade do meio, ao lado da que está sendo desenhada (só para ver; edita no cartão dela). */
+  function previaIrma(pai, irma, numero) {
+    const el = n('div', 'pr-tela pr-irma', null, pai);
+    el.title = irma.col.nome + ': desenhe no cartão dela';
+    const p = irma.det && irma.det.prateleiras.find((x) => x.numero === numero);
+    if (p && p.quadrados.length) desenharQuadrados(el, irma.col, p.quadrados);
+    else n('span', 'pr-tela-vazia', irma.col.nome.toLowerCase() + (irma.det ? '' : ' · sem desenho'), el);
+    ajustarTextos(el);
+  }
+
   /** Cópia de trabalho das prateleiras (cada quadrado com um id da tela). */
   let seq = 0;
   const copiar = (prateleiras) => {
@@ -231,15 +252,11 @@ const Prateleira = (() => {
     const doNumero = (numero) => trabalho[numero] || (trabalho[numero] = []);
     const quadradoSel = () => selecionado && doNumero(selecionado.numero).find((q) => q.id === selecionado.id);
 
-    // Opções: onde vale e de onde começar.
-    const opcoes = n('div', 'pr-opcoes', null, card);
-    const lVale = n('label', 'pr-campo', 'Vale em', opcoes);
-    const vale = n('select', null, null, lVale);
-    vale.appendChild(new Option('Só na ' + ctx.planta.nome, ctx.planta.id));
-    vale.appendChild(new Option('Todas as ERs que têm este espaço', dados().config.plantaTodas));
-    vale.dataset.campo = 'vale';
+    // O desenho vale sempre em todas as ERs que têm o espaço. Se outra ER tiver um desenho diferente (de antes),
+    // dá para começar dele.
     const outras = todas().filter((g) => g.ciclo === ctx.ciclo && g.espaco === col.id && g.planta !== ctx.planta.id);
     if (outras.length) {
+      const opcoes = n('div', 'pr-opcoes', null, card);
       const lCopiar = n('label', 'pr-campo', 'Copiar de', opcoes);
       const sel = n('select', null, null, lCopiar);
       sel.appendChild(new Option('—', ''));
@@ -259,8 +276,10 @@ const Prateleira = (() => {
       n('p', 'pr-aviso', 'A aba Produtos da planilha está vazia: cadastre os produtos (SKU e nome) para escolher aqui.', card);
     }
 
-    // Uma tela de desenho por prateleira.
+    // Uma tela de desenho por prateleira. No meio dividido da gôndola, a outra metade aparece junto (só para ver),
+    // com um pontilhado entre as duas, como no planograma.
     const estante = n('div', 'pr-estante pr-edicao', null, card);
+    const irma = metadeIrma(ctx, col);
     const telas = {};
     for (let k = 0; k < ctx.plano.n; k++) {
       const numero = k + 1;
@@ -294,7 +313,10 @@ const Prateleira = (() => {
         sujo();
         redesenhar(numero);
       }, cab);
-      const tela = n('div', 'pr-tela desenho', null, bloco);
+      const linhaTela = irma ? n('div', 'pr-ed-meio', null, bloco) : bloco;
+      if (irma && irma.antes) previaIrma(linhaTela, irma, numero);
+      const tela = n('div', 'pr-tela desenho', null, linhaTela);
+      if (irma && !irma.antes) previaIrma(linhaTela, irma, numero);
       tela.dataset.numero = String(numero);
       tela.setAttribute('aria-label', 'Desenho da ' + rotulo(ctx.plano, k).toLowerCase());
       telas[numero] = { bloco, tela };
@@ -567,7 +589,7 @@ const Prateleira = (() => {
     const pe = n('div', 'pr-ed-acoes', null, card);
     const salvar = botao('Salvar prateleiras', 'primario', async () => {
       const prateleiras = ler();
-      await gravar(ctx, col, vale.value, prateleiras, prateleiras.length ? 'Prateleiras salvas' : 'Prateleiras apagadas', [salvar]);
+      await gravar(ctx, col, prateleiras, prateleiras.length ? 'Prateleiras salvas' : 'Prateleiras apagadas', [salvar]);
     }, pe);
     salvar.dataset.acao = 'salvar-prateleiras';
     botao('Cancelar', 'fantasma', () => {
@@ -577,22 +599,22 @@ const Prateleira = (() => {
     }, pe);
     if (det) {
       botao('Apagar o desenho', 'fantasma perigo', async () => {
-        const onde = vale.value === dados().config.plantaTodas ? 'em todas as ERs' : 'na ' + ctx.planta.nome;
-        if (!window.confirm('Apagar os quadrados e os produtos das prateleiras deste espaço ' + onde + '?')) return;
-        await gravar(ctx, col, vale.value, [], 'Prateleiras apagadas', [salvar]);
+        if (!window.confirm('Apagar os quadrados e os produtos das prateleiras deste espaço em todas as ERs?')) return;
+        await gravar(ctx, col, [], 'Prateleiras apagadas', [salvar]);
       }, pe);
     }
     redesenharTudo();
   }
 
-  async function gravar(ctx, col, planta, prateleiras, mensagem, botoes) {
+  /** Grava as prateleiras do espaço em todas as ERs que têm o espaço (o desenho vale sempre para todas). */
+  async function gravar(ctx, col, prateleiras, mensagem, botoes) {
     botoes.forEach((b) => { b.disabled = true; });
     try {
       dados().prateleiras = await app.chamar('salvarPrateleiras', app.acesso(), {
-        acao: 'salvar', ciclo: ctx.ciclo, planta, espaco: col.id, prateleiras,
+        acao: 'salvar', ciclo: ctx.ciclo, planta: dados().config.plantaTodas, espaco: col.id, prateleiras,
       });
       editando = null;
-      app.toast(mensagem + (planta === dados().config.plantaTodas ? ' em todas as ERs que têm o espaço.' : '.'));
+      app.toast(mensagem + ' em todas as ERs que têm o espaço.');
       app.abrirMovel(ctx.movel.id);
     } catch (e) {
       app.erro(e);

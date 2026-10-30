@@ -650,17 +650,6 @@ test('Inventario: o mouse no móvel mostra as lojas da rede; o Analytics, a pres
   assert.strictEqual(await pct('LIQUIDA QDB'), '100%', 'na ponta A da gôndola 1, de todas as ERs');
 });
 
-test('tela do móvel: aviso fixo de página em construção', async (t) => {
-  const p = await abrir(t);
-  await escolherCiclo(p, 'Ciclo exemplo');
-  await p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
-  await p.waitForSelector('#dlgMovel[open]');
-  assert.strictEqual((await p.textContent('#dlgMovel .mv-aviso')).trim(), 'Página em construção');
-  const antes = await p.locator('#dlgMovel .mv-aviso').boundingBox();
-  await p.locator('#mvEstrategia').evaluate((el) => { el.closest('.mv-corpo').scrollTop = 400; el.scrollTop = 400; });
-  assert.deepStrictEqual(await p.locator('#dlgMovel .mv-aviso').boundingBox(), antes, 'não rola com o conteúdo');
-});
-
 test('Analytics sem ciclo não quebra', async (t) => {
   const p = await abrir(t);
   await p.click('#btnAnalytics');
@@ -1410,7 +1399,7 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   // Dividir em 2: dois quadrados iguais, de ponta a ponta.
   await card.locator('.pr-ed-prateleira').nth(2).locator('.pr-ed-dividir select').selectOption('2');
   assert.strictEqual(await card.locator('.pr-tela[data-numero="3"] .pr-quadrado').count(), 2);
-  await card.locator('select[data-campo="vale"]').selectOption('TODAS');
+  assert.strictEqual(await card.locator('select[data-campo="vale"]').count(), 0, 'sem escolher a ER: vale sempre em todas');
   await card.locator('[data-acao="salvar-prateleiras"]').click();
   // O que foi salvo aparece no planograma ("como as prateleiras estão divididas").
   await p.waitForSelector('.mv-plano .pg-desenhada[data-espaco="GONDOLA 1/PONTA-A"] .pr-quadrado');
@@ -1445,21 +1434,84 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   assert.strictEqual(await p.locator('.pr-secao').count(), 0);
 });
 
-test('briefing das gôndolas e pirâmides: PDF com o planograma desenhado de cada móvel', { skip: !JSPDF_LOCAL && 'sem o jsPDF local (JSPDF_JS ou npm i jspdf)' }, async (t) => {
+test('ciclo publicado: o construtor edita direto; o meio dividido aparece junto, só com um pontilhado', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo cheio');
   await abaPlanta(p, 'ER P').click();
-  // Um espaço da gôndola e uma pirâmide desenhados (o mesmo que o editor grava).
+  await menuConfig(p, 'btnConstrucao');
+  await p.waitForSelector('#dlgAcesso[open]');
+  await p.fill('#acessoNome', 'Bia');
+  await p.fill('#acessoSenha', SENHA.CONSTRUTOR);
+  await p.click('#acessoEntrar');
+  await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
+  // Editar ciclo: o painel de construção abre no ciclo publicado, que continua publicado.
+  await p.locator('.rs-secao .rs-publicado button', { hasText: 'Editar ciclo' }).click();
+  await p.waitForSelector('#painelConstrucao:not([hidden])');
+  assert.match(await p.textContent('#barraRascunho'), /Editando o ciclo publicado Ciclo exemplo cheio.*Publicado.*valem na hora para todos/);
+  assert.match(await p.textContent('#pcTopo'), /Edição · Ciclo exemplo cheio/);
+  assert.strictEqual(await p.locator('#pcPassos .btn-publicar').count(), 0, 'sem publicar nem enviar');
+  // Divide o meio A da gôndola 1: grava direto na aba publicada.
+  await p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await p.locator('#pcForm .pc-espaco[data-espaco="GONDOLA 1/MEIO-A"] .pc-dividir').click();
+  await p.waitForSelector('#pcForm .pc-espaco[data-espaco="GONDOLA 1/MEIO-A-2"]');
+  await p.waitForFunction(() => document.getElementById('pcGravacao').textContent === 'Tudo salvo');
+  // No planograma, as metades ficam juntas (a da direita com o pontilhado).
+  await p.locator('#pcForm button', { hasText: 'Ver detalhes' }).click();
+  await p.waitForSelector('#dlgMovel.lateral[open] .mv-plano .pg-celula.pg-metade-2');
+  const vao = await p.evaluate(() => {
+    const r = (sel) => document.querySelector('.mv-plano .pg-celula' + sel).getBoundingClientRect();
+    return Math.round(r('.pg-metade-2').left - r('.pg-metade-1').right);
+  });
+  assert.ok(Math.abs(vao) <= 1, 'as metades ficam encostadas (vão de ' + vao + ' px)');
+  // Desenhando uma metade, a outra aparece junto (só para ver); o desenho vale sempre em todas as ERs (sem escolher).
+  await p.locator('.pr-espaco[data-espaco="GONDOLA 1/MEIO-A-1"] [data-acao="editar-prateleiras"]').click();
+  assert.strictEqual(await p.locator('.pr-espaco.editando .pr-ed-meio .pr-tela.desenho + .pr-irma').count(), 4);
+  assert.strictEqual(await p.locator('.pr-espaco.editando select[data-campo="vale"]').count(), 0);
+  await p.locator('.pr-espaco.editando button', { hasText: 'Cancelar' }).click();
+  await p.locator('#dlgMovel button[value="ok"]').click();
+  await p.waitForSelector('#dlgMovel:not([open])', { state: 'attached' });
+  // Concluir edição fecha o painel; a mudança ficou no ciclo publicado (para todos, depois de recarregar).
+  await p.locator('#rascunhoAcoes button', { hasText: 'Concluir edição' }).click();
+  await p.waitForSelector('#painelConstrucao', { state: 'hidden' });
+  assert.ok(await p.isHidden('#barraRascunho'));
+  await p.evaluate(() => sessionStorage.clear());
+  await p.reload();
+  await p.waitForFunction(() => typeof App !== 'undefined' && App.estado.dados && App.estado.dados.ciclos.length);
+  assert.ok(await estado(p, () => !!App.estado.dados.movimentos['Ciclo exemplo cheio']['01']['GONDOLA 1/MEIO-A-1']), 'o meio dividido foi gravado no ciclo publicado');
+});
+
+test('briefing do planograma: PDF com o planograma desenhado de cada móvel', { skip: !JSPDF_LOCAL && 'sem o jsPDF local (JSPDF_JS ou npm i jspdf)' }, async (t) => {
+  const p = await abrir(t);
+  await escolherCiclo(p, 'Ciclo exemplo cheio');
+  await abaPlanta(p, 'ER P').click();
+  // Um espaço da gôndola, uma pirâmide, uma mesa e as duas metades de um meio dividido desenhados (o mesmo que o
+  // editor grava). O meio A da gôndola 1 é dividido editando o ciclo publicado (linha da metade 2).
   await p.evaluate(async () => {
     const C = { papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' };
-    const salvar = (pedido) => new Promise((ok, falha) => google.script.run.withSuccessHandler(ok).withFailureHandler(falha).salvarPrateleiras(C, pedido));
+    const chamar = (f, pedido) => new Promise((ok, falha) => google.script.run.withSuccessHandler(ok).withFailureHandler(falha)[f](C, pedido));
+    const salvar = (pedido) => chamar('salvarPrateleiras', pedido);
+    await chamar('salvarRascunho', { acao: 'salvarEspaco', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', movel: 'GONDOLA 1/MEIO-A-2', linha: { marca: 'EUD', etiquetas: [{ texto: 'OUTLET EUDORA', marca: 'EUD' }] } });
     await salvar({
       acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'GONDOLA 1/PONTA-A',
-      prateleiras: [{ numero: 1, quadrados: [{ x: 0, w: 60, movimento: 'LÇTO EGEO', produtos: [{ sku: '48211', frentes: 3 }] }] }],
+      prateleiras: [{ numero: 1, quadrados: [{ x: 0, w: 60, movimento: 'LÇTO EGEO', observacao: 'Testador na frente', produtos: [{ sku: '48211', frentes: 3 }, { sku: '50111', frentes: 2 }] },
+        { x: 60, w: 40, movimento: 'BOTIPROMO', produtos: [{ sku: '50110', frentes: 1 }] }] },
+      { numero: 2, quadrados: [{ x: 0, w: 100, movimento: 'LÇTO EGEO', produtos: [{ sku: '48211', frentes: 4 }] }] }],
+    });
+    await salvar({
+      acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'GONDOLA 1/MEIO-A-1',
+      prateleiras: [{ numero: 1, quadrados: [{ x: 0, w: 100, produtos: [{ sku: '48211', frentes: 2 }] }] }],
+    });
+    await salvar({
+      acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'GONDOLA 1/MEIO-A-2',
+      prateleiras: [{ numero: 1, quadrados: [{ x: 0, w: 50, movimento: 'OUTLET EUDORA', produtos: [{ sku: '50110', frentes: 2 }] }] }],
     });
     await salvar({
       acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'PIRAMIDE 1/LADO-2',
       prateleiras: [{ numero: 4, quadrados: [{ x: 0, w: 100, produtos: [{ sku: '50110', frentes: 4 }] }] }],
+    });
+    await salvar({
+      acao: 'salvar', ciclo: 'Ciclo exemplo cheio', planta: 'ER P', espaco: 'MESA DESTAQUE 1/FRENTE-1',
+      prateleiras: [{ numero: 1, quadrados: [{ x: 0, w: 100, produtos: [{ sku: '50110', frentes: 2 }] }] }],
     });
     await App.carregar({ ciclo: 'Ciclo exemplo cheio' });
   });
@@ -1467,7 +1519,8 @@ test('briefing das gôndolas e pirâmides: PDF com o planograma desenhado de cad
   await p.click('#btnBriefing');
   await p.waitForSelector('#dlgBriefing[open]');
   const naEr = await estado(p, () => App.estado.dados.plantas.find((x) => x.nome === 'ER P').moveis.filter((m) => m.tipo === 'PIRAMIDE').length);
-  assert.match(await p.textContent('#briefingResumo'), new RegExp('1 gôndola e ' + naEr + ' pirâmide'));
+  // As gôndolas e as pirâmides e, dos outros móveis, os desenhados (a mesa).
+  assert.match(await p.textContent('#briefingResumo'), new RegExp('1 gôndola, ' + naEr + ' pirâmides e 1 outro móvel'));
   // O nome leva o ciclo e a ER; sem pasta do Drive vinculada (sempre, na versão web), o PDF só é baixado.
   assert.strictEqual(await p.textContent('#briefingNome'), 'Arquivo: Briefing - Ciclo exemplo cheio - ER P.pdf');
   assert.strictEqual(await p.isVisible('#briefingDestinos'), false);
@@ -1476,15 +1529,16 @@ test('briefing das gôndolas e pirâmides: PDF com o planograma desenhado de cad
   const conta = (tipo) => p.evaluate((t) => App.estado.dados.plantas.reduce((s, x) => s + x.moveis.filter((m) => m.tipo === t).length, 0), tipo);
   const gondolas = await conta('GONDOLA');
   const piramides = await conta('PIRAMIDE');
-  const n = gondolas + piramides;
-  assert.match(await p.textContent('#briefingResumo'), new RegExp(gondolas + ' gôndolas e ' + piramides + ' pirâmides'));
+  const n = gondolas + piramides + 1;
+  assert.match(await p.textContent('#briefingResumo'), new RegExp(gondolas + ' gôndolas, ' + piramides + ' pirâmides e 1 outro móvel'));
   const d = await baixar(p, () => p.click('#briefingBaixar'));
+  if (process.env.BRIEFING_PDF) fs.writeFileSync(process.env.BRIEFING_PDF, d.bytes);
   assert.strictEqual(d.nome, 'Briefing - Ciclo exemplo cheio - Todas as ERs.pdf');
   assert.strictEqual(d.bytes.subarray(0, 5).toString(), '%PDF-');
   // Capa + uma página por gôndola (no mínimo).
   const paginas = (d.bytes.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
-  assert.ok(paginas >= n + 1, paginas + ' páginas para ' + n + ' gôndolas e pirâmides');
-  assert.match(await p.textContent('#toast'), new RegExp(gondolas + ' gôndolas e ' + piramides + ' pirâmides'));
+  assert.ok(paginas >= n + 1, paginas + ' páginas para ' + n + ' móveis');
+  assert.match(await p.textContent('#toast'), new RegExp(gondolas + ' gôndolas, ' + piramides + ' pirâmides e 1 outro móvel'));
 
   // Com uma pasta do Drive vinculada (no Apps Script), aparece o destino "Salvar na pasta do Drive", que só a
   // Construção usa: o arquivo vai para a subpasta do ciclo.

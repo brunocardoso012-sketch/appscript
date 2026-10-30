@@ -24,6 +24,7 @@ const Rascunho = (() => {
   let formChave = ''; // ciclo|ER|móvel do formulário montado (só refaz quando muda, para não perder o foco)
   let verComentarios = false; // o construtor abriu os comentários da validação no lugar do painel
   let abriuDoPapel = false; // já levou a tela ao ciclo em construção do papel neste login (abrirDoPapel)
+  let editandoPublicado = ''; // ciclo publicado que o construtor está editando direto (Editar ciclo)
   const pendentes = {}; // "ciclo|ER|espaço" → { ciclo, planta, chave, linha } ainda não gravados
   // Meios de gôndola divididos pelo construtor que ainda não têm nada nas metades (com uma metade preenchida,
   // a linha dela já divide o meio na planta): "ciclo|ER|móvel" → 'A' | 'B' | 'AB'.
@@ -51,10 +52,20 @@ const Rascunho = (() => {
   const acesso = () => (app && app.acesso()) || null;
   const papel = () => (acesso() || {}).papel || '';
   const doCiclo = (ciclo) => lista.find((r) => r.ciclo === ciclo) || null;
-  /** O ciclo da tela, se for um ciclo em construção. */
-  const atual = () => (app && app.estado.ciclo ? doCiclo(app.estado.ciclo) : null);
-  /** O construtor pode editar o ciclo da tela (em construção, ainda não enviado). */
-  const editavel = () => papel() === 'CONSTRUTOR' && !!atual() && atual().status === 'EM_CONSTRUCAO';
+  /** O ciclo é publicado (e não um ciclo em construção)? */
+  const ehPublicado = (ciclo) => !!(app && app.estado.dados && app.estado.dados.ciclos.indexOf(ciclo) >= 0) && !doCiclo(ciclo);
+  /**
+   * O ciclo da tela, se for um ciclo em construção ou o ciclo publicado que o construtor está editando direto
+   * (status PUBLICADO: as mudanças vão para as abas publicadas e valem na hora para todos).
+   */
+  const atual = () => {
+    const ciclo = app && app.estado.ciclo;
+    if (!ciclo) return null;
+    if (doCiclo(ciclo)) return doCiclo(ciclo);
+    return ciclo === editandoPublicado && ehPublicado(ciclo) ? { ciclo, status: 'PUBLICADO', nomeStatus: 'Publicado' } : null;
+  };
+  /** O construtor pode editar o ciclo da tela (em construção e ainda não enviado, ou publicado, pelo Editar ciclo). */
+  const editavel = () => papel() === 'CONSTRUTOR' && !!atual() && (atual().status === 'EM_CONSTRUCAO' || atual().status === 'PUBLICADO');
 
   /** Tipos de movimento do ciclo da tela: [{ chave, texto, classificacao, gmv, observacao }], em ordem alfabética. */
   function tiposDoCiclo() {
@@ -96,7 +107,7 @@ const Rascunho = (() => {
     const d = app.estado.dados;
     if (!d || !d.movimentos[ciclo] && !doCiclo(ciclo)) return;
     const mov = d.movimentos[ciclo] || (d.movimentos[ciclo] = {});
-    if (dados && dados.movimentos) dados.movimentos[ciclo] = mov; // o mesmo objeto, para o próximo mesclar
+    if (dados && dados.movimentos && doCiclo(ciclo)) dados.movimentos[ciclo] = mov; // o mesmo objeto, para o próximo mesclar
     const er = mov[plantaId] || (mov[plantaId] = {});
     const obs = String(l.observacao || '').trim();
     if (!l.marca && !l.simbolo && !obs && !l.etiquetas.length) {
@@ -153,7 +164,8 @@ const Rascunho = (() => {
       gravacao = 'erro';
       app.erro(e);
       formChave = ''; // o formulário volta ao que está no servidor
-      await recarregar();
+      if (ehPublicado(p.ciclo)) await app.carregar({ ciclo: app.estado.ciclo });
+      else await recarregar();
     }
     if (Object.keys(pendentes).length) await esvaziar();
     else indicador();
@@ -239,6 +251,7 @@ const Rascunho = (() => {
   function limpar() {
     lista = [];
     dados = null;
+    editandoPublicado = '';
     abriuDoPapel = false; // no próximo login, abre de novo o ciclo do papel
     if (!app || !app.estado.dados) return;
     mesclar(app.estado.dados);
@@ -248,13 +261,14 @@ const Rascunho = (() => {
   }
 
   /**
-   * Grava um pedido; com "aprovar" ou "despublicar", recarrega os ciclos publicados (o ciclo entra ou sai deles)
-   * e a tela fica no mesmo ciclo.
+   * Grava um pedido; com "aprovar" ou "despublicar" (o ciclo entra ou sai dos publicados) e nas mudanças de um ciclo
+   * publicado, recarrega os ciclos publicados, e a tela fica no mesmo ciclo.
    */
   async function salvar(pedido, mensagem) {
     try {
+      const recarregarPublicados = pedido.acao === 'aprovar' || ehPublicado(pedido.ciclo);
       const r = await app.chamar('salvarRascunho', acesso(), pedido);
-      if (pedido.acao === 'aprovar' || pedido.acao === 'despublicar') {
+      if (recarregarPublicados) {
         dados = r;
         lista = r.rascunhos || [];
         await app.carregar({ ciclo: pedido.ciclo });
@@ -336,7 +350,12 @@ const Rascunho = (() => {
       const txt = n('div', 'rs-item-txt', null, item);
       n('strong', null, publicado, txt);
       n('span', null, 'publicado · na tela', txt);
-      const b = botao('Converter ciclo em rascunho', '', () => converterEmRascunho(publicado), item);
+      const acoes = n('div', 'rs-item-acoes', null, item);
+      if (papel() === 'CONSTRUTOR' && editandoPublicado !== publicado) {
+        const e = botao('Editar ciclo', 'primario', () => editarPublicado(publicado), acoes);
+        e.title = 'Edita o ciclo publicado direto: as mudanças vão para as abas principais e valem na hora para todos';
+      }
+      const b = botao('Converter ciclo em rascunho', '', () => converterEmRascunho(publicado), acoes);
       b.title = 'Tira o ciclo das abas principais da planilha e devolve tudo dele para as abas de rascunho, para editar de novo';
     }
     if (!lista.length) {
@@ -374,6 +393,27 @@ const Rascunho = (() => {
       verComentarios = false;
       selecao = '';
       app.desenhar();
+    });
+  }
+
+  /** Editar ciclo (construtor): o painel de construção abre no ciclo publicado da tela, gravando direto nele. */
+  function editarPublicado(ciclo) {
+    editandoPublicado = ciclo;
+    verComentarios = false;
+    selecao = '';
+    formChave = '';
+    app.desenhar();
+    app.toast('Editando o ciclo publicado ' + ciclo + ': clique num móvel da planta. As mudanças valem na hora para todos.');
+  }
+
+  /** Concluir a edição do ciclo publicado: espera gravar tudo e fecha o painel de construção. */
+  function concluirEdicao() {
+    esvaziarTudo().then(() => {
+      editandoPublicado = '';
+      verComentarios = false;
+      selecao = '';
+      app.desenhar();
+      app.toast('Edição concluída.');
     });
   }
 
@@ -456,6 +496,19 @@ const Rascunho = (() => {
     const enviado = r.status === 'ENVIADO';
     const info = $('rascunhoInfo');
     info.innerHTML = '';
+    const acoes = $('rascunhoAcoes');
+    acoes.innerHTML = '';
+    faixa.classList.toggle('editando-publicado', r.status === 'PUBLICADO');
+    if (r.status === 'PUBLICADO') {
+      // Edição direta de um ciclo publicado: o que mudar vale na hora para todos.
+      n('span', 'rs-faixa-icone', '✏️', info).setAttribute('aria-hidden', 'true');
+      n('strong', null, 'Editando o ciclo publicado ' + r.ciclo, info);
+      n('span', 'rs-status publicado', r.nomeStatus, info);
+      n('span', 'rs-faixa-msg', 'As mudanças vão direto para as abas principais e valem na hora para todos.', info);
+      if (verComentarios) botao('← Voltar à edição', '', () => { verComentarios = false; app.desenhar(); }, acoes);
+      botao('Concluir edição', 'primario', concluirEdicao, acoes);
+      return;
+    }
     n('span', 'rs-faixa-icone', '🚧', info).setAttribute('aria-hidden', 'true');
     n('strong', null, 'Ciclo ' + r.ciclo + ' (não publicado)', info);
     n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, info);
@@ -466,8 +519,6 @@ const Rascunho = (() => {
         ? (enviado ? 'Confira as ERs e publique ou devolva para o construtor.' : 'O construtor ainda está montando este ciclo (não foi enviado para aprovação).')
         : '';
     if (msg) n('span', 'rs-faixa-msg', msg, info);
-    const acoes = $('rascunhoAcoes');
-    acoes.innerHTML = '';
     if (construtor && !enviado && verComentarios) {
       botao('← Voltar à construção', '', () => { verComentarios = false; app.desenhar(); }, acoes);
     }
@@ -542,7 +593,8 @@ const Rascunho = (() => {
     topo.innerHTML = '';
     const linha = n('div', 'pc-titulo', null, topo);
     const t = n('div', null, null, linha);
-    n('h2', null, 'Construção · ' + r.ciclo, t);
+    const noPublicado = r.status === 'PUBLICADO';
+    n('h2', null, (noPublicado ? 'Edição · ' : 'Construção · ') + r.ciclo, t);
     n('span', null, planta.nome + ' · clique num móvel da planta para preencher', t);
     const abertos = app.comentariosAbertos ? app.comentariosAbertos() : 0;
     const bc = botao('Comentários' + (abertos ? ' (' + abertos + ')' : ''), 'fantasma', () => {
@@ -568,6 +620,16 @@ const Rascunho = (() => {
     item(passo1, 'Tipos de movimento', p.tipos ? p.tipos + (p.tipos === 1 ? ' movimento' : ' movimentos')
       + (p.semGmv ? ', ' + p.semGmv + ' sem GMV' : ', todos com GMV') : 'cadastre os movimentos e o GMV');
     item(passo2, 'Móveis', p.fora.length ? p.fora.length + ' movimento(s) fora dos tipos' : p.espacos + ' linhas preenchidas');
+    if (noPublicado) {
+      // Ciclo publicado: não há envio nem publicação; Concluir edição fecha o painel.
+      const conc = botao('Concluir edição', 'primario pc-publicar', concluirEdicao, null);
+      corpo.prepend(conc);
+      n('p', 'val-dica', 'Ciclo publicado: o que mudar aqui vai direto para as abas principais e vale na hora para todos.', corpo);
+      const acoes = n('div', 'pc-acoes', null, corpo);
+      botao('Tipos de movimento', '', editarTipos, acoes);
+      botao('Comunicações ER', '', editarPaineis, acoes);
+      return;
+    }
     item(false, 'Enviar para aprovação', '');
     // Publicar ciclo, em destaque no alto do painel.
     const pub = botaoPublicar(r, null);
@@ -1132,6 +1194,11 @@ const Rascunho = (() => {
 
   /** Chamado depois de cada desenho da planta. */
   function atualizar() {
+    // A edição do ciclo publicado termina quando a tela vai para outro ciclo (ou quem entrou não é mais o construtor).
+    if (editandoPublicado && (!app.estado.dados || app.estado.ciclo !== editandoPublicado || papel() !== 'CONSTRUTOR' || !ehPublicado(editandoPublicado))) {
+      editandoPublicado = '';
+      selecao = '';
+    }
     atualizarFaixa();
     atualizarPainel();
   }

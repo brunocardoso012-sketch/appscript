@@ -2056,6 +2056,16 @@ const App = (() => {
     return { n, rotulos, colunas: [coluna(m.tipo === 'EXTRA' ? null : m.id, 'Móvel', 1, n, geral, geral ? geral.etiquetas.slice(0, lim || geral.etiquetas.length) : [])], testeiras: null };
   }
 
+  /**
+   * A coluna ci do planograma é a metade 2 de um meio dividido, logo depois da metade 1 (as duas ficam juntas, só com
+   * um pontilhado entre elas, na tela do móvel, na construção e no briefing).
+   */
+  function metadeDaDireita(colunas, ci) {
+    const id = (c) => (c && c.id ? String(c.id).split('/').pop() : '');
+    const m = /^(MEIO-[AB])-2$/.exec(id(colunas[ci]));
+    return !!m && ci > 0 && id(colunas[ci - 1]) === m[1] + '-1';
+  }
+
   /** Seção "Planograma" da tela do móvel: as prateleiras de cada espaço, com a cor e as etiquetas de cada uma. */
   function blocoPlanograma(pai, plano) {
     const sec = novo('section', 'mv-bloco mv-plano', null, pai);
@@ -2065,9 +2075,16 @@ const App = (() => {
     const grade = novo('div', 'pg-grade', null, caixa);
     // Espaços desenhados na construção: colunas mais largas e prateleiras mais altas, para caberem os produtos.
     const desenho = plano.colunas.some((c) => c.desenhada);
-    // A largura mínima segue o peso de cada coluna, para a proporção valer também em telas estreitas.
+    // A largura mínima segue o peso de cada coluna, para a proporção valer também em telas estreitas. Entre as colunas
+    // fica um vão; as metades de um meio dividido da gôndola ficam juntas, só com um pontilhado entre elas.
     const base = desenho ? 150 : 90;
-    grade.style.gridTemplateColumns = 'auto ' + plano.colunas.map((c) => 'minmax(' + Math.round(base * c.peso) + 'px, ' + c.peso.toFixed(2) + 'fr)').join(' ');
+    const trilhas = ['auto'];
+    const linhaDaColuna = plano.colunas.map((c, ci) => {
+      if (!metadeDaDireita(plano.colunas, ci)) trilhas.push('8px');
+      trilhas.push('minmax(' + Math.round(base * c.peso) + 'px, ' + c.peso.toFixed(2) + 'fr)');
+      return trilhas.length;
+    });
+    grade.style.gridTemplateColumns = trilhas.join(' ');
     const linhaTopo = plano.testeiras ? 1 : 0;
     grade.style.gridTemplateRows = (linhaTopo ? 'auto ' : '') + 'repeat(' + plano.n + ', minmax(' + (desenho ? 112 : 58) + 'px, auto)) auto';
     const pos = (n, col, row, rowFim) => {
@@ -2098,18 +2115,20 @@ const App = (() => {
     }
     plano.rotulos.forEach((r, k) => pos(novo('span', 'pg-rot', r, grade), 1, linhaTopo + k + 1));
     plano.colunas.forEach((c, ci) => {
-      const col = ci + 2;
+      const col = linhaDaColuna[ci];
+      // Metades de um meio dividido: sem as laterais entre elas; a da direita leva o pontilhado.
+      const metade = metadeDaDireita(plano.colunas, ci) ? ' pg-metade-2' : metadeDaDireita(plano.colunas, ci + 1) ? ' pg-metade-1' : '';
       c.celulas.forEach((cel) => {
         if (cel.quadrados) {
           // Prateleira desenhada: os quadrados no lugar e no tamanho definidos, com os produtos (Prateleira.html).
-          const n = pos(novo('div', 'pg-celula pg-desenhada neutra', null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);
+          const n = pos(novo('div', 'pg-celula pg-desenhada neutra' + metade, null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);
           n.style.setProperty('--cor', '#F4F2EF');
           n.dataset.espaco = c.id;
           n.dataset.numero = String(cel.de + 1);
           Prateleira.desenharQuadrados(novo('div', 'pg-quadrados', null, n), c, cel.quadrados);
           return;
         }
-        const n = pos(novo('div', 'pg-celula', null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);
+        const n = pos(novo('div', 'pg-celula' + metade, null, grade), col, linhaTopo + cel.de + 1, linhaTopo + cel.ate + 1);
         const cor = fundo(cel.etiquetas.length ? cel.etiquetas[0].marca : cel.marca || c.marca);
         n.style.setProperty('--cor', cor || '#ECEAE6');
         if (!cor) n.classList.add('neutra');

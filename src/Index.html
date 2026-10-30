@@ -76,7 +76,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
           Baixar PNG
         </button>
-        <button id="btnBriefing" class="btn" type="button" title="Baixar o briefing das gôndolas e pirâmides em PDF: cada móvel com o planograma desenhado e os produtos de cada quadrado">
+        <button id="btnBriefing" class="btn" type="button" title="Baixar o briefing do planograma em PDF: cada móvel com o planograma desenhado e os produtos de cada bloco">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
           Briefing (PDF)
         </button>
@@ -200,9 +200,6 @@
             <button id="anFechar" class="btn" type="button" title="Fechar o Analytics (Esc)">Fechar ✕</button>
           </div>
         </header>
-        <p class="an-em-construcao" id="anEmConstrucao" role="note">
-          <strong>Página em construção</strong> | pode conter erros nos dados e cálculos
-        </p>
         <div id="anCorpo" class="an-corpo"></div>
       </section>
       <!-- Calendário dos ciclos (Calendario.html): no lugar da planta, na largura toda. -->
@@ -221,10 +218,6 @@
       <!-- Tela do móvel (App.abrirMovel): na tela inteira; no modo de construção, ao lado da planta (classe "lateral"). -->
       <dialog id="dlgMovel" class="tela-movel">
         <form method="dialog">
-          <div class="mv-aviso" role="note">
-            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2.5 18.5 17h-17z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 8v4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1" fill="currentColor"/></svg>
-            <span>Página em construção</span>
-          </div>
           <header class="mv-topo">
             <div>
               <h2 id="mvTitulo"></h2>
@@ -438,15 +431,15 @@
       </form>
     </dialog>
 
-    <!-- Briefing das gôndolas e pirâmides em PDF (Briefing.html). -->
+    <!-- Briefing do planograma em PDF (Briefing.html). -->
     <dialog id="dlgBriefing" class="dialogo">
       <form method="dialog">
-        <h2>Briefing das gôndolas e pirâmides (PDF)</h2>
-        <p class="sub">Uma página por gôndola e por pirâmide (os 4 lados, cada um com as 4 prateleiras), com o planograma desenhado e uma tabela com cada quadrado (posição e tamanho, em % e em cm) e os produtos na ordem, para reproduzir no programa de planograma.</p>
+        <h2>Briefing do planograma (PDF)</h2>
+        <p class="sub">Uma página por móvel (as gôndolas, as pirâmides e os outros móveis com prateleiras desenhadas), com o planograma desenhado, os blocos numerados (1, 2, 3… em cada espaço) e, de cada espaço, uma tabela por movimento com o SKU, as frentes e a observação de cada bloco, para reproduzir no programa de planograma.</p>
         <fieldset class="campo bloco">
           <legend>ERs</legend>
           <label class="opcao"><input type="radio" name="briefingErs" value="esta" checked> <span>Só <b id="briefingEsta">esta ER</b></span></label>
-          <label class="opcao"><input type="radio" name="briefingErs" value="todas"> <span>Todas as ERs <small>— as gôndolas e as pirâmides de cada ER, em ordem</small></span></label>
+          <label class="opcao"><input type="radio" name="briefingErs" value="todas"> <span>Todas as ERs <small>— os móveis de cada ER, em ordem</small></span></label>
         </fieldset>
         <fieldset class="campo bloco" id="briefingDestinos">
           <legend>Destino</legend>

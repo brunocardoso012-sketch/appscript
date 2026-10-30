@@ -889,6 +889,26 @@ test('ciclo em construção: criar, editar, enviar, devolver e publicar', () => 
   assert.equal(dr.movimentos.C11['01']['PIRAMIDE 1'].marca, 'BOT');
   assert.equal(dr.tiposMovimento.C11.BOTIPROMO.gmv, 1500000);
 
+  // Editar o ciclo publicado direto (só o construtor): as abas publicadas mudam na hora, sem rascunho.
+  assert.throws(() => salvar(V, { acao: 'salvarEspaco', ciclo: 'C11', planta: '01', movel: 'PIRAMIDE 1', linha: { marca: 'EUD' } }), /Só o construtor/);
+  assert.throws(() => salvar(C, { acao: 'salvarEspaco', ciclo: 'Não existe', planta: '01', movel: 'PIRAMIDE 1', linha: { marca: 'EUD' } }), /não está em construção/);
+  r = salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: '01', movel: 'PIRAMIDE 1', linha: { marca: 'EUD', etiquetas: [{ texto: 'NOVO NO PUBLICADO', marca: 'EUD' }] } });
+  assert.deepEqual(r.rascunhos, [], 'continua publicado');
+  dr = run('getDados()');
+  assert.deepEqual(dr.movimentos.C11['01']['PIRAMIDE 1'].etiquetas.map((e) => e.texto), ['NOVO NO PUBLICADO']);
+  assert.equal(dr.tiposMovimento.C11['NOVO NO PUBLICADO'].gmv, null, 'o movimento novo entra nos tipos, sem GMV');
+  assert.equal(dr.tiposMovimento.C11.BOTIPROMO.gmv, 1500000, 'o GMV dos outros tipos continua número');
+  assert.deepEqual(dr.movimentos['Ciclo exemplo'], exemplo.movimentos['Ciclo exemplo'], 'os outros ciclos ficam como estavam');
+  assert.deepEqual(dr.tiposMovimento['Ciclo exemplo'], exemplo.tiposMovimento['Ciclo exemplo']);
+  salvar(C, { acao: 'salvarTipos', ciclo: 'C11', linhas: Object.values(dr.tiposMovimento.C11).map((t) => ({ etiqueta: t.texto, classificacao: t.classificacao, gmv: t.gmv === null ? '2 mi' : t.gmv })) });
+  salvar(C, { acao: 'salvarPaineis', ciclo: 'C11', planta: 'ER P', linhas: [{ secao: 'TV', texto: 'GRADE EDITADA', marca: 'BOT' }] });
+  dr = run('getDados()');
+  assert.equal(dr.tiposMovimento.C11['NOVO NO PUBLICADO'].gmv, 2000000);
+  assert.equal(dr.tiposMovimento.C11.BOTIPROMO.gmv, 1500000);
+  assert.deepEqual(dr.paineis.C11['01'], [{ secao: 'TV', texto: 'GRADE EDITADA', marca: 'BOT', movel: '' }]);
+  r = salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: '01', movel: 'PIRAMIDE 1', linha: { etiquetas: [] } });
+  assert.ok(!run('getDados()').movimentos.C11['01']['PIRAMIDE 1'], 'linha vazia apaga');
+
   // Em branco: precisa dos tipos antes de enviar; excluir.
   r = salvar(C, { acao: 'criar', ciclo: 'C12' });
   assert.deepEqual([r.rascunhos.length, r.movimentos.C12], [1, undefined]);

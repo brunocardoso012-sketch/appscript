@@ -12,9 +12,9 @@
  *  ainda não foi enviado.
  *
  *  Ficam na aba "Prateleiras", uma linha por produto de cada quadrado (o
- *  quadrado sem produto tem uma linha sem SKU). Cada ER tem as suas linhas:
- *  "Vale em todas as ERs" grava as mesmas prateleiras em cada ER que tem o
- *  espaço. Este arquivo só tem regras sobre matrizes: quem lê e grava as abas é
+ *  quadrado sem produto tem uma linha sem SKU). Cada ER tem as suas linhas: a
+ *  página grava sempre com a planta TODAS, que põe as mesmas prateleiras em cada
+ *  ER que tem o espaço. Este arquivo só tem regras sobre matrizes: quem lê e grava as abas é
  *  o Code.gs e, na versão web, o web/backend-local.js
  *  (executarPrateleiras_, com o leitor / gravador de cada um).
  */

@@ -150,6 +150,8 @@ function listaCurta_(itens) {
  *  - salvarEspaco:   { acao, ciclo, planta, movel, linha }  construtor; só com movimentos dos tipos; linha vazia apaga
  *                    a linha do espaço nessa ER;
  *  - salvarPaineis:  { acao, ciclo, planta, linhas: [{secao, texto, marca, movel}] }  construtor;
+ *                    salvarTipos, salvarEspaco e salvarPaineis também valem para um ciclo publicado (editado direto):
+ *                    gravam nas abas publicadas, e o movimento de um espaço que não está nos tipos entra neles sem GMV;
  *  - enviar:         { acao, ciclo }                  construtor: confere os tipos (todos com GMV) e os móveis (só
  *                    movimentos dos tipos) e trava a edição até o validador decidir;
  *  - excluir:        { acao, ciclo }                  construtor (antes da aprovação);
@@ -199,6 +201,24 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     }
   };
   const semCiclo = function (campo) { return objs(campo).filter(function (o) { return !doCiclo(o); }); };
+  // Ciclo publicado editado direto pelo construtor (sem passar pelo rascunho): as abas publicadas mudam na hora.
+  const publicado = !atual && !!ciclosPublicados_(abas)[ciclo] && ['salvarEspaco', 'salvarPaineis', 'salvarTipos'].indexOf(p.acao) >= 0;
+  const aba = function (campo) { return publicado ? { rMovimentos: 'movimentos', rPaineis: 'paineis', rTipos: 'tipos' }[campo] : campo; };
+  /**
+   * Troca as linhas de `campo` em que tirar(o) é verdadeiro por `linhas`. Nas abas publicadas, as outras linhas ficam
+   * com os valores originais (como na publicação); nas de rascunho, a aba é refeita.
+   */
+  const substituir = function (campo, tirar, linhas, chaveDe) {
+    if (!publicado) { trocar(campo, objs(campo).filter(function (o) { return !tirar(o); }).concat(linhas)); return; }
+    const c = aba(campo);
+    const base = matrizSem_(novas[c] && novas[c].length ? novas[c] : [defs[c].colunas.map(function (x) { return x.titulo; })], defs[c].colunas, tirar);
+    novas[c] = mesclarLinhas_(base, linhas, defs[c].colunas, chaveDe);
+    if (gravar.indexOf(c) < 0) gravar.push(c);
+  };
+  const exigirEdicao = function () {
+    exigir('CONSTRUTOR', 'edita o ciclo');
+    if (!publicado) exigirRascunho('EM_CONSTRUCAO');
+  };
 
   if (p.acao === 'criar') {
     exigir('CONSTRUTOR', 'cria ciclos');
@@ -239,27 +259,25 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
   }
 
   if (p.acao === 'salvarEspaco') {
-    exigir('CONSTRUTOR', 'edita o ciclo');
-    exigirRascunho('EM_CONSTRUCAO');
+    exigirEdicao();
     const planta = normPlanta_(p.planta);
     const movel = normIdEspaco_(p.movel);
     if (!planta || !movel) throw new Error('Escolha a ER e o espaço.');
     const mesmo = function (o) { return doCiclo(o) && normPlanta_(o.planta) === planta && normIdEspaco_(o.movel) === movel; };
     const linha = linhaDeEspaco_(ciclo, planta, movel, p.linha);
-    // Só movimentos cadastrados nos Tipos de movimento do ciclo.
-    const tipos = {};
-    objs('rTipos').filter(doCiclo).forEach(function (t) { tipos[chaveEtiqueta_(t.etiqueta)] = true; });
-    const fora = linha ? etiquetasDaLinha_(linha).filter(function (e) { return !tipos[chaveEtiqueta_(e)]; }) : [];
-    if (fora.length) {
-      throw new Error('Movimento fora dos Tipos de movimento do ciclo: ' + listaCurta_(fora) + '. Cadastre primeiro em Tipos de movimento (com o GMV).');
+    // Só movimentos cadastrados nos Tipos de movimento do ciclo (no ciclo publicado, os que faltam entram nos tipos).
+    const tiposDoCiclo = objs(aba('rTipos')).filter(doCiclo);
+    const faltam = linha ? tiposQueFaltam_(ciclo, [linha], tiposDoCiclo) : [];
+    if (faltam.length && !publicado) {
+      throw new Error('Movimento fora dos Tipos de movimento do ciclo: ' + listaCurta_(faltam.map(function (t) { return t.etiqueta; })) + '. Cadastre primeiro em Tipos de movimento (com o GMV).');
     }
-    trocar('rMovimentos', objs('rMovimentos').filter(function (o) { return !mesmo(o); }).concat(linha ? [linha] : []));
+    substituir('rMovimentos', mesmo, linha ? [linha] : [], function (o) { return texto_(o.ciclo) + '||' + normPlanta_(o.planta) + '||' + normIdEspaco_(o.movel); });
+    if (faltam.length) substituir('rTipos', function () { return false; }, faltam, function (o) { return texto_(o.ciclo) + '||' + chaveEtiqueta_(o.etiqueta); });
     return { abas: novas, gravar: gravar };
   }
 
   if (p.acao === 'salvarPaineis') {
-    exigir('CONSTRUTOR', 'edita o ciclo');
-    exigirRascunho('EM_CONSTRUCAO');
+    exigirEdicao();
     const planta = normPlanta_(p.planta);
     if (!planta) throw new Error('Escolha a ER.');
     const linhas = (Array.isArray(p.linhas) ? p.linhas : []).map(function (l) {
@@ -268,13 +286,12 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
       if (!secao || !t) return null;
       return { ciclo: ciclo, planta: planta, secao: secao, texto: t, marca: normMarca_(l.marca), movel: l.movel ? normId_(l.movel) : '' };
     }).filter(Boolean);
-    trocar('rPaineis', objs('rPaineis').filter(function (o) { return !(doCiclo(o) && normPlanta_(o.planta) === planta); }).concat(linhas));
+    substituir('rPaineis', function (o) { return doCiclo(o) && normPlanta_(o.planta) === planta; }, linhas);
     return { abas: novas, gravar: gravar };
   }
 
   if (p.acao === 'salvarTipos') {
-    exigir('CONSTRUTOR', 'edita o ciclo');
-    exigirRascunho('EM_CONSTRUCAO');
+    exigirEdicao();
     const vistos = {};
     const linhas = (Array.isArray(p.linhas) ? p.linhas : []).map(function (l) {
       // O tipo é o movimento: uma observação depois do "|" fica só nas etiquetas dos espaços.
@@ -286,7 +303,7 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
       // Cada linha é um movimento que o ciclo pode usar, mesmo antes de ter classificação ou GMV.
       return { ciclo: ciclo, etiqueta: etiqueta, classificacao: normClassificacao_(l.classificacao), gmv: gmv === null ? '' : gmv, observacao: texto_(l.observacao).slice(0, 2000) };
     }).filter(Boolean);
-    trocar('rTipos', semCiclo('rTipos').concat(linhas));
+    substituir('rTipos', doCiclo, linhas, function (o) { return texto_(o.ciclo); });
     return { abas: novas, gravar: gravar };
   }
 
@@ -392,10 +409,20 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
 
 /** Matriz sem as linhas de um ciclo; as outras linhas (e o cabeçalho) ficam como estão, com os valores originais. */
 function matrizSemCiclo_(matriz, colunas, ciclo) {
+  return matrizSem_(matriz, colunas, function (o) { return texto_(o.ciclo) === ciclo; });
+}
+
+/** Matriz sem as linhas em que tirar(objeto da linha) é verdadeiro; as outras ficam como estão, com os valores originais. */
+function matrizSem_(matriz, colunas, tirar) {
   if (!matriz || !matriz.length) return matriz;
-  const i = acharColuna_(matriz[0].map(chave_), colunas.filter(function (c) { return c.chave === 'ciclo'; })[0]);
-  if (i < 0) return matriz;
-  return [matriz[0]].concat(matriz.slice(1).filter(function (row) { return texto_((row || [])[i]) !== ciclo; }));
+  const cab = matriz[0].map(chave_);
+  const idx = {};
+  colunas.forEach(function (c) { idx[c.chave] = acharColuna_(cab, c); });
+  return [matriz[0]].concat(matriz.slice(1).filter(function (row) {
+    const o = {};
+    colunas.forEach(function (c) { o[c.chave] = idx[c.chave] >= 0 ? (row || [])[idx[c.chave]] : ''; });
+    return !tirar(o);
+  }));
 }
 
 /**
