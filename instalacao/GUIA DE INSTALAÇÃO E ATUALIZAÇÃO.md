@@ -39,6 +39,7 @@ Este guia é para quem **já usa o app no Apps Script e já tem a planilha com o
 - **Editar um ciclo publicado:** com o login da *Construção*, o botão *Editar ciclo* (no painel, com um ciclo publicado na tela) abre o painel de construção no próprio ciclo; o que mudar vai direto para as abas *Movimentos*, *Painéis* e *Tipos de movimento* e vale na hora para todos.
 - **Prateleiras e briefing:** o desenho das prateleiras vale sempre para todas as ERs que têm o espaço. O briefing (PDF) passa a levar todos os móveis desenhados, numera os blocos 1, 2, 3… em cada espaço e traz uma tabelinha por espaço e movimento (bloco, SKU, frentes e observação); o meio dividido da gôndola aparece com as metades juntas, só com um pontilhado.
 - **Ajustar etiquetas só com login:** o item aparece na engrenagem só para quem entrou na *Validação*, na *Construção* ou no *Modo desenvolvedor*. O que for salvo vai para a aba *Layout* e aparece para todos que abrirem o app depois; o *Construir loja* não apaga esses ajustes.
+- **Ajustar etiquetas sem o Baixar posições:** a barra do modo ajuste tem só *Organizar automaticamente*, *Descartar* e *Salvar posições*.
 - **Briefing só na construção:** o botão do briefing saiu do topo; agora é *Baixar briefing (PDF)*, na seção *Construção das prateleiras* da tela do móvel, só para quem entrou na *Construção*.
 - **Topo:** *Copiar link* fica no topo. *Abrir planilha* saiu da engrenagem: a planilha se abre pelo painel do desenvolvedor.
 - **Símbolo por etiqueta:** cada etiqueta pode ter o seu símbolo (🔒, Ⓔ, NEW ou ⏩ antecipação). Com a antecipação, entra também a data, que aparece ao lado do ⏩ na planta. Na planilha, são as colunas novas *Símbolo Etiqueta 1…4* e *Data Etiqueta 1…4* da aba *Movimentos*, criadas sozinhas na primeira aprovação (ou acrescente à mão, com esses títulos).
@@ -154,7 +155,7 @@ Vá em **Implantar › Testar implantações** e abra o link que termina em `/de
 
 Vá em **Implantar › Gerenciar implantações**, clique no **lápis** da implantação ativa, escolha **Versão: Nova versão** e clique em **Implantar**.
 
-Para conferir, abra o link do app e a **engrenagem**: no fim do menu aparece a versão do app (a desta pasta é *Versão 30/10/2026 · 4*).
+Para conferir, abra o link do app e a **engrenagem**: no fim do menu aparece a versão do app (a desta pasta é *Versão 30/10/2026 · 5*).
 
 > ⚠️ **Não** use *Nova implantação*: ela cria um link novo.
 
@@ -217,7 +218,7 @@ Se tudo estiver certo, avise os usuários: o link é o mesmo.
 | Sintoma | O que fazer |
 |---|---|
 | Erro *"Identifier 'CONFIG' (ou outro nome) has already been declared"* ao salvar ou abrir | Sobrou um arquivo antigo no projeto. Deixe só o `Código.gs` (e o `appsscript.json`). |
-| A página continua igual à versão antiga | Abra a **engrenagem**: no fim do menu aparece a **versão do app** (ex.: *Versão 30/10/2026 · 4*). Se ela não aparecer ou for outra, o link ainda roda o código antigo: (1) confira se o projeto tem **só** o `Código.gs` (e o `appsscript.json`), sem `Code`, `Index` ou outros arquivos antigos; (2) salve; (3) em **Implantar › Gerenciar implantações**, clique no **lápis**, escolha **Versão: Nova versão** e **Implantar** (salvar o código sozinho não muda o link publicado, e *Nova implantação* cria outro link); (4) recarregue o app com <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. |
+| A página continua igual à versão antiga | Abra a **engrenagem**: no fim do menu aparece a **versão do app** (ex.: *Versão 30/10/2026 · 5*). Se ela não aparecer ou for outra, o link ainda roda o código antigo: (1) confira se o projeto tem **só** o `Código.gs` (e o `appsscript.json`), sem `Code`, `Index` ou outros arquivos antigos; (2) salve; (3) em **Implantar › Gerenciar implantações**, clique no **lápis**, escolha **Versão: Nova versão** e **Implantar** (salvar o código sozinho não muda o link publicado, e *Nova implantação* cria outro link); (4) recarregue o app com <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. |
 | *"Nenhuma planilha vinculada ao script"* (quem veio do visualizador com outra planilha) | Crie a propriedade do script `SPREADSHEET_ID` com o ID guardado no passo A1. |
 | *Senha incorreta* ao importar ou salvar a planta | A senha do *Desenvolvedor* mudou desde que você entrou: use *Sair do desenvolvedor* e entre de novo. |
 | Ninguém lembra a senha do Desenvolvedor trocada no app | Na planilha, apague a linha `senhas` da aba *Config do app*: voltam as senhas do código. |

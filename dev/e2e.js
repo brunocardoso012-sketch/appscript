@@ -826,7 +826,7 @@ test('planilha base em branco, só uma planta', async (t) => {
   assert.ok(ehZip(d.bytes));
 });
 
-test('ajustar etiquetas: só com login; tamanho, salvar (vale para todos) e baixar posições', async (t) => {
+test('ajustar etiquetas: só com login; tamanho e salvar (vale para todos)', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo');
   await p.click('#btnConfig');
@@ -853,9 +853,9 @@ test('ajustar etiquetas: só com login; tamanho, salvar (vale para todos) e baix
   await p.mouse.up();
   assert.ok(await estado(p, () => Object.keys(App.estado.ajustes).length) > 0, 'o arraste não gerou ajuste');
 
-  const d = await baixar(p, () => p.click('#btnBaixarPosicoes'));
-  const json = JSON.parse(d.bytes.toString('utf8'));
-  assert.ok(json && typeof json === 'object');
+  // Na barra do modo ajuste: só Organizar automaticamente, Descartar e Salvar posições.
+  assert.deepStrictEqual((await p.locator('#barraEdicao .grupo-botoes button').allTextContents()).map((t) => t.trim()),
+    ['Organizar automaticamente', 'Descartar', 'Salvar posições']);
 
   await p.click('#btnSalvarAjustes');
   await p.waitForFunction(() => !Object.keys(App.estado.ajustes).length);
