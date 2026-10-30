@@ -3275,12 +3275,15 @@ function verificarImportacao_(valoresLayout, prep) {
 }
 
 /**
- * Grava a posição manual das etiquetas (arrastadas na tela) na aba Layout.
+ * Grava a posição manual das etiquetas (arrastadas na tela) na aba Layout: vale para todos que abrirem o app
+ * depois. Só o validador, o construtor da estratégia ou o Desenvolvedor (conferirAjusteEtiquetas_).
+ * @param {Object} acesso  o da Validação / Construção ({papel, senha, nome}) ou o do Desenvolvedor ({senha})
  * @param {string} planta
  * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel (ajuste do móvel inteiro) ou
  *   ID da pilha ("GONDOLA 1/PONTA-A", ajuste só daquela pilha) → deslocamento em px.
  */
-function salvarAjustesEtiquetas(planta, ajustes) {
+function salvarAjustesEtiquetas(acesso, planta, ajustes) {
+  conferirAjusteEtiquetas_(acesso);
   planta = normPlanta_(planta);
   if (!planta || !ajustes || typeof ajustes !== 'object') throw new Error('Dados inválidos.');
   const ss = planilha_();
@@ -4623,6 +4626,17 @@ function conferirAcesso_(acesso) {
 function conferirDesenvolvedor_(acesso) {
   const senha = senhasDeAcesso_().DESENVOLVEDOR;
   if (!senha || String((acesso && acesso.senha) || '') !== String(senha)) throw new Error('Senha incorreta.');
+}
+
+/**
+ * Confere quem pode ajustar as etiquetas (posição e tamanho, gravados no Layout para todos): o validador, o
+ * construtor da estratégia ({papel, senha, nome}) ou o Desenvolvedor ({senha}).
+ */
+function conferirAjusteEtiquetas_(acesso) {
+  const a = acesso || {};
+  if (!a.senha) throw new Error('Entre na Validação, na Construção ou no modo desenvolvedor para ajustar as etiquetas.');
+  if (a.papel) conferirAcesso_(a);
+  else conferirDesenvolvedor_(a);
 }
 
 /** Matriz vazia da aba (só o cabeçalho). */
@@ -6346,6 +6360,28 @@ function executarConfigDev_(io, acesso, pedido) {
 }
 
 /**
+ * O Construir loja grava a planta inteira com o que estava na tela do desenvolvedor, mas as posições e o tamanho
+ * das etiquetas são do Ajustar etiquetas (de qualquer pessoa, a qualquer momento): nos móveis que já existem, e na
+ * linha LOJA, ficam os ajustes que estão na aba Layout agora (os móveis novos levam os da tela).
+ */
+function manterAjustesEtiquetas_(objetos, existentes, planta) {
+  const atuais = {};
+  objetosDeValores_(existentes, colunasLayout_()).linhas.forEach(function (o) {
+    if (normPlanta_(o.planta) === planta) atuais[normId_(o.movel)] = o;
+  });
+  const campos = ['ajusteX', 'ajusteY', 'ajusteEspacos', 'tamanhoEtiquetas', 'slide'];
+  return objetos.map(function (o) {
+    const a = atuais[normId_(o.movel)];
+    if (!a) return o;
+    const r = Object.assign({}, o);
+    campos.forEach(function (c) {
+      if (o.movel === 'LOJA' ? c === 'tamanhoEtiquetas' || c === 'slide' : c.indexOf('ajuste') === 0) r[c] = a[c] === undefined ? '' : a[c];
+    });
+    return r;
+  });
+}
+
+/**
  * Grava uma planta inteira na aba Layout (Construir loja › Salvar planta). planta = 'NOVA' cria uma planta
  * com o próximo número livre; nome (opcional) dá o nome dela.
  * @return {{planta: string, nome: string, moveis: number}}
@@ -6360,7 +6396,7 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
     const id = nova ? proximoIdPlanta_(existentes) : normPlanta_(planta);
     const ids = idsPlantasDoLayout_(existentes);
     const nomeNovo = texto_(nome) ? conferirNomePlanta_(id, nome, ids) : '';
-    const objetos = objetosLayoutDaPlanta_(id, layout);
+    const objetos = manterAjustesEtiquetas_(objetosLayoutDaPlanta_(id, layout), existentes, id);
     io.gravar(CONFIG.ABAS.LAYOUT, colunasLayout_(), mesclarLinhas_(existentes, objetos, colunasLayout_()));
     const pl = cfg.plantas || {};
     if (nomeNovo || (pl.excluidas || []).indexOf(id) >= 0) {
@@ -6567,7 +6603,8 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
       return executarPrateleiras_(ioRascunhos(), acesso, pedido);
     },
 
-    salvarAjustesEtiquetas(planta, ajustes) {
+    salvarAjustesEtiquetas(acesso, planta, ajustes) {
+      conferirAjusteEtiquetas_(acesso);
       planta = normPlanta_(planta);
       if (!planta || !ajustes || typeof ajustes !== 'object') throw new Error('Dados inválidos.');
       const abas = ler();
@@ -6741,7 +6778,7 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
               Construção
               <span class="badge" id="consBadge" hidden></span>
             </button>
-            <button id="btnEditar" class="menu-item" type="button" role="menuitem" aria-pressed="false">
+            <button id="btnEditar" class="menu-item" type="button" role="menuitem" aria-pressed="false" hidden>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg>
               Ajustar etiquetas
             </button>
@@ -17868,6 +17905,7 @@ const App = (() => {
   let cicloDaLegenda = null; // os filtros de tipo e de movimento mostram os movimentos deste ciclo
 
   function desenhar() {
+    atualizarPermissaoAjuste();
     acompanharMovelLateral();
     const ctx = contextoDesenho();
     if (!ctx) return;
@@ -18219,7 +18257,26 @@ const App = (() => {
     $('btnDescartar').disabled = !n;
   }
 
+  /**
+   * Ajustar etiquetas: só quem entrou na Validação (validador), na Construção (construtor da estratégia) ou no modo
+   * desenvolvedor. O que for salvo vai para a aba Layout e aparece para todos que abrirem o app depois.
+   */
+  const acessoAjuste = () => Validacao.acesso() || Desenvolvedor.acesso();
+  function atualizarPermissaoAjuste() {
+    const pode = !!acessoAjuste();
+    $('btnEditar').hidden = !pode;
+    if (!pode && estado.edicao) { // saiu do login no meio do ajuste: o modo ajuste fecha (sem salvar)
+      estado.edicao = false;
+      estado.ajustes = {};
+      atualizarBarraEdicao();
+    }
+  }
+
   function alternarEdicao() {
+    if (!estado.edicao && !acessoAjuste()) {
+      toast('Entre na Validação, na Construção ou no modo desenvolvedor para ajustar as etiquetas.', true);
+      return;
+    }
     if (!estado.edicao && Editor.ativo()) Editor.fechar();
     if (!estado.edicao && Editor.ativo()) return;
     if (estado.edicao && Object.keys(estado.ajustes).length && !window.confirm('Sair sem salvar os ajustes?')) return;
@@ -18265,7 +18322,7 @@ const App = (() => {
     carregando(true, 'Salvando posições…');
     try {
       estado.ajustes = ajustesParaSalvar(planta);
-      const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);
+      const r = await chamar('salvarAjustesEtiquetas', acessoAjuste(), planta.id, estado.ajustes);
       const L = estado.ajustes.LOJA;
       if (L) planta.loja = Object.assign({}, planta.loja, { escalaEtiquetas: L.escala }, L.slide ? { slide: L.slide } : {});
       planta.moveis.forEach((m) => {
@@ -18285,7 +18342,7 @@ const App = (() => {
       estado.ajustes = {};
       atualizarBarraEdicao();
       desenhar();
-      toast('Posições salvas (' + r.atualizados + ' móveis).');
+      toast('Posições salvas (' + r.atualizados + ' móveis): aparecem para todos que abrirem o app.');
     } catch (e) {
       erro(e);
     } finally {
@@ -20200,6 +20257,7 @@ const App = (() => {
     // Menu de configurações (engrenagem): abre e fecha; fecha ao escolher um item, clicar fora ou Esc.
     const menuCfg = $('menuConfigLista');
     const abrirMenuCfg = (abrir) => {
+      if (abrir) atualizarPermissaoAjuste(); // o Ajustar etiquetas só aparece para quem entrou
       menuCfg.hidden = !abrir;
       $('btnConfig').setAttribute('aria-expanded', String(abrir));
       if (abrir) { const i = menuCfg.querySelector('.menu-item:not(:disabled)'); if (i) i.focus(); }

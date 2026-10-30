@@ -312,6 +312,28 @@ function executarConfigDev_(io, acesso, pedido) {
 }
 
 /**
+ * O Construir loja grava a planta inteira com o que estava na tela do desenvolvedor, mas as posições e o tamanho
+ * das etiquetas são do Ajustar etiquetas (de qualquer pessoa, a qualquer momento): nos móveis que já existem, e na
+ * linha LOJA, ficam os ajustes que estão na aba Layout agora (os móveis novos levam os da tela).
+ */
+function manterAjustesEtiquetas_(objetos, existentes, planta) {
+  const atuais = {};
+  objetosDeValores_(existentes, colunasLayout_()).linhas.forEach(function (o) {
+    if (normPlanta_(o.planta) === planta) atuais[normId_(o.movel)] = o;
+  });
+  const campos = ['ajusteX', 'ajusteY', 'ajusteEspacos', 'tamanhoEtiquetas', 'slide'];
+  return objetos.map(function (o) {
+    const a = atuais[normId_(o.movel)];
+    if (!a) return o;
+    const r = Object.assign({}, o);
+    campos.forEach(function (c) {
+      if (o.movel === 'LOJA' ? c === 'tamanhoEtiquetas' || c === 'slide' : c.indexOf('ajuste') === 0) r[c] = a[c] === undefined ? '' : a[c];
+    });
+    return r;
+  });
+}
+
+/**
  * Grava uma planta inteira na aba Layout (Construir loja › Salvar planta). planta = 'NOVA' cria uma planta
  * com o próximo número livre; nome (opcional) dá o nome dela.
  * @return {{planta: string, nome: string, moveis: number}}
@@ -326,7 +348,7 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
     const id = nova ? proximoIdPlanta_(existentes) : normPlanta_(planta);
     const ids = idsPlantasDoLayout_(existentes);
     const nomeNovo = texto_(nome) ? conferirNomePlanta_(id, nome, ids) : '';
-    const objetos = objetosLayoutDaPlanta_(id, layout);
+    const objetos = manterAjustesEtiquetas_(objetosLayoutDaPlanta_(id, layout), existentes, id);
     io.gravar(CONFIG.ABAS.LAYOUT, colunasLayout_(), mesclarLinhas_(existentes, objetos, colunasLayout_()));
     const pl = cfg.plantas || {};
     if (nomeNovo || (pl.excluidas || []).indexOf(id) >= 0) {

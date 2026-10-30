@@ -644,6 +644,7 @@ const App = (() => {
   let cicloDaLegenda = null; // os filtros de tipo e de movimento mostram os movimentos deste ciclo
 
   function desenhar() {
+    atualizarPermissaoAjuste();
     acompanharMovelLateral();
     const ctx = contextoDesenho();
     if (!ctx) return;
@@ -995,7 +996,26 @@ const App = (() => {
     $('btnDescartar').disabled = !n;
   }
 
+  /**
+   * Ajustar etiquetas: só quem entrou na Validação (validador), na Construção (construtor da estratégia) ou no modo
+   * desenvolvedor. O que for salvo vai para a aba Layout e aparece para todos que abrirem o app depois.
+   */
+  const acessoAjuste = () => Validacao.acesso() || Desenvolvedor.acesso();
+  function atualizarPermissaoAjuste() {
+    const pode = !!acessoAjuste();
+    $('btnEditar').hidden = !pode;
+    if (!pode && estado.edicao) { // saiu do login no meio do ajuste: o modo ajuste fecha (sem salvar)
+      estado.edicao = false;
+      estado.ajustes = {};
+      atualizarBarraEdicao();
+    }
+  }
+
   function alternarEdicao() {
+    if (!estado.edicao && !acessoAjuste()) {
+      toast('Entre na Validação, na Construção ou no modo desenvolvedor para ajustar as etiquetas.', true);
+      return;
+    }
     if (!estado.edicao && Editor.ativo()) Editor.fechar();
     if (!estado.edicao && Editor.ativo()) return;
     if (estado.edicao && Object.keys(estado.ajustes).length && !window.confirm('Sair sem salvar os ajustes?')) return;
@@ -1041,7 +1061,7 @@ const App = (() => {
     carregando(true, 'Salvando posições…');
     try {
       estado.ajustes = ajustesParaSalvar(planta);
-      const r = await chamar('salvarAjustesEtiquetas', planta.id, estado.ajustes);
+      const r = await chamar('salvarAjustesEtiquetas', acessoAjuste(), planta.id, estado.ajustes);
       const L = estado.ajustes.LOJA;
       if (L) planta.loja = Object.assign({}, planta.loja, { escalaEtiquetas: L.escala }, L.slide ? { slide: L.slide } : {});
       planta.moveis.forEach((m) => {
@@ -1061,7 +1081,7 @@ const App = (() => {
       estado.ajustes = {};
       atualizarBarraEdicao();
       desenhar();
-      toast('Posições salvas (' + r.atualizados + ' móveis).');
+      toast('Posições salvas (' + r.atualizados + ' móveis): aparecem para todos que abrirem o app.');
     } catch (e) {
       erro(e);
     } finally {
@@ -2976,6 +2996,7 @@ const App = (() => {
     // Menu de configurações (engrenagem): abre e fecha; fecha ao escolher um item, clicar fora ou Esc.
     const menuCfg = $('menuConfigLista');
     const abrirMenuCfg = (abrir) => {
+      if (abrir) atualizarPermissaoAjuste(); // o Ajustar etiquetas só aparece para quem entrou
       menuCfg.hidden = !abrir;
       $('btnConfig').setAttribute('aria-expanded', String(abrir));
       if (abrir) { const i = menuCfg.querySelector('.menu-item:not(:disabled)'); if (i) i.focus(); }

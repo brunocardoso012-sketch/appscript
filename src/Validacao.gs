@@ -70,6 +70,17 @@ function conferirDesenvolvedor_(acesso) {
   if (!senha || String((acesso && acesso.senha) || '') !== String(senha)) throw new Error('Senha incorreta.');
 }
 
+/**
+ * Confere quem pode ajustar as etiquetas (posição e tamanho, gravados no Layout para todos): o validador, o
+ * construtor da estratégia ({papel, senha, nome}) ou o Desenvolvedor ({senha}).
+ */
+function conferirAjusteEtiquetas_(acesso) {
+  const a = acesso || {};
+  if (!a.senha) throw new Error('Entre na Validação, na Construção ou no modo desenvolvedor para ajustar as etiquetas.');
+  if (a.papel) conferirAcesso_(a);
+  else conferirDesenvolvedor_(a);
+}
+
 /** Matriz vazia da aba (só o cabeçalho). */
 function valoresComentariosVazios_() {
   return [colunasComentarios_().map(function (c) { return c.titulo; })];

@@ -693,9 +693,11 @@ test('todas as ERs num PowerPoint: um slide por ER', async (t) => {
 test('engrenagem: todos os itens no menu; o modo desenvolvedor pede senha e abre o painel', async (t) => {
   const p = await abrir(t);
   await p.click('#btnConfig');
-  for (const id of ['btnValidacao', 'btnConstrucao', 'btnEditar', 'btnTema', 'btnTutorial', 'btnDesenvolvedor']) {
+  for (const id of ['btnValidacao', 'btnConstrucao', 'btnTema', 'btnTutorial', 'btnDesenvolvedor']) {
     assert.ok(await p.isVisible('#menuConfigLista #' + id), id + ' não está no menu');
   }
+  // Ajustar etiquetas: só depois de entrar na Validação, na Construção ou no modo desenvolvedor.
+  assert.strictEqual(await p.isVisible('#menuConfigLista #btnEditar'), false, 'Ajustar etiquetas aparece sem login');
   // A construção da loja fica no painel do desenvolvedor (com senha).
   for (const id of DO_PAINEL) assert.strictEqual(await p.isVisible('#' + id), false, id + ' aparece sem a senha');
   assert.strictEqual(await p.isVisible('#devFaixa'), false);
@@ -824,9 +826,18 @@ test('planilha base em branco, só uma planta', async (t) => {
   assert.ok(ehZip(d.bytes));
 });
 
-test('ajustar etiquetas: tamanho, salvar e baixar posições', async (t) => {
+test('ajustar etiquetas: só com login; tamanho, salvar (vale para todos) e baixar posições', async (t) => {
   const p = await abrir(t);
   await escolherCiclo(p, 'Ciclo exemplo');
+  await p.click('#btnConfig');
+  assert.strictEqual(await p.isVisible('#btnEditar'), false, 'sem login, sem Ajustar etiquetas');
+  await p.click('#btnConfig');
+  await menuConfig(p, 'btnValidacao');
+  await p.waitForSelector('#dlgAcesso[open]');
+  await p.fill('#acessoNome', 'Ana');
+  await p.fill('#acessoSenha', SENHA.VALIDADOR);
+  await p.click('#acessoEntrar');
+  await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
   await menuConfig(p, 'btnEditar');
   assert.ok(await p.isVisible('#barraEdicao'));
   await p.click('#etqMaior');
@@ -848,10 +859,20 @@ test('ajustar etiquetas: tamanho, salvar e baixar posições', async (t) => {
 
   await p.click('#btnSalvarAjustes');
   await p.waitForFunction(() => !Object.keys(App.estado.ajustes).length);
+  const salvo = await estado(p, () => App.estado.dados.plantas.find((x) => x.id === App.estado.planta).loja.escalaEtiquetas);
+  assert.strictEqual(salvo, 110);
   await p.click('#btnAutoOrganizar');
   await p.click('#btnDescartar');
   await menuConfig(p, 'btnEditar');
   assert.strictEqual(await p.isVisible('#barraEdicao'), false);
+
+  // Quem abre o app depois (sem login) vê o ajuste salvo, mas não pode ajustar.
+  await p.evaluate(() => sessionStorage.clear());
+  await p.reload();
+  await p.waitForFunction(() => typeof App !== 'undefined' && App.estado.dados && App.estado.dados.ciclos.length);
+  assert.strictEqual(await estado(p, () => App.estado.dados.plantas.find((x) => x.id === App.estado.planta).loja.escalaEtiquetas), 110);
+  await p.click('#btnConfig');
+  assert.strictEqual(await p.isVisible('#btnEditar'), false);
 });
 
 test('Construir loja: adicionar, desfazer e salvar um móvel', async (t) => {

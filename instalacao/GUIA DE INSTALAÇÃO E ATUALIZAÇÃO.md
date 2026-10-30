@@ -38,6 +38,7 @@ Este guia é para quem **já usa o app no Apps Script e já tem a planilha com o
 - **Analytics e tela do móvel:** sem o aviso *Página em construção*.
 - **Editar um ciclo publicado:** com o login da *Construção*, o botão *Editar ciclo* (no painel, com um ciclo publicado na tela) abre o painel de construção no próprio ciclo; o que mudar vai direto para as abas *Movimentos*, *Painéis* e *Tipos de movimento* e vale na hora para todos.
 - **Prateleiras e briefing:** o desenho das prateleiras vale sempre para todas as ERs que têm o espaço. O briefing (PDF) passa a levar todos os móveis desenhados, numera os blocos 1, 2, 3… em cada espaço e traz uma tabelinha por espaço e movimento (bloco, SKU, frentes e observação); o meio dividido da gôndola aparece com as metades juntas, só com um pontilhado.
+- **Ajustar etiquetas só com login:** o item aparece na engrenagem só para quem entrou na *Validação*, na *Construção* ou no *Modo desenvolvedor*. O que for salvo vai para a aba *Layout* e aparece para todos que abrirem o app depois; o *Construir loja* não apaga esses ajustes.
 - **Briefing só na construção:** o botão do briefing saiu do topo; agora é *Baixar briefing (PDF)*, na seção *Construção das prateleiras* da tela do móvel, só para quem entrou na *Construção*.
 - **Topo:** *Copiar link* fica no topo. *Abrir planilha* saiu da engrenagem: a planilha se abre pelo painel do desenvolvedor.
 - **Símbolo por etiqueta:** cada etiqueta pode ter o seu símbolo (🔒, Ⓔ, NEW ou ⏩ antecipação). Com a antecipação, entra também a data, que aparece ao lado do ⏩ na planta. Na planilha, são as colunas novas *Símbolo Etiqueta 1…4* e *Data Etiqueta 1…4* da aba *Movimentos*, criadas sozinhas na primeira aprovação (ou acrescente à mão, com esses títulos).
@@ -193,7 +194,7 @@ Abra o link do app e confira:
 
 - [ ] Aparece o convite **"Bem-vindo ao Plano de Varejo"**. Ele aparece uma vez por navegador. Faça o tour ou clique em *Agora não*.
 - [ ] O seletor de ciclo mostra os **seus** ciclos e a planta abre com as cores e as etiquetas.
-- [ ] O topo tem **Comunicações ER**, **Analytics** e **Calendário** em destaque. A **engrenagem** mostra *Validação*, *Construção*, *Ajustar etiquetas*, *Modo noturno*, *Ver o tutorial* e *Modo desenvolvedor*. O *Modo desenvolvedor* pede a senha `desenvolvedor_exposicao` (outra senha não entra) e abre o painel, com a faixa *Modo desenvolvedor* no alto da tela.
+- [ ] O topo tem **Comunicações ER**, **Analytics** e **Calendário** em destaque. A **engrenagem** mostra *Validação*, *Construção*, *Modo noturno*, *Ver o tutorial* e *Modo desenvolvedor* (e *Ajustar etiquetas* depois de entrar em um deles). O *Modo desenvolvedor* pede a senha `desenvolvedor_exposicao` (outra senha não entra) e abre o painel, com a faixa *Modo desenvolvedor* no alto da tela.
 - [ ] O seletor de ciclo não tem mais *Ciclo exemplo*, *Ciclo exemplo cheio* nem *Sem ciclo (planta limpa)*.
 - [ ] No painel, *Construção da loja* tem *Construir loja*, *Baixar planilha base* e *Importar planilha*; *Plantas* mostra as suas plantas na ordem da cascata; *Cascata entre ERs* mostra as regras da ponta B da gôndola 1 e da gôndola 2 → gôndola 3.
 - [ ] O **Analytics** mostra o mapa movimento × ER e as marcas e classificações em cada ER. A classificação e o GMV só aparecem para os movimentos que estão na aba *Tipos de movimento*.

@@ -190,7 +190,8 @@
       return executarPrateleiras_(ioRascunhos(), acesso, pedido);
     },
 
-    salvarAjustesEtiquetas(planta, ajustes) {
+    salvarAjustesEtiquetas(acesso, planta, ajustes) {
+      conferirAjusteEtiquetas_(acesso);
       planta = normPlanta_(planta);
       if (!planta || !ajustes || typeof ajustes !== 'object') throw new Error('Dados inválidos.');
       const abas = ler();

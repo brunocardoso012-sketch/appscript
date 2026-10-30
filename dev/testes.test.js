@@ -125,7 +125,11 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.equal(Object.keys(d2.movimentos['Ciclo exemplo']['02']).length, 11, 'outras plantas intactas');
   assert.equal(d2.paineis['C15/2026'].TODAS[0].secao, 'TV');
 
-  const aj = run("salvarAjustesEtiquetas('2', { 'PIRAMIDE 1': { x: 40.4, y: -12 } })");
+  // Só o validador, o construtor ou o Desenvolvedor ajustam as etiquetas.
+  assert.throws(() => run("salvarAjustesEtiquetas(null, '2', { 'PIRAMIDE 1': { x: 1, y: 1 } })"), /Entre na Validação, na Construção ou no modo desenvolvedor/);
+  assert.throws(() => run("salvarAjustesEtiquetas({ senha: 'x' }, '2', { 'PIRAMIDE 1': { x: 1, y: 1 } })"), /Senha incorreta/);
+  assert.throws(() => run("salvarAjustesEtiquetas({ papel: 'VALIDADOR', senha: 'x', nome: 'Ana' }, '2', { 'PIRAMIDE 1': { x: 1, y: 1 } })"), /Senha incorreta/);
+  const aj = run("salvarAjustesEtiquetas({ papel: 'VALIDADOR', senha: 'validacao_exposicao', nome: 'Ana' }, '2', { 'PIRAMIDE 1': { x: 40.4, y: -12 } })");
   assert.equal(aj.atualizados, 1);
   const d3 = run('getDados()');
   const pir = d3.plantas.find((p) => p.id === '02').moveis.find((m) => m.id === 'PIRAMIDE 1');
@@ -133,12 +137,12 @@ test('configurar → importar → salvar ajustes (planilha vinculada)', () => {
   assert.equal(pir.ajusteY, -12);
 
   // Cada pilha da gôndola se move sozinha (por cima do ajuste do móvel inteiro).
-  run("salvarAjustesEtiquetas('01', { 'GONDOLA 1/PONTA-A': { x: 15, y: -8 }, 'gondola 1/meio-b+ponta-b': { x: -20, y: 30 } })");
+  run("salvarAjustesEtiquetas({ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }, '01', { 'GONDOLA 1/PONTA-A': { x: 15, y: -8 }, 'gondola 1/meio-b+ponta-b': { x: -20, y: 30 } })");
   let g1 = run('getDados()').plantas.find((p) => p.id === '01').moveis.find((m) => m.id === 'GONDOLA 1');
   assert.deepEqual([g1.ajusteX, g1.ajusteY], [0, 0], 'ajuste do móvel inteiro não muda');
   const esp = JSON.parse(JSON.stringify(g1.ajustesEspacos));
   assert.deepEqual([esp['PONTA-A'], esp['MEIO-B+PONTA-B']], [{ x: 15, y: -8 }, { x: -20, y: 30 }]);
-  run("salvarAjustesEtiquetas('01', { 'GONDOLA 1': { x: 0, y: 0 }, 'GONDOLA 1/PONTA-A': { x: 0, y: 0 } })"); // organizar
+  run("salvarAjustesEtiquetas({ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }, '01', { 'GONDOLA 1': { x: 0, y: 0 }, 'GONDOLA 1/PONTA-A': { x: 0, y: 0 } })"); // organizar
   g1 = run('getDados()').plantas.find((p) => p.id === '01').moveis.find((m) => m.id === 'GONDOLA 1');
   const esp2 = JSON.parse(JSON.stringify(g1.ajustesEspacos));
   assert.ok(!esp2['PONTA-A'], 'pilha zerada volta ao automático');
@@ -699,7 +703,7 @@ test('planilha separada para o layout: criar, ler e gravar nela, vincular e volt
   // Construir loja e Ajustar etiquetas gravam na planilha separada.
   const layout = "{ loja: { largura: 10, profundidade: 8, alturaParede: 3 }, moveis: [{ id: 'PIRAMIDE 1', tipo: 'PIRAMIDE', x: 1, y: 1, w: 1, d: 1, h: 2 }] }";
   run(`salvarLayout(${DEV}, '01', ${layout})`);
-  run("salvarAjustesEtiquetas('01', { 'PIRAMIDE 1': { x: 5, y: 6 } })");
+  run("salvarAjustesEtiquetas({ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }, '01', { 'PIRAMIDE 1': { x: 5, y: 6 } })");
   assert.ok(!f.planilha.getSheetByName('Layout'));
   const p1 = run('getDados()').plantas.find((p) => p.id === '01');
   assert.deepEqual(p1.moveis.map((m) => [m.id, m.ajusteX, m.ajusteY]), [['PIRAMIDE 1', 5, 6]]);
@@ -998,10 +1002,22 @@ test('tamanho das etiquetas da planta fica na linha LOJA do Layout', () => {
   const { run } = carregarGas(f.globais);
   configurarComExemplo(run);
   assert.equal(run('getDados()').plantas[0].loja.escalaEtiquetas, 100);
-  run("salvarAjustesEtiquetas('01', { LOJA: { escala: 140 }, 'PIRAMIDE 1': { x: 3, y: 4 } })");
+  run("salvarAjustesEtiquetas({ papel: 'CONSTRUTOR', senha: 'construcao_exposicao', nome: 'Bia' }, '01', { LOJA: { escala: 140 }, 'PIRAMIDE 1': { x: 3, y: 4 } })");
   const p = run('getDados()').plantas[0];
   assert.equal(p.loja.escalaEtiquetas, 140);
   assert.deepEqual([p.moveis.find((m) => m.id === 'PIRAMIDE 1').ajusteX, run('getDados()').plantas[1].loja.escalaEtiquetas], [3, 100]);
+  // O desenvolvedor também ajusta. O Construir loja (que grava a planta inteira com o que estava na tela) não apaga
+  // os ajustes de etiqueta salvos depois por outra pessoa; o móvel novo leva o da tela.
+  run(`salvarAjustesEtiquetas(${DEV}, '01', { 'PIRAMIDE 1': { x: 7, y: 8 } })`);
+  const layout = "{ loja: { largura: 10, profundidade: 8, alturaParede: 3, escalaEtiquetas: 100 }, moveis: ["
+    + "{ id: 'PIRAMIDE 1', tipo: 'PIRAMIDE', x: 1, y: 1, w: 1, d: 1, h: 2, ajusteX: 0, ajusteY: 0 },"
+    + "{ id: 'PIRAMIDE 9', tipo: 'PIRAMIDE', x: 4, y: 4, w: 1, d: 1, h: 2, ajusteX: 11, ajusteY: 12 }] }";
+  run(`salvarLayout(${DEV}, '01', ${layout})`);
+  const depois = run('getDados()').plantas[0];
+  const mv = (id) => depois.moveis.find((m) => m.id === id);
+  assert.deepEqual([mv('PIRAMIDE 1').ajusteX, mv('PIRAMIDE 1').ajusteY, mv('PIRAMIDE 1').x], [7, 8, 1], 'o ajuste salvo fica; a posição do móvel muda');
+  assert.deepEqual([mv('PIRAMIDE 9').ajusteX, mv('PIRAMIDE 9').ajusteY], [11, 12]);
+  assert.equal(depois.loja.escalaEtiquetas, 140, 'o tamanho das etiquetas da planta fica');
   assert.equal(run("normTamanhoEtiquetas_('500%')"), 250);
   assert.equal(run("normTamanhoEtiquetas_('')"), 100);
 });

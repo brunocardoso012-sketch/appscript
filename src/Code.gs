@@ -378,12 +378,15 @@ function verificarImportacao_(valoresLayout, prep) {
 }
 
 /**
- * Grava a posição manual das etiquetas (arrastadas na tela) na aba Layout.
+ * Grava a posição manual das etiquetas (arrastadas na tela) na aba Layout: vale para todos que abrirem o app
+ * depois. Só o validador, o construtor da estratégia ou o Desenvolvedor (conferirAjusteEtiquetas_).
+ * @param {Object} acesso  o da Validação / Construção ({papel, senha, nome}) ou o do Desenvolvedor ({senha})
  * @param {string} planta
  * @param {Object<string, {x:number, y:number}>} ajustes  ID do móvel (ajuste do móvel inteiro) ou
  *   ID da pilha ("GONDOLA 1/PONTA-A", ajuste só daquela pilha) → deslocamento em px.
  */
-function salvarAjustesEtiquetas(planta, ajustes) {
+function salvarAjustesEtiquetas(acesso, planta, ajustes) {
+  conferirAjusteEtiquetas_(acesso);
   planta = normPlanta_(planta);
   if (!planta || !ajustes || typeof ajustes !== 'object') throw new Error('Dados inválidos.');
   const ss = planilha_();
