@@ -154,6 +154,8 @@ Vá em **Implantar › Testar implantações** e abra o link que termina em `/de
 
 Vá em **Implantar › Gerenciar implantações**, clique no **lápis** da implantação ativa, escolha **Versão: Nova versão** e clique em **Implantar**.
 
+Para conferir, abra o link do app e a **engrenagem**: no fim do menu aparece a versão do app (a desta pasta é *Versão 30/10/2026 · 4*).
+
 > ⚠️ **Não** use *Nova implantação*: ela cria um link novo.
 
 ### B5. Preencha "Tipos de movimento" nos seus ciclos
@@ -215,7 +217,7 @@ Se tudo estiver certo, avise os usuários: o link é o mesmo.
 | Sintoma | O que fazer |
 |---|---|
 | Erro *"Identifier 'CONFIG' (ou outro nome) has already been declared"* ao salvar ou abrir | Sobrou um arquivo antigo no projeto. Deixe só o `Código.gs` (e o `appsscript.json`). |
-| A página continua igual à versão antiga | A implantação não foi atualizada (passo B4). Depois de atualizar, recarregue com <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. |
+| A página continua igual à versão antiga | Abra a **engrenagem**: no fim do menu aparece a **versão do app** (ex.: *Versão 30/10/2026 · 4*). Se ela não aparecer ou for outra, o link ainda roda o código antigo: (1) confira se o projeto tem **só** o `Código.gs` (e o `appsscript.json`), sem `Code`, `Index` ou outros arquivos antigos; (2) salve; (3) em **Implantar › Gerenciar implantações**, clique no **lápis**, escolha **Versão: Nova versão** e **Implantar** (salvar o código sozinho não muda o link publicado, e *Nova implantação* cria outro link); (4) recarregue o app com <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. |
 | *"Nenhuma planilha vinculada ao script"* (quem veio do visualizador com outra planilha) | Crie a propriedade do script `SPREADSHEET_ID` com o ID guardado no passo A1. |
 | *Senha incorreta* ao importar ou salvar a planta | A senha do *Desenvolvedor* mudou desde que você entrou: use *Sair do desenvolvedor* e entre de novo. |
 | Ninguém lembra a senha do Desenvolvedor trocada no app | Na planilha, apague a linha `senhas` da aba *Config do app*: voltam as senhas do código. |
