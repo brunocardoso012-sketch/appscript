@@ -902,6 +902,22 @@
   }
   .tela-movel::backdrop { background: var(--superficie); }
   .tela-movel form { height: 100%; display: flex; flex-direction: column; }
+  /*
+   * No modo de construção (login da Construção), a tela do móvel abre ao lado da planta, na metade direita (como o
+   * Analytics): a planta continua à esquerda, com o móvel destacado, e os painéis da direita saem enquanto ela está aberta.
+   */
+  .tela-movel.lateral:not(:modal) {
+    position: static; inset: auto; flex: 0 0 50%; width: 50%; min-width: 0; height: auto; min-height: 0;
+    border-left: 1px solid var(--borda); box-shadow: -8px 0 24px -18px rgba(0, 0, 0, .35);
+  }
+  .tela-movel.lateral .mv-desenho { display: none; } /* o móvel fica destacado na planta */
+  .tela-movel.lateral .mv-topo { padding: 12px 20px; }
+  .tela-movel.lateral .mv-topo h2 { font-size: 22px; }
+  .tela-movel.lateral .mv-aviso { padding: 6px 12px; font-size: 13px; }
+  .tela-movel.lateral .mv-estrategia { padding: 4px 20px 32px; }
+  body.com-movel-lateral .painel-validacao, body.com-movel-lateral .painel-construcao, body.com-movel-lateral .analytics { display: none; }
+  body.com-movel-lateral #slide .movel.selecionado { filter: drop-shadow(0 0 6px rgba(255, 106, 0, .85)); }
+  body.com-movel-lateral #slide .movel.selecionado polygon { stroke-width: 3.4; }
   .mv-topo {
     display: flex; justify-content: space-between; align-items: center; gap: 16px;
     padding: 18px clamp(16px, 4vw, 48px); border-bottom: 1px solid var(--borda);
@@ -1432,6 +1448,9 @@
     body.com-painel-validacao .area-planta, body.com-painel-validacao #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     .painel-espaco { flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--borda); overflow: visible; }
     .esp-topo { position: static; }
+    body.com-movel-lateral .palco { flex-direction: column; }
+    body.com-movel-lateral .area-planta, body.com-movel-lateral #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
+    .tela-movel.lateral:not(:modal) { flex: 0 0 auto; width: auto; border-left: 0; border-top: 1px solid var(--borda); }
   }
 
   /* ---------- tutorial guiado ---------- */

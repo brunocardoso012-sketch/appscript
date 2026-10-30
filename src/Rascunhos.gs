@@ -156,7 +156,10 @@ function listaCurta_(itens) {
  *  - devolver:       { acao, ciclo, planta, motivo }   validador: volta para construção, com um comentário;
  *  - aprovar:        { acao, ciclo }                  publicar (validador ou construtor; em construção ou enviado):
  *                    as linhas vão para as abas publicadas (todos os tipos cadastrados vão para a aba Tipos de
- *                    movimento, mesmo os que nenhum espaço usa). Em construção, confere os espaços como no envio.
+ *                    movimento, mesmo os que nenhum espaço usa). Em construção, confere os espaços como no envio;
+ *  - despublicar:    { acao, ciclo }                  converter um ciclo publicado em rascunho (validador ou construtor):
+ *                    as linhas dele saem das abas publicadas e voltam para as de rascunho, e o ciclo volta a ficar
+ *                    em construção (as prateleiras, os comentários e as antecipações continuam, pelo nome do ciclo).
  * @param {Object} abas  matrizes (com cabeçalho) de cada campo de abasRascunho_()
  * @param {{papel, autor}} quem  resultado de conferirAcesso_
  * @return {{abas: Object, gravar: string[]}} gravar: campos das abas que mudaram
@@ -360,7 +363,39 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     return { abas: novas, gravar: gravar };
   }
 
+  if (p.acao === 'despublicar') {
+    if (quem.papel !== 'VALIDADOR' && quem.papel !== 'CONSTRUTOR') throw new Error('Entre na Validação ou na Construção para converter o ciclo em rascunho.');
+    if (atual) throw new Error('O ciclo "' + ciclo + '" já está em construção.');
+    if (!ciclosPublicados_(abas)[ciclo]) throw new Error('O ciclo "' + ciclo + '" não está publicado. Clique em Atualizar.');
+    // O caminho inverso da publicação: as linhas do ciclo voltam para as abas de rascunho (substituindo o que houver
+    // lá do mesmo nome) e saem das publicadas; as dos outros ciclos ficam como estão, com os valores originais.
+    const movimentos = objs('movimentos').filter(doCiclo);
+    const tipos = objs('tipos').filter(doCiclo);
+    // Os tipos que os espaços usam e não estavam cadastrados entram sem GMV (como na cópia de um ciclo).
+    const doRascunho = { rMovimentos: movimentos, rPaineis: objs('paineis').filter(doCiclo), rTipos: tipos.concat(tiposQueFaltam_(ciclo, movimentos, tipos)) };
+    [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
+      trocar(x[1], semCiclo(x[1]).concat(doRascunho[x[1]]));
+      if (objs(x[0]).some(doCiclo)) {
+        novas[x[0]] = matrizSemCiclo_(abas[x[0]], defs[x[0]].colunas, ciclo);
+        gravar.push(x[0]);
+      }
+    });
+    // A linha da aprovação fica como histórico; o ciclo ganha uma linha nova, em construção.
+    trocar('rascunhos', rascunhos.concat([{
+      ciclo: ciclo, status: 'EM_CONSTRUCAO', origem: 'Convertido do ciclo publicado', criadoPor: quem.autor, criadoEm: quando,
+    }]));
+    return { abas: novas, gravar: gravar };
+  }
+
   throw new Error('Ação inválida.');
+}
+
+/** Matriz sem as linhas de um ciclo; as outras linhas (e o cabeçalho) ficam como estão, com os valores originais. */
+function matrizSemCiclo_(matriz, colunas, ciclo) {
+  if (!matriz || !matriz.length) return matriz;
+  const i = acharColuna_(matriz[0].map(chave_), colunas.filter(function (c) { return c.chave === 'ciclo'; })[0]);
+  if (i < 0) return matriz;
+  return [matriz[0]].concat(matriz.slice(1).filter(function (row) { return texto_((row || [])[i]) !== ciclo; }));
 }
 
 /**

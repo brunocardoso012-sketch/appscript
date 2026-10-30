@@ -247,11 +247,14 @@ const Rascunho = (() => {
     app.desenhar();
   }
 
-  /** Grava um pedido; com "aprovar", recarrega os ciclos publicados (o novo passa a estar lá). */
+  /**
+   * Grava um pedido; com "aprovar" ou "despublicar", recarrega os ciclos publicados (o ciclo entra ou sai deles)
+   * e a tela fica no mesmo ciclo.
+   */
   async function salvar(pedido, mensagem) {
     try {
       const r = await app.chamar('salvarRascunho', acesso(), pedido);
-      if (pedido.acao === 'aprovar') {
+      if (pedido.acao === 'aprovar' || pedido.acao === 'despublicar') {
         dados = r;
         lista = r.rascunhos || [];
         await app.carregar({ ciclo: pedido.ciclo });
@@ -327,6 +330,15 @@ const Rascunho = (() => {
     const topo = n('div', 'rs-secao-topo', null, sec);
     n('h3', null, 'Ciclos em construção', topo);
     if (papel() === 'CONSTRUTOR') botao('Novo ciclo', 'primario', novoCiclo, topo);
+    const publicado = publicadoDaTela();
+    if (publicado && (papel() === 'CONSTRUTOR' || papel() === 'VALIDADOR')) {
+      const item = n('div', 'rs-item rs-publicado', null, sec);
+      const txt = n('div', 'rs-item-txt', null, item);
+      n('strong', null, publicado, txt);
+      n('span', null, 'publicado · na tela', txt);
+      const b = botao('Converter ciclo em rascunho', '', () => converterEmRascunho(publicado), item);
+      b.title = 'Tira o ciclo das abas principais da planilha e devolve tudo dele para as abas de rascunho, para editar de novo';
+    }
     if (!lista.length) {
       n('p', 'val-dica', papel() === 'CONSTRUTOR'
         ? 'Monte um ciclo novo direto na planta: ele só entra na planilha, junto com os outros, depois que o validador aprovar.'
@@ -340,6 +352,28 @@ const Rascunho = (() => {
       n('span', null, 'por ' + r.criadoPor + (r.origem ? ' · cópia de ' + r.origem : ''), txt);
       n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, item);
       if (r.ciclo !== app.estado.ciclo) botao('Abrir', '', () => abrir(r.ciclo), item);
+    });
+  }
+
+  /** O ciclo da tela, se for um ciclo publicado (e não um em construção). */
+  function publicadoDaTela() {
+    const e = app.estado;
+    return e.ciclo && e.dados && e.dados.ciclos.indexOf(e.ciclo) >= 0 && !doCiclo(e.ciclo) ? e.ciclo : '';
+  }
+
+  /**
+   * Converter um ciclo publicado em rascunho (construtor ou validador): o caminho inverso do "Publicar ciclo". As
+   * linhas dele saem das abas Movimentos, Painéis e Tipos de movimento e voltam para as abas de rascunho, e o
+   * ciclo volta a ficar em construção (só quem entrou na validação vê) até ser publicado de novo.
+   */
+  function converterEmRascunho(ciclo) {
+    if (!window.confirm('Converter ' + ciclo + ' em rascunho? Ele sai das abas principais da planilha, volta para as abas de rascunho '
+      + '(espaços, Comunicações ER e Tipos de movimento) e deixa de aparecer para todos até ser publicado de novo.')) return;
+    salvar({ acao: 'despublicar', ciclo }, 'Ciclo ' + ciclo + ' convertido em rascunho (em construção).').then((ok) => {
+      if (!ok) return;
+      verComentarios = false;
+      selecao = '';
+      app.desenhar();
     });
   }
 

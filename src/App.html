@@ -630,7 +630,7 @@ const App = (() => {
         if (semConteudo) p.CALLOUT = [];
         return p;
       },
-      selecionado: construcao ? construcao.selecionado : Rascunho.selecionado(),
+      selecionado: construcao ? construcao.selecionado : movelLateral ? movelLateral.id : Rascunho.selecionado(),
       // Meios de gôndola que o construtor dividiu no ciclo em construção (as metades ainda vazias).
       meiosDivididos: construcao ? null : (id) => Rascunho.meiosDivididos(estado.ciclo, planta.id, id),
       grade: construcao ? construcao.grade : false,
@@ -644,6 +644,7 @@ const App = (() => {
   let cicloDaLegenda = null; // os filtros de tipo e de movimento mostram os movimentos deste ciclo
 
   function desenhar() {
+    acompanharMovelLateral();
     const ctx = contextoDesenho();
     if (!ctx) return;
     if (estado.ciclo !== cicloDaLegenda) { cicloDaLegenda = estado.ciclo; montarLegenda(); }
@@ -828,13 +829,15 @@ const App = (() => {
       const marcador = ev.target.closest('.marcador-comentario');
       if (marcador) { Validacao.focar(marcador.getAttribute('data-movel')); return; }
       const alvo = ev.target.closest('[data-movel]');
-      if (!alvo) { Rascunho.aoClicarMovel(''); return; } // no piso: tira a seleção da construção
+      if (!alvo) { if (!movelLateral) Rascunho.aoClicarMovel(''); return; } // no piso: tira a seleção da construção
       const bruto = alvo.getAttribute('data-movel');
       const id = bruto.split('/')[0];
       // Espaço clicado (gôndola, mesas, totem, make): o do desenho ou o da pilha de etiquetas.
       const espaco = (alvo.getAttribute('data-espaco') || (bruto.indexOf('/') >= 0 ? bruto.split('/')[1] : '')).split(/[+ ]/)[0];
       // "Escolher na planta" da antecipação; construindo um ciclo, o clique seleciona o móvel para editar na lateral.
       if (Antecipacao.aoClicarMovel(id, espaco)) return;
+      // Com a tela do móvel na lateral, o clique troca o móvel dela (com a edição das prateleiras salva ou descartada).
+      if (movelLateral) { if (id !== movelLateral.id && Prateleira.podeFechar()) abrirMovel(id); return; }
       if (!Validacao.aoClicarMovel(id) && !Rascunho.aoClicarMovel(id)) abrirMovel(id);
     });
   }
@@ -2200,12 +2203,21 @@ const App = (() => {
     return planogramaDe(m, mov, linha, temLinha, detalhe);
   }
 
+  /** Móvel aberto na tela do móvel ao lado da planta (modo de construção): { id, planta, ciclo }, ou null. */
+  let movelLateral = null;
+
+  /**
+   * Abre a estratégia do móvel. Para todo mundo, numa tela inteira, com o desenho do móvel no topo; no modo de
+   * construção (o construtor, num ciclo que ele pode editar), ao lado da planta, sem o desenho: o móvel fica
+   * destacado na planta, que continua à esquerda (um clique em outro móvel troca o da lateral).
+   */
   function abrirMovel(id) {
     const planta = plantaAtual();
     const m = planta && planta.moveis.find((x) => x.id === id);
     if (!m) return;
     const dlg = $('dlgMovel');
     const ciclo = estado.ciclo;
+    const lateral = Prateleira.podeEditar(ciclo);
     const tipo = (estado.dados.tipos && estado.dados.tipos[m.tipo]) || m.tipo;
 
     $('mvTitulo').textContent = m.id;
@@ -2232,6 +2244,11 @@ const App = (() => {
         limite: b.espaco ? b.limite : (config.etiquetasPorTipo || {})[m.tipo],
       }));
     }
+    if (lateral) {
+      abrirMovelNaLateral(dlg, m.id);
+      return;
+    }
+    if (movelLateral) fecharMovelLateral();
     if (!dlg.open) dlg.showModal();
     // O desenho precisa da tela visível para medir o móvel (getBBox).
     const desenho = $('mvDesenho');
@@ -2239,6 +2256,46 @@ const App = (() => {
       desenho.hidden = !desenharMovelSozinho(desenho, planta, m.id);
     } catch (e) {
       desenho.hidden = true;
+    }
+  }
+
+  /** Mostra a tela do móvel ao lado da planta (não modal) e destaca o móvel na planta. */
+  function abrirMovelNaLateral(dlg, id) {
+    if (dlg.open && dlg.matches(':modal')) dlg.close();
+    const antes = movelLateral;
+    movelLateral = { id, planta: estado.planta, ciclo: estado.ciclo };
+    dlg.classList.add('lateral');
+    document.body.classList.add('com-movel-lateral');
+    if (!dlg.open) dlg.show();
+    if (!antes || antes.id !== id) desenhar(); // o destaque (e a planta, mais estreita)
+  }
+
+  /** Fecha a tela do móvel da lateral: a planta volta à largura toda, sem o destaque. */
+  function fecharMovelLateral() {
+    const dlg = $('dlgMovel');
+    movelLateral = null;
+    if (dlg.open) dlg.close();
+    dlg.classList.remove('lateral');
+    document.body.classList.remove('com-movel-lateral');
+    desenhar();
+  }
+
+  /**
+   * Com a tela do móvel na lateral, a ER ou o ciclo da tela mudou: mostra o mesmo móvel na ER e no ciclo novos
+   * (ou fecha, se a ER não tem esse móvel ou se o ciclo não pode mais ser editado).
+   */
+  function acompanharMovelLateral() {
+    if (!movelLateral) return;
+    const pode = Prateleira.podeEditar(estado.ciclo); // saiu da Construção, ou o ciclo foi enviado: fecha
+    if (pode && movelLateral.planta === estado.planta && movelLateral.ciclo === estado.ciclo) return;
+    const planta = plantaAtual();
+    if (pode && planta && planta.moveis.some((x) => x.id === movelLateral.id)) {
+      movelLateral.planta = estado.planta;
+      movelLateral.ciclo = estado.ciclo;
+      abrirMovel(movelLateral.id);
+    } else {
+      movelLateral = null;
+      $('dlgMovel').close();
     }
   }
 
@@ -2947,8 +3004,13 @@ const App = (() => {
     // Setas ← → trocam de planta (útil ao apresentar).
     document.addEventListener('keydown', (e) => {
       if (!estado.dados) return;
-      if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
+      // A tela do móvel na lateral não é um diálogo por cima da planta: o zoom e as setas continuam valendo.
+      if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]:not(.lateral)')) return;
       if (Editor.ativo()) { Editor.tecla(e); return; }
+      if (movelLateral && e.key === 'Escape') {
+        if (!document.querySelector('.tut-foco') && Prateleira.podeFechar()) $('dlgMovel').close();
+        return;
+      }
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.key === 'f' || e.key === 'F') { alternarApresentacao(); return; }
       if (e.key === 'Escape' && document.body.classList.contains('apresentando')) { alternarApresentacao(false); return; }
@@ -3056,6 +3118,12 @@ const App = (() => {
     estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,
     acesso: () => Validacao.acesso(),
     rascunhos: () => Rascunho.lista(),
+  });
+  // Fechou a tela do móvel da lateral (Fechar, Esc ou a troca de ER): a planta volta à largura toda, sem o destaque.
+  $('dlgMovel').addEventListener('close', () => {
+    const dlg = $('dlgMovel');
+    if (dlg.open || !dlg.classList.contains('lateral')) return;
+    fecharMovelLateral();
   });
   // Na primeira visita, depois de carregar, oferece o tutorial guiado.
   // O link (#ciclo=…&er=…) escolhe ciclo, ER, visão e filtros; sem link, abre como sempre.

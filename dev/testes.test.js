@@ -867,6 +867,28 @@ test('ciclo em construção: criar, editar, enviar, devolver e publicar', () => 
   assert.equal(run(`lerAba_(planilha_(), '${'Rascunhos'}', true)`)[1][1], 'APROVADO', 'histórico na aba Rascunhos');
   assert.throws(() => salvar(C, { acao: 'criar', ciclo: 'C11' }), /Já existe/);
 
+  // Converter em rascunho (o caminho inverso): tudo do ciclo volta para as abas de rascunho, em construção.
+  assert.throws(() => run("salvarRascunho({ papel: 'VALIDADOR', senha: 'x', nome: 'Ana' }, { acao: 'despublicar', ciclo: 'C11' })"), /Senha incorreta/);
+  assert.throws(() => salvar(C, { acao: 'despublicar', ciclo: 'Não existe' }), /não está publicado/);
+  const publicadoC11 = run('getDados()');
+  r = salvar(V, { acao: 'despublicar', ciclo: 'C11' });
+  assert.deepEqual(r.rascunhos.map((x) => [x.ciclo, x.status, x.criadoPor]), [['C11', 'EM_CONSTRUCAO', 'Ana']]);
+  assert.deepEqual(r.movimentos.C11, publicadoC11.movimentos.C11);
+  assert.deepEqual(r.paineis.C11, publicadoC11.paineis.C11);
+  assert.deepEqual(r.tiposMovimento.C11, publicadoC11.tiposMovimento.C11);
+  let dr = run('getDados()');
+  assert.ok(!dr.ciclos.includes('C11') && dr.ciclos.includes('Ciclo exemplo'), 'sai das abas publicadas');
+  assert.deepEqual(dr.movimentos['Ciclo exemplo'], exemplo.movimentos['Ciclo exemplo'], 'os outros ciclos ficam como estavam');
+  assert.deepEqual(dr.tiposMovimento['Ciclo exemplo'], exemplo.tiposMovimento['Ciclo exemplo']);
+  assert.throws(() => salvar(C, { acao: 'despublicar', ciclo: 'C11' }), /já está em construção/);
+  // Volta a ser editado e publicado de novo, com o mesmo nome.
+  r = salvar(C, { acao: 'salvarEspaco', ciclo: 'C11', planta: '01', movel: 'PIRAMIDE 1', linha: { marca: 'BOT', etiquetas: [{ texto: 'BOTIPROMO' }] } });
+  r = salvar(C, { acao: 'aprovar', ciclo: 'C11' });
+  dr = run('getDados()');
+  assert.ok(dr.ciclos.includes('C11'));
+  assert.equal(dr.movimentos.C11['01']['PIRAMIDE 1'].marca, 'BOT');
+  assert.equal(dr.tiposMovimento.C11.BOTIPROMO.gmv, 1500000);
+
   // Em branco: precisa dos tipos antes de enviar; excluir.
   r = salvar(C, { acao: 'criar', ciclo: 'C12' });
   assert.deepEqual([r.rascunhos.length, r.movimentos.C12], [1, undefined]);

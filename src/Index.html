@@ -218,6 +218,26 @@
         </header>
         <div id="calCorpo" class="cal-corpo"></div>
       </section>
+      <!-- Tela do móvel (App.abrirMovel): na tela inteira; no modo de construção, ao lado da planta (classe "lateral"). -->
+      <dialog id="dlgMovel" class="tela-movel">
+        <form method="dialog">
+          <div class="mv-aviso" role="note">
+            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2.5 18.5 17h-17z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 8v4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1" fill="currentColor"/></svg>
+            <span>Página em construção</span>
+          </div>
+          <header class="mv-topo">
+            <div>
+              <h2 id="mvTitulo"></h2>
+              <p id="mvSub"></p>
+            </div>
+            <button class="btn" value="ok" type="submit" title="Fechar (Esc)">Fechar ✕</button>
+          </header>
+          <div class="mv-corpo">
+            <svg id="mvDesenho" class="mv-desenho" role="img" aria-label="Desenho do móvel"></svg>
+            <div id="mvEstrategia" class="mv-estrategia"></div>
+          </div>
+        </form>
+      </dialog>
       <aside class="painel-espaco painel-validacao" id="painelValidacao" hidden aria-label="Validação da estratégia">
         <header class="esp-topo">
           <div>
@@ -438,26 +458,6 @@
         <div class="rodape-dialogo">
           <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
           <button class="btn primario" id="briefingBaixar" value="baixar" type="submit">Baixar PDF</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="dlgMovel" class="tela-movel">
-      <form method="dialog">
-        <div class="mv-aviso" role="note">
-          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2.5 18.5 17h-17z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 8v4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1" fill="currentColor"/></svg>
-          <span>Página em construção</span>
-        </div>
-        <header class="mv-topo">
-          <div>
-            <h2 id="mvTitulo"></h2>
-            <p id="mvSub"></p>
-          </div>
-          <button class="btn" value="ok" type="submit" title="Fechar (Esc)">Fechar ✕</button>
-        </header>
-        <div class="mv-corpo">
-          <svg id="mvDesenho" class="mv-desenho" role="img" aria-label="Desenho do móvel"></svg>
-          <div id="mvEstrategia" class="mv-estrategia"></div>
         </div>
       </form>
     </dialog>

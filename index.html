@@ -911,6 +911,22 @@
   }
   .tela-movel::backdrop { background: var(--superficie); }
   .tela-movel form { height: 100%; display: flex; flex-direction: column; }
+  /*
+   * No modo de construção (login da Construção), a tela do móvel abre ao lado da planta, na metade direita (como o
+   * Analytics): a planta continua à esquerda, com o móvel destacado, e os painéis da direita saem enquanto ela está aberta.
+   */
+  .tela-movel.lateral:not(:modal) {
+    position: static; inset: auto; flex: 0 0 50%; width: 50%; min-width: 0; height: auto; min-height: 0;
+    border-left: 1px solid var(--borda); box-shadow: -8px 0 24px -18px rgba(0, 0, 0, .35);
+  }
+  .tela-movel.lateral .mv-desenho { display: none; } /* o móvel fica destacado na planta */
+  .tela-movel.lateral .mv-topo { padding: 12px 20px; }
+  .tela-movel.lateral .mv-topo h2 { font-size: 22px; }
+  .tela-movel.lateral .mv-aviso { padding: 6px 12px; font-size: 13px; }
+  .tela-movel.lateral .mv-estrategia { padding: 4px 20px 32px; }
+  body.com-movel-lateral .painel-validacao, body.com-movel-lateral .painel-construcao, body.com-movel-lateral .analytics { display: none; }
+  body.com-movel-lateral #slide .movel.selecionado { filter: drop-shadow(0 0 6px rgba(255, 106, 0, .85)); }
+  body.com-movel-lateral #slide .movel.selecionado polygon { stroke-width: 3.4; }
   .mv-topo {
     display: flex; justify-content: space-between; align-items: center; gap: 16px;
     padding: 18px clamp(16px, 4vw, 48px); border-bottom: 1px solid var(--borda);
@@ -1441,6 +1457,9 @@
     body.com-painel-validacao .area-planta, body.com-painel-validacao #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
     .painel-espaco { flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--borda); overflow: visible; }
     .esp-topo { position: static; }
+    body.com-movel-lateral .palco { flex-direction: column; }
+    body.com-movel-lateral .area-planta, body.com-movel-lateral #slide { flex: 0 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
+    .tela-movel.lateral:not(:modal) { flex: 0 0 auto; width: auto; border-left: 0; border-top: 1px solid var(--borda); }
   }
 
   /* ---------- tutorial guiado ---------- */
@@ -4940,7 +4959,10 @@ function listaCurta_(itens) {
  *  - devolver:       { acao, ciclo, planta, motivo }   validador: volta para construção, com um comentário;
  *  - aprovar:        { acao, ciclo }                  publicar (validador ou construtor; em construção ou enviado):
  *                    as linhas vão para as abas publicadas (todos os tipos cadastrados vão para a aba Tipos de
- *                    movimento, mesmo os que nenhum espaço usa). Em construção, confere os espaços como no envio.
+ *                    movimento, mesmo os que nenhum espaço usa). Em construção, confere os espaços como no envio;
+ *  - despublicar:    { acao, ciclo }                  converter um ciclo publicado em rascunho (validador ou construtor):
+ *                    as linhas dele saem das abas publicadas e voltam para as de rascunho, e o ciclo volta a ficar
+ *                    em construção (as prateleiras, os comentários e as antecipações continuam, pelo nome do ciclo).
  * @param {Object} abas  matrizes (com cabeçalho) de cada campo de abasRascunho_()
  * @param {{papel, autor}} quem  resultado de conferirAcesso_
  * @return {{abas: Object, gravar: string[]}} gravar: campos das abas que mudaram
@@ -5144,7 +5166,39 @@ function aplicarAcaoRascunho_(abas, quem, pedido, agora) {
     return { abas: novas, gravar: gravar };
   }
 
+  if (p.acao === 'despublicar') {
+    if (quem.papel !== 'VALIDADOR' && quem.papel !== 'CONSTRUTOR') throw new Error('Entre na Validação ou na Construção para converter o ciclo em rascunho.');
+    if (atual) throw new Error('O ciclo "' + ciclo + '" já está em construção.');
+    if (!ciclosPublicados_(abas)[ciclo]) throw new Error('O ciclo "' + ciclo + '" não está publicado. Clique em Atualizar.');
+    // O caminho inverso da publicação: as linhas do ciclo voltam para as abas de rascunho (substituindo o que houver
+    // lá do mesmo nome) e saem das publicadas; as dos outros ciclos ficam como estão, com os valores originais.
+    const movimentos = objs('movimentos').filter(doCiclo);
+    const tipos = objs('tipos').filter(doCiclo);
+    // Os tipos que os espaços usam e não estavam cadastrados entram sem GMV (como na cópia de um ciclo).
+    const doRascunho = { rMovimentos: movimentos, rPaineis: objs('paineis').filter(doCiclo), rTipos: tipos.concat(tiposQueFaltam_(ciclo, movimentos, tipos)) };
+    [['movimentos', 'rMovimentos'], ['paineis', 'rPaineis'], ['tipos', 'rTipos']].forEach(function (x) {
+      trocar(x[1], semCiclo(x[1]).concat(doRascunho[x[1]]));
+      if (objs(x[0]).some(doCiclo)) {
+        novas[x[0]] = matrizSemCiclo_(abas[x[0]], defs[x[0]].colunas, ciclo);
+        gravar.push(x[0]);
+      }
+    });
+    // A linha da aprovação fica como histórico; o ciclo ganha uma linha nova, em construção.
+    trocar('rascunhos', rascunhos.concat([{
+      ciclo: ciclo, status: 'EM_CONSTRUCAO', origem: 'Convertido do ciclo publicado', criadoPor: quem.autor, criadoEm: quando,
+    }]));
+    return { abas: novas, gravar: gravar };
+  }
+
   throw new Error('Ação inválida.');
+}
+
+/** Matriz sem as linhas de um ciclo; as outras linhas (e o cabeçalho) ficam como estão, com os valores originais. */
+function matrizSemCiclo_(matriz, colunas, ciclo) {
+  if (!matriz || !matriz.length) return matriz;
+  const i = acharColuna_(matriz[0].map(chave_), colunas.filter(function (c) { return c.chave === 'ciclo'; })[0]);
+  if (i < 0) return matriz;
+  return [matriz[0]].concat(matriz.slice(1).filter(function (row) { return texto_((row || [])[i]) !== ciclo; }));
 }
 
 /**
@@ -6765,6 +6819,26 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
         </header>
         <div id="calCorpo" class="cal-corpo"></div>
       </section>
+      <!-- Tela do móvel (App.abrirMovel): na tela inteira; no modo de construção, ao lado da planta (classe "lateral"). -->
+      <dialog id="dlgMovel" class="tela-movel">
+        <form method="dialog">
+          <div class="mv-aviso" role="note">
+            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2.5 18.5 17h-17z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 8v4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1" fill="currentColor"/></svg>
+            <span>Página em construção</span>
+          </div>
+          <header class="mv-topo">
+            <div>
+              <h2 id="mvTitulo"></h2>
+              <p id="mvSub"></p>
+            </div>
+            <button class="btn" value="ok" type="submit" title="Fechar (Esc)">Fechar ✕</button>
+          </header>
+          <div class="mv-corpo">
+            <svg id="mvDesenho" class="mv-desenho" role="img" aria-label="Desenho do móvel"></svg>
+            <div id="mvEstrategia" class="mv-estrategia"></div>
+          </div>
+        </form>
+      </dialog>
       <aside class="painel-espaco painel-validacao" id="painelValidacao" hidden aria-label="Validação da estratégia">
         <header class="esp-topo">
           <div>
@@ -6985,26 +7059,6 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
         <div class="rodape-dialogo">
           <button class="btn" value="cancelar" type="submit" formnovalidate>Cancelar</button>
           <button class="btn primario" id="briefingBaixar" value="baixar" type="submit">Baixar PDF</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="dlgMovel" class="tela-movel">
-      <form method="dialog">
-        <div class="mv-aviso" role="note">
-          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2.5 18.5 17h-17z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 8v4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1" fill="currentColor"/></svg>
-          <span>Página em construção</span>
-        </div>
-        <header class="mv-topo">
-          <div>
-            <h2 id="mvTitulo"></h2>
-            <p id="mvSub"></p>
-          </div>
-          <button class="btn" value="ok" type="submit" title="Fechar (Esc)">Fechar ✕</button>
-        </header>
-        <div class="mv-corpo">
-          <svg id="mvDesenho" class="mv-desenho" role="img" aria-label="Desenho do móvel"></svg>
-          <div id="mvEstrategia" class="mv-estrategia"></div>
         </div>
       </form>
     </dialog>
@@ -12462,11 +12516,14 @@ const Rascunho = (() => {
     app.desenhar();
   }
 
-  /** Grava um pedido; com "aprovar", recarrega os ciclos publicados (o novo passa a estar lá). */
+  /**
+   * Grava um pedido; com "aprovar" ou "despublicar", recarrega os ciclos publicados (o ciclo entra ou sai deles)
+   * e a tela fica no mesmo ciclo.
+   */
   async function salvar(pedido, mensagem) {
     try {
       const r = await app.chamar('salvarRascunho', acesso(), pedido);
-      if (pedido.acao === 'aprovar') {
+      if (pedido.acao === 'aprovar' || pedido.acao === 'despublicar') {
         dados = r;
         lista = r.rascunhos || [];
         await app.carregar({ ciclo: pedido.ciclo });
@@ -12542,6 +12599,15 @@ const Rascunho = (() => {
     const topo = n('div', 'rs-secao-topo', null, sec);
     n('h3', null, 'Ciclos em construção', topo);
     if (papel() === 'CONSTRUTOR') botao('Novo ciclo', 'primario', novoCiclo, topo);
+    const publicado = publicadoDaTela();
+    if (publicado && (papel() === 'CONSTRUTOR' || papel() === 'VALIDADOR')) {
+      const item = n('div', 'rs-item rs-publicado', null, sec);
+      const txt = n('div', 'rs-item-txt', null, item);
+      n('strong', null, publicado, txt);
+      n('span', null, 'publicado · na tela', txt);
+      const b = botao('Converter ciclo em rascunho', '', () => converterEmRascunho(publicado), item);
+      b.title = 'Tira o ciclo das abas principais da planilha e devolve tudo dele para as abas de rascunho, para editar de novo';
+    }
     if (!lista.length) {
       n('p', 'val-dica', papel() === 'CONSTRUTOR'
         ? 'Monte um ciclo novo direto na planta: ele só entra na planilha, junto com os outros, depois que o validador aprovar.'
@@ -12555,6 +12621,28 @@ const Rascunho = (() => {
       n('span', null, 'por ' + r.criadoPor + (r.origem ? ' · cópia de ' + r.origem : ''), txt);
       n('span', 'rs-status ' + r.status.toLowerCase(), r.nomeStatus, item);
       if (r.ciclo !== app.estado.ciclo) botao('Abrir', '', () => abrir(r.ciclo), item);
+    });
+  }
+
+  /** O ciclo da tela, se for um ciclo publicado (e não um em construção). */
+  function publicadoDaTela() {
+    const e = app.estado;
+    return e.ciclo && e.dados && e.dados.ciclos.indexOf(e.ciclo) >= 0 && !doCiclo(e.ciclo) ? e.ciclo : '';
+  }
+
+  /**
+   * Converter um ciclo publicado em rascunho (construtor ou validador): o caminho inverso do "Publicar ciclo". As
+   * linhas dele saem das abas Movimentos, Painéis e Tipos de movimento e voltam para as abas de rascunho, e o
+   * ciclo volta a ficar em construção (só quem entrou na validação vê) até ser publicado de novo.
+   */
+  function converterEmRascunho(ciclo) {
+    if (!window.confirm('Converter ' + ciclo + ' em rascunho? Ele sai das abas principais da planilha, volta para as abas de rascunho '
+      + '(espaços, Comunicações ER e Tipos de movimento) e deixa de aparecer para todos até ser publicado de novo.')) return;
+    salvar({ acao: 'despublicar', ciclo }, 'Ciclo ' + ciclo + ' convertido em rascunho (em construção).').then((ok) => {
+      if (!ok) return;
+      verComentarios = false;
+      selecao = '';
+      app.desenhar();
     });
   }
 
@@ -14403,7 +14491,7 @@ const Prateleira = (() => {
     });
   }
 
-  return { iniciar, doEspaco, montarSecao, desenharQuadrados, ajustarTextos, podeFechar };
+  return { iniciar, doEspaco, podeEditar, montarSecao, desenharQuadrados, ajustarTextos, podeFechar };
 })();
 </script>
 
@@ -17542,7 +17630,7 @@ const App = (() => {
         if (semConteudo) p.CALLOUT = [];
         return p;
       },
-      selecionado: construcao ? construcao.selecionado : Rascunho.selecionado(),
+      selecionado: construcao ? construcao.selecionado : movelLateral ? movelLateral.id : Rascunho.selecionado(),
       // Meios de gôndola que o construtor dividiu no ciclo em construção (as metades ainda vazias).
       meiosDivididos: construcao ? null : (id) => Rascunho.meiosDivididos(estado.ciclo, planta.id, id),
       grade: construcao ? construcao.grade : false,
@@ -17556,6 +17644,7 @@ const App = (() => {
   let cicloDaLegenda = null; // os filtros de tipo e de movimento mostram os movimentos deste ciclo
 
   function desenhar() {
+    acompanharMovelLateral();
     const ctx = contextoDesenho();
     if (!ctx) return;
     if (estado.ciclo !== cicloDaLegenda) { cicloDaLegenda = estado.ciclo; montarLegenda(); }
@@ -17740,13 +17829,15 @@ const App = (() => {
       const marcador = ev.target.closest('.marcador-comentario');
       if (marcador) { Validacao.focar(marcador.getAttribute('data-movel')); return; }
       const alvo = ev.target.closest('[data-movel]');
-      if (!alvo) { Rascunho.aoClicarMovel(''); return; } // no piso: tira a seleção da construção
+      if (!alvo) { if (!movelLateral) Rascunho.aoClicarMovel(''); return; } // no piso: tira a seleção da construção
       const bruto = alvo.getAttribute('data-movel');
       const id = bruto.split('/')[0];
       // Espaço clicado (gôndola, mesas, totem, make): o do desenho ou o da pilha de etiquetas.
       const espaco = (alvo.getAttribute('data-espaco') || (bruto.indexOf('/') >= 0 ? bruto.split('/')[1] : '')).split(/[+ ]/)[0];
       // "Escolher na planta" da antecipação; construindo um ciclo, o clique seleciona o móvel para editar na lateral.
       if (Antecipacao.aoClicarMovel(id, espaco)) return;
+      // Com a tela do móvel na lateral, o clique troca o móvel dela (com a edição das prateleiras salva ou descartada).
+      if (movelLateral) { if (id !== movelLateral.id && Prateleira.podeFechar()) abrirMovel(id); return; }
       if (!Validacao.aoClicarMovel(id) && !Rascunho.aoClicarMovel(id)) abrirMovel(id);
     });
   }
@@ -19112,12 +19203,21 @@ const App = (() => {
     return planogramaDe(m, mov, linha, temLinha, detalhe);
   }
 
+  /** Móvel aberto na tela do móvel ao lado da planta (modo de construção): { id, planta, ciclo }, ou null. */
+  let movelLateral = null;
+
+  /**
+   * Abre a estratégia do móvel. Para todo mundo, numa tela inteira, com o desenho do móvel no topo; no modo de
+   * construção (o construtor, num ciclo que ele pode editar), ao lado da planta, sem o desenho: o móvel fica
+   * destacado na planta, que continua à esquerda (um clique em outro móvel troca o da lateral).
+   */
   function abrirMovel(id) {
     const planta = plantaAtual();
     const m = planta && planta.moveis.find((x) => x.id === id);
     if (!m) return;
     const dlg = $('dlgMovel');
     const ciclo = estado.ciclo;
+    const lateral = Prateleira.podeEditar(ciclo);
     const tipo = (estado.dados.tipos && estado.dados.tipos[m.tipo]) || m.tipo;
 
     $('mvTitulo').textContent = m.id;
@@ -19144,6 +19244,11 @@ const App = (() => {
         limite: b.espaco ? b.limite : (config.etiquetasPorTipo || {})[m.tipo],
       }));
     }
+    if (lateral) {
+      abrirMovelNaLateral(dlg, m.id);
+      return;
+    }
+    if (movelLateral) fecharMovelLateral();
     if (!dlg.open) dlg.showModal();
     // O desenho precisa da tela visível para medir o móvel (getBBox).
     const desenho = $('mvDesenho');
@@ -19151,6 +19256,46 @@ const App = (() => {
       desenho.hidden = !desenharMovelSozinho(desenho, planta, m.id);
     } catch (e) {
       desenho.hidden = true;
+    }
+  }
+
+  /** Mostra a tela do móvel ao lado da planta (não modal) e destaca o móvel na planta. */
+  function abrirMovelNaLateral(dlg, id) {
+    if (dlg.open && dlg.matches(':modal')) dlg.close();
+    const antes = movelLateral;
+    movelLateral = { id, planta: estado.planta, ciclo: estado.ciclo };
+    dlg.classList.add('lateral');
+    document.body.classList.add('com-movel-lateral');
+    if (!dlg.open) dlg.show();
+    if (!antes || antes.id !== id) desenhar(); // o destaque (e a planta, mais estreita)
+  }
+
+  /** Fecha a tela do móvel da lateral: a planta volta à largura toda, sem o destaque. */
+  function fecharMovelLateral() {
+    const dlg = $('dlgMovel');
+    movelLateral = null;
+    if (dlg.open) dlg.close();
+    dlg.classList.remove('lateral');
+    document.body.classList.remove('com-movel-lateral');
+    desenhar();
+  }
+
+  /**
+   * Com a tela do móvel na lateral, a ER ou o ciclo da tela mudou: mostra o mesmo móvel na ER e no ciclo novos
+   * (ou fecha, se a ER não tem esse móvel ou se o ciclo não pode mais ser editado).
+   */
+  function acompanharMovelLateral() {
+    if (!movelLateral) return;
+    const pode = Prateleira.podeEditar(estado.ciclo); // saiu da Construção, ou o ciclo foi enviado: fecha
+    if (pode && movelLateral.planta === estado.planta && movelLateral.ciclo === estado.ciclo) return;
+    const planta = plantaAtual();
+    if (pode && planta && planta.moveis.some((x) => x.id === movelLateral.id)) {
+      movelLateral.planta = estado.planta;
+      movelLateral.ciclo = estado.ciclo;
+      abrirMovel(movelLateral.id);
+    } else {
+      movelLateral = null;
+      $('dlgMovel').close();
     }
   }
 
@@ -19859,8 +20004,13 @@ const App = (() => {
     // Setas ← → trocam de planta (útil ao apresentar).
     document.addEventListener('keydown', (e) => {
       if (!estado.dados) return;
-      if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]')) return;
+      // A tela do móvel na lateral não é um diálogo por cima da planta: o zoom e as setas continuam valendo.
+      if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]:not(.lateral)')) return;
       if (Editor.ativo()) { Editor.tecla(e); return; }
+      if (movelLateral && e.key === 'Escape') {
+        if (!document.querySelector('.tut-foco') && Prateleira.podeFechar()) $('dlgMovel').close();
+        return;
+      }
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.key === 'f' || e.key === 'F') { alternarApresentacao(); return; }
       if (e.key === 'Escape' && document.body.classList.contains('apresentando')) { alternarApresentacao(false); return; }
@@ -19968,6 +20118,12 @@ const App = (() => {
     estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,
     acesso: () => Validacao.acesso(),
     rascunhos: () => Rascunho.lista(),
+  });
+  // Fechou a tela do móvel da lateral (Fechar, Esc ou a troca de ER): a planta volta à largura toda, sem o destaque.
+  $('dlgMovel').addEventListener('close', () => {
+    const dlg = $('dlgMovel');
+    if (dlg.open || !dlg.classList.contains('lateral')) return;
+    fecharMovelLateral();
   });
   // Na primeira visita, depois de carregar, oferece o tutorial guiado.
   // O link (#ciclo=…&er=…) escolhe ciclo, ER, visão e filtros; sem link, abre como sempre.

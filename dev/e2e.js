@@ -1223,6 +1223,18 @@ test('ciclo em construção: o construtor monta na planta, o validador devolve e
   assert.strictEqual(fixos.c12.length, fixos.c11);
   assert.ok(fixos.c12.every((i) => i.simbolo === 'FIXO'));
   assert.ok(fixos.tipos.includes('NOVO MOVIMENTO OUI'), 'os tipos dos movimentos fixos vêm junto');
+
+  // Converter um ciclo publicado em rascunho: sai das abas publicadas e volta, com tudo, a ficar em construção.
+  const antes = await estado(p, () => JSON.stringify(App.estado.dados.movimentos['C11/2026']));
+  await p.selectOption('#selCiclo', 'C11/2026');
+  await p.locator('.rs-secao .rs-publicado button', { hasText: 'Converter ciclo em rascunho' }).click();
+  await p.waitForFunction(() => !App.estado.dados.ciclos.includes('C11/2026'));
+  assert.strictEqual(await estado(p, () => App.estado.ciclo), 'C11/2026', 'a tela fica no ciclo convertido');
+  assert.match(await p.textContent('#barraRascunho'), /Ciclo C11\/2026 \(não publicado\).*Em construção/);
+  assert.ok(await p.isVisible('#painelConstrucao'), 'o construtor volta a editar o ciclo');
+  assert.strictEqual(await estado(p, () => JSON.stringify(App.estado.dados.movimentos['C11/2026'])), antes, 'os espaços voltam iguais');
+  await sair();
+  assert.ok(!(await p.locator('#selCiclo option').allTextContents()).includes('C11/2026'), 'em rascunho, não aparece sem login');
 });
 
 test('ciclo em construção: fixos na planta, meio dividido, etiquetas e cores das marcas', async (t) => {
@@ -1348,6 +1360,23 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   await p.click('#acessoEntrar');
   await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
   await abrirGondola();
+  // No modo de construção, a tela do móvel abre ao lado da planta (sem o desenho do móvel): o móvel fica destacado na planta.
+  await p.waitForSelector('#dlgMovel.lateral[open] .pr-secao');
+  assert.ok(await p.isVisible('#slide'), 'a planta continua visível');
+  assert.ok(!(await p.isVisible('#mvDesenho')), 'sem o desenho do móvel no topo');
+  assert.ok(await p.evaluate(() => !document.querySelector('#dlgMovel').matches(':modal')));
+  assert.deepStrictEqual(await p.evaluate(() => [...new Set([...document.querySelectorAll('#slide .movel.selecionado')].map((e) => e.getAttribute('data-movel').split('/')[0]))]), ['GONDOLA 1']);
+  const lados = await p.evaluate(() => [document.querySelector('#areaPlanta').getBoundingClientRect(), document.querySelector('#dlgMovel').getBoundingClientRect()].map((r) => [r.left, r.right]));
+  assert.ok(lados[0][1] <= lados[1][0] + 1, 'a tela do móvel fica à direita da planta: ' + JSON.stringify(lados));
+  // Um clique em outro móvel da planta troca o móvel da lateral.
+  await p.evaluate(() => {
+    const g = [...document.querySelectorAll('#slide [data-movel]')].find((e) => /^PIRAMIDE 1(\/|$)/.test(e.getAttribute('data-movel')));
+    g.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+  assert.strictEqual(await p.textContent('#mvTitulo'), 'PIRAMIDE 1');
+  assert.deepStrictEqual(await p.evaluate(() => [...new Set([...document.querySelectorAll('#slide .movel.selecionado')].map((e) => e.getAttribute('data-movel').split('/')[0]))]), ['PIRAMIDE 1']);
+  await abrirGondola();
+  assert.strictEqual(await p.textContent('#mvTitulo'), 'GONDOLA 1');
   await p.locator('.pr-espaco[data-espaco="GONDOLA 1/PONTA-A"] [data-acao="editar-prateleiras"]').click();
   const card = p.locator('.pr-espaco.editando');
   /** Arrasta na prateleira, de (x1, y1) a (x2, y2), em fração da prateleira. */
@@ -1361,7 +1390,7 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
     await p.mouse.up();
   };
   // Arrastar na prateleira cria um quadrado na altura toda; o painel dele abre com a busca no catálogo.
-  await arrastar(1, 0.005, 0.5, 0.5, 0.55);
+  await arrastar(1, 0.012, 0.5, 0.5, 0.55);
   await card.locator('.pr-painel .pr-ed-mov').selectOption('LÇTO EGEO');
   await card.locator('.pr-busca').fill('egeo dolce');
   await card.locator('.pr-resultado').first().click();
@@ -1402,6 +1431,7 @@ test('prateleiras: o construtor desenha os quadrados e escolhe os produtos do ca
   await card.locator('.pr-ed-prateleira').first().locator('.pr-ed-dividir select').selectOption('2');
   await p.keyboard.press('Escape');
   await p.waitForSelector('#dlgMovel:not([open])', { state: 'attached' });
+  assert.strictEqual(await p.locator('#slide .movel.selecionado').count(), 0, 'fechando, o destaque sai da planta');
 
   // Continua salvo depois de recarregar e aparece também nas outras ERs, para quem não entrou na construção.
   await p.evaluate(() => sessionStorage.clear());
