@@ -18,7 +18,7 @@
  */
 const Prateleira = (() => {
   const $ = (id) => document.getElementById(id);
-  // { estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento, acesso, rascunhos }
+  // { estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento, acesso, rascunhos, abrirBriefing }
   let app = null;
   let editando = null; // { chave: "ciclo|planta|espaço", sujo } do espaço aberto na edição
   /** Passo do desenho, em % da largura da prateleira. */
@@ -158,7 +158,12 @@ const Prateleira = (() => {
     const colunas = ctx.plano.colunas.filter((c) => c.id);
     if (!colunas.length || !podeEditar(ctx.ciclo)) return;
     const sec = n('section', 'mv-bloco pr-secao', null, corpo);
-    n('h3', null, 'Construção das prateleiras', sec);
+    const topo = n('div', 'pr-secao-topo', null, sec);
+    n('h3', null, 'Construção das prateleiras', topo);
+    // O briefing em PDF (Briefing.html) fica só aqui, para o construtor: todos os móveis desenhados do ciclo.
+    const b = botao('Baixar briefing (PDF)', '', () => app.abrirBriefing(), topo);
+    b.dataset.acao = 'briefing';
+    b.title = 'Baixar o briefing do planograma em PDF: cada móvel desenhado do ciclo, com os blocos numerados e os produtos';
     n('p', 'pr-dica', 'Clique em Desenhar (ou Editar) no espaço: arraste em cada prateleira para criar os quadrados e escolha o movimento e os produtos de cada um. '
       + 'O que for salvo aparece no planograma, acima, para todo mundo.', sec);
     colunas.forEach((col) => {

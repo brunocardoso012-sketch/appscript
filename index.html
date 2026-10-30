@@ -1017,6 +1017,8 @@
   .pr-tela.desenho { cursor: crosshair; touch-action: none; user-select: none; height: 128px; }
   /* Meio dividido: a metade que está sendo desenhada e, junto, a outra (só para ver), com um pontilhado entre elas. */
   .pr-ed-meio { display: flex; }
+  .pr-secao-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .pr-secao-topo h3 { margin: 0; }
   .pr-ed-meio > .pr-tela { flex: 1 1 0; }
   .pr-ed-meio > .pr-tela:first-child { border-top-right-radius: 0; }
   .pr-ed-meio > .pr-tela + .pr-tela { border-top-left-radius: 0; border-left: 2px dashed rgba(40, 44, 50, .6); }
@@ -6710,10 +6712,6 @@ function executarSalvarLayout_(io, acesso, planta, layout, nome) {
         <button id="btnPng" class="btn" type="button" title="Baixar a planta (ou o slide completo) em PNG">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
           Baixar PNG
-        </button>
-        <button id="btnBriefing" class="btn" type="button" title="Baixar o briefing do planograma em PDF: cada móvel com o planograma desenhado e os produtos de cada bloco">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
-          Briefing (PDF)
         </button>
         <button id="btnLink" class="btn fantasma" type="button" title="Copia o link que abre o app neste ciclo, ER, visão e filtro">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
@@ -13984,7 +13982,7 @@ const Antecipacao = (() => {
  */
 const Prateleira = (() => {
   const $ = (id) => document.getElementById(id);
-  // { estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento, acesso, rascunhos }
+  // { estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento, acesso, rascunhos, abrirBriefing }
   let app = null;
   let editando = null; // { chave: "ciclo|planta|espaço", sujo } do espaço aberto na edição
   /** Passo do desenho, em % da largura da prateleira. */
@@ -14124,7 +14122,12 @@ const Prateleira = (() => {
     const colunas = ctx.plano.colunas.filter((c) => c.id);
     if (!colunas.length || !podeEditar(ctx.ciclo)) return;
     const sec = n('section', 'mv-bloco pr-secao', null, corpo);
-    n('h3', null, 'Construção das prateleiras', sec);
+    const topo = n('div', 'pr-secao-topo', null, sec);
+    n('h3', null, 'Construção das prateleiras', topo);
+    // O briefing em PDF (Briefing.html) fica só aqui, para o construtor: todos os móveis desenhados do ciclo.
+    const b = botao('Baixar briefing (PDF)', '', () => app.abrirBriefing(), topo);
+    b.dataset.acao = 'briefing';
+    b.title = 'Baixar o briefing do planograma em PDF: cada móvel desenhado do ciclo, com os blocos numerados e os produtos';
     n('p', 'pr-dica', 'Clique em Desenhar (ou Editar) no espaço: arraste em cada prateleira para criar os quadrados e escolha o movimento e os produtos de cada um. '
       + 'O que for salvo aparece no planograma, acima, para todo mundo.', sec);
     colunas.forEach((col) => {
@@ -14616,7 +14619,8 @@ const Prateleira = (() => {
  * ============================================================================
  *  BRIEFING DO PLANOGRAMA (PDF)
  * ============================================================================
- *  O botão "Briefing (PDF)", ao lado do "Baixar PNG", gera no navegador um PDF
+ *  O botão "Baixar briefing (PDF)", na seção "Construção das prateleiras" da tela
+ *  do móvel (só o construtor da estratégia o vê), gera no navegador um PDF
  *  com o planograma desenhado nos móveis do ciclo, para quem monta o planograma
  *  no programa apropriado:
  *   - uma capa com o ciclo, as ERs, o índice dos móveis e como ler;
@@ -15177,7 +15181,7 @@ const Briefing = (() => {
   /** "Briefing - C15-2026 - ER M.pdf" (sem ER: "… - Todas as ERs.pdf"); o mesmo nome do nomeBriefing_ do Code.gs. */
   const nomeDoArquivo = (ciclo, er) => 'Briefing - ' + nomeDaPasta(ciclo) + ' - ' + (parteDoNome(er) || 'Todas as ERs') + '.pdf';
 
-  /** Quem pode salvar no Drive: com a pasta vinculada e o login da Construção. */
+  /** Quem pode salvar no Drive: com a pasta vinculada e o login da Construção (o único que abre o briefing). */
   function podeSalvarNoDrive() {
     const a = app.acesso && app.acesso();
     return { pasta: !!dados().pastaBriefings, construtor: !!a && a.papel === 'CONSTRUTOR' };
@@ -15255,13 +15259,19 @@ const Briefing = (() => {
     }
   }
 
+  /** Abre o diálogo do briefing: só para o construtor, pela seção "Construção das prateleiras" da tela do móvel. */
+  function abrir() {
+    const a = app.acesso && app.acesso();
+    if (!dados() || !a || a.papel !== 'CONSTRUTOR') return;
+    abrirDialogo();
+  }
+
   function iniciar(contexto) {
     app = contexto;
-    $('btnBriefing').addEventListener('click', () => { if (dados()) abrirDialogo(); });
     $('dlgBriefing').addEventListener('close', baixar);
   }
 
-  return { iniciar, gerar };
+  return { iniciar, abrir, gerar };
 })();
 </script>
 
@@ -20351,6 +20361,7 @@ const App = (() => {
     estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,
     acesso: () => Validacao.acesso(),
     rascunhos: () => Rascunho.lista(),
+    abrirBriefing: () => Briefing.abrir(),
   });
   // Fechou a tela do móvel da lateral (Fechar, Esc ou a troca de ER): a planta volta à largura toda, sem o destaque.
   $('dlgMovel').addEventListener('close', () => {

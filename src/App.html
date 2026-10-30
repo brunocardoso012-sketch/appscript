@@ -3137,6 +3137,7 @@ const App = (() => {
     estado, chamar, toast, erro, abrirMovel, corDaMarca, dividirPrateleiras, chaveMovimento,
     acesso: () => Validacao.acesso(),
     rascunhos: () => Rascunho.lista(),
+    abrirBriefing: () => Briefing.abrir(),
   });
   // Fechou a tela do móvel da lateral (Fechar, Esc ou a troca de ER): a planta volta à largura toda, sem o destaque.
   $('dlgMovel').addEventListener('close', () => {

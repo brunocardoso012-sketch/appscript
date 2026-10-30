@@ -3,7 +3,8 @@
  * ============================================================================
  *  BRIEFING DO PLANOGRAMA (PDF)
  * ============================================================================
- *  O botão "Briefing (PDF)", ao lado do "Baixar PNG", gera no navegador um PDF
+ *  O botão "Baixar briefing (PDF)", na seção "Construção das prateleiras" da tela
+ *  do móvel (só o construtor da estratégia o vê), gera no navegador um PDF
  *  com o planograma desenhado nos móveis do ciclo, para quem monta o planograma
  *  no programa apropriado:
  *   - uma capa com o ciclo, as ERs, o índice dos móveis e como ler;
@@ -564,7 +565,7 @@ const Briefing = (() => {
   /** "Briefing - C15-2026 - ER M.pdf" (sem ER: "… - Todas as ERs.pdf"); o mesmo nome do nomeBriefing_ do Code.gs. */
   const nomeDoArquivo = (ciclo, er) => 'Briefing - ' + nomeDaPasta(ciclo) + ' - ' + (parteDoNome(er) || 'Todas as ERs') + '.pdf';
 
-  /** Quem pode salvar no Drive: com a pasta vinculada e o login da Construção. */
+  /** Quem pode salvar no Drive: com a pasta vinculada e o login da Construção (o único que abre o briefing). */
   function podeSalvarNoDrive() {
     const a = app.acesso && app.acesso();
     return { pasta: !!dados().pastaBriefings, construtor: !!a && a.papel === 'CONSTRUTOR' };
@@ -642,12 +643,18 @@ const Briefing = (() => {
     }
   }
 
+  /** Abre o diálogo do briefing: só para o construtor, pela seção "Construção das prateleiras" da tela do móvel. */
+  function abrir() {
+    const a = app.acesso && app.acesso();
+    if (!dados() || !a || a.papel !== 'CONSTRUTOR') return;
+    abrirDialogo();
+  }
+
   function iniciar(contexto) {
     app = contexto;
-    $('btnBriefing').addEventListener('click', () => { if (dados()) abrirDialogo(); });
     $('dlgBriefing').addEventListener('close', baixar);
   }
 
-  return { iniciar, gerar };
+  return { iniciar, abrir, gerar };
 })();
 </script>

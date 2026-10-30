@@ -1516,8 +1516,25 @@ test('briefing do planograma: PDF com o planograma desenhado de cada móvel', { 
     await App.carregar({ ciclo: 'Ciclo exemplo cheio' });
   });
   await abaPlanta(p, 'ER P').click();
-  await p.click('#btnBriefing');
-  await p.waitForSelector('#dlgBriefing[open]');
+  // O briefing fica só na construção das prateleiras (tela do móvel), para o construtor: nada no topo nem sem login.
+  const abrirGondola = () => p.evaluate(() => document.querySelector('#slide .movel[data-movel="GONDOLA 1"]').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  assert.strictEqual(await p.locator('#btnBriefing').count(), 0);
+  await abrirGondola();
+  await p.waitForSelector('#dlgMovel[open] .mv-plano');
+  assert.strictEqual(await p.locator('[data-acao="briefing"]').count(), 0, 'sem o login da Construção');
+  await p.keyboard.press('Escape');
+  await menuConfig(p, 'btnConstrucao');
+  await p.waitForSelector('#dlgAcesso[open]');
+  await p.fill('#acessoNome', 'Bia');
+  await p.fill('#acessoSenha', SENHA.CONSTRUTOR);
+  await p.click('#acessoEntrar');
+  await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
+  await abrirGondola();
+  const abrirBriefing = async () => {
+    await p.locator('#dlgMovel[open] .pr-secao [data-acao="briefing"]').click();
+    await p.waitForSelector('#dlgBriefing[open]');
+  };
+  await abrirBriefing();
   const naEr = await estado(p, () => App.estado.dados.plantas.find((x) => x.nome === 'ER P').moveis.filter((m) => m.tipo === 'PIRAMIDE').length);
   // As gôndolas e as pirâmides e, dos outros móveis, os desenhados (a mesa).
   assert.match(await p.textContent('#briefingResumo'), new RegExp('1 gôndola, ' + naEr + ' pirâmides e 1 outro móvel'));
@@ -1540,23 +1557,11 @@ test('briefing do planograma: PDF com o planograma desenhado de cada móvel', { 
   assert.ok(paginas >= n + 1, paginas + ' páginas para ' + n + ' móveis');
   assert.match(await p.textContent('#toast'), new RegExp(gondolas + ' gôndolas, ' + piramides + ' pirâmides e 1 outro móvel'));
 
-  // Com uma pasta do Drive vinculada (no Apps Script), aparece o destino "Salvar na pasta do Drive", que só a
-  // Construção usa: o arquivo vai para a subpasta do ciclo.
+  // Com uma pasta do Drive vinculada (no Apps Script), aparece o destino "Salvar na pasta do Drive": o arquivo vai
+  // para a subpasta do ciclo.
   await p.evaluate(() => { App.estado.dados.pastaBriefings = true; });
-  await p.click('#btnBriefing');
-  await p.waitForSelector('#dlgBriefing[open]');
+  await abrirBriefing();
   assert.ok(await p.isVisible('#briefingDestinos'));
-  assert.ok(await p.isDisabled('input[name="briefingDestino"][value="drive"]'), 'sem o login da Construção');
-  await p.click('#dlgBriefing button[value="cancelar"]');
-  await menuConfig(p, 'btnConstrucao');
-  await p.waitForSelector('#dlgAcesso[open]');
-  await p.fill('#acessoNome', 'Bia');
-  await p.fill('#acessoSenha', SENHA.CONSTRUTOR);
-  await p.click('#acessoEntrar');
-  await p.waitForSelector('#dlgAcesso', { state: 'hidden' });
-  await p.evaluate(() => { App.estado.dados.pastaBriefings = true; });
-  await p.click('#btnBriefing');
-  await p.waitForSelector('#dlgBriefing[open]');
   await p.check('input[name="briefingErs"][value="esta"]');
   await p.check('input[name="briefingDestino"][value="drive"]');
   assert.strictEqual(await p.textContent('#briefingBaixar'), 'Salvar no Drive');
