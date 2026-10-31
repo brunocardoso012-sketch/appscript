@@ -194,14 +194,18 @@ async function icone(nome, cor, tam) {
     alt: 'Vídeo: mapa de calor movimento × ER no Analytics, ordenado pela ER G; o clique em BOTIPROMO mostra o movimento na planta; legenda do que conta como espaço.',
     notas: 'Vídeo 6 (≈1 min).\n\nNarração: o mapa de calor mostra a fatia de cada movimento em cada ER — quanto mais escuro, maior. Os ícones mostram em que tipos de móvel o movimento está. Alterno entre % da ER e número de espaços, ordeno pela ER G e clico numa célula para ver na planta. Em "Sobre a análise", a régua do que conta como espaço em cada móvel.' });
   await slideVideo({ n: '7', secao: 'Feito para durar', num: 7, video: 'v7', dur: dur('v7'), titulo: 'Um usuário novo aprende sozinho em 1 minuto',
-    pontos: ['Boas-vindas na primeira visita, com um tour de 9 passos', 'Pode ser revisto a qualquer hora pela engrenagem', 'Lojas, regras entre ERs e tipos de movimento são editáveis'],
-    fala: 'É editável e acompanha as mudanças de estratégia.',
+    pontos: ['Boas-vindas na primeira visita, com um tour de 9 passos', 'Cada parte da tela explicada em uma frase', 'Pode ser revisto a qualquer hora pela engrenagem'],
     alt: 'Vídeo: tour guiado do app destacando ciclo, plantas, planta, marcas, Comunicações ER, Analytics, Calendário, Baixar PNG e configurações.',
-    notas: 'Vídeo 7 (1,5 min).\n\nNarração: na primeira vez, o app oferece um tour rápido, que destaca cada parte da tela com uma frase. Dá para rever pela engrenagem.\n\nFala: é editável e acompanha as mudanças de estratégia. O layout das lojas, as regras entre as ERs e os tipos de movimento são mudados no próprio app ou na planilha, sem programar.' });
-  await slideVideo({ n: '8', secao: 'Facilidades', num: 8, video: 'v8', dur: dur('v8'), titulo: 'Pronto para apresentar e compartilhar',
+    notas: 'Vídeo 7 (≈45 s; a seção "Feito para durar" continua no próximo slide).\n\nNarração: na primeira vez, o app oferece um tour rápido, que destaca cada parte da tela com uma frase. Quem chega no time aprende sozinho, sem treinamento. Dá para rever pela engrenagem.' });
+  await slideVideo({ n: '7', secao: 'Feito para durar', num: 8, video: 'v9', dur: dur('v9'), titulo: 'A loja mudou? A planta muda no próprio app',
+    pontos: ['A ER cresce na hora: largura e fundo da loja', 'Móveis novos pela paleta, arrastados até o lugar', 'Salvo sozinho: a nova planta já vale para os ciclos'],
+    fala: 'É editável e acompanha as mudanças de estratégia.',
+    alt: 'Vídeo: no Construir loja, a ER P passa de 12 × 10 m para 16 × 13 m; uma gôndola, uma pirâmide e uma mesa destaque são adicionadas e levadas para a área nova; o PDV móvel e a pirâmide 2 mudam de lugar; o layout é salvo e a ER P aparece com a loja nova.',
+    notas: 'Vídeo 8 (≈45 s).\n\nNarração: este é o Construir loja, o editor da planta, no modo desenvolvedor. Aumento a ER P de 12 por 10 metros para 16 por 13, e a loja cresce na hora. Pela paleta, adiciono uma gôndola, uma pirâmide e uma mesa destaque, e arrasto cada uma para a área nova. Também mudo de lugar o PDV móvel e uma pirâmide que já estavam lá. Tudo é salvo sozinho; ao fechar, a ER P já aparece com a loja nova, pronta para receber a estratégia do ciclo.\n\nFala: é editável e acompanha as mudanças de estratégia. O layout das lojas, as regras entre as ERs e os tipos de movimento mudam no próprio app ou na planilha, sem programar e sem depender de TI.' });
+  await slideVideo({ n: '8', secao: 'Facilidades', num: 9, video: 'v8', dur: dur('v8'), titulo: 'Pronto para apresentar e compartilhar',
     pontos: ['Modo apresentação: só a planta, as setas trocam a ER', 'PNG ou slide 16:9 em alta resolução, num clique', 'Modo noturno para a tela inteira'],
     alt: 'Vídeo: modo apresentação com troca de ER pelas setas, download do slide em PNG e modo noturno.',
-    notas: 'Vídeo 8 (1 min).\n\nNarração: no modo apresentação, só a planta aparece e as setas trocam a ER. O Baixar PNG gera o slide completo em alta resolução, pronto para a apresentação. E o modo noturno deixa todo o app escuro.' });
+    notas: 'Vídeo 9 (1 min).\n\nNarração: no modo apresentação, só a planta aparece e as setas trocam a ER. O Baixar PNG gera o slide completo em alta resolução, pronto para a apresentação. E o modo noturno deixa todo o app escuro.' });
 
   // 13. Resultados e próximos passos ----------------------------------------------
   {

@@ -1,6 +1,6 @@
 # Apresentação à diretoria · vídeos e deck
 
-Os 8 vídeos das funções do app (20 a 40 s, sem som, para narrar ao vivo) e o deck do roteiro. Os vídeos são gravados na versão web (`index.html`), com dados de demonstração. O resultado:
+Os 9 vídeos das funções do app (20 a 40 s, sem som, para narrar ao vivo) e o deck do roteiro. Os vídeos são gravados na versão web (`index.html`), com dados de demonstração. O resultado:
 
 | # | Slide | Vídeo | O que mostra |
 |---|---|---|---|
@@ -11,13 +11,14 @@ Os 8 vídeos das funções do app (20 a 40 s, sem som, para narrar ao vivo) e o 
 | 5 | Enxergar o todo | `v5` | Calendário: C13 a C16 lado a lado, empilhamento por equilíbrio, só GMV e só exposição; medalhas e hotspot na *Ordem e selos* |
 | 6 | Enxergar o todo | `v6` | Mapa de calor movimento × ER, ícones dos móveis, *% da ER* / *Espaços*, ordenado pela ER G, clique na célula e *O que conta como espaço* |
 | 7 | Feito para durar | `v7` | O tutorial completo (boas-vindas e os 9 passos) e onde revê-lo |
-| 8 | Facilidades | `v8` | Modo apresentação (setas trocam a ER), *Baixar PNG* em slide completo e modo noturno |
+| 8 | Feito para durar | `v9` | *Construir loja* (modo desenvolvedor): a ER P passa de 12 × 10 m para 16 × 13 m; gôndola, pirâmide e mesa destaque entram pela paleta e são arrastadas para a área nova; o PDV móvel e a pirâmide 2 mudam de lugar; salvo sozinho, a ER P aparece com a loja nova |
+| 9 | Facilidades | `v8` | Modo apresentação (setas trocam a ER), *Baixar PNG* em slide completo e modo noturno |
 
 Os dados são de demonstração (`gravacao/semente.js`): os exemplos do app renomeados como C13/2026, C14/2026 e C15/2026, o C16/2026 (em branco, com os tipos de movimento do C15) criado no vídeo 1 e o calendário do Boticário e da Eudora. Para gravar com os dados reais, troque a semente pelas abas da planilha (mesmo formato do `localStorage` da versão web: `layout`, `movimentos`, `paineis`, `tipos`, `produtos` e as abas `aba:…`).
 
 ## Deck
 
-`deck/build.js` gera dois arquivos com os mesmos 14 slides e as notas do apresentador (a fala e o tempo de cada parte do roteiro):
+`deck/build.js` gera dois arquivos com os mesmos 15 slides e as notas do apresentador (a fala e o tempo de cada parte do roteiro):
 
 - **`Plano de Varejo - Google Apresentacoes.pptx`**: os vídeos entram como **GIF animado** (1024 px, 10 qps), que tocam sozinhos e em loop. O Google Apresentações descarta vídeo embutido num `.pptx`, mas mantém o GIF animado.
 - **`Plano de Varejo - PowerPoint (MP4).pptx`**: os vídeos em MP4 (1080p) embutidos, para o PowerPoint ou o Keynote.
@@ -26,7 +27,7 @@ Os dados são de demonstração (`gravacao/semente.js`): os exemplos do app reno
 
 1. No Google Drive: *Novo › Upload de arquivo* e escolha `Plano de Varejo - Google Apresentacoes.pptx`.
 2. Abra com o Google Apresentações (ou, nas configurações do Drive, ligue *Converter uploads*). Os GIFs já tocam no modo de apresentação.
-3. Para os vídeos em 1080p no lugar dos GIFs: suba os `v1.mp4` … `v8.mp4` para o Drive e, em cada slide, *Inserir › Vídeo › Google Drive*; em *Opções de formato › Reprodução*, escolha *Reproduzir (automaticamente)* e apague o GIF.
+3. Para os vídeos em 1080p no lugar dos GIFs: suba os MP4 para o Drive e, em cada slide, *Inserir › Vídeo › Google Drive*; em *Opções de formato › Reprodução*, escolha *Reproduzir (automaticamente)* e apague o GIF.
 
 ## Regravar
 
@@ -35,7 +36,7 @@ Requer o Chromium e o Playwright do ambiente (como em `dev/e2e.js`), o `ffmpeg` 
 ```bash
 npm run build:web                       # gera o index.html que é gravado
 cd apresentacao/gravacao
-./gravar-todos.sh 1 2 3 4 5 6 7 8       # grava (out/) e monta os MP4 (videos/)
+./gravar-todos.sh 1 2 3 4 5 6 7 8 9      # grava (out/) e monta os MP4 (videos/)
 ./folha.sh videos/v1.mp4 v1-folha.jpg   # 12 quadros do vídeo, para conferir
 node hero.js                            # imagens da capa (deck/media/hero*.png)
 cd ../deck
