@@ -4,7 +4,7 @@ Os 8 vídeos das funções do app (20 a 40 s, sem som, para narrar ao vivo) e o 
 
 | # | Slide | Vídeo | O que mostra |
 |---|---|---|---|
-| 1 | Construir ficou mais fácil | `v1` | No ciclo em construção, a pirâmide passa de BOT para EUD; a planta pinta na hora e o *Espaço por marca* da ER P vai de 40% para 50% de Eudora |
+| 1 | Construir ficou mais fácil | `v1` | Num ciclo em construção em branco (só a ponta B fixa da O.U.i colorida), a gôndola 1 é preenchida: ponta A BOT, meio A EUD e meio B QDB; cada espaço ganha cor na hora e os números da ER passam a mostrar as três marcas |
 | 2 | Construir ficou mais fácil | `v2` | A prateleira da gôndola 1 é dividida em quadrados, com os produtos do catálogo de BOTIPROMO e LÇTO EGEO; depois o *Briefing (PDF)* (com zoom na página da gôndola) |
 | 3 | Decidir com dados | `v3` | GMV esperado × espaço: pontos acima e abaixo da diagonal, troca de ER e clique em SIÀGE ULTIMATE, que aparece na planta |
 | 4 | Decidir com dados | `v4` | *Marcas em cada ER* e *Classificação em cada ER*; o clique em EUD (ER P) e em Promoção (ER G) filtra a planta |
@@ -13,7 +13,7 @@ Os 8 vídeos das funções do app (20 a 40 s, sem som, para narrar ao vivo) e o 
 | 7 | Feito para durar | `v7` | O tutorial completo (boas-vindas e os 9 passos) e onde revê-lo |
 | 8 | Facilidades | `v8` | Modo apresentação (setas trocam a ER), *Baixar PNG* em slide completo e modo noturno |
 
-Os dados são de demonstração (`gravacao/semente.js`): os exemplos do app renomeados como C13/2026, C14/2026 e C15/2026, o C16/2026 criado no vídeo 1 e o calendário do Boticário e da Eudora. Para gravar com os dados reais, troque a semente pelas abas da planilha (mesmo formato do `localStorage` da versão web: `layout`, `movimentos`, `paineis`, `tipos`, `produtos` e as abas `aba:…`).
+Os dados são de demonstração (`gravacao/semente.js`): os exemplos do app renomeados como C13/2026, C14/2026 e C15/2026, o C16/2026 (em branco, com os tipos de movimento do C15) criado no vídeo 1 e o calendário do Boticário e da Eudora. Para gravar com os dados reais, troque a semente pelas abas da planilha (mesmo formato do `localStorage` da versão web: `layout`, `movimentos`, `paineis`, `tipos`, `produtos` e as abas `aba:…`).
 
 ## Deck
 

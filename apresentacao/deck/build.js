@@ -167,11 +167,11 @@ async function icone(nome, cor, tam) {
   // 5–12. Vídeos -----------------------------------------------------------------
   const V = JSON.parse(fs.readFileSync(path.join(MIDIA, 'duracoes.json'), 'utf8'));
   const dur = (v) => '0:' + String(Math.round(V[v])).padStart(2, '0');
-  await slideVideo({ n: '4', secao: 'Construir ficou mais fácil', num: 1, video: 'v1', dur: dur('v1'), titulo: 'Montar um móvel já mostra o impacto nos números',
-    pontos: ['Clique no móvel e escolha a marca e os movimentos', 'A planta pinta na hora e tudo é salvo sozinho', 'Espaço por marca e GMV × espaço se atualizam a cada mudança'],
+  await slideVideo({ n: '4', secao: 'Construir ficou mais fácil', num: 1, video: 'v1', dur: dur('v1'), titulo: 'Montar uma gôndola já atualiza os números',
+    pontos: ['Clique na gôndola e escolha a marca e os movimentos de cada espaço', 'Na planta em branco, cada espaço ganha cor na hora', 'Espaço por marca e GMV × espaço se atualizam a cada mudança'],
     fala: 'Sai o PPT manual, entra um modelo padronizado e validado no próprio fluxo.',
-    alt: 'Vídeo: no ciclo em construção, a pirâmide muda de Boticário para Eudora e o espaço por marca da ER P passa de 40% para 50% de Eudora.',
-    notas: 'Vídeo 1 (≈1,5 min com o vídeo 2 no próximo slide).\n\nNarração: estou num ciclo em construção. Clico na pirâmide, troco a marca para Eudora e escolho os movimentos OUTLET EUD e SIÀGE ULTIMATE. A planta pinta na hora. Ao tirar a seleção, os números da ER já mudaram: Eudora passou de 40% para 50% do espaço de exposição, e o GMV × espaço de cada movimento foi recalculado.\n\nFala: sai o PPT manual, entra um modelo padronizado e validado no próprio fluxo.' });
+    alt: 'Vídeo: num ciclo em construção com a planta em branco, a gôndola 1 é preenchida (ponta A Boticário, meio A Eudora, meio B QDB) e os números da ER P passam a mostrar as três marcas.',
+    notas: 'Vídeo 1 (≈1,5 min com o vídeo 2 no próximo slide).\n\nNarração: estou num ciclo novo, em construção, com a planta em branco. Clico na gôndola e preencho espaço por espaço: na ponta A, Boticário com BOTIPROMO e LÇTO EGEO; no meio A, Eudora com SIÀGE ULTIMATE; no meio B, QDB com LIQUIDA QDB. Cada espaço ganha a cor da marca na hora, e tudo é salvo sozinho. Ao tirar a seleção, os números da ER já mostram o espaço de cada marca, a classificação e o GMV × espaço de cada movimento.\n\nFala: sai o PPT manual, entra um modelo padronizado e validado no próprio fluxo.' });
   await slideVideo({ n: '4', secao: 'Construir ficou mais fácil', num: 2, video: 'v2', dur: dur('v2'), titulo: 'Do espaço ao produto: o briefing sai pronto em PDF',
     pontos: ['Cada prateleira dividida em quadrados, arrastando', 'Os produtos vêm do catálogo do movimento (ex.: BOTIPROMO)', 'O PDF traz o planograma com códigos e a tabela de SKUs e frentes'],
     fala: 'Um modelo padronizado para quem monta o planograma.',
