@@ -1,0 +1,16 @@
+{
+  "name": "plano-varejo-apresentacao",
+  "private": true,
+  "description": "Monta o deck da apresentação (pptx) com os vídeos do app.",
+  "scripts": {
+    "midia": "./midia.sh",
+    "deck": "node build.js \"Plano de Varejo - Google Apresentacoes.pptx\" && node build.js \"Plano de Varejo - PowerPoint (MP4).pptx\" mp4"
+  },
+  "dependencies": {
+    "pptxgenjs": "4.0.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-icons": "5.7.0",
+    "sharp": "0.35.5"
+  }
+}

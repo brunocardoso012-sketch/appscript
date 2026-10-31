@@ -1,0 +1,10 @@
+gravacao/out/
+gravacao/videos/
+gravacao/chk/
+deck/media/*.mp4
+deck/media/*.gif
+deck/media/*.png
+deck/media/duracoes.json
+deck/node_modules/
+deck/package-lock.json
+deck/*.pptx
