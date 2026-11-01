@@ -47,7 +47,10 @@ async function icone(nome, cor, tam) {
   const titulo = (s, texto, escuro, o) => txt(s, texto, Object.assign({ x: 0.6, y: 0.85, w: 12.1, h: 0.9, fontSize: 34, bold: true, color: escuro ? T.branco : T.texto, valign: 'middle' }, o));
 
   /** Slide com vídeo: título, "repare em" à esquerda, vídeo grande à direita. */
+  let videos = 0;
   async function slideVideo(o) {
+    o.num = ++videos;
+    o.notas = o.notas.replace(/^Vídeo \d+/, 'Vídeo ' + o.num);
     const s = pres.addSlide();
     s.background = { color: T.branco };
     secao(s, o.n, o.secao);
@@ -167,42 +170,51 @@ async function icone(nome, cor, tam) {
   // 5–12. Vídeos -----------------------------------------------------------------
   const V = JSON.parse(fs.readFileSync(path.join(MIDIA, 'duracoes.json'), 'utf8'));
   const dur = (v) => '0:' + String(Math.round(V[v])).padStart(2, '0');
-  await slideVideo({ n: '4', secao: 'Construir ficou mais fácil', num: 1, video: 'v1', dur: dur('v1'), titulo: 'Montar uma gôndola já atualiza os números',
+  await slideVideo({ n: '4', secao: 'Construir ficou mais fácil', video: 'v1', dur: dur('v1'), titulo: 'Montar uma gôndola já atualiza os números',
     pontos: ['Clique na gôndola e escolha a marca e os movimentos de cada espaço', 'Na planta em branco, cada espaço ganha cor na hora', 'Espaço por marca e GMV × espaço se atualizam a cada mudança'],
     fala: 'Sai o PPT manual, entra um modelo padronizado e validado no próprio fluxo.',
     alt: 'Vídeo: num ciclo em construção com a planta em branco, a gôndola 1 é preenchida (ponta A Boticário, meio A Eudora, meio B QDB) e os números da ER P passam a mostrar as três marcas.',
-    notas: 'Vídeo 1 (≈1,5 min com o vídeo 2 no próximo slide).\n\nNarração: estou num ciclo novo, em construção, com a planta em branco. Clico na gôndola e preencho espaço por espaço: na ponta A, Boticário com BOTIPROMO e LÇTO EGEO; no meio A, Eudora com SIÀGE ULTIMATE; no meio B, QDB com LIQUIDA QDB. Cada espaço ganha a cor da marca na hora, e tudo é salvo sozinho. Ao tirar a seleção, os números da ER já mostram o espaço de cada marca, a classificação e o GMV × espaço de cada movimento.\n\nFala: sai o PPT manual, entra um modelo padronizado e validado no próprio fluxo.' });
-  await slideVideo({ n: '4', secao: 'Construir ficou mais fácil', num: 2, video: 'v2', dur: dur('v2'), titulo: 'Do espaço ao produto: o briefing sai pronto em PDF',
+    notas: 'Vídeo 1 (≈2 min para a seção, com os dois próximos slides).\n\nNarração: estou num ciclo novo, em construção, com a planta em branco. Clico na gôndola e preencho espaço por espaço: na ponta A, Boticário com BOTIPROMO e LÇTO EGEO; no meio A, Eudora com SIÀGE ULTIMATE; no meio B, QDB com LIQUIDA QDB. Cada espaço ganha a cor da marca na hora, e tudo é salvo sozinho. Ao tirar a seleção, os números da ER já mostram o espaço de cada marca, a classificação e o GMV × espaço de cada movimento.\n\nFala: sai o PPT manual, entra um modelo padronizado e validado no próprio fluxo.' });
+  await slideVideo({ n: '4', secao: 'Construir ficou mais fácil', video: 'v2', dur: dur('v2'), titulo: 'Do espaço ao produto: o briefing sai pronto em PDF',
     pontos: ['Cada prateleira dividida em quadrados, arrastando', 'Os produtos vêm do catálogo do movimento (ex.: BOTIPROMO)', 'O PDF traz o planograma com códigos e a tabela de SKUs e frentes'],
     fala: 'Um modelo padronizado para quem monta o planograma.',
     alt: 'Vídeo: na gôndola 1, a prateleira é dividida em quadrados com produtos de BOTIPROMO e LÇTO EGEO; depois o briefing em PDF é gerado.',
     notas: 'Vídeo 2.\n\nNarração: abro a gôndola e desenho a prateleira: arrasto para criar um quadrado, escolho o movimento BOTIPROMO e os produtos aparecem filtrados pelo movimento, puxados do catálogo de produtos. Salvo, e o planograma já mostra os produtos para todo mundo. No botão Briefing (PDF), sai um arquivo padronizado: uma página por gôndola e pirâmide, com o código de cada quadrado e a tabela de SKUs e frentes.\n\nFala: sai o PPT manual, entra um modelo padronizado e validado no próprio fluxo.' });
-  await slideVideo({ n: '5', secao: 'Decidir com dados', num: 3, video: 'v3', dur: dur('v3'), titulo: 'Cada movimento rende o espaço que ocupa?',
+  await slideVideo({ n: '4', secao: 'Construir ficou mais fácil', video: 'v10', dur: dur('v10'), titulo: 'Validado no próprio fluxo, até a publicação',
+    pontos: ['O validador comenta direto no móvel, na planta', 'O construtor responde e marca como resolvido', 'Só o ciclo aprovado é publicado para todos'],
+    fala: 'Cada pedido fica registrado: quem pediu, quem respondeu e quando.',
+    alt: 'Vídeo: no C16 aguardando aprovação, a validadora comenta na pirâmide 1 (aparece um balão laranja no móvel); o construtor responde e marca como resolvido; a validadora publica o ciclo.',
+    notas: 'Vídeo 3 (≈45 s).\n\nNarração: o construtor enviou o C16 para aprovação. A validadora escolhe a pirâmide na planta e comenta: UOMINI HERO rende abaixo do espaço. O comentário vira um balão laranja no próprio móvel. O construtor entra, vê o comentário, responde e marca como resolvido. A validadora publica, e só então o ciclo passa a valer para todos. Tudo fica registrado: quem comentou, quem respondeu e quando.\n\nFala: sai o PPT manual, entra um modelo padronizado e validado no próprio fluxo.' });
+  await slideVideo({ n: '5', secao: 'Decidir com dados', video: 'v3', dur: dur('v3'), titulo: 'Cada movimento rende o espaço que ocupa?',
     pontos: ['Cada ponto é um movimento: fatia do espaço × fatia do GMV esperado', 'Acima da diagonal rende mais que o espaço; abaixo, menos', 'Um clique mostra na planta onde o movimento está'],
     alt: 'Vídeo: gráfico de dispersão GMV esperado × espaço por ER; BOTIPROMO acima da diagonal e SIÀGE ULTIMATE abaixo.',
     notas: 'Vídeo 3 (≈1 min).\n\nNarração: no Analytics, o gráfico GMV esperado × espaço. Cada ponto é um movimento. Acima da diagonal, o movimento rende mais do que o espaço que ocupa (ex.: BOTIPROMO); abaixo, rende menos (ex.: SIÀGE ULTIMATE, com mais espaço do que o GMV justifica). Troco a ER e os pontos mudam. Clicando num ponto, a planta ao lado mostra onde aquele movimento está.' });
-  await slideVideo({ n: '5', secao: 'Decidir com dados', num: 4, video: 'v4', dur: dur('v4'), titulo: 'O espaço por marca e por tipo de movimento',
+  await slideVideo({ n: '5', secao: 'Decidir com dados', video: 'v4', dur: dur('v4'), titulo: 'O espaço por marca e por tipo de movimento',
     pontos: ['Fatia do espaço de cada ER por marca', 'E por tipo: lançamento, promoção, liquidação, baseline', 'Clique numa fatia e a planta mostra só aquilo'],
     alt: 'Vídeo: barras 100% de marcas e de classificação por ER; o clique em EUD e em Promoção filtra a planta.',
     notas: 'Vídeo 4 (≈1 min).\n\nNarração: aqui a representatividade de cada marca em cada ER, e embaixo por tipo de movimento. Clico em Eudora na ER P e a planta mostra só os espaços da Eudora. Clico em Promoção na ER G e a planta vai para a ER G mostrando só as promoções; o filtro do topo acompanha.' });
-  await slideVideo({ n: '6', secao: 'Enxergar o todo', num: 5, video: 'v5', dur: dur('v5'), titulo: 'Cada ciclo empilhado pelo que mais pesa',
+  await slideVideo({ n: '6', secao: 'Enxergar o todo', video: 'v5', dur: dur('v5'), titulo: 'Cada ciclo empilhado pelo que mais pesa',
     pontos: ['Ciclos do Boticário e da Eudora lado a lado', 'Movimentos empilhados pelo equilíbrio GMV × exposição', 'A construção define a ordem, medalhas e hotspot'],
     alt: 'Vídeo: calendário dos ciclos C13 a C16 com os movimentos empilhados; troca entre equilíbrio, só GMV e só exposição; medalhas de ouro, prata e bronze.',
     notas: 'Vídeo 5 (≈1 min).\n\nNarração: o calendário mostra os ciclos do Boticário e da Eudora, que se sobrepõem. Em cada ciclo, os movimentos estão empilhados do mais importante para o menos importante, pelo equilíbrio entre GMV esperado e exposição. Dá para ver só pelo GMV ou só pela exposição. Na construção, defino a ordem e dou medalhas e o selo de hotspot, que ficam para todo mundo.' });
-  await slideVideo({ n: '6', secao: 'Enxergar o todo', num: 6, video: 'v6', dur: dur('v6'), titulo: 'O peso de cada movimento e móvel em cada ER',
+  await slideVideo({ n: '6', secao: 'Enxergar o todo', video: 'v6', dur: dur('v6'), titulo: 'O peso de cada movimento e móvel em cada ER',
     pontos: ['Mapa de calor: movimento × ER, em % ou em espaços', 'Os ícones mostram em que móveis cada movimento está', 'A régua do que conta como espaço em cada móvel'],
     alt: 'Vídeo: mapa de calor movimento × ER no Analytics, ordenado pela ER G; o clique em BOTIPROMO mostra o movimento na planta; legenda do que conta como espaço.',
     notas: 'Vídeo 6 (≈1 min).\n\nNarração: o mapa de calor mostra a fatia de cada movimento em cada ER — quanto mais escuro, maior. Os ícones mostram em que tipos de móvel o movimento está. Alterno entre % da ER e número de espaços, ordeno pela ER G e clico numa célula para ver na planta. Em "Sobre a análise", a régua do que conta como espaço em cada móvel.' });
-  await slideVideo({ n: '7', secao: 'Feito para durar', num: 7, video: 'v7', dur: dur('v7'), titulo: 'Um usuário novo aprende sozinho em 1 minuto',
+  await slideVideo({ n: '6', secao: 'Enxergar o todo', video: 'v11', dur: dur('v11'), titulo: 'Quantas lojas da rede cada movimento alcança',
+    pontos: ['Com o mouse no móvel: em quantas lojas ele está', 'Coluna "Na rede": o alcance de cada movimento', 'Vem de uma aba simples na planilha: móvel e lojas'],
+    alt: 'Vídeo: com a aba Inventario, o balão mostra em quantas lojas cada móvel está (1.000, 860, 540 e, na ER GG, 100 lojas); no Analytics, a coluna Na rede mostra o alcance de cada movimento.',
+    notas: 'Vídeo 8 (≈45 s).\n\nNarração: com a aba Inventario na planilha (em quantas lojas cada móvel existe), o app mostra o alcance real da estratégia. Passo o mouse na gôndola: presente em 1.000 lojas, 100% da rede. O totem está em 860; a pirâmide 2, em 540. Na ER GG, a gôndola 4 só existe em 100 lojas. No Analytics, a coluna Na rede mostra quantas lojas cada movimento alcança e quantos espaços ele soma na rede. É a ponte para a mensuração de resultado.\n\n[Os números do vídeo são de uma aba de exemplo: rede de 1.000 lojas. Com o inventário real, os números passam a ser os da rede.]' });
+  await slideVideo({ n: '7', secao: 'Feito para durar', video: 'v7', dur: dur('v7'), titulo: 'Um usuário novo aprende sozinho em 1 minuto',
     pontos: ['Boas-vindas na primeira visita, com um tour de 9 passos', 'Cada parte da tela explicada em uma frase', 'Pode ser revisto a qualquer hora pela engrenagem'],
     alt: 'Vídeo: tour guiado do app destacando ciclo, plantas, planta, marcas, Comunicações ER, Analytics, Calendário, Baixar PNG e configurações.',
     notas: 'Vídeo 7 (≈45 s; a seção "Feito para durar" continua no próximo slide).\n\nNarração: na primeira vez, o app oferece um tour rápido, que destaca cada parte da tela com uma frase. Quem chega no time aprende sozinho, sem treinamento. Dá para rever pela engrenagem.' });
-  await slideVideo({ n: '7', secao: 'Feito para durar', num: 8, video: 'v9', dur: dur('v9'), titulo: 'A loja mudou? A planta muda no próprio app',
+  await slideVideo({ n: '7', secao: 'Feito para durar', video: 'v9', dur: dur('v9'), titulo: 'A loja mudou? A planta muda no próprio app',
     pontos: ['A ER cresce na hora: largura e fundo da loja', 'Móveis novos pela paleta, arrastados até o lugar', 'Salvo sozinho: a nova planta já vale para os ciclos'],
     fala: 'É editável e acompanha as mudanças de estratégia.',
     alt: 'Vídeo: no Construir loja, a ER P passa de 12 × 10 m para 16 × 13 m; uma gôndola, uma pirâmide e uma mesa destaque são adicionadas e levadas para a área nova; o PDV móvel e a pirâmide 2 mudam de lugar; o layout é salvo e a ER P aparece com a loja nova.',
     notas: 'Vídeo 8 (≈45 s).\n\nNarração: este é o Construir loja, o editor da planta, no modo desenvolvedor. Aumento a ER P de 12 por 10 metros para 16 por 13, e a loja cresce na hora. Pela paleta, adiciono uma gôndola, uma pirâmide e uma mesa destaque, e arrasto cada uma para a área nova. Também mudo de lugar o PDV móvel e uma pirâmide que já estavam lá. Tudo é salvo sozinho; ao fechar, a ER P já aparece com a loja nova, pronta para receber a estratégia do ciclo.\n\nFala: é editável e acompanha as mudanças de estratégia. O layout das lojas, as regras entre as ERs e os tipos de movimento mudam no próprio app ou na planilha, sem programar e sem depender de TI.' });
-  await slideVideo({ n: '8', secao: 'Facilidades', num: 9, video: 'v8', dur: dur('v8'), titulo: 'Pronto para apresentar e compartilhar',
+  await slideVideo({ n: '8', secao: 'Facilidades', video: 'v8', dur: dur('v8'), titulo: 'Pronto para apresentar e compartilhar',
     pontos: ['Modo apresentação: só a planta, as setas trocam a ER', 'PNG ou slide 16:9 em alta resolução, num clique', 'Modo noturno para a tela inteira'],
     alt: 'Vídeo: modo apresentação com troca de ER pelas setas, download do slide em PNG e modo noturno.',
     notas: 'Vídeo 9 (1 min).\n\nNarração: no modo apresentação, só a planta aparece e as setas trocam a ER. O Baixar PNG gera o slide completo em alta resolução, pronto para a apresentação. E o modo noturno deixa todo o app escuro.' });

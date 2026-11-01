@@ -165,7 +165,7 @@ class Gravador {
 
   /** Move o mouse em curva suave até (x, y), registrando cada passo. */
   async mover(x, y, dur) {
-    const d = dur || Math.min(0.9, 0.35 + Math.hypot(x - this.pos.x, y - this.pos.y) / 1600);
+    const d = dur || Math.min(0.9, 0.35 + Math.hypot(x - this.pos.x, y - this.pos.y) / 1600) * (this.ritmo || 1);
     const passos = Math.max(8, Math.round(d * 40));
     const x0 = this.pos.x;
     const y0 = this.pos.y;
