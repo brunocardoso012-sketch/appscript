@@ -21,7 +21,7 @@ Os dados são de demonstração (`gravacao/semente.js`): os exemplos do app reno
 
 ## Deck
 
-`deck/build.js` gera dois arquivos com os mesmos 18 slides e as notas do apresentador (a fala e o tempo de cada parte do roteiro):
+`deck/build.js` gera dois arquivos com os mesmos 18 slides, todos no fundo escuro da capa, e as notas do apresentador (a fala e o tempo de cada parte do roteiro). Cada slide de vídeo traz no título o resumo dos ganhos e, à esquerda, três métricas de resultado (horas de trabalho, venda por espaço, mensuração e velocidade de reação). **As métricas são sugestões**, marcadas no rodapé do slide (*Métricas sugeridas: substituir pelos números reais*) e repetidas nas notas: troque pelos números reais nos campos `ganhos` de cada `slideVideo` (e nos slides do problema, da solução, dos resultados e do fechamento) e gere de novo. Os dois arquivos:
 
 - **`Plano de Varejo - Google Apresentacoes.pptx`**: os vídeos entram como **GIF animado** (960 px, 8 qps, para o arquivo ficar abaixo dos 100 MB que o Google aceita converter), que tocam sozinhos e em loop. O Google Apresentações descarta vídeo embutido num `.pptx`, mas mantém o GIF animado.
 - **`Plano de Varejo - PowerPoint (MP4).pptx`**: os vídeos em MP4 (1080p) embutidos, para o PowerPoint ou o Keynote.
