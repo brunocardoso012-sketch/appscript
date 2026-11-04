@@ -155,95 +155,98 @@ function runs(texto, base) {
     s.addNotes('O problema vs a solução (1 min).\n\nAntes: a construção da estratégia de exposição e das análises simples custava cerca de 31 horas por ciclo, em vários arquivos descentralizados, difíceis de atualizar no ritmo da estratégia e sem mensuração de resultados. O resultado era espaço decidido com poucos dados, horas em formatação e reação lenta.\n\nAgora: com o plano de varejo automatizado, a construção da estratégia leva cerca de 4 horas, 87% menos, e habilita análises aprofundadas de espaço.\n\nO gráfico abre as 31 horas pelas etapas dos próximos slides: ~5h de estratégia macro, ~10h traduzindo o PPT para planilhas e ~12h a 16h de briefing dos móveis (16h no gráfico, para fechar as 31h). [É um gráfico nativo: os números podem ser editados direto nele.]\n\nOs próximos slides mostram cada problema ao lado da solução dele.');
   }
 
-  // 4–9. Problema vs solução, um par por slide -------------------------------------
-  /** Ilustração do retrabalho: o ciclo monta → revisa → acha erro → corrige e reenvia. */
+  // 4–9. Problema vs solução: os dois à esquerda (menos da metade do slide), o app funcionando à direita ----
+  /** Mini ilustração do retrabalho: monta → revisa → acha o erro → corrige e reenvia, a cada ciclo. */
   async function retrabalho(s, c) {
-    const pw = 2.05, ph = 0.55;
-    const pos = [[c.x + 0.15, c.y + 0.2], [c.x + c.w - pw - 0.15, c.y + 0.2], [c.x + c.w - pw - 0.15, c.y + c.h - ph - 0.2], [c.x + 0.15, c.y + c.h - ph - 0.2]];
     const nomes = ['Monta no PPT', 'Revisa', 'Acha o erro', 'Corrige e reenvia'];
-    pos.forEach(([x, y], i) => {
-      s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w: pw, h: ph, rectRadius: 0.27, fill: { color: '3A2A33' }, line: { color: T.problema, width: 1 } });
-      txt(s, nomes[i], { x, y, w: pw, h: ph, fontSize: 13, bold: true, color: T.claro, align: 'center', valign: 'middle' });
+    const ph = 0.34, passo = (c.h - ph) / 3;
+    nomes.forEach((n, i) => {
+      const y = c.y + i * passo;
+      s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: c.x, y, w: c.w, h: ph, rectRadius: 0.17, fill: { color: '3A2A33' }, line: { color: T.problema, width: 1 } });
+      txt(s, n, { x: c.x, y, w: c.w, h: ph, fontSize: 11, bold: true, color: T.claro, align: 'center', valign: 'middle' });
+      if (i < 3) s.addShape(pres.shapes.LINE, { x: c.x + c.w / 2, y: y + ph + 0.03, w: 0, h: passo - ph - 0.06, line: { color: T.problema, width: 1.5, endArrowType: 'triangle' } });
     });
-    const seta = { color: T.problema, width: 1.75, endArrowType: 'triangle' };
-    const [a, b, d, e] = pos;
-    s.addShape(pres.shapes.LINE, { x: a[0] + pw + 0.1, y: a[1] + ph / 2, w: b[0] - a[0] - pw - 0.2, h: 0, line: Object.assign({}, seta) });
-    s.addShape(pres.shapes.LINE, { x: b[0] + pw / 2, y: b[1] + ph + 0.08, w: 0, h: d[1] - b[1] - ph - 0.16, line: Object.assign({}, seta) });
-    s.addShape(pres.shapes.LINE, { x: e[0] + pw + 0.1, y: d[1] + ph / 2, w: d[0] - e[0] - pw - 0.2, h: 0, line: { color: T.problema, width: 1.75, beginArrowType: 'triangle' } });
-    s.addShape(pres.shapes.LINE, { x: a[0] + pw / 2, y: a[1] + ph + 0.08, w: 0, h: e[1] - a[1] - ph - 0.16, line: { color: T.problema, width: 1.75, beginArrowType: 'triangle' } });
-    await circuloIcone(s, 'LuRefreshCw', c.x + c.w / 2 - 0.4, c.y + c.h / 2 - 0.5, 0.8, T.problemaFundo, T.problema);
-    txt(s, 'a cada ciclo', { x: c.x + c.w / 2 - 1, y: c.y + c.h / 2 + 0.35, w: 2, h: 0.3, fontSize: 12, italic: true, color: T.suave, align: 'center' });
+    s.addImage({ altText: 'Ícone', data: await icone('LuRefreshCw', T.problema), x: c.x + c.w - 0.02, y: c.y + c.h / 2 - 0.16, w: 0.32, h: 0.32 });
   }
-  /** Ilustração do PPT traduzido à mão para planilha. */
+  /** Mini ilustração do PPT digitado à mão na planilha. */
   async function pptParaSheets(s, c) {
-    const t = 1.35, yb = c.y + (c.h - t) / 2 - 0.15;
-    const caixa = async (x, ic, cor, rotulo) => {
-      s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: yb, w: t, h: t, rectRadius: 0.14, fill: { color: T.ink3 }, line: { color: T.linha, width: 1 } });
-      s.addImage({ altText: 'Ícone', data: await icone(ic, cor), x: x + 0.38, y: yb + 0.3, w: 0.6, h: 0.6 });
-      txt(s, rotulo, { x: x - 0.3, y: yb + t + 0.1, w: t + 0.6, h: 0.3, fontSize: 12, bold: true, color: T.claro, align: 'center' });
+    const t = 0.62;
+    const caixa = async (y, ic, cor, rotulo) => {
+      s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: c.x, y, w: t, h: t, rectRadius: 0.1, fill: { color: T.ink3 }, line: { color: T.linha, width: 1 } });
+      s.addImage({ altText: 'Ícone', data: await icone(ic, cor), x: c.x + 0.14, y: y + 0.14, w: t - 0.28, h: t - 0.28 });
+      txt(s, rotulo, { x: c.x + t + 0.12, y, w: c.w - t - 0.12, h: t, fontSize: 11, bold: true, color: T.claro, valign: 'middle' });
     };
-    await caixa(c.x + 0.25, 'LuPresentation', 'F5B83D', 'Plano no PPT');
-    await caixa(c.x + c.w - t - 0.25, 'LuSheet', T.solucao, 'Planilha');
-    const x1 = c.x + 0.25 + t + 0.15, x2 = c.x + c.w - t - 0.4;
-    s.addShape(pres.shapes.LINE, { x: x1, y: yb + t / 2, w: x2 - x1, h: 0, line: { color: T.problema, width: 2, dashType: 'dash', endArrowType: 'triangle' } });
-    await circuloIcone(s, 'LuKeyboard', (x1 + x2) / 2 - 0.3, yb + t / 2 - 0.85, 0.6, T.problemaFundo, T.problema);
-    txt(s, '~10h digitando à mão', { x: x1, y: yb + t / 2 + 0.12, w: x2 - x1, h: 0.3, fontSize: 12, bold: true, color: T.problema, align: 'center' });
-    txt(s, '…só para chegar a análises simples', { x: c.x, y: c.y + c.h - 0.35, w: c.w, h: 0.3, fontSize: 12, italic: true, color: T.suave, align: 'center' });
+    await caixa(c.y, 'LuPresentation', 'F5B83D', 'Plano no PPT');
+    await caixa(c.y + c.h - t, 'LuSheet', T.solucao, 'Planilha');
+    s.addShape(pres.shapes.LINE, { x: c.x + t / 2, y: c.y + t + 0.06, w: 0, h: c.h - 2 * t - 0.12, line: { color: T.problema, width: 2, dashType: 'dash', endArrowType: 'triangle' } });
+    txt(s, '~10h digitando à mão', { x: c.x + t / 2 + 0.15, y: c.y + c.h / 2 - 0.25, w: c.w - t / 2 - 0.1, h: 0.5, fontSize: 11, bold: true, color: T.problema, valign: 'middle' });
   }
-  /** Clipe curto da solução (GIF no Google Apresentações, MP4 no PowerPoint). */
-  async function clipe(s, nome, c, alt) {
-    const vw = Math.min(c.w, c.h * 16 / 9), vh = vw * 9 / 16;
-    const x = c.x + (c.w - vw) / 2, y = c.y + (c.h - vh) / 2;
-    s.addShape(pres.shapes.RECTANGLE, { x: x - 0.04, y: y - 0.04, w: vw + 0.08, h: vh + 0.08, fill: { color: T.ink3 }, line: { color: T.solucao, width: 1 } });
+  /** Vídeo do app (GIF no Google Apresentações, MP4 no PowerPoint) na caixa x, y, w (16:9). */
+  function video(s, nome, x, y, w, alt) {
+    const h = w * 9 / 16;
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: x - 0.06, y: y - 0.06, w: w + 0.12, h: h + 0.12, rectRadius: 0.08, fill: { color: T.ink2 }, line: { color: T.solucao, width: 1.25 },
+      shadow: { type: 'outer', color: '000000', opacity: 0.4, blur: 12, offset: 3, angle: 90 } });
     if (COM_VIDEO) {
-      s.addMedia({ type: 'video', path: path.join(MIDIA, nome + '.mp4'), cover: 'data:image/png;base64,' + fs.readFileSync(path.join(MIDIA, nome + '-capa.png')).toString('base64'), x, y, w: vw, h: vh });
+      s.addMedia({ type: 'video', path: path.join(MIDIA, nome + '.mp4'), cover: 'data:image/png;base64,' + fs.readFileSync(path.join(MIDIA, nome + '-capa.png')).toString('base64'), x, y, w, h });
     } else {
-      s.addImage({ path: path.join(MIDIA, nome + '.gif'), x, y, w: vw, h: vh, altText: alt });
+      s.addImage({ path: path.join(MIDIA, nome + '.gif'), x, y, w, h, altText: alt });
     }
+    return h;
   }
   const pares = [
     { p: ['LuHand', 'Toda manual', '**~5h de dedicação** para construção de estratégia macro  **por ciclo**', 'antes-ppt.png', 'Print de um plano de varejo antigo, montado à mão no PPT'],
-      s: ['LuZap', 'Maior velocidade', '**Trabalho de formatação eliminado** tornado construção de estratégia mais eficaz', 'depois-app.png', 'O app com a planta da ER e o painel de construção'],
-      notas: 'Antes, a estratégia macro de cada ciclo levava cerca de 5 horas de dedicação, montada à mão no PPT. Agora, o trabalho de formatação foi eliminado: a estratégia é montada direto na planta do app.' },
+      s: ['LuZap', 'Maior velocidade', '**Trabalho de formatação eliminado** tornado construção de estratégia mais eficaz'],
+      v: ['clip-montar', 'Montar um móvel: a planta pinta e os números da ER se atualizam na hora.', 'Clipe: na planta em branco, a gôndola é preenchida espaço por espaço e cada espaço ganha a cor da marca.'],
+      notas: 'Antes, a estratégia macro de cada ciclo levava cerca de 5 horas de dedicação, montada à mão no PPT. Agora, o trabalho de formatação foi eliminado: no vídeo, a gôndola é montada direto na planta, e cada espaço ganha a cor da marca na hora.' },
     { p: ['LuTriangleAlert', 'Sujeita a erros', 'Retrabalho em diversas etapas para ajustes de erros do processo', retrabalho],
-      s: ['LuShieldCheck', 'Redução de erros', 'Automação reduz erros do processo e permite análise de checagem em tempo real', { clipe: 'clip-checagem', alt: 'Clipe: os números da ER mostram 1 de 10 espaços preenchidos e os 9 vazios; um clique leva à pirâmide 1, que é preenchida, e a contagem sobe para 2 de 10.' }],
-      notas: 'Antes, o processo manual gerava retrabalho em várias etapas: montar no PPT, revisar, achar o erro, corrigir e reenviar, a cada ciclo. Agora, a automação reduz os erros e a checagem acontece em tempo real: no clipe, o app mostra quantos espaços estão preenchidos e quais estão vazios; um clique leva ao espaço vazio e, ao preencher, a contagem sobe na hora (de 1 para 2 de 10).' },
+      s: ['LuShieldCheck', 'Redução de erros', 'Automação reduz erros do processo e permite análise de checagem em tempo real'],
+      v: ['clip-checagem', 'Checagem em tempo real: os espaços vazios aparecem e a contagem sobe ao preencher.', 'Clipe: os números da ER mostram 1 de 10 espaços preenchidos e os 9 vazios; um clique leva à pirâmide 1, que é preenchida, e a contagem sobe para 2 de 10.'],
+      notas: 'Antes, o processo manual gerava retrabalho em várias etapas: montar no PPT, revisar, achar o erro, corrigir e reenviar, a cada ciclo. Agora, a automação reduz os erros e a checagem acontece em tempo real: no vídeo, o app mostra quais espaços estão vazios; um clique leva ao espaço e, ao preencher, a contagem sobe na hora (de 1 para 2 de 10).' },
     { p: ['LuEyeOff', 'Sem tracking\nde dados', '**~10h por ciclo** traduzindo **PPT para sheets** para construção de **análises simples**', pptParaSheets],
-      s: ['LuEye', 'Geração de dados', 'Construção de estratégia **acontece no app e gera planilha que viabiliza  análises** de espaço', { clipe: 'clip-dados', alt: 'Clipe: o Analytics abre com o mapa de calor do espaço de cada movimento em cada ER, já calculado.' }],
-      notas: 'Antes, eram cerca de 10 horas por ciclo digitando o PPT numa planilha, só para chegar a análises simples. Agora, a estratégia é construída no app e já gera a planilha que viabiliza as análises: no clipe, o Analytics abre com o espaço de cada movimento em cada ER, sem digitar nada.' },
+      s: ['LuEye', 'Geração de dados', 'Construção de estratégia **acontece no app e gera planilha que viabiliza  análises** de espaço'],
+      v: ['clip-dados', 'O Analytics abre com o espaço de cada movimento em cada ER, sem digitar nada.', 'Clipe: o Analytics abre com o mapa de calor do espaço de cada movimento em cada ER, já calculado.'],
+      notas: 'Antes, eram cerca de 10 horas por ciclo digitando o PPT numa planilha, só para chegar a análises simples. Agora, a estratégia é construída no app e já gera a planilha que viabiliza as análises: no vídeo, o Analytics abre com o espaço de cada movimento em cada ER, sem digitar nada.' },
     { p: ['LuCircleHelp', 'xx', 'xx'],
       s: ['LuCircleHelp', 'xx', 'xx'],
-      notas: '[Par ainda sem texto no original (xx). Sugestão: problema "Reação lenta": uma mudança de estratégia levava até um ciclo para chegar a todas as ERs, refazendo os arquivos à mão; solução "Reação no mesmo dia": regras, plantas e espaços ajustados no app valem na hora para todas as ERs.]' },
+      v: ['clip-loja', 'A loja mudou: a planta é ajustada em minutos, no próprio app.', 'Clipe: no Construir loja, a ER P cresce de 12 × 10 m para 16 × 13 m e uma gôndola nova é levada para a área nova.'],
+      notas: '[Par ainda sem texto no original (xx). Sugestão: problema "Reação lenta": uma mudança de estratégia levava até um ciclo para chegar a todas as ERs, refazendo os arquivos à mão; solução "Reação no mesmo dia": regras, plantas e espaços ajustados no app valem na hora para todas as ERs. O vídeo sugerido mostra a loja sendo ajustada no Construir loja; se o par for outro, troque o vídeo.]' },
     { p: ['LuFiles', 'Estratégia\ndescentralizada', 'Um arquivo por ciclo, com **difícil rastreabilidade** dos movimentos', 'antes-arquivos.png', 'Um arquivo de plano de varejo por ciclo: C01, C02 e C03/2026'],
-      s: ['LuFileSpreadsheet', 'Estratégia e\nvisualização unificada', 'Um único arquivo para analisar, um único link para visualizar.', 'depois-arquivo.png', 'Plano de varejo em arquivo único'],
-      notas: 'Antes, cada ciclo era um arquivo, e rastrear os movimentos de um ciclo para o outro era difícil. Agora, um único arquivo guarda todos os ciclos para análise, e um único link mostra a estratégia para todo mundo.' },
+      s: ['LuFileSpreadsheet', 'Estratégia e\nvisualização unificada', 'Um único arquivo para analisar, um único link para visualizar.'],
+      v: ['clip-link', 'Todos os ciclos e ERs no mesmo lugar, e um só link para compartilhar.', 'Clipe: o ciclo muda de C13 para C14 e C15, a ER muda de ER G para ER P, e o Copiar link copia o endereço do que está na tela.'],
+      notas: 'Antes, cada ciclo era um arquivo, e rastrear os movimentos de um ciclo para o outro era difícil. Agora, um único arquivo guarda todos os ciclos: no vídeo, troco de ciclo e de ER no mesmo app, e o Copiar link gera um só link, que abre no mesmo ciclo, ER e filtro.' },
     { p: ['LuUnlink', 'Desconectada', '**~12h à 16h dedicadas à construção** de briefing dos móveis por ciclo', 'antes-conexao.png', 'Estratégia GB, briefing de categorias, grade VD e estratégia de combos ligados à mão ao briefing de exposição'],
-      s: ['LuWorkflow', 'Conexão e automação', '**Redução de 80% do tempo de busca por dados** para construção de estratégia', 'depois-conexao.png', 'As mesmas fontes ligadas automaticamente ao briefing de exposição'],
-      notas: 'Antes, o briefing dos móveis levava de 12 a 16 horas por ciclo, juntando à mão a estratégia GB, o briefing de categorias, a grade VD e a estratégia de combos. Agora, essas fontes estão conectadas ao briefing de exposição, e o tempo de busca por dados cai 80%.' },
+      s: ['LuWorkflow', 'Conexão e automação', '**Redução de 80% do tempo de busca por dados** para construção de estratégia'],
+      v: ['clip-briefing', 'O briefing de exposição sai em PDF, com o código e os SKUs de cada quadrado.', 'Clipe: o Briefing (PDF) é gerado e a página da gôndola mostra o planograma com os códigos e a tabela de produtos.'],
+      notas: 'Antes, o briefing dos móveis levava de 12 a 16 horas por ciclo, juntando à mão a estratégia GB, o briefing de categorias, a grade VD e a estratégia de combos. Agora, essas fontes estão conectadas, e o tempo de busca por dados cai 80%: no vídeo, o briefing de exposição sai pronto em PDF.' },
   ];
+  const CW = 5.25; // largura da coluna do problema e da solução: menos da metade do slide (13,33")
   for (let i = 0; i < pares.length; i++) {
     const par = pares[i];
     const s = novoSlide();
     secao(s, 'O problema  vs  a solução  ·  ' + (i + 1) + '/' + pares.length);
-    const comVisual = !!par.p[3];
-    const y0 = comVisual ? 1.1 : 2.3, h = comVisual ? 5.85 : 3.3;
-    const lados = [
-      { d: par.p, x: 0.6, rotulo: 'O PROBLEMA', cor: T.problema, fundo: T.problemaFundo },
-      { d: par.s, x: 6.98, rotulo: 'A SOLUÇÃO', cor: T.solucao, fundo: T.solucaoFundo },
+    const cartoes = [
+      { d: par.p, y: 1.05, h: 2.85, rotulo: 'O PROBLEMA', cor: T.problema, fundo: T.problemaFundo },
+      { d: par.s, y: 4.1, h: 2.85, rotulo: 'A SOLUÇÃO', cor: T.solucao, fundo: T.solucaoFundo },
     ];
-    for (const l of lados) {
-      const [ic, titulo, texto, visual, alt] = l.d;
-      cartao(s, l.x, y0, 5.75, h, T.ink2, l.fundo);
-      txt(s, l.rotulo, { x: l.x + 0.35, y: y0 + 0.3, w: 5, h: 0.3, fontSize: 13, bold: true, charSpacing: 3, color: l.cor });
-      await circuloIcone(s, ic, l.x + 0.35, y0 + 0.8, 0.8, l.fundo, l.cor);
-      txt(s, titulo, { x: l.x + 1.35, y: y0 + 0.75, w: 4.1, h: 0.9, fontSize: 24, bold: true, color: T.texto, valign: 'middle' });
-      txt(s, runs(texto, { color: T.claro }), { x: l.x + 0.35, y: y0 + 1.85, w: 5.05, h: 1.0, fontSize: 17 });
-      const area = { x: l.x + 0.35, y: y0 + 2.95, w: 5.05, h: h - 3.25 };
+    for (const c of cartoes) {
+      const [ic, titulo, texto, visual, alt] = c.d;
+      const x = 0.6, larg = visual ? 2.85 : CW - 0.6;
+      cartao(s, x, c.y, CW, c.h, T.ink2, c.fundo);
+      txt(s, c.rotulo, { x: x + 0.3, y: c.y + 0.22, w: 3, h: 0.28, fontSize: 12, bold: true, charSpacing: 3, color: c.cor });
+      await circuloIcone(s, ic, x + 0.3, c.y + 0.62, 0.6, c.fundo, c.cor);
+      txt(s, titulo, { x: x + 1.05, y: c.y + 0.57, w: larg - 0.75, h: 0.7, fontSize: 19, bold: true, color: T.texto, valign: 'middle' });
+      txt(s, runs(texto, { color: T.claro }), { x: x + 0.3, y: c.y + 1.45, w: larg, h: 1.25, fontSize: visual ? 13 : 15 });
+      const area = { x: x + 3.3, y: c.y + 0.55, w: CW - 3.55, h: c.h - 0.8 };
       if (typeof visual === 'string') await encaixar(s, path.join(RECORTES, visual), area, alt);
       else if (typeof visual === 'function') await visual(s, area);
-      else if (visual && visual.clipe) await clipe(s, visual.clipe, area, visual.alt);
     }
-    await circuloIcone(s, 'LuArrowRight', 6.42, y0 + h / 2 - 0.25, 0.5, T.ink3, T.branco);
+    await circuloIcone(s, 'LuArrowDown', 0.6 + CW / 2 - 0.2, 3.8, 0.4, T.ink3, T.branco);
+    // o app funcionando, em destaque
+    const [nome, legenda, alt] = par.v;
+    const vx = 6.15, vw = 6.6;
+    txt(s, 'O APP FUNCIONANDO', { x: vx, y: 1.3, w: vw, h: 0.3, fontSize: 12, bold: true, charSpacing: 3, color: T.solucao });
+    const vh = video(s, nome, vx, 1.72, vw, alt);
+    txt(s, legenda, { x: vx, y: 1.72 + vh + 0.2, w: vw, h: 0.6, fontSize: 15, color: T.claro });
     s.addNotes('Problema vs solução ' + (i + 1) + ' de ' + pares.length + ' (≈30 s).\n\n' + par.notas);
   }
 
