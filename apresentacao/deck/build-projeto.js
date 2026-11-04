@@ -92,6 +92,54 @@ function runs(texto, base) {
     s.addNotes('Abertura (10 s). Plano de Varejo ER automatizado: a estratégia de exposição construída, validada e medida no mesmo lugar.');
   }
 
+  // 2. O que é o Plano de Varejo (o documento) -------------------------------------
+  {
+    const s = novoSlide();
+    secao(s, 'Contexto');
+    txt(s, 'O que é o Plano de Varejo', { x: 0.6, y: 0.75, w: 12.1, h: 0.65, fontSize: 30, bold: true, color: T.texto, valign: 'middle' });
+    txt(s, runs('O documento que define, **a cada ciclo**, como o espaço de exposição das lojas é usado: **qual marca e qual movimento vai em cada móvel**, em cada modelo de loja (ER).', { color: T.claro }),
+      { x: 0.6, y: 1.45, w: 12.1, h: 0.7, fontSize: 16 });
+    // o que ele define
+    const itens = [
+      ['LuMapPin', 'Onde', 'Cada espaço de cada móvel (gôndolas, pirâmides, mesas, totens, paredes) nos 4 modelos de loja: ER P, M, G e GG.', T.bot],
+      ['LuTag', 'O quê', 'A marca (BOT, EUD, QDB, O.U.i, MM) e o movimento de cada espaço: lançamento, promoção, liquidação ou baseline.', T.eud],
+      ['LuCalendarDays', 'Quando', 'Um plano por ciclo, acompanhando o calendário do Boticário e o da Eudora.', T.qdb],
+      ['LuMegaphone', 'Como comunicar', 'TV e rádio, destaques de cada ER e os espaços fixos de cada marca.', T.mm],
+    ];
+    for (let i = 0; i < itens.length; i++) {
+      const [ic, t, d, cor] = itens[i];
+      const x = 0.6 + (i % 2) * 3.35, y = 2.35 + Math.floor(i / 2) * 1.62;
+      cartao(s, x, y, 3.2, 1.47);
+      await circuloIcone(s, ic, x + 0.22, y + 0.2, 0.48, cor, T.branco);
+      txt(s, t, { x: x + 0.82, y: y + 0.2, w: 2.25, h: 0.48, fontSize: 16, bold: true, color: T.texto, valign: 'middle' });
+      txt(s, d, { x: x + 0.22, y: y + 0.74, w: 2.8, h: 0.7, fontSize: 10.5, color: T.claro });
+    }
+    // um plano de verdade, como era montado
+    const img = path.join(RECORTES, 'antes-ppt.png');
+    const t = await tamanho(img);
+    const iw = 5.25, ih = iw * t.h / t.w;
+    s.addImage({ path: img, x: 7.48, y: 2.35, w: iw, h: ih, altText: 'Exemplo de plano de varejo de uma ER: a planta da loja com a marca e o movimento de cada móvel' });
+    txt(s, 'Exemplo: a planta de uma ER com a marca e o movimento de cada móvel', { x: 7.48, y: 2.35 + ih + 0.1, w: iw, h: 0.45, fontSize: 11, italic: true, color: T.suave });
+    // de onde vem e para onde vai
+    const fy = 5.72, fh = 1.25;
+    cartao(s, 0.6, fy, 12.13, fh);
+    txt(s, 'REÚNE', { x: 0.85, y: fy + 0.15, w: 4, h: 0.25, fontSize: 11, bold: true, charSpacing: 3, color: T.suave });
+    const fontes = ['Estratégia GB', 'Briefing de categorias', 'Grade VD', 'Estratégia de combos'];
+    fontes.forEach((f, i) => {
+      const x = 0.85 + (i % 2) * 2.2, y = fy + 0.45 + Math.floor(i / 2) * 0.38;
+      s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w: 2.08, h: 0.32, rectRadius: 0.16, fill: { color: T.ink3 }, line: { color: T.linha, width: 0.75 } });
+      txt(s, f, { x, y, w: 2.08, h: 0.32, fontSize: 10.5, color: T.claro, align: 'center', valign: 'middle' });
+    });
+    s.addImage({ altText: 'Ícone', data: await icone('LuArrowRight', T.suave), x: 5.4, y: fy + fh / 2 - 0.18, w: 0.36, h: 0.36 });
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 5.95, y: fy + 0.3, w: 2.55, h: 0.65, rectRadius: 0.1, fill: { color: T.bot }, line: { color: T.bot } });
+    txt(s, 'PLANO DE VAREJO\npor ciclo e por ER', { x: 5.95, y: fy + 0.3, w: 2.55, h: 0.65, fontSize: 12, bold: true, color: T.branco, align: 'center', valign: 'middle' });
+    s.addImage({ altText: 'Ícone', data: await icone('LuArrowRight', T.suave), x: 8.7, y: fy + fh / 2 - 0.18, w: 0.36, h: 0.36 });
+    txt(s, 'ORIENTA', { x: 9.25, y: fy + 0.15, w: 3.3, h: 0.25, fontSize: 11, bold: true, charSpacing: 3, color: T.suave });
+    txt(s, [{ text: 'A exposição em cada loja da rede', options: { bullet: true, breakLine: true } }, { text: 'O briefing dos planogramas', options: { bullet: true } }],
+      { x: 9.25, y: fy + 0.45, w: 3.35, h: 0.72, fontSize: 12, color: T.claro, paraSpaceAfter: 2 });
+    s.addNotes('O que é o Plano de Varejo (1 min).\n\nAntes de falar da automação, o que é o documento: o plano de varejo define, a cada ciclo, como o espaço de exposição das lojas é usado.\n- Onde: cada espaço de cada móvel (gôndolas, pirâmides, mesas destaque, totens, paredes), em cada modelo de loja, as ERs P, M, G e GG.\n- O quê: a marca e o movimento de cada espaço (lançamento, promoção, liquidação, baseline).\n- Quando: um plano por ciclo, seguindo o calendário do Boticário e o da Eudora.\n- Como comunicar: TV e rádio, destaques de cada ER e os espaços fixos de cada marca.\n\nEle reúne a estratégia GB, o briefing de categorias, a grade VD e a estratégia de combos, e orienta a exposição em cada loja da rede e o briefing dos planogramas.\n\n[Ajuste os itens ao vocabulário do time, se algum nome for diferente.]');
+  }
+
   // 2. Antes × depois: espaço para as imagens ---------------------------------------
   {
     const s = novoSlide();
