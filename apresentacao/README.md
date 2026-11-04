@@ -26,6 +26,17 @@ Os dados são de demonstração (`gravacao/semente.js`): os exemplos do app reno
 - **`Plano de Varejo - Google Apresentacoes.pptx`**: os vídeos entram como **GIF animado** (960 px, 8 qps, para o arquivo ficar abaixo dos 100 MB que o Google aceita converter), que tocam sozinhos e em loop. O Google Apresentações descarta vídeo embutido num `.pptx`, mas mantém o GIF animado.
 - **`Plano de Varejo - PowerPoint (MP4).pptx`**: os vídeos em MP4 (1080p) embutidos, para o PowerPoint ou o Keynote.
 
+### Versão "Apresentação Projeto" (editada no Google Apresentações)
+
+`deck/build-projeto.js` refaz a versão editada no Google Apresentações (o PDF *Apresentação Projeto*): capa, um slide de abertura *problema vs solução* (~31h → ~4h), seis slides com cada problema ao lado da solução dele (textos do original, sem mudança), os slides de vídeo do *Processo simplificado end-to-end* em diante com os ganhos reescritos (de número e de qualidade) e o *Já em uso*. Os visuais que só existem no original (a planta da capa, o PPT antigo, os arquivos por ciclo e os diagramas de conexão) saem do PDF com `python3 recortes.py "Apresentação Projeto.pdf"`, em `media-projeto/` (fora do git).
+
+```bash
+cd apresentacao/deck
+python3 recortes.py "Apresentação Projeto.pdf"
+node build-projeto.js "Apresentacao Projeto - Google Apresentacoes.pptx"
+node build-projeto.js "Apresentacao Projeto - PowerPoint (MP4).pptx" mp4
+```
+
 ### Como abrir no Google Apresentações
 
 1. No Google Drive: *Novo › Upload de arquivo* e escolha `Plano de Varejo - Google Apresentacoes.pptx`.

@@ -8,3 +8,5 @@ deck/media/duracoes.json
 deck/node_modules/
 deck/package-lock.json
 deck/*.pptx
+deck/media-projeto/
+deck/__pycache__/
