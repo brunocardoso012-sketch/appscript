@@ -28,11 +28,12 @@ Os dados são de demonstração (`gravacao/semente.js`): os exemplos do app reno
 
 ### Versão "Apresentação Projeto" (editada no Google Apresentações)
 
-`deck/build-projeto.js` refaz a versão editada no Google Apresentações (o PDF *Apresentação Projeto*): capa, um slide de abertura *problema vs solução* (~31h → ~4h), seis slides com cada problema ao lado da solução dele (textos do original, sem mudança), os slides de vídeo do *Processo simplificado end-to-end* em diante com os ganhos reescritos (de número e de qualidade) e o *Já em uso*. Os visuais que só existem no original (a planta da capa, o PPT antigo, os arquivos por ciclo e os diagramas de conexão) saem do PDF com `python3 recortes.py "Apresentação Projeto.pdf"`, em `media-projeto/` (fora do git).
+`deck/build-projeto.js` refaz a versão editada no Google Apresentações (o PDF *Apresentação Projeto*): capa, um slide *antes × depois* com duas molduras para as imagens, um slide de abertura *problema vs solução* (~31h → ~4h, com o gráfico nativo das horas por etapa), seis slides com cada problema ao lado da solução dele (textos do original, sem mudança), os slides de vídeo do *Processo simplificado end-to-end* em diante com os ganhos reescritos (de número e de qualidade) e o *Já em uso*. Os visuais que só existem no original (a planta da capa, o PPT antigo, os arquivos por ciclo e os diagramas de conexão) saem do PDF com `python3 recortes.py "Apresentação Projeto.pdf"`, em `media-projeto/` (fora do git). Nos pares *Sujeita a erros* e *Sem tracking de dados*, o lado do problema tem uma ilustração (o ciclo de retrabalho; o PPT digitado à mão na planilha) e o da solução, um clipe curto: a checagem em tempo real (`gravacao/v13.js`) e o Analytics abrindo (trecho do v6), gerados com `./clipes.sh`. O slide final tem três quadros: *Já em uso*, *O que já sabemos* (o resumo da apresentação) e *Próximos passos*.
 
 ```bash
 cd apresentacao/deck
 python3 recortes.py "Apresentação Projeto.pdf"
+./clipes.sh
 node build-projeto.js "Apresentacao Projeto - Google Apresentacoes.pptx"
 node build-projeto.js "Apresentacao Projeto - PowerPoint (MP4).pptx" mp4
 ```
